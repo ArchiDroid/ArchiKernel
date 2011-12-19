@@ -1880,11 +1880,16 @@ static ssize_t vsync_show_event(struct device *dev,
 int mdp_ppp_pipe_wait(void)
 {
 	int ret = 1;
+	boolean wait;
+	unsigned long flag;
 
 	/* wait 5 seconds for the operation to complete before declaring
 	the MDP hung */
+	spin_lock_irqsave(&mdp_spin_lock, flag);
+	wait = mdp_ppp_waiting;
+	spin_unlock_irqrestore(&mdp_spin_lock, flag);
 
-	if (mdp_ppp_waiting == TRUE) {
+	if (wait == TRUE) {
 		ret = wait_for_completion_interruptible_timeout(&mdp_ppp_comp,
 								5 * HZ);
 
@@ -1960,6 +1965,7 @@ void mdp_disable_irq_nosync(uint32 term)
 
 void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 {
+	unsigned long flag;
 	/* complete all the writes before starting */
 	wmb();
 
@@ -1973,7 +1979,9 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 
 		mdp_enable_irq(term);
 		INIT_COMPLETION(mdp_ppp_comp);
+		spin_lock_irqsave(&mdp_spin_lock, flag);
 		mdp_ppp_waiting = TRUE;
+		spin_unlock_irqrestore(&mdp_spin_lock, flag);
 		outpdw(MDP_BASE + 0x30, 0x1000);
 		wait_for_completion_killable(&mdp_ppp_comp);
 		mdp_disable_irq(term);
@@ -2321,12 +2329,14 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 {
 	uint32 mdp_interrupt = 0;
 	struct mdp_dma_data *dma;
+	unsigned long flag;
 #ifndef CONFIG_FB_MSM_MDP22
 	struct mdp_hist_mgmt *mgmt = NULL;
 	char *base_addr;
 	int i, ret;
 #endif
 	int vsync_isr;
+
 	/* Ensure all the register write are complete */
 	mb();
 
@@ -2489,10 +2499,12 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 			MDP_OUTP(MDP_BASE + 0x00100, 0xFFFF);
 #endif
 			mdp_pipe_ctrl(MDP_PPP_BLOCK, MDP_BLOCK_POWER_OFF, TRUE);
+			spin_lock_irqsave(&mdp_spin_lock, flag);
 			if (mdp_ppp_waiting) {
 				mdp_ppp_waiting = FALSE;
 				complete(&mdp_ppp_comp);
 			}
+			spin_unlock_irqrestore(&mdp_spin_lock, flag);
 		}
 	} while (1);
 
@@ -2670,6 +2682,26 @@ static int mdp_off(struct platform_device *pdev)
 	pr_debug("%s:-\n", __func__);
 	return ret;
 }
+
+#ifdef CONFIG_FB_MSM_MDP303
+unsigned is_mdp4_hw_reset(void)
+{
+        return 0;
+}
+void mdp4_hw_init(void)
+{
+        /* empty */
+}
+
+#endif
+static DEVICE_ATTR(vsync_event, S_IRUGO, vsync_show_event, NULL);
+static struct attribute *vsync_fs_attrs[] = {
+	&dev_attr_vsync_event.attr,
+	NULL,
+};
+static struct attribute_group vsync_fs_attr_group = {
+	.attrs = vsync_fs_attrs,
+};
 
 static int mdp_on(struct platform_device *pdev)
 {
@@ -3456,14 +3488,6 @@ static void mdp_suspend_sub(void)
 }
 
 #endif
-static DEVICE_ATTR(vsync_event, S_IRUGO, vsync_show_event, NULL);
-static struct attribute *vsync_fs_attrs[] = {
-	&dev_attr_vsync_event.attr,
-	NULL,
-};
-static struct attribute_group vsync_fs_attr_group = {
-	.attrs = vsync_fs_attrs,
-};
 
 #if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND)
 static int mdp_suspend(struct platform_device *pdev, pm_message_t state)
