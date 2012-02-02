@@ -1067,7 +1067,7 @@ struct mdp_blit_req *req, struct file *p_src_file, struct file *p_dst_file)
 	if (iBuf->mdpImg.imgType == MDP_Y_CBCR_H2V2_ADRENO)
 		src0_ystride = ALIGN(src_width, 32) * inpBpp;
 	else
-	src0_ystride = src_width * inpBpp;
+		src0_ystride = src_width * inpBpp;
 
 	if (iBuf->mdpImg.imgType == MDP_Y_CBCR_H2V2_ADRENO)
 		src0_y1stride = 2 * ALIGN(src_width/2, 32);
@@ -1383,9 +1383,9 @@ int mdp_ppp_blit(struct fb_info *info, struct mdp_blit_req *req)
 				ALIGN((ALIGN(req->src.width, 32) *
 				ALIGN(req->src.height, 32)), 4096));
 	else
-	iBuf.mdpImg.cbcr_addr =
-	    (uint32 *) ((uint32) iBuf.mdpImg.bmy_addr +
-			req->src.width * req->src.height);
+		iBuf.mdpImg.cbcr_addr =
+			(uint32 *) ((uint32) iBuf.mdpImg.bmy_addr +
+				req->src.width * req->src.height);
 
 	iBuf.mdpImg.mdpOp = MDPOP_NOP;
 
