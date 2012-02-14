@@ -84,6 +84,8 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	struct msm_fb_data_type *mfd;
 	struct msm_panel_info *pinfo;
 
+	pr_debug("%s+:\n", __func__);
+
 	mfd = platform_get_drvdata(pdev);
 	pinfo = &mfd->panel_info;
 
@@ -93,25 +95,6 @@ static int mipi_dsi_off(struct platform_device *pdev)
 		down(&mfd->dma->mutex);
 
 	mdp4_overlay_dsi_state_set(ST_DSI_SUSPEND);
-
-	/*
-	 * Description: dsi clock is need to perform shutdown.
-	 * mdp4_dsi_cmd_dma_busy_wait() will enable dsi clock if disabled.
-	 * also, wait until dma (overlay and dmap) finish.
-	 */
-	if (mfd->panel_info.type == MIPI_CMD_PANEL) {
-		if (mdp_rev >= MDP_REV_41) {
-			mdp4_dsi_cmd_del_timer();
-			mdp4_dsi_cmd_dma_busy_wait(mfd);
-			mdp4_dsi_blt_dmap_busy_wait(mfd);
-			mipi_dsi_mdp_busy_wait(mfd);
-		} else {
-			mdp3_dsi_cmd_dma_busy_wait(mfd);
-		}
-	} else {
-		/* video mode, wait until fifo cleaned */
-		mipi_dsi_controller_cfg(0);
-	}
 
 	/*
 	 * Desctiption: change to DSI_CMD_MODE since it needed to
@@ -237,27 +220,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	pinfo = &mfd->panel_info;
 	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
 
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-	if(lglogo_firstboot)
-	{
-		printk(KERN_INFO "[DISPLAY]::%s\n",__func__);
-	        if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
-                	mipi_dsi_pdata->dsi_power_save(1);
-	
-		local_bh_disable();
-		lglogo_mipi_dsi_clk_enable();
-		local_bh_enable();
-	
-		if (mdp_rev >= MDP_REV_41)
-			mutex_lock(&mfd->dma->ov_mutex);
-		else
-			down(&mfd->dma->mutex);
-
-		ret = panel_next_on(pdev);
-	}
-	else
-#endif
-	{
+	pr_debug("%s+:\n", __func__);
 
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(1);
@@ -412,7 +375,6 @@ static int mipi_dsi_on(struct platform_device *pdev)
 			}
 			mipi_dsi_set_tear_on(mfd);
 		}
-	}
 	}
 
 #ifdef CONFIG_MSM_BUS_SCALING
