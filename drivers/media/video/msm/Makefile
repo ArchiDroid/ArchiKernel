@@ -59,3 +59,4 @@ obj-$(CONFIG_HI542) += hi542.o hi542_reg.o
 obj-$(CONFIG_MT9V113) += mt9v113.o mt9v113_reg.o
 # LGE_CHANGE_E : VGA Camera config
 
+obj-$(CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE) += msm_v4l2_video.o

@@ -3593,6 +3593,7 @@ int mdp4_v4l2_overlay_play(struct fb_info *info, struct mdp4_overlay_pipe *pipe,
 	 * TODO: incorporate v4l2 into vsycn driven mechanism
 	 */
 	if (ctrl->panel_mode & MDP4_PANEL_LCDC) {
+		mdp4_overlay_reg_flush(pipe, 1);
 		mdp4_overlay_lcdc_vsync_push(mfd, pipe);
 	} else {
 #ifdef CONFIG_FB_MSM_MIPI_DSI
