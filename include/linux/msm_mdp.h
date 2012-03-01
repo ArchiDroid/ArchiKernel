@@ -327,6 +327,36 @@ enum {
 	MDP_BLOCK_MAX,
 };
 
+/*
+mdp_histogram_start_req is used to provide the parameters for
+histogram start request
+*/
+
+struct mdp_histogram_start_req {
+	uint32_t block;
+	uint8_t frame_cnt;
+	uint8_t bit_mask;
+	uint8_t num_bins;
+};
+
+
+/*
+
+   mdp_histogram_data is used to return the histogram data, once
+   the histogram is done/stopped/cance
+
+ */
+
+
+struct mdp_histogram_data {
+	uint32_t block;
+	uint8_t bin_cnt;
+	uint32_t *c0;
+	uint32_t *c1;
+	uint32_t *c2;
+	uint32_t *extra_info;
+};
+
 struct mdp_pcc_coeff {
 	uint32_t c, r, g, b, rr, gg, bb, rg, gb, rb, rgb_0, rgb_1;
 };
