@@ -801,9 +801,10 @@ static int wfd_open(struct file *filp)
 		WFD_MSG_ERR("Failed to load video encoder firmware: %d\n", rc);
 		goto err_venc;
 	}
-	vmops.op_buffer_done = venc_op_buffer_done;
-	vmops.ip_buffer_done = venc_ip_buffer_done;
-	vmops.cbdata = filp;
+	enc_mops.op_buffer_done = venc_op_buffer_done;
+	enc_mops.ip_buffer_done = venc_ip_buffer_done;
+	enc_mops.cbdata = filp;
+	enc_mops.secure = wfd_dev->secure_device;
 	rc = v4l2_subdev_call(&wfd_dev->enc_sdev, core, ioctl, OPEN,
 				(void *)&vmops);
 	if (rc || !vmops.cookie) {
