@@ -582,7 +582,6 @@ static struct resource msm_fb_resources[] = {
 	}
 };
 
-#define PANEL_NAME_MAX_LEN	30
 #ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
 static struct resource msm_v4l2_video_overlay_resources[] = {
 	{
