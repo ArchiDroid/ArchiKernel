@@ -36,6 +36,7 @@
 #include "mdp4.h"
 
 u32 dsi_irq;
+u32 esc_byte_ratio;
 
 static boolean tlmm_settings = FALSE;
 #ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
@@ -236,6 +237,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	fbi = mfd->fbi;
 	var = &fbi->var;
 	pinfo = &mfd->panel_info;
+	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
 
 #ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
 	if(lglogo_firstboot)
