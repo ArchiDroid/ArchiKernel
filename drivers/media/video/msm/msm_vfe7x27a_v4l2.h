@@ -17,6 +17,9 @@
 #include <linux/list.h>
 #include "msm.h"
 
+/*8 DSP buffers, 3 - ping, pong, free*/
+#define FREE_BUF_ARR_SIZE 5
+
 struct cmd_id_map {
 	uint32_t isp_id;
 	uint32_t vfe_id;
@@ -49,6 +52,10 @@ struct buf_info {
 	struct msm_free_buf ping;
 	struct msm_free_buf pong;
 	struct msm_free_buf free_buf;
+	/*Array for holding the free buffer if more than one*/
+	struct msm_free_buf free_buf_arr[FREE_BUF_ARR_SIZE];
+	int free_buf_cnt;
+	int frame_cnt;
 } __packed;
 
 struct prev_free_buf_info {
@@ -111,6 +118,7 @@ struct vfe2x_ctrl_type {
 	spinlock_t  sd_notify_lock;
 	uint32_t    reconfig_vfe;
 	uint32_t    zsl_mode;
+	int num_snap;
 } __packed;
 
 struct vfe_frame_extra {
