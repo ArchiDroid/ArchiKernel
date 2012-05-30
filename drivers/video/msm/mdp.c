@@ -2088,9 +2088,13 @@ static int mdp_off(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_FB_MSM_MDP303
+unsigned is_mdp4_hw_reset(void)
+{
+	return 0;
+}
 void mdp4_hw_init(void)
 {
-        /* empty */
+	/* empty */
 }
 #endif
 
@@ -2125,6 +2129,7 @@ static int mdp_on(struct platform_device *pdev)
 		vsync_cntrl.dev = mfd->fbi->dev;
 
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+
 	ret = panel_next_on(pdev);
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
@@ -2422,7 +2427,8 @@ static int mdp_probe(struct platform_device *pdev)
 		if (!(mdp_pdata->cont_splash_enabled))
 			mdp4_hw_init();
 #else
-		mdp_hw_init();
+		if (!(mdp_pdata->cont_splash_enabled))
+			mdp_hw_init();
 #endif
 
 #ifdef CONFIG_FB_MSM_OVERLAY
@@ -2460,8 +2466,7 @@ static int mdp_probe(struct platform_device *pdev)
 		if (mdp_pdata->cont_splash_enabled) {
 			mfd->cont_splash_done = 0;
 			if (!contSplash_update_done) {
-				if (mfd->panel.type == MIPI_VIDEO_PANEL ||
-				    mfd->panel.type == LCDC_PANEL)
+				if (mfd->panel.type == MIPI_VIDEO_PANEL)
 					mdp_pipe_ctrl(MDP_CMD_BLOCK,
 						MDP_BLOCK_POWER_ON, FALSE);
 				contSplash_update_done = 1;
