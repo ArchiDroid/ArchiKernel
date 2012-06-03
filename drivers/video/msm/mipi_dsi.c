@@ -101,6 +101,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	 */
 	if (mfd->panel_info.type == MIPI_CMD_PANEL) {
 		if (mdp_rev >= MDP_REV_41) {
+			mdp4_dsi_cmd_del_timer();
 			mdp4_dsi_cmd_dma_busy_wait(mfd);
 			mdp4_dsi_blt_dmap_busy_wait(mfd);
 			mipi_dsi_mdp_busy_wait(mfd);
@@ -157,21 +158,19 @@ static int mipi_dsi_off(struct platform_device *pdev)
 //LGE_CHANGE_E [Kiran] Change LCD sleep sequence
 /*LGE_END: Kiran.kanneganti@lge.com*/
 
+	spin_lock_bh(&dsi_clk_lock);
 #ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
 	if(lglogo_firstboot)
 	{
 		printk(KERN_INFO "[DISPLAY]::%s\n",__func__);
-		local_bh_disable();
 		lglogo_mipi_dsi_clk_disable();
-		local_bh_enable();
 	}
 	else
 #endif
 	{
-	local_bh_disable();
-	mipi_dsi_clk_disable();
-	local_bh_enable();
+		mipi_dsi_clk_disable();
 	}
+
 
 	/* disbale dsi engine */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x0000, 0);
@@ -182,10 +181,9 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	if(!lglogo_firstboot)
 #endif
     {
-	local_bh_disable();
 	mipi_dsi_ahb_ctrl(0);
-	local_bh_enable();
     }
+	spin_unlock_bh(&dsi_clk_lock);
 //LGE_CHANGE_S [Kiran] Change LCD sleep sequence
 #if 1
 		/* MDP cmd block enable */
@@ -267,9 +265,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	cont_splash_clk_ctrl(0);
 	mipi_dsi_prepare_clocks();
 
-	local_bh_disable();
 	mipi_dsi_ahb_ctrl(1);
-	local_bh_enable();
 
 	clk_rate = mfd->fbi->var.pixclock;
 	clk_rate = min(clk_rate, mfd->panel_info.clk_max);
@@ -281,9 +277,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 
 	mipi_dsi_phy_init(0, &(mfd->panel_info), target_type);
 
-	local_bh_disable();
 	mipi_dsi_clk_enable();
-	local_bh_enable();
 
 	MIPI_OUTP(MIPI_DSI_BASE + 0x114, 1);
 	MIPI_OUTP(MIPI_DSI_BASE + 0x114, 0);
