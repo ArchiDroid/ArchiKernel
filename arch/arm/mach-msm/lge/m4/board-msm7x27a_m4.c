@@ -962,10 +962,6 @@ struct ion_platform_heap msm7x27a_heaps[] = {
 #endif
 };
 
-/**
- * These heaps are listed in the order they will be allocated.
- * Don't swap the order unless you know what you are doing!
- */
 static struct ion_platform_data ion_pdata = {
 	.nr = MSM_ION_HEAP_NUM,
 	.has_outer_cache = 1,
