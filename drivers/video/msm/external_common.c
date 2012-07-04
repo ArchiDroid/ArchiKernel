@@ -1978,8 +1978,8 @@ bool hdmi_common_get_video_format_from_drv_data(struct msm_fb_data_type *mfd)
 	struct fb_var_screeninfo *var = &mfd->fbi->var;
 	bool changed = TRUE;
 
-	if (var->reserved[2]) {
-		format = var->reserved[2]-1;
+	if (var->reserved[3]) {
+		format = var->reserved[3]-1;
 		DEV_DBG("reserved format is %d\n", format);
 	} else {
 		DEV_DBG("detecting resolution from %dx%d use var->reserved[3]"
