@@ -505,7 +505,8 @@ struct msm_cam_v4l2_dev_inst *msm_mctl_get_pcam_inst(
 		 * If mctl node doesnt have the instance, then
 		 * search in the user's video node */
 		if (pmctl->vfe_output_mode == VFE_OUTPUTS_MAIN_AND_THUMB
-		|| pmctl->vfe_output_mode == VFE_OUTPUTS_THUMB_AND_MAIN) {
+		|| pmctl->vfe_output_mode == VFE_OUTPUTS_THUMB_AND_MAIN
+		|| pmctl->vfe_output_mode == VFE_OUTPUTS_MAIN_AND_PREVIEW) {
 			if (pcam->mctl_node.dev_inst_map[image_mode]
 			&& is_buffer_queued(pcam, image_mode)) {
 				idx =
