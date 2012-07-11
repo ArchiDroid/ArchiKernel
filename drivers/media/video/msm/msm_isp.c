@@ -158,7 +158,7 @@ int msm_isp_vfe_msg_to_img_mode(struct msm_cam_media_controller *pmctl,
 
 static int msm_isp_notify_VFE_BUF_EVT(struct v4l2_subdev *sd, void *arg)
 {
-	int rc = -EINVAL;
+	int rc = -EINVAL, image_mode;
 	struct msm_vfe_resp *vdata = (struct msm_vfe_resp *)arg;
 	struct msm_free_buf free_buf, temp_free_buf;
 	struct msm_camvfe_params vfe_params;
@@ -166,22 +166,16 @@ static int msm_isp_notify_VFE_BUF_EVT(struct v4l2_subdev *sd, void *arg)
 	struct msm_cam_media_controller *pmctl =
 		(struct msm_cam_media_controller *)v4l2_get_subdev_hostdata(sd);
 	struct msm_cam_v4l2_device *pcam = pmctl->pcam_ptr;
-	struct msm_frame_info *frame_info =
-		(struct msm_frame_info *)vdata->evt_msg.data;
-	uint32_t vfe_id, image_mode;
+
+	int vfe_id = vdata->evt_msg.msg_id;
 	if (!pcam) {
 		pr_debug("%s pcam is null. return\n", __func__);
 		msm_isp_sync_free(vdata);
 		return rc;
 	}
-	if (frame_info) {
-		vfe_id = frame_info->path;
-		image_mode = frame_info->image_mode;
-	} else {
-		vfe_id = vdata->evt_msg.msg_id;
-		image_mode = msm_isp_vfe_msg_to_img_mode(pmctl, vfe_id);
-	}
-
+	/* Convert the vfe msg to the image mode */
+	image_mode = msm_isp_vfe_msg_to_img_mode(pmctl, vfe_id);
+	BUG_ON(image_mode < 0);
 	switch (vdata->type) {
 	case VFE_MSG_V32_START:
 	case VFE_MSG_V32_START_RECORDING:
@@ -320,56 +314,51 @@ static int msm_isp_notify_vfe(struct v4l2_subdev *sd,
 	}
 	case NOTIFY_VFE_MSG_OUT: {
 		uint8_t msgid;
-		int32_t image_mode = -1;
 		struct isp_msg_output *isp_output =
 				(struct isp_msg_output *)arg;
-		if (isp_output->buf.image_mode < 0) {
-			switch (isp_output->output_id) {
-			case MSG_ID_OUTPUT_P:
-				msgid = VFE_MSG_OUTPUT_P;
-				break;
-			case MSG_ID_OUTPUT_V:
-				msgid = VFE_MSG_OUTPUT_V;
-				break;
-			case MSG_ID_OUTPUT_T:
-				msgid = VFE_MSG_OUTPUT_T;
-				break;
-			case MSG_ID_OUTPUT_S:
-				msgid = VFE_MSG_OUTPUT_S;
-				break;
-			case MSG_ID_OUTPUT_PRIMARY:
-				msgid = VFE_MSG_OUTPUT_PRIMARY;
-				break;
-			case MSG_ID_OUTPUT_SECONDARY:
-				msgid = VFE_MSG_OUTPUT_SECONDARY;
-				break;
-			case MSG_ID_OUTPUT_TERTIARY1:
-				msgid = VFE_MSG_OUTPUT_TERTIARY1;
-				break;
-			case MSG_ID_OUTPUT_TERTIARY2:
-				msgid = VFE_MSG_OUTPUT_TERTIARY2;
-				break;
-
-			default:
-				pr_err("%s: Invalid VFE output id: %d\n",
-					   __func__, isp_output->output_id);
-				rc = -EINVAL;
-				break;
-			}
-			if (!rc)
-				image_mode =
-				msm_isp_vfe_msg_to_img_mode(pmctl, msgid);
-		} else {
-			image_mode = isp_output->buf.image_mode;
+		switch (isp_output->output_id) {
+		case MSG_ID_OUTPUT_P:
+			msgid = VFE_MSG_OUTPUT_P;
+			break;
+		case MSG_ID_OUTPUT_V:
+			msgid = VFE_MSG_OUTPUT_V;
+			break;
+		case MSG_ID_OUTPUT_T:
+			msgid = VFE_MSG_OUTPUT_T;
+			break;
+		case MSG_ID_OUTPUT_S:
+			msgid = VFE_MSG_OUTPUT_S;
+			break;
+		case MSG_ID_OUTPUT_PRIMARY:
+			msgid = VFE_MSG_OUTPUT_PRIMARY;
+			break;
+		case MSG_ID_OUTPUT_SECONDARY:
+			msgid = VFE_MSG_OUTPUT_SECONDARY;
+			break;
+		case MSG_ID_OUTPUT_TERTIARY1:
+			msgid = VFE_MSG_OUTPUT_TERTIARY1;
+			break;
+		case MSG_ID_OUTPUT_TERTIARY2:
+			msgid = VFE_MSG_OUTPUT_TERTIARY2;
+			break;
+		default:
+			pr_err("%s: Invalid VFE output id: %d\n",
+				__func__, isp_output->output_id);
+			rc = -EINVAL;
+			break;
 		}
-		isp_event->isp_data.isp_msg.msg_id =
-			isp_output->output_id;
-		isp_event->isp_data.isp_msg.frame_id =
-			isp_output->frameCounter;
-		buf = isp_output->buf;
-		BUG_ON(image_mode < 0);
-		msm_mctl_buf_done(pmctl, image_mode,
-			&buf, isp_output->frameCounter);
+
+		if (!rc) {
+			isp_event->isp_data.isp_msg.msg_id =
+				isp_output->output_id;
+			isp_event->isp_data.isp_msg.frame_id =
+				isp_output->frameCounter;
+			buf = isp_output->buf;
+			msgid = msm_isp_vfe_msg_to_img_mode(pmctl, msgid);
+			BUG_ON(msgid < 0);
+			msm_mctl_buf_done(pmctl, msgid,
+				&buf, isp_output->frameCounter);
+		}
 		}
 		break;
 	case NOTIFY_VFE_MSG_COMP_STATS: {
@@ -406,14 +395,12 @@ static int msm_isp_notify_vfe(struct v4l2_subdev *sd,
 		struct msm_stats_buf stats;
 		struct isp_msg_stats *isp_stats = (struct isp_msg_stats *)arg;
 
-		memset(&stats, 0, sizeof(stats));
 		isp_event->isp_data.isp_msg.msg_id = isp_stats->id;
 		isp_event->isp_data.isp_msg.frame_id =
 			isp_stats->frameCounter;
-		stats.buffer = isp_stats->buffer;
-		stats.fd = isp_stats->fd;
-		/* buf_idx used for O(0) lookup */
-		stats.buf_idx = isp_stats->buf_idx;
+		stats.buffer = msm_pmem_stats_ptov_lookup(pmctl,
+						isp_stats->buffer,
+						&(stats.fd));
 		switch (isp_stats->id) {
 		case MSG_ID_STATS_AEC:
 			stats.aec.buff = stats.buffer;
@@ -455,8 +442,8 @@ static int msm_isp_notify_vfe(struct v4l2_subdev *sd,
 				kmalloc(sizeof(struct msm_stats_buf),
 							GFP_ATOMIC);
 			if (!stats_buf) {
-				pr_err("%s: out of memory. stats_id = %d\n",
-					__func__, isp_stats->id);
+				pr_err("%s: out of memory.\n",
+							__func__);
 				rc = -ENOMEM;
 			} else {
 				*stats_buf = stats;
@@ -552,6 +539,7 @@ static int msm_config_vfe(struct v4l2_subdev *sd,
 	struct msm_cam_media_controller *mctl, void __user *arg)
 {
 	struct msm_vfe_cfg_cmd cfgcmd;
+	struct msm_pmem_region region[8];
 	struct axidata axi_data;
 
 	if (copy_from_user(&cfgcmd, arg, sizeof(cfgcmd))) {
@@ -563,13 +551,103 @@ static int msm_config_vfe(struct v4l2_subdev *sd,
 	CDBG("%s: cmd_type %d\n", __func__, cfgcmd.cmd_type);
 	switch (cfgcmd.cmd_type) {
 	case CMD_STATS_AF_ENABLE:
+		axi_data.bufnum1 =
+			msm_pmem_region_lookup(
+				&mctl->stats_info.pmem_stats_list,
+				MSM_PMEM_AF, &region[0],
+				NUM_STAT_OUTPUT_BUFFERS);
+		if (!axi_data.bufnum1) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+		axi_data.region = &region[0];
+		return msm_isp_subdev_ioctl(sd, &cfgcmd,
+							&axi_data);
 	case CMD_STATS_AEC_ENABLE:
+		axi_data.bufnum1 =
+			msm_pmem_region_lookup(
+				&mctl->stats_info.pmem_stats_list,
+				MSM_PMEM_AEC, &region[0],
+				NUM_STAT_OUTPUT_BUFFERS);
+		if (!axi_data.bufnum1) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+		axi_data.region = &region[0];
+		return msm_isp_subdev_ioctl(sd, &cfgcmd,
+							&axi_data);
 	case CMD_STATS_AWB_ENABLE:
+		axi_data.bufnum1 =
+			msm_pmem_region_lookup(
+				&mctl->stats_info.pmem_stats_list,
+				MSM_PMEM_AWB, &region[0],
+				NUM_STAT_OUTPUT_BUFFERS);
+		if (!axi_data.bufnum1) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+		axi_data.region = &region[0];
+		return msm_isp_subdev_ioctl(sd, &cfgcmd,
+							&axi_data);
 	case CMD_STATS_AEC_AWB_ENABLE:
+		axi_data.bufnum1 =
+			msm_pmem_region_lookup(
+				&mctl->stats_info.pmem_stats_list,
+				MSM_PMEM_AEC_AWB, &region[0],
+				NUM_STAT_OUTPUT_BUFFERS);
+		if (!axi_data.bufnum1) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+		axi_data.region = &region[0];
+		return msm_isp_subdev_ioctl(sd, &cfgcmd,
+							&axi_data);
 	case CMD_STATS_IHIST_ENABLE:
+		axi_data.bufnum1 =
+			msm_pmem_region_lookup(
+				&mctl->stats_info.pmem_stats_list,
+				MSM_PMEM_IHIST, &region[0],
+				NUM_STAT_OUTPUT_BUFFERS);
+		if (!axi_data.bufnum1) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+		axi_data.region = &region[0];
+		return msm_isp_subdev_ioctl(sd, &cfgcmd,
+							&axi_data);
 	case CMD_STATS_RS_ENABLE:
+		axi_data.bufnum1 =
+			msm_pmem_region_lookup(
+				&mctl->stats_info.pmem_stats_list,
+				MSM_PMEM_RS, &region[0],
+				NUM_STAT_OUTPUT_BUFFERS);
+		if (!axi_data.bufnum1) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+		axi_data.region = &region[0];
+		return msm_isp_subdev_ioctl(sd, &cfgcmd,
+							&axi_data);
 	case CMD_STATS_CS_ENABLE:
-		return msm_isp_subdev_ioctl(sd, &cfgcmd, NULL);
+		axi_data.bufnum1 =
+			msm_pmem_region_lookup(
+				&mctl->stats_info.pmem_stats_list,
+				MSM_PMEM_CS, &region[0],
+				NUM_STAT_OUTPUT_BUFFERS);
+		if (!axi_data.bufnum1) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+		axi_data.region = &region[0];
+		return msm_isp_subdev_ioctl(sd, &cfgcmd,
+							&axi_data);
 	case CMD_GENERAL:
 	case CMD_STATS_DISABLE:
 		return msm_isp_subdev_ioctl(sd, &cfgcmd,
@@ -601,8 +679,6 @@ static int msm_axi_config(struct v4l2_subdev *sd,
 	case CMD_AXI_CFG_PRIM|CMD_AXI_CFG_SEC:
 	case CMD_AXI_CFG_PRIM|CMD_AXI_CFG_SEC_ALL_CHNLS:
 	case CMD_AXI_CFG_PRIM_ALL_CHNLS|CMD_AXI_CFG_SEC:
-	case CMD_AXI_START:
-	case CMD_AXI_STOP:
 	case CMD_AXI_CFG_TERT1:
 	case CMD_AXI_CFG_TERT2:
 		/* Dont need to pass buffer information.
@@ -675,62 +751,6 @@ put_done:
 	return rc;
 }
 
-static int msm_vfe_stats_buf_ioctl(struct v4l2_subdev *sd,
-	unsigned int cmd,
-	struct msm_cam_media_controller *mctl,
-	void __user *arg)
-{
-	struct msm_vfe_cfg_cmd cfgcmd;
-	int rc = 0;
-	switch (cmd) {
-	case MSM_CAM_IOCTL_STATS_REQBUF: {
-		struct msm_stats_reqbuf reqbuf;
-		if (copy_from_user(&reqbuf, arg,
-			sizeof(struct msm_stats_reqbuf))) {
-			ERR_COPY_FROM_USER();
-			return -EFAULT;
-		}
-	cfgcmd.cmd_type = VFE_CMD_STATS_REQBUF;
-	cfgcmd.value = (void *)&reqbuf;
-	cfgcmd.length = sizeof(struct msm_stats_reqbuf);
-	rc = msm_isp_subdev_ioctl(sd, &cfgcmd, (void *)mctl->client);
-	break;
-	}
-	case MSM_CAM_IOCTL_STATS_ENQUEUEBUF: {
-		struct msm_stats_buf_info buf_info;
-
-		if (copy_from_user(&buf_info, arg,
-			sizeof(struct msm_stats_buf_info))) {
-			ERR_COPY_FROM_USER();
-			return -EFAULT;
-		}
-	cfgcmd.cmd_type = VFE_CMD_STATS_ENQUEUEBUF;
-	cfgcmd.value = (void *)&buf_info;
-	cfgcmd.length = sizeof(struct msm_stats_buf_info);
-	rc = msm_isp_subdev_ioctl(sd, &cfgcmd, NULL);
-	break;
-	}
-	case MSM_CAM_IOCTL_STATS_FLUSH_BUFQ: {
-		struct msm_stats_flush_bufq bufq_info;
-
-		if (copy_from_user(&bufq_info, arg,
-			sizeof(struct msm_stats_flush_bufq))) {
-			ERR_COPY_FROM_USER();
-			return -EFAULT;
-	}
-	cfgcmd.cmd_type = VFE_CMD_STATS_FLUSH_BUFQ;
-	cfgcmd.value = (void *)&bufq_info;
-	cfgcmd.length = sizeof(struct msm_stats_flush_bufq);
-	rc = msm_isp_subdev_ioctl(sd, &cfgcmd, NULL);
-	break;
-	}
-	default:
-		rc = -1;
-	break;
-	}
-	CDBG("%s\n", __func__);
-	return rc;
-}
 /* config function simliar to origanl msm_ioctl_config*/
 static int msm_isp_config(struct msm_cam_media_controller *pmctl,
 			 unsigned int cmd, unsigned long arg)
@@ -742,6 +762,13 @@ static int msm_isp_config(struct msm_cam_media_controller *pmctl,
 
 	D("%s: cmd %d\n", __func__, _IOC_NR(cmd));
 	switch (cmd) {
+	case MSM_CAM_IOCTL_PICT_PP_DONE:
+		/* Release the preview of snapshot frame
+		 * that was grabbed.
+		 */
+		/*rc = msm_pp_release(pmsm->sync, arg);*/
+		break;
+
 	case MSM_CAM_IOCTL_CONFIG_VFE:
 		/* Coming from config thread for update */
 		rc = msm_config_vfe(sd, pmctl, argp);
@@ -754,12 +781,6 @@ static int msm_isp_config(struct msm_cam_media_controller *pmctl,
 
 	case MSM_CAM_IOCTL_RELEASE_STATS_BUFFER:
 		rc = msm_put_stats_buffer(sd, pmctl, argp);
-		break;
-
-	case MSM_CAM_IOCTL_STATS_REQBUF:
-	case MSM_CAM_IOCTL_STATS_ENQUEUEBUF:
-	case MSM_CAM_IOCTL_STATS_FLUSH_BUFQ:
-		rc = msm_vfe_stats_buf_ioctl(sd, cmd, pmctl, argp);
 		break;
 
 	default:

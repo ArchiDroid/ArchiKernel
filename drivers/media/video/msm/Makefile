@@ -7,19 +7,17 @@ EXTRA_CFLAGS += -Idrivers/media/video/msm/io
 obj-$(CONFIG_MSM_CAMERA) += io/
 ifeq ($(CONFIG_MSM_CAMERA_V4L2),y)
   EXTRA_CFLAGS += -Idrivers/media/video/msm/csi
+  EXTRA_CFLAGS += -Idrivers/media/video/msm/io
   EXTRA_CFLAGS += -Idrivers/media/video/msm/eeprom
   EXTRA_CFLAGS += -Idrivers/media/video/msm/sensors
   EXTRA_CFLAGS += -Idrivers/media/video/msm/actuators
-  EXTRA_CFLAGS += -Idrivers/media/video/msm/server
-  obj-$(CONFIG_MSM_CAMERA) += msm_isp.o msm.o msm_mem.o msm_mctl.o msm_mctl_buf.o msm_mctl_pp.o msm_vfe_stats_buf.o
-  obj-$(CONFIG_MSM_CAMERA) += server/ eeprom/ sensors/ actuators/ csi/
-  obj-$(CONFIG_MSM_CPP) += cpp/
+  obj-$(CONFIG_MSM_CAMERA) += msm_isp.o msm.o msm_mem.o msm_mctl.o msm_mctl_buf.o msm_mctl_pp.o
+  obj-$(CONFIG_MSM_CAMERA) += io/ eeprom/ sensors/ actuators/ csi/
   obj-$(CONFIG_MSM_CAMERA) += msm_gesture.o
-  obj-$(CONFIG_MSM_CAM_IRQ_ROUTER) += msm_camirq_router.o
 else
   obj-$(CONFIG_MSM_CAMERA) += msm_camera.o
 endif
-obj-$(CONFIG_MSM_CAMERA) += msm_axi_qos.o gemini/ mercury/
+obj-$(CONFIG_MSM_CAMERA) += msm_axi_qos.o gemini/
 obj-$(CONFIG_MSM_CAMERA_FLASH) += flash.o
 obj-$(CONFIG_ARCH_MSM_ARM11) += msm_vfe7x.o
 ifeq ($(CONFIG_MSM_CAMERA_V4L2),y)

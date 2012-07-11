@@ -26,7 +26,6 @@
 #include <linux/android_pmem.h>
 
 #include "msm.h"
-#include "msm_cam_server.h"
 #include "msm_ispif.h"
 
 #ifdef CONFIG_MSM_CAMERA_DEBUG
@@ -56,8 +55,8 @@ static int msm_vb2_ops_queue_setup(struct vb2_queue *vq,
 	*num_planes = pcam_inst->plane_info.num_planes;
 	for (i = 0; i < pcam_inst->vid_fmt.fmt.pix_mp.num_planes; i++) {
 		sizes[i] = pcam_inst->plane_info.plane[i].size;
-		D("%s Inst %p : Plane %d Offset = %d Size = %ld"
-			"Aligned Size = %d", __func__, pcam_inst, i,
+		D("%s Inst %p : Plane %d Offset = %d Size = %ld" \
+			"Aligned Size = %d\n", __func__, pcam_inst, i,
 			pcam_inst->plane_info.plane[i].offset,
 			pcam_inst->plane_info.plane[i].size, sizes[i]);
 	}
@@ -115,11 +114,7 @@ static int msm_vb2_ops_buf_init(struct vb2_buffer *vb)
 			pcam_inst->plane_info.plane[0].offset;
 	}
 	buf_idx = vb->v4l2_buf.index;
-	pmctl = msm_cam_server_get_mctl(pcam->mctl_handle);
-	if (pmctl == NULL) {
-		pr_err("%s No mctl found\n", __func__);
-		return -EINVAL;
-	}
+	pmctl = msm_camera_get_mctl(pcam->mctl_handle);
 	for (i = 0; i < vb->num_planes; i++) {
 		mem = vb2_plane_cookie(vb, i);
 		if (buf_type == VIDEOBUF2_MULTIPLE_PLANES)
@@ -151,14 +146,13 @@ static int msm_vb2_ops_buf_prepare(struct vb2_buffer *vb)
 	struct msm_cam_v4l2_dev_inst *pcam_inst;
 	struct msm_cam_v4l2_device *pcam;
 	struct msm_frame_buffer *buf;
-	struct vb2_queue *vq;
+	struct vb2_queue	*vq = vb->vb2_queue;
 
 	D("%s\n", __func__);
-	if (!vb || !vb->vb2_queue) {
+	if (!vb || !vq) {
 		pr_err("%s error : input is NULL\n", __func__);
 		return -EINVAL;
 	}
-	vq = vb->vb2_queue;
 	pcam_inst = vb2_get_drv_priv(vq);
 	pcam = pcam_inst->pcam;
 	buf = container_of(vb, struct msm_frame_buffer, vidbuf);
@@ -212,12 +206,6 @@ static void msm_vb2_ops_buf_cleanup(struct vb2_buffer *vb)
 	pcam = pcam_inst->pcam;
 	buf = container_of(vb, struct msm_frame_buffer, vidbuf);
 
-	pmctl = msm_cam_server_get_mctl(pcam->mctl_handle);
-	if (pmctl == NULL) {
-		pr_err("%s No mctl found\n", __func__);
-		return;
-	}
-
 	if (pcam_inst->vid_fmt.type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		for (i = 0; i < vb->num_planes; i++) {
 			mem = vb2_plane_cookie(vb, i);
@@ -262,6 +250,7 @@ static void msm_vb2_ops_buf_cleanup(struct vb2_buffer *vb)
 		}
 		spin_unlock_irqrestore(&pcam_inst->vq_irqlock, flags);
 	}
+	pmctl = msm_camera_get_mctl(pcam->mctl_handle);
 	for (i = 0; i < vb->num_planes; i++) {
 		mem = vb2_plane_cookie(vb, i);
 		videobuf2_pmem_contig_user_put(mem, pmctl->client);
@@ -284,14 +273,13 @@ static void msm_vb2_ops_buf_queue(struct vb2_buffer *vb)
 	struct msm_cam_v4l2_dev_inst *pcam_inst = NULL;
 	struct msm_cam_v4l2_device *pcam = NULL;
 	unsigned long flags = 0;
-	struct vb2_queue *vq;
+	struct vb2_queue *vq = vb->vb2_queue;
 	struct msm_frame_buffer *buf;
 	D("%s\n", __func__);
-	if (!vb || !vb->vb2_queue) {
+	if (!vb || !vq) {
 		pr_err("%s error : input is NULL\n", __func__);
 		return ;
 	}
-	vq = vb->vb2_queue;
 	pcam_inst = vb2_get_drv_priv(vq);
 	pcam = pcam_inst->pcam;
 	D("%s pcam_inst=%p,(vb=0x%p),idx=%d,len=%d\n",
@@ -465,7 +453,7 @@ int msm_mctl_buf_done(struct msm_cam_media_controller *p_mctl,
 					image_mode, fbuf,
 					&frame_id, 1);
 				D("%s mctl node buf done %d\n", __func__, 0);
-				return rc;
+				return -EINVAL;
 			} else {
 			  pr_err("%s Invalid instance, dropping buffer\n",
 				  __func__);
@@ -483,11 +471,7 @@ int msm_mctl_buf_done(struct msm_cam_media_controller *p_mctl,
 int msm_mctl_buf_init(struct msm_cam_v4l2_device *pcam)
 {
 	struct msm_cam_media_controller *pmctl;
-	pmctl = msm_cam_server_get_mctl(pcam->mctl_handle);
-	if (pmctl == NULL) {
-		pr_err("%s No mctl found\n", __func__);
-		return -EINVAL;
-	}
+	pmctl = msm_camera_get_mctl(pcam->mctl_handle);
 	pmctl->mctl_vbqueue_init = msm_vbqueue_init;
 	return 0;
 }
@@ -662,7 +646,7 @@ int msm_mctl_release_free_buf(struct msm_cam_media_controller *pmctl,
 		buf_phyaddr =
 			(uint32_t) videobuf2_to_pmem_contig(&buf->vidbuf, 0);
 		if (free_buf->ch_paddr[0] == buf_phyaddr) {
-			D("%s buf = 0x%x \n", __func__, free_buf->ch_paddr[0]);
+			D("%s buf = 0x%x\n", __func__, free_buf->ch_paddr[0]);
 			buf->state = MSM_BUFFER_STATE_UNUSED;
 			rc = 0;
 			break;

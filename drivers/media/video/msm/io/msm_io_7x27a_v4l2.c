@@ -10,11 +10,11 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/pm_qos.h>
-#include <linux/module.h>
 #include <mach/board.h>
 #include <mach/camera.h>
 #include <mach/camera.h>

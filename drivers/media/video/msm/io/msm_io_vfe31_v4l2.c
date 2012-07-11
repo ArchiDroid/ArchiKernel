@@ -11,11 +11,11 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
-#include <linux/export.h>
 #include <mach/gpio.h>
 #include <mach/board.h>
 #include <mach/camera.h>

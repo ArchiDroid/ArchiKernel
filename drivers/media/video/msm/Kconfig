@@ -248,37 +248,12 @@ config MSM_GEMINI
 	---help---
 	  Enable support for Gemini Jpeg Engine
 
-config MSM_MERCURY
-        tristate "Qualcomm MSM Mercury Jpeg Decoder Engine support"
-        depends on MSM_CAMERA && ARCH_MSM8960
-        ---help---
-          Enable support for Mercury Jpeg Engine
-
 config MSM_VPE
 	tristate "Qualcomm MSM Video Pre-processing Engine support"
 	depends on MSM_CAMERA && (ARCH_MSM7X30 || ARCH_MSM8X60)
 	default y
 	---help---
 	  Enable support for Video Pre-processing Engine
-
-config MSM_CAM_IRQ_ROUTER
-	bool "Enable MSM CAM IRQ Router"
-	depends on MSM_CAMERA
-	---help---
-	Enable IRQ Router for Camera. Depending on the
-	configuration, this module can handle the
-	interrupts from multiple camera hardware
-	cores and composite them into a single
-	interrupt to the MSM.
-
-config MSM_CPP
-        bool "Qualcomm MSM Camera Post Processing Engine support"
-        depends on MSM_CAMERA && MSM_CAMERA_V4L2
-        ---help---
-          Enable support for Camera Post-processing Engine
-          The Post processing engine is capable of scaling
-          and cropping image. The driver support V4L2 subdev
-          APIs.
 
 config QUP_EXCLUSIVE_TO_CAMERA
 	bool "QUP exclusive to camera"

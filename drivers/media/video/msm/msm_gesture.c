@@ -11,12 +11,12 @@
  */
 
 #include <linux/module.h>
+#include <mach/camera.h>
 #include <media/v4l2-subdev.h>
+#include "msm.h"
 #include <media/msm_camera.h>
 #include <media/msm_gestures.h>
 #include <media/v4l2-ctrls.h>
-#include <mach/camera.h>
-#include "msm.h"
 
 #ifdef CONFIG_MSM_CAMERA_DEBUG
 #define D(fmt, args...) pr_debug("msm_gesture: " fmt, ##args)
@@ -455,8 +455,6 @@ static int msm_gesture_node_register(void)
 	struct msm_gesture_ctrl *p_gesture_ctrl = &g_gesture_ctrl;
 	struct v4l2_subdev *gesture_subdev =
 		kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
-	struct msm_cam_subdev_info sd_info;
-
 	D("%s\n", __func__);
 	if (!gesture_subdev) {
 		pr_err("%s: no enough memory\n", __func__);
@@ -477,10 +475,7 @@ static int msm_gesture_node_register(void)
 	/* events */
 	gesture_subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 
-	sd_info.sdev_type = GESTURE_DEV;
-	sd_info.sd_index = 0;
-	sd_info.irq_num = 0;
-	msm_cam_register_subdev_node(gesture_subdev, &sd_info);
+	msm_cam_register_subdev_node(gesture_subdev, GESTURE_DEV, 0);
 
 	gesture_subdev->entity.revision = gesture_subdev->devnode->num;
 
