@@ -181,8 +181,11 @@ struct hs_cmd_data_type {
 };
 
 static const uint32_t hs_key_map[] = {
+        /*
 	KEY(HS_PWR_K, KEY_POWER),
-	KEY(HS_END_K, KEY_END),
+	KEY(HS_END_K, KEY_END),*/
+	KEY(HS_PWR_K, KEY_END),
+	KEY(HS_END_K, KEY_POWER),
 	KEY(HS_STEREO_HEADSET_K, SW_HEADPHONE_INSERT_W_MIC),
 	KEY(HS_HEADSET_HEADPHONE_K, SW_HEADPHONE_INSERT),
 	KEY(HS_HEADSET_MICROPHONE_K, SW_MICROPHONE_INSERT),
@@ -646,7 +649,7 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	input_set_capability(ipdev, EV_SW, SW_HEADPHONE_INSERT);
 	input_set_capability(ipdev, EV_SW, SW_MICROPHONE_INSERT);
 	input_set_capability(ipdev, EV_KEY, KEY_POWER);
-	input_set_capability(ipdev, EV_KEY, KEY_END);
+	//input_set_capability(ipdev, EV_KEY, KEY_END);
 
 	rc = input_register_device(ipdev);
 	if (rc) {
