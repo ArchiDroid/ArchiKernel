@@ -523,12 +523,14 @@ static void msm_isp_release(struct msm_cam_media_controller *mctl,
 {
 	D("%s\n", __func__);
 	msm_vfe_subdev_release(sd);
-	msm_iommu_unmap_contig_buffer(mctl->ping_imem_y,
-		CAMERA_DOMAIN, GEN_POOL,
-		((IMEM_Y_SIZE + IMEM_CBCR_SIZE + 4095) & (~4095)));
-	msm_iommu_unmap_contig_buffer(mctl->pong_imem_y,
-		CAMERA_DOMAIN, GEN_POOL,
-		((IMEM_Y_SIZE + IMEM_CBCR_SIZE + 4095) & (~4095)));
+	if (mctl->ping_imem_y)
+		msm_iommu_unmap_contig_buffer(mctl->ping_imem_y,
+			CAMERA_DOMAIN, GEN_POOL,
+			((IMEM_Y_SIZE + IMEM_CBCR_SIZE + 4095) & (~4095)));
+	if (mctl->pong_imem_y)
+		msm_iommu_unmap_contig_buffer(mctl->pong_imem_y,
+			CAMERA_DOMAIN, GEN_POOL,
+			((IMEM_Y_SIZE + IMEM_CBCR_SIZE + 4095) & (~4095)));
 	mctl->ping_imem_y = 0;
 	mctl->ping_imem_cbcr = 0;
 	mctl->pong_imem_y = 0;
