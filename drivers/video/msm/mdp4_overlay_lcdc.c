@@ -202,6 +202,8 @@ int mdp4_lcdc_pipe_commit(void)
 	}
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
 
+	mdp4_overlay_mdp_perf_upd(vctrl->mfd, 1);
+
 	if (vctrl->blt_change) {
 		pipe = vctrl->base_pipe;
 		spin_lock_irqsave(&vctrl->spin_lock, flags);
@@ -516,6 +518,8 @@ int mdp4_lcdc_on(struct platform_device *pdev)
 	pipe->srcp0_ystride = fbi->fix.line_length;
 	pipe->bpp = bpp;
 
+	mdp4_overlay_mdp_pipe_req(pipe, mfd);
+
 	atomic_set(&vctrl->suspend, 0);
 
 	mdp4_overlay_dmap_xy(pipe);
@@ -718,12 +722,6 @@ static void mdp4_lcdc_blt_dmap_update(struct mdp4_overlay_pipe *pipe)
 	MDP_OUTP(MDP_BASE + 0x90008, addr);
 }
 
-void mdp4_overlay_lcdc_set_perf(struct msm_fb_data_type *mfd)
-{
-	/* change mdp clk while mdp is idle */
-	mdp4_set_perf_level();
-}
-
 /*
  * mdp4_primary_vsync_lcdc: called from isr
  */
@@ -905,16 +903,9 @@ void mdp4_lcdc_overlay(struct msm_fb_data_type *mfd)
 	}
 
 	mutex_lock(&mfd->dma->ov_mutex);
-	if (mfd->use_ov0_blt != mfd->ov0_blt_state) {
+	mdp4_overlay_mdp_perf_upd(mfd, 1);
 
-		if (mfd->use_ov0_blt)
-			mdp4_lcdc_do_blt(mfd, 1);
-		else
-			mdp4_lcdc_do_blt(mfd, 0);
-
-		mfd->ov0_blt_state = mfd->use_ov0_blt;
-	}
-
+	mutex_lock(&mfd->dma->ov_mutex);
 	mdp4_lcdc_pipe_commit();
 	mutex_unlock(&mfd->dma->ov_mutex);
 
@@ -922,4 +913,6 @@ void mdp4_lcdc_overlay(struct msm_fb_data_type *mfd)
 		mdp4_lcdc_wait4ov(0);
 	else
 		mdp4_lcdc_wait4dmap(0);
+
+	mdp4_overlay_mdp_perf_upd(mfd, 0);
 }
