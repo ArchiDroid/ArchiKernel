@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <mach/irqs.h>
