@@ -82,7 +82,17 @@ NORET_TYPE void panic(const char * fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_LGE_HANDLE_PANIC
+	set_crash_store_enable();
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_LGE_HANDLE_PANIC
+	set_crash_store_disable();
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	dump_stack();
 #endif

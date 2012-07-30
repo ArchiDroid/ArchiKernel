@@ -22,6 +22,9 @@ obj-$(CONFIG_INPUT_JOYSTICK)	+= joystick/
 obj-$(CONFIG_INPUT_TABLET)	+= tablet/
 obj-$(CONFIG_INPUT_TOUCHSCREEN)	+= touchscreen/
 obj-$(CONFIG_INPUT_MISC)	+= misc/
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+obj-$(CONFIG_INPUT_SENSOR)	+= sensor/
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
 
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
 obj-$(CONFIG_INPUT_KEYRESET)	+= keyreset.o

@@ -32,7 +32,13 @@
 #endif
 
 #define HTC_PROCEDURE_SET_VIB_ON_OFF	21
-#define PMIC_VIBRATOR_LEVEL	(3000)
+
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38
+* To control vibrator voltage
+* 2011-08-20, sangwoo2.park@lge.com*/
+/* #define PMIC_VIBRATOR_LEVEL	(3000) */ /* origin code */
+int voltage = 2900;
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 
 static struct work_struct work_vibrator_on;
 static struct work_struct work_vibrator_off;
@@ -49,8 +55,14 @@ static void set_pmic_vibrator(int on)
 		return;
 	}
 
+/* LGE_CHANGE,
+ * Apply changed voltage to operate vibrator
+ * 2011-08-20, sangwoo2.park@lge.com
+*/
 	if (on)
-		rc = pmic_vib_mot_set_volt(PMIC_VIBRATOR_LEVEL);
+		/* rc = pmic_vib_mot_set_volt(PMIC_VIBRATOR_LEVEL); */ /* origin code */
+		rc = pmic_vib_mot_set_volt(voltage);
+/* LGE_CHANGE End */
 	else
 		rc = pmic_vib_mot_set_volt(0);
 
@@ -75,9 +87,14 @@ static void set_pmic_vibrator(int on)
 		}
 	}
 
-
+/* LGE_CHANGE,
+ * Apply changed voltage to operate vibrator
+ * 2011-08-20, sangwoo2.park@lge.com
+*/
 	if (on)
-		req.data = cpu_to_be32(PMIC_VIBRATOR_LEVEL);
+		/* req.data = cpu_to_be32(PMIC_VIBRATOR_LEVEL) */ /* origin code */
+		req.data = cpu_to_be32(voltage);
+/* LGE_CHANGE End */
 	else
 		req.data = cpu_to_be32(0);
 
@@ -96,10 +113,16 @@ static void pmic_vibrator_off(struct work_struct *work)
 	set_pmic_vibrator(0);
 }
 
+/* LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting 
+ * this function do not use now.
+ */
+#if 0
 static void timed_vibrator_on(struct timed_output_dev *sdev)
 {
 	schedule_work(&work_vibrator_on);
 }
+#endif
+/* LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting */
 
 static void timed_vibrator_off(struct timed_output_dev *sdev)
 {
@@ -109,19 +132,44 @@ static void timed_vibrator_off(struct timed_output_dev *sdev)
 static void vibrator_enable(struct timed_output_dev *dev, int value)
 {
 	hrtimer_cancel(&vibe_timer);
+/* LGE_CHANGE,
+ * To prevent the vibrator being turned off automatically while it is vibrating
+ * 2011-08-20, sangwoo2.park@lge.com
+*/
+	cancel_work_sync(&work_vibrator_off);
+/* LGE_CHANGE End */
 
+/* LGE_CHANGE,
+ * No scheduling vibrator on and off, and convert max enable time 15sec to 20 sec
+ * 2011-08-20, sangwoo2.park@lge.com
+*/
 	if (value == 0)
-		timed_vibrator_off(dev);
+		/* timed_vibrator_off(dev); */ /* origin code  */
+		set_pmic_vibrator(0);
 	else {
-		value = (value > 15000 ? 15000 : value);
+		/* value = (value > 15000 ? 15000 : value); */ /* origin code */
+		value = (value > 20000 ? 20000 : value);
 
-		timed_vibrator_on(dev);
+		/* timed_vibrator_on(dev); */ /* origin code  */
+		set_pmic_vibrator(1);
+/* LGE_CHANGE End */
 
 		hrtimer_start(&vibe_timer,
 			      ktime_set(value / 1000, (value % 1000) * 1000000),
 			      HRTIMER_MODE_REL);
 	}
 }
+
+/* LGE_CHANGE,
+ * Add voltage node for tunning vibarator operation
+ * 2011-08-20, sangwoo2.park@lge.com
+*/
+static void vibrator_voltage(struct timed_output_dev *dev, int value)
+{
+	voltage = value;
+	printk(KERN_INFO "[LGE] Setting vibrator voltage is %dmV\n", voltage);
+}
+/* LGE_CHANGE End */
 
 static int vibrator_get_time(struct timed_output_dev *dev)
 {
@@ -143,6 +191,12 @@ static struct timed_output_dev pmic_vibrator = {
 	.name = "vibrator",
 	.get_time = vibrator_get_time,
 	.enable = vibrator_enable,
+/* LGE_CHANGE,
+ * Add voltage node for tunning vibarator operation
+ * 2011-08-20, sangwoo2.park@lge.com
+*/
+	.voltage = vibrator_voltage,
+/* LGE_CHANGE End */
 };
 
 void __init msm_init_pmic_vibrator(void)

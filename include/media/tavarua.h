@@ -10,8 +10,16 @@
 #include <linux/ioctl.h>
 #include <linux/videodev2.h>
 
+/* LGE_CHANGE_S : FM Radio I2C gabage Fixed 
+ * 2012-01-30, yoonsoo@lge.com
+ * Intialize to 0. Updating only 3 bytes But writing all registers
+ * Garbage values going to I2C. from sri kiran
+ *  Enable to debug driver for HW test bin
+ */
 
-#undef FM_DEBUG
+#define FM_DEBUG		//fm driver debug
+#define FM_DEBUG_I2C    //fm i2c debug
+/* LGE_CHANGE_E : FM Radio I2C gabage Fixed */ 
 
 /* constants */
 #define  RDS_BLOCKS_NUM             (4)

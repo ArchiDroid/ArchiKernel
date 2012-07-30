@@ -1364,11 +1364,39 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
 {
 	struct block_device *bdev;
 	int err;
+/* LGE_CHANGE_S : handling dm-crypt holder
+ * 2012-02-15, jyothishre.nk@lge.com
+ * Not able to update dm-crypt *holder
+ */
+#ifdef CONFIG_LGE_ENCRYPTION_SUPPORT
+	char *dm_holder1;
+	char *dm_holder2;
+#endif
 
 	bdev = bdget(dev);
 	if (!bdev)
 		return ERR_PTR(-ENOMEM);
-
+#ifdef CONFIG_LGE_ENCRYPTION_SUPPORT
+	dm_holder1= (char *)holder;
+	dm_holder2="I belong to device-mapper";
+	while( (*dm_holder1 && *dm_holder2) && (*dm_holder1 == *dm_holder2))
+	{
+		dm_holder1++;
+		dm_holder2++;
+	}
+	if(*dm_holder1 - *dm_holder2)
+	{
+		printk(KERN_INFO "holder not same\n");
+	}
+	else
+	{
+		printk(KERN_INFO "holders same\n");
+		printk(KERN_INFO "before bdev->bd_holder=%s\n", (char *)bdev->bd_holder);
+		bdev->bd_holder = holder;
+		printk(KERN_INFO "after ibdev->bd_holder=%s\n", (char *)bdev->bd_holder);
+	}
+#endif
+/* LGE_CHANGE_E : handling dm-crypt holder*/
 	err = blkdev_get(bdev, mode, holder);
 	if (err)
 		return ERR_PTR(err);

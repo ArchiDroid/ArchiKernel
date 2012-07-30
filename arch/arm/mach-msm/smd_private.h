@@ -18,6 +18,15 @@
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
+
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+#include <linux/wait.h>
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
+
 #include <mach/msm_smsm.h>
 
 #define PC_APPS  0
@@ -208,4 +217,22 @@ extern spinlock_t smem_lock;
 
 void smd_diag(void);
 
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+struct pm_rmt_clnt_wait_info {
+	atomic_t wait_for_RPC_close;
+	atomic_t waiting_for_rmt;
+	wait_queue_head_t pm_event_q;
+};
+extern struct pm_rmt_clnt_wait_info *pm_rmt_wait;
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+/*EFS Sync from shutdown thread*/
+#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+extern int rmt_storate_report_available(int sync_flag);
+#endif
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 #endif

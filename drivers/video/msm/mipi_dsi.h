@@ -306,5 +306,17 @@ void mipi_dsi_turn_off_clks(void);
 #ifdef CONFIG_FB_MSM_MDP303
 void update_lane_config(struct msm_panel_info *pinfo);
 #endif
-
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+void lglogo_mipi_dsi_clk_enable(void);
+void lglogo_mipi_dsi_clk_disable(void);
+#endif /*CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO*/
+/* LGE_CHANGE_S : LCD ESD Protection 
+ * 2012-01-30, yoonsoo@lge.com
+ * LCD ESD Protection
+ */
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+void esd_sw_test_lcd_panel_power_off(void);
+void esd_sw_test_lcd_panel_power_on(void);
+#endif
+/* LGE_CHANGE_E : LCD ESD Protection*/ 
 #endif /* MIPI_DSI_H */

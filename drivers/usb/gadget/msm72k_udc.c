@@ -46,6 +46,10 @@
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
 
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+#include "u_lgeusb.h"
+#endif
+
 static const char driver_name[] = "msm72k_udc";
 
 /* #define DEBUG */
@@ -150,7 +154,16 @@ static void usb_do_remote_wakeup(struct work_struct *w);
 #define REMOTE_WAKEUP_DELAY	msecs_to_jiffies(1000)
 #define PHY_STATUS_CHECK_DELAY	(jiffies + msecs_to_jiffies(1000))
 #define EPT_PRIME_CHECK_DELAY	(jiffies + msecs_to_jiffies(1000))
-
+/*LGE_CHANGE_S wonjung.yun@lge.com 20120323*/
+/*Wonjung PIF Uevent Support*/
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+#define INVALID_OR_NOCABLE 0
+#define USB_CABLE          1
+#define PIF_56K_CABLE      2
+#define PIF_130K_CABLE     3
+int g_cable_type_info = INVALID_OR_NOCABLE;
+#endif
+/*LGE_CHANGE_E wonjung.yun@lge.com 20120323*/
 struct usb_info {
 	/* lock for register/queue/device state changes */
 	spinlock_t lock;
@@ -222,8 +235,15 @@ struct usb_info {
 	struct otg_transceiver *xceiv;
 	enum usb_device_state usb_state;
 	struct wake_lock	wlock;
+/* LGE_CHANGE_S : Charger insert 
+ * 2012-03-14, kiran.kanneganti@lge.com
+ * To add some code for not enter sleep for 2sec when TA insert
+ * Work around for system wakeup when TA insert
+ * Hold wake lock for 2 secs. Let system be in wakeup state So that
+ * events can reach framework with out delay.*/	
+	struct wake_lock    TA_wlock;
 };
-
+/* LGE_CHANGE_E : Charger insert  */
 static const struct usb_ep_ops msm72k_ep_ops;
 static struct usb_info *the_usb_info;
 
@@ -284,8 +304,23 @@ static ssize_t print_switch_name(struct switch_dev *sdev, char *buf)
 
 static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 {
+/*LGE_CHANGE_S wonjung.yun@lge.com 20120323*/
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	if (sdev->state == 0)
+		return snprintf(buf, PAGE_SIZE, "%s\n", "offline");
+	else if (sdev->state == 1)
+		return snprintf(buf, PAGE_SIZE, "%s\n", "online");
+	else if (sdev->state == 2)		/*Wonjung PIF Uevent Support*/
+		return snprintf(buf, PAGE_SIZE, "%s\n", "usb56k");
+	else if (sdev->state == 3)
+		return snprintf(buf, PAGE_SIZE, "%s\n", "uart130k");
+	else
+		return snprintf(buf, PAGE_SIZE, "%s\n", "offline");
+#else
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 		sdev->state ? "online" : "offline");
+#endif
+/*LGE_CHANGE_E wonjung.yun@lge.com 20120323*/
 }
 
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
@@ -322,8 +357,19 @@ static int usb_get_max_power(struct usb_info *ui)
 	if (temp == USB_CHG_TYPE__WALLCHARGER)
 		return USB_WALLCHARGER_CHG_CURRENT;
 
+/* LGE_CHANGE_S: murali.ramaiah@lge.com, 2012-02-03
+	this patch is referred from LS670 model: If we connects faulty wall charger,
+	charger type is detected as STD Downstream Port(i.e USB charger) and not configured as USB device.
+	so charging current will be set to 500mA.
+*/
+#ifdef CONFIG_LGE_FAULTY_WALL_CHARGER_PATCH
+	if (suspended || !configured)
+		return 500; /* this value is sent to modem charger task (chg_task.c: chg_usb_i_is_available) */
+#else /* original */
 	if (suspended || !configured)
 		return 0;
+#endif
+/* LGE_CHANGE_E: murali.ramaiah@lge.com, 2012-02-03 */
 
 	return bmaxpow;
 }
@@ -443,7 +489,16 @@ static void usb_chg_detect(struct work_struct *w)
 	if (temp == USB_CHG_TYPE__WALLCHARGER) {
 		pm_runtime_put_sync(&ui->pdev->dev);
 		wake_unlock(&ui->wlock);
+/* LGE_CHANGE_S : Charger insert 
+ * 2012-03-14, kiran.kanneganti@lge.com
+ * To add some code for not enter sleep for 2sec when TA insert
+ * Work around for system wakeup when TA insert
+ * Hold wake lock for 2 secs. Let system be in wakeup state So that
+   events can reach framework with out delay.*/	
+ 		printk("Acquire TA Wakelock for 2 Secs \n");
+ 		wake_lock_timeout(&ui->TA_wlock,2 * HZ);
 	}
+/* LGE_CHANGE_E : Charger insert  */	
 }
 
 static int usb_ep_get_stall(struct msm_endpoint *ept)
@@ -1397,10 +1452,31 @@ static void usb_prepare(struct usb_info *ui)
 
 static void usb_reset(struct usb_info *ui)
 {
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	int cable_type;
+#endif
 	struct msm_otg *otg = to_msm_otg(ui->xceiv);
-
 	dev_dbg(&ui->pdev->dev, "reset controller\n");
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	msleep(300);
+	cable_type = android_set_factory_mode();
+/*LGE_CHANGE_S wonjung.yun@lge.com 20120331*/
+/*Wonjung PIF Uevent Support*/
+/*Send online UEvent for 56K also.*/
+	g_cable_type_info = lge_get_cable_info();
+	if(PIF_130K_CABLE == g_cable_type_info ) 
+	{
+		switch_set_state(&ui->sdev,g_cable_type_info);
+	}
+	else if (PIF_56K_CABLE  == g_cable_type_info) 
+	{
+		switch_set_state(&ui->sdev,1);
+	}
 
+	/*if (cable_type == LGE_130K_CABLE)
+		switch_set_state(&ui->sdev, 3); //130k*/
+/*LGE_CHANGE_E wonjung.yun@lge.com 20120331*/
+#endif
 	atomic_set(&ui->running, 0);
 
 	/*
@@ -1543,7 +1619,17 @@ static void usb_do_work(struct work_struct *w)
 			break;
 		case USB_STATE_ONLINE:
 			if (atomic_read(&ui->offline_pending)) {
+/*LGE_CHANGE_S wonjung.yun@lge.com 20120323*/
+/*Wonjung PIF Uevent Support*/
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+				if(  (PIF_56K_CABLE  != g_cable_type_info)
+				   &&(PIF_130K_CABLE != g_cable_type_info ) 
+				  )
+#endif
+/*LGE_CHANGE_E wonjung.yun@lge.com 20120323*/
+				  {/* For PIF types let framework consider States*/
 				switch_set_state(&ui->sdev, 0);
+				  }
 				atomic_set(&ui->offline_pending, 0);
 			}
 
@@ -1603,6 +1689,21 @@ static void usb_do_work(struct work_struct *w)
 				pm_runtime_put_noidle(&ui->pdev->dev);
 				pm_runtime_suspend(&ui->pdev->dev);
 				wake_unlock(&ui->wlock);
+/* LGE_CHANGE_S : Charger insert 
+ * 2012-03-14, kiran.kanneganti@lge.com
+ * To add some code for not enter sleep for 2sec when TA insert
+ * Work around for system wakeup when TA insert
+ * Hold wake lock for 2 secs. Let system be in wakeup state So that
+   events can reach framework with out delay.*/	
+				if(wake_lock_active(&ui->TA_wlock))
+				{
+					printk("Unlock TA WakeLock \n");
+					wake_unlock(&ui->TA_wlock);
+				}
+				/*Let Framework handle USB removal events before going to sleep*/
+				/*Hold wakelock for 2 secs to prevent immediate sleep*/
+				wake_lock_timeout(&ui->TA_wlock,2 * HZ);
+/* LGE_CHANGE_E : Charger insert  */				
 				break;
 			}
 			if (flags & USB_FLAG_SUSPEND) {
@@ -1629,9 +1730,18 @@ static void usb_do_work(struct work_struct *w)
 				 * is selected. Send online/offline event
 				 * accordingly.
 				 */
+/*LGE_CHANGE_S wonjung.yun@lge.com 20120323*/
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+/*Wonjung PIF Uevent Support*/
+				if(  (PIF_56K_CABLE  != g_cable_type_info)
+				   &&(PIF_130K_CABLE != g_cable_type_info ) 
+				  )
+#endif
+/*LGE_CHANGE_E wonjung.yun@lge.com 20120323*/
+				{
 				switch_set_state(&ui->sdev,
 						atomic_read(&ui->configured));
-
+				}
 				if (maxpower < 0)
 					break;
 
@@ -2597,6 +2707,15 @@ static int msm72k_probe(struct platform_device *pdev)
 
 	wake_lock_init(&ui->wlock,
 			WAKE_LOCK_SUSPEND, "usb_bus_active");
+/* LGE_CHANGE_S : Charger insert 
+ * 2012-03-14, kiran.kanneganti@lge.com
+ * To add some code for not enter sleep for 2sec when TA insert
+ * Work around for system wakeup when TA insert
+ * Hold wake lock for 2 secs. Let system be in wakeup state So that
+   events can reach framework with out delay.*/	
+	wake_lock_init(&ui->TA_wlock,
+				WAKE_LOCK_SUSPEND, "TA_active");
+/* LGE_CHANGE_E : Charger insert  */
 
 	usb_debugfs_init(ui);
 
@@ -2618,7 +2737,15 @@ static int msm72k_probe(struct platform_device *pdev)
 			__func__, retval);
 		switch_dev_unregister(&ui->sdev);
 		wake_lock_destroy(&ui->wlock);
+/* LGE_CHANGE_S : Charger insert 
+ * 2012-03-14, kiran.kanneganti@lge.com
+ * To add some code for not enter sleep for 2sec when TA insert
+ * Work around for system wakeup when TA insert
+ * Hold wake lock for 2 secs. Let system be in wakeup state So that
+   events can reach framework with out delay.*/	
+		wake_lock_destroy(&ui->TA_wlock);
 		return usb_free(ui, retval);
+/* LGE_CHANGE_E : Charger insert  */	
 	}
 
 	pm_runtime_enable(&pdev->dev);

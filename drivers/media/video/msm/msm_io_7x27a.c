@@ -40,6 +40,36 @@
 #define	MIPI_PHY_D3_CONTROL		0x00000030
 #define	MIPI_PWR_CNTL			0x00000054
 
+#define MIPI_IMASK_ERROR_OCCUR                0xF01FFFC0
+#define MIPI_IMASK_CLK_ULPM_ENTRY             (0x00000001<<0)
+#define MIPI_IMASK_CLK_ULPM_EXIT              (0x00000001<<1)
+#define MIPI_IMASK_DATA_ULPM_ENTRY            (0x00000001<<2)
+#define MIPI_IMASK_DATA_ULPM_EXIT             (0x00000001<<3)
+#define MIPI_IMASK_CLK_START                  (0x00000001<<4)
+#define MIPI_IMASK_CLK_STOP                   (0x00000001<<5)
+#define MIPI_IMASK_ERR_SOT                    (0x00000001<<6)
+#define MIPI_IMASK_ERR_SOT_SYNC               (0x00000001<<7)
+#define MIPI_IMASK_CLK_CTL_ERROR              (0x00000001<<8)
+#define MIPI_IMASK_DATA_CTL_ERROR             (0x00000001<<9)
+#define MIPI_IMASK_CLK_CMM_ERROR              (0x00000001<<10)
+#define MIPI_IMASK_DATA_CMM_ERROR             (0x00000001<<11)
+#define MIPI_IMASK_DL0_SYNC_ERROR             (0x00000001<<12)
+#define MIPI_IMASK_DL1_SYNC_ERROR             (0x00000001<<13)
+#define MIPI_IMASK_DL2_SYNC_ERROR             (0x00000001<<14)
+#define MIPI_IMASK_DL3_SYNC_ERROR             (0x00000001<<15)
+#define MIPI_IMASK_ECC_ERROR                  (0x00000001<<16)
+#define MIPI_IMASK_CRC_ERROR                  (0x00000001<<17)
+#define MIPI_IMASK_FRAME_SYNC_ERROR           (0x00000001<<18)
+#define MIPI_IMASK_ID_ERROR                   (0x00000001<<19)
+#define MIPI_IMASK_EOT_ERROR                  (0x00000001<<20)
+#define MIPI_IMASK_SW_RST_DONE                (0x00000001<<21)
+#define MIPI_IMASK_SHORT_PACKET_CAPTURE_DONE  (0x00000001<<22)
+#define MIPI_IMASK_CAL_DONE                   (0x00000001<<23)
+#define MIPI_IMASK_DL0_FIFO_OVERFLOW          (0x00000001<<28)
+#define MIPI_IMASK_DL1_FIFO_OVERFLOW          (0x00000001<<29)
+#define MIPI_IMASK_DL2_FIFO_OVERFLOW          (0x00000001<<30)
+#define MIPI_IMASK_DL3_FIFO_OVERFLOW          (0x00000001<<31)
+
 /*
  * MIPI_PROTOCOL_CONTROL register bits to enable/disable the features of
  * CSI Rx Block
@@ -293,7 +323,53 @@ static irqreturn_t msm_io_csi_irq(int irq_num, void *data)
 	uint32_t irq;
 
 	irq = msm_io_r(csibase + MIPI_INTERRUPT_STATUS);
-	CDBG("%s MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq);
+//	printk("%s MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq);
+
+	if (irq & MIPI_IMASK_ERROR_OCCUR) {
+			pr_info("%s MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq);
+			if (irq & MIPI_IMASK_ERR_SOT)
+					pr_info("[CAM]msm_io_csi_irq: SOT error\n");
+			if (irq & MIPI_IMASK_ERR_SOT_SYNC)
+					pr_info("[CAM]msm_io_csi_irq: SOT SYNC error\n");
+			if (irq & MIPI_IMASK_CLK_CTL_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: Clock lane ULPM mode sequence or command error\n");
+			if (irq & MIPI_IMASK_DATA_CTL_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: Data lane ULPM mode sequence or command error\n");
+			if (irq & MIPI_IMASK_CLK_CMM_ERROR) /* defeatured */
+					pr_info("[CAM]msm_io_csi_irq: Common mode error detected by PHY CLK lane\n");
+			if (irq & MIPI_IMASK_DATA_CMM_ERROR) /* defeatured */
+					pr_info("[CAM]msm_io_csi_irq: Common mode error detected by PHY data lane\n");
+			if (irq & MIPI_IMASK_DL0_SYNC_ERROR)
+					pr_err("[CAM]msm_io_csi_irq: An error occured while synchronizing data " \
+							"from PHY to VFE clock domain on data lane 0\n");
+			if (irq & MIPI_IMASK_DL1_SYNC_ERROR)
+					pr_err("[CAM]msm_io_csi_irq: An error occured while synchronizing data " \
+							"from PHY to VFE clock domain on data lane 1\n");
+			if (irq & MIPI_IMASK_DL2_SYNC_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: An error occured while synchronizing data " \
+							"from PHY to VFE clock domain on data lane 2\n");
+			if (irq & MIPI_IMASK_DL3_SYNC_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: An error occured while synchronizing data " \
+							"from PHY to VFE clock domain on data lane 3\n");
+			if (irq & MIPI_IMASK_ECC_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: ECC error\n");
+			if (irq & MIPI_IMASK_CRC_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: CRC error\n");
+			if (irq & MIPI_IMASK_FRAME_SYNC_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: FS not paired with FE\n");
+			if (irq & MIPI_IMASK_ID_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: Long packet ID not defined\n");
+			if (irq & MIPI_IMASK_EOT_ERROR)
+					pr_info("[CAM]msm_io_csi_irq: The received data is less than the value indicated by WC\n");
+			if (irq & MIPI_IMASK_DL0_FIFO_OVERFLOW)
+					pr_err("[CAM]msm_io_csi_irq: Data lane 0 FIFO overflow\n");
+			if (irq & MIPI_IMASK_DL1_FIFO_OVERFLOW)
+					pr_err("[CAM]msm_io_csi_irq: Data lane 1 FIFO overflow\n");
+			if (irq & MIPI_IMASK_DL2_FIFO_OVERFLOW)
+					pr_err("[CAM]msm_io_csi_irq: Data lane 2 FIFO overflow\n");
+			if (irq & MIPI_IMASK_DL3_FIFO_OVERFLOW)
+					pr_err("[CAM]msm_io_csi_irq: Data lane 3 FIFO overflow\n");
+	}
 	msm_io_w(irq, csibase + MIPI_INTERRUPT_STATUS);
 
 	/* TODO: Needs to send this info to upper layers */
@@ -307,8 +383,6 @@ int msm_camio_enable(struct platform_device *pdev)
 	int rc = 0;
 	const struct msm_camera_sensor_info *sinfo = pdev->dev.platform_data;
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
-	uint32_t val;
-
 	camio_dev = pdev;
 	camio_ext = camdev->ioext;
 	camio_clk = camdev->ioclk;
@@ -324,29 +398,16 @@ int msm_camio_enable(struct platform_device *pdev)
 	csibase = ioremap(camio_ext.csiphy, camio_ext.csisz);
 	if (!csibase) {
 		rc = -ENOMEM;
+		printk("###### csi busy ######\n");
 		goto csi_busy;
 	}
 	rc = request_irq(camio_ext.csiirq, msm_io_csi_irq,
-				IRQF_TRIGGER_RISING, "csi", 0);
-	if (rc < 0)
+				IRQF_TRIGGER_HIGH, "csi", 0);
+
+	if (rc < 0) {
+		printk("###### request irq failed ######\n");
 		goto csi_irq_fail;
-
-	msleep(20);
-	val = (20 <<
-		MIPI_PHY_D0_CONTROL2_SETTLE_COUNT_SHFT) |
-		(0x0F << MIPI_PHY_D0_CONTROL2_HS_TERM_IMP_SHFT) |
-		(0x0 << MIPI_PHY_D0_CONTROL2_LP_REC_EN_SHFT) |
-		(0x1 << MIPI_PHY_D0_CONTROL2_ERR_SOT_HS_EN_SHFT);
-	CDBG("%s MIPI_PHY_D0_CONTROL2 val=0x%x\n", __func__, val);
-	msm_io_w(val, csibase + MIPI_PHY_D0_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D1_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D2_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D3_CONTROL2);
-
-	val = (0x0F << MIPI_PHY_CL_CONTROL_HS_TERM_IMP_SHFT) |
-		(0x0 << MIPI_PHY_CL_CONTROL_LP_REC_EN_SHFT);
-	CDBG("%s MIPI_PHY_CL_CONTROL val=0x%x\n", __func__, val);
-	msm_io_w(val, csibase + MIPI_PHY_CL_CONTROL);
+	}
 
 	appbase = ioremap(camio_ext.appphy,
 		camio_ext.appsz);
@@ -357,8 +418,10 @@ int msm_camio_enable(struct platform_device *pdev)
 	return 0;
 
 csi_irq_fail:
+	printk("######[camera] csi_irq_fail\n");
 	iounmap(csibase);
 csi_busy:
+	printk("######[camera] csi_busy\n");
 	msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
 	msm_camio_clk_disable(CAMIO_VFE_CLK);
 	msm_camio_clk_disable(CAMIO_CSI0_VFE_CLK);
@@ -371,23 +434,17 @@ csi_busy:
 	return rc;
 }
 
-void msm_camio_disable(struct platform_device *pdev)
+static void msm_camio_csi_disable(void)
 {
 	uint32_t val;
 
-	val = (20 <<
-		MIPI_PHY_D0_CONTROL2_SETTLE_COUNT_SHFT) |
-		(0x0F << MIPI_PHY_D0_CONTROL2_HS_TERM_IMP_SHFT) |
-		(0x0 << MIPI_PHY_D0_CONTROL2_LP_REC_EN_SHFT) |
-		(0x1 << MIPI_PHY_D0_CONTROL2_ERR_SOT_HS_EN_SHFT);
+	val = 0x0;
 	CDBG("%s MIPI_PHY_D0_CONTROL2 val=0x%x\n", __func__, val);
 	msm_io_w(val, csibase + MIPI_PHY_D0_CONTROL2);
 	msm_io_w(val, csibase + MIPI_PHY_D1_CONTROL2);
 	msm_io_w(val, csibase + MIPI_PHY_D2_CONTROL2);
 	msm_io_w(val, csibase + MIPI_PHY_D3_CONTROL2);
 
-	val = (0x0F << MIPI_PHY_CL_CONTROL_HS_TERM_IMP_SHFT) |
-		(0x0 << MIPI_PHY_CL_CONTROL_LP_REC_EN_SHFT);
 	CDBG("%s MIPI_PHY_CL_CONTROL val=0x%x\n", __func__, val);
 	msm_io_w(val, csibase + MIPI_PHY_CL_CONTROL);
 	msleep(20);
@@ -395,6 +452,14 @@ void msm_camio_disable(struct platform_device *pdev)
 	free_irq(camio_ext.csiirq, 0);
 	iounmap(csibase);
 	iounmap(appbase);
+	
+}
+
+void msm_camio_disable(struct platform_device *pdev)
+{
+	CDBG("disable mipi\n");
+	msm_camio_csi_disable();
+
 	CDBG("disable clocks\n");
 
 	msm_camio_clk_disable(CAMIO_VFE_CLK);
@@ -418,6 +483,9 @@ int msm_camio_sensor_clk_on(struct platform_device *pdev)
 	rc = camdev->camera_gpio_on();
 	if (rc < 0)
 		return rc;
+#ifdef CONFIG_HI542
+	msleep(5);  /* LGE_CHANGE donghyun.kwon@lge.com (20120203) : change power sequence*/
+#endif
 	return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
 }
 
@@ -425,8 +493,18 @@ int msm_camio_sensor_clk_off(struct platform_device *pdev)
 {
 	const struct msm_camera_sensor_info *sinfo = pdev->dev.platform_data;
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
+
+#ifdef CONFIG_HI542
+	int rc=0;
+	printk("######[camera] msm_camio_sensor_clk_off\n");
+	rc = msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
+	msleep(20);
+	camdev->camera_gpio_off();
+	return rc;
+#else
 	camdev->camera_gpio_off();
 	return msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
+#endif
 
 }
 
@@ -474,6 +552,9 @@ int msm_camio_probe_on(struct platform_device *pdev)
 	rc = camdev->camera_gpio_on();
 	if (rc < 0)
 		return rc;
+#ifdef CONFIG_HI542
+	msleep(5);  /* LGE_CHANGE donghyun.kwon@lge.com (20120203) : change power sequence*/
+#endif
 	return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
 }
 
@@ -481,6 +562,7 @@ int msm_camio_probe_off(struct platform_device *pdev)
 {
 	const struct msm_camera_sensor_info *sinfo = pdev->dev.platform_data;
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
+	printk("######[camera] msm_camio_probe_off\n");
 	camdev->camera_gpio_off();
 
 	csibase = ioremap(camdev->ioext.csiphy, camdev->ioext.csisz);
@@ -519,14 +601,6 @@ int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 	CDBG("%s MIPI_PROTOCOL_CONTROL val=0x%x\n", __func__, val);
 	msm_io_w(val, csibase + MIPI_PROTOCOL_CONTROL);
 
-	val = (0x1 << MIPI_CALIBRATION_CONTROL_SWCAL_CAL_EN_SHFT) |
-		(0x1 <<
-		MIPI_CALIBRATION_CONTROL_SWCAL_STRENGTH_OVERRIDE_EN_SHFT) |
-		(0x1 << MIPI_CALIBRATION_CONTROL_CAL_SW_HW_MODE_SHFT) |
-		(0x1 << MIPI_CALIBRATION_CONTROL_MANUAL_OVERRIDE_EN_SHFT);
-	CDBG("%s MIPI_CALIBRATION_CONTROL val=0x%x\n", __func__, val);
-	msm_io_w(val, csibase + MIPI_CALIBRATION_CONTROL);
-
 	val = (csi_params->settle_cnt <<
 		MIPI_PHY_D0_CONTROL2_SETTLE_COUNT_SHFT) |
 		(0x0F << MIPI_PHY_D0_CONTROL2_HS_TERM_IMP_SHFT) |
@@ -535,9 +609,8 @@ int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 	CDBG("%s MIPI_PHY_D0_CONTROL2 val=0x%x\n", __func__, val);
 	msm_io_w(val, csibase + MIPI_PHY_D0_CONTROL2);
 	msm_io_w(val, csibase + MIPI_PHY_D1_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D2_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D3_CONTROL2);
-
+	msm_io_w(0x0, csibase + MIPI_PHY_D2_CONTROL2);
+	msm_io_w(0x0, csibase + MIPI_PHY_D3_CONTROL2);
 
 	val = (0x0F << MIPI_PHY_CL_CONTROL_HS_TERM_IMP_SHFT) |
 		(0x1 << MIPI_PHY_CL_CONTROL_LP_REC_EN_SHFT);

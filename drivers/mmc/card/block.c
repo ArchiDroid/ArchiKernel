@@ -961,6 +961,17 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 
 		mmc_queue_bounce_post(mq);
 
+#ifdef CONFIG_MACH_LGE
+		/* LGE_CHANGE
+		* Don't redo I/O when ENOMEDIUM error.
+		* 2012-01-14, warkap.seo@lge.com from G1TDR
+		*/
+		if (brq.cmd.error == -ENOMEDIUM) {
+			printk(KERN_INFO "[LGE][MMC][%-18s( )] brq.cmd.error:ENOMEDIUM, skip below\n", __func__);
+			goto cmd_err;
+		}
+#endif
+
 		/*
 		 * sbc.error indicates a problem with the set block count
 		 * command.  No data will have been transferred.
@@ -1087,7 +1098,19 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 	if (mmc_card_removed(card))
 		req->cmd_flags |= REQ_QUIET;
 	while (ret)
+#ifdef CONFIG_MACH_LGE
+		/* LGE_CHANGE
+		* supressed the error message.
+		* 2012-01-14, warkap.seo@lge.com from G1TDR
+		*/
+		{
+			req->cmd_flags |= REQ_QUIET;
 		ret = __blk_end_request(req, -EIO, blk_rq_cur_bytes(req));
+		}
+#else
+		ret = __blk_end_request(req, -EIO, blk_rq_cur_bytes(req));
+#endif
+
 	spin_unlock_irq(&md->lock);
 
 	return 0;
@@ -1427,9 +1450,19 @@ static int mmc_blk_probe(struct mmc_card *card)
 		return PTR_ERR(md);
 
 	err = mmc_blk_set_blksize(md, card);
-	if (err)
+/*LGE_CHANGE_S:If there is error in setting block length still continue.
+			2012-03-18 [jyothishre.nk@lge.com]*/
+	if (err){
+		printk(KERN_INFO "%s:There is problem in setting block size\n", mmc_hostname(card->host));
+		if(!(strcmp(mmc_hostname(card->host), "mmc1"))){
+			printk(KERN_INFO "don't stop here try to continue\n");
+			err=0;
+		}else{
+			printk(KERN_INFO "cannot continue it has to remove\n");
 		goto out;
-
+		}
+	}
+/*LGE_CHANGE_E*/
 	string_get_size((u64)get_capacity(md->disk) << 9, STRING_UNITS_2,
 			cap_str, sizeof(cap_str));
 	printk(KERN_INFO "%s: %s %s %s %s\n",

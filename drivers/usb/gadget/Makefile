@@ -70,3 +70,7 @@ obj-$(CONFIG_USB_G_NOKIA)	+= g_nokia.o
 obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
 obj-$(CONFIG_USB_G_NCM)		+= g_ncm.o
 obj-$(CONFIG_USB_G_ANDROID)	+= g_android.o
+
+ifeq ($(TARGET_CARRIER), TRF)
+	EXTRA_CFLAGS += -DLGE_TRACFONE
+endif

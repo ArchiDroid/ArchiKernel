@@ -370,6 +370,31 @@ config LEDS_PMIC8058
 	  (Power Management IC) chip on Qualcomm reference boards,
 	  for example SURF and FFAs.
 
+#LGE_CHANGE_S : U0 board config
+# 20011-10-27, samjinjang@lge.com, 
+# Porting AS3647 LED Flash Driver	  
+config LEDS_AS364X
+	tristate "LED driver for AS364X"
+	depends on I2C
+	default y
+	help
+	  This option enables support for austriamicrosystems
+	  AS364X led controller for flash LEDs. It does not use LED framework
+	  but has its own sysfs API due to the specialties of flashing.
+
+choice
+	prompt "Chip Type"
+	depends on LEDS_AS364X
+	default AS3647
+
+config  AS3647
+	bool "AS3647"
+
+config  AS3648
+	bool "AS3648"
+
+endchoice
+# LGE_CHANGE_E : U0 board config
 config LEDS_INTEL_SS4200
 	tristate "LED driver for Intel NAS SS4200 series"
 	depends on LEDS_CLASS

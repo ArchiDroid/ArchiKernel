@@ -693,6 +693,16 @@ void mdp_dsi_video_update(struct msm_fb_data_type *mfd);
 void mdp3_dsi_cmd_dma_busy_wait(struct msm_fb_data_type *mfd);
 #endif
 
+/* LGE_CHANGE_S : LCD ESD Protection 
+ * 2012-01-30, yoonsoo@lge.com
+ * LCD ESD Protection
+ */
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+void esd_dma_dsi_panel_off(void);
+void esd_dma_dsi_panel_on(void);
+#endif
+/* LGE_CHANGE_E : LCD ESD Protection*/
+
 int mdp_hw_cursor_update(struct fb_info *info, struct fb_cursor *cursor);
 #if defined(CONFIG_FB_MSM_OVERLAY) && defined(CONFIG_FB_MSM_MDP40)
 int mdp_hw_cursor_sync_update(struct fb_info *info, struct fb_cursor *cursor);

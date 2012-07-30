@@ -187,6 +187,26 @@ int msm_add_host(unsigned int host, struct msm_usb_host_platform_data *plat)
 	return platform_device_register(pdev);
 }
 
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+#ifdef CONFIG_USB_ANDROID_ACM
+static struct usb_gadget_facm_pdata facm_pdata = {
+	.no_ports	= 2,
+	.transport[0] = USB_GADGET_FSERIAL_TRANSPORT_TTY,
+	.transport[1] = USB_GADGET_FSERIAL_TRANSPORT_TTY,
+};
+
+struct platform_device usb_gadget_facm_device = {
+	.name	= "usb_facm",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &facm_pdata,
+	},
+};
+#endif
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 static struct resource msm_dmov_resource[] = {
 	{
 		.start = INT_ADM_AARM,
@@ -573,6 +593,42 @@ static struct platform_device msm_lcdc_device = {
 	.id     = 0,
 };
 
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_FB_MSM_EBI2
+/* LGE_CHANGE
+ * FIXME: EBI2 LCD platform device add. If QCT is implement, should be removed.
+ * 2011-06-17, bongkyu.kim@lge.com
+ */
+static struct resource msm_ebi2_lcd_resources[] = {
+	{
+		.name   = "base",
+		.start  = 0xa0d00000,
+		.end    = 0xa0d00000 + PAGE_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "lcd01",
+		.start  = 0x98000000,
+		.end    = 0x98000000 + 0x80000 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "lcd02",
+		.start  = 0x9c000000,
+		.end    = 0x9c000000 + 0x80000 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device msm_ebi2_lcd_device = {
+	.name = "ebi2_lcd",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(msm_ebi2_lcd_resources),
+	.resource = msm_ebi2_lcd_resources,
+};
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 static struct resource kgsl_3d0_resources[] = {
 	{
 		.name  = KGSL_3D0_REG_MEMORY,
@@ -654,6 +710,16 @@ void __init msm_fb_register_device(char *name, void *data)
 		msm_register_device(&msm_mipi_dsi_device, data);
 	else if (!strncmp(name, "lcdc", 4))
 		msm_register_device(&msm_lcdc_device, data);
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_FB_MSM_EBI2
+	/* LGE_CHANGE
+	 * FIXME: EBI2 LCD platform device add. If QCT is implement, should be removed.
+	 * 2011-06-17, bongkyu.kim@lge.com
+	 */
+	else if (!strncmp(name, "ebi2", 4))
+		msm_register_device(&msm_ebi2_lcd_device, data);
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 	else
 		printk(KERN_ERR "%s: unknown device! %s\n", __func__, name);
 }
@@ -686,6 +752,12 @@ struct platform_device led_pdev = {
 	},
 };
 
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+ * below structure doesn't defined in kernel2.6.38.
+ * These are defined board-[project]-sound.c file
+ * So, Temporally blocked
+ */
+#if 0
 struct platform_device asoc_msm_pcm = {
 	.name   = "msm-dsp-audio",
 	.id     = 0,
@@ -700,6 +772,8 @@ struct platform_device asoc_msm_dai1 = {
 	.name   = "msm-cpu-dai",
 	.id     = 0,
 };
+#endif
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting*/
 
 static struct resource gpio_resources[] = {
 	{

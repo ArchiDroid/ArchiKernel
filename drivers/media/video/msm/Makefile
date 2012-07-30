@@ -27,6 +27,7 @@ obj-$(CONFIG_MSM_CAMERA_AF_FOXCONN) += mt9p012_fox.o
 obj-$(CONFIG_MSM_CAMERA_AF_BAM) += mt9p012_bam.o
 obj-$(CONFIG_MT9P012_KM) += mt9p012_km.o mt9p012_km_reg.o
 obj-$(CONFIG_MT9E013) += mt9e013.o mt9e013_reg.o
+obj-$(CONFIG_MT9E013_LGIT) += mt9e013_lgit.o mt9e013_lgit_reg.o
 obj-$(CONFIG_S5K3E2FX) += s5k3e2fx.o
 obj-$(CONFIG_S5K4E1) += s5k4e1.o s5k4e1_reg.o
 #FIXME: Merge the two ifeq causes VX6953 preview not coming up.
@@ -37,6 +38,7 @@ else
   obj-$(CONFIG_IMX074) += imx074.o imx074_reg.o
 endif
 obj-$(CONFIG_QS_S5K4E1) += qs_s5k4e1.o qs_s5k4e1_reg.o
+obj-$(CONFIG_QS_MT9P017) += qs_mt9p017.o qs_mt9p017_reg.o
 obj-$(CONFIG_VB6801) += vb6801.o
 obj-$(CONFIG_IMX072) += imx072.o imx072_reg.o
 obj-$(CONFIG_WEBCAM_OV9726) += ov9726.o ov9726_reg.o
@@ -47,3 +49,13 @@ obj-$(CONFIG_MT9D112) += mt9d112.o mt9d112_reg.o
 
 obj-$(CONFIG_MT9D113) += mt9d113.o mt9d113_reg.o
 obj-$(CONFIG_FB_MSM_WRITEBACK_MSM_PANEL) += wfd/
+obj-$(CONFIG_MSM_GEMINI) += msm_gemini_dev.o msm_gemini_sync.o msm_gemini_core.o msm_gemini_hw.o msm_gemini_platform.o
+obj-$(CONFIG_MSM_CAMERA_FLASH_LM2759)+= lm2759_flash.o
+obj-$(CONFIG_MSM_CAMERA_FLASH_LM3559)+= lm3559_flash.o
+obj-$(CONFIG_MT9P017) += mt9p017.o mt9p017_reg.o
+obj-$(CONFIG_HI542) += hi542.o hi542_reg.o
+# LGE_CHANGE_S : VGA Camera config
+# Camera sensor configuration has been changed for VGA
+obj-$(CONFIG_MT9V113) += mt9v113.o mt9v113_reg.o
+# LGE_CHANGE_E : VGA Camera config
+

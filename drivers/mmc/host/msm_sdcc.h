@@ -402,7 +402,10 @@ struct msmsdcc_host {
 
 int msmsdcc_set_pwrsave(struct mmc_host *mmc, int pwrsave);
 int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable);
-
+/*LGE_CHANGE_S:Added declaration here to access in core
+ * [jyothishre.nk@lge.com] 2012-03-16 */
+void msmsdcc_check_status(unsigned long data);
+/*LGE_CHANGE_E:*/
 #ifdef CONFIG_MSM_SDIO_AL
 
 static inline int msmsdcc_lpm_enable(struct mmc_host *mmc)

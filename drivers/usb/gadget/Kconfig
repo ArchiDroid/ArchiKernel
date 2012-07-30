@@ -1168,4 +1168,20 @@ config USB_ANDROID_RMNET_CTRL_SMD
 	 transfers. This option enables only control interface.
 	 Data interface used is BAM.
 
+#LGE_CHANGE_S : kernel3.0 porting
+config LGE_USB_GADGET_DRIVER
+	boolean "Android Gadget for LGE United Driver"
+	depends on USB_GADGET
+	default n
+	help
+	  Provides android gadget codes for LGE United Driver.
+
+config LGE_USB_AUTORUN_DRIVER
+	boolean "Android Gadget for LGE Autorun Driver"
+	depends on USB_GADGET
+	default n
+	help
+	  Provides android gadget codes for LGE Autorun Driver.
+#LGE_CHANGE_E : kernel3.0 porting
+	
 endif # USB_GADGET

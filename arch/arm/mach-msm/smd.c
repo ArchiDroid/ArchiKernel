@@ -1127,6 +1127,7 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len,
 	unsigned xfer;
 	int orig_len = len;
 	int r = 0;
+	unsigned char is_pause = 0; 		/*LGE_CHANGE : samjinjang  Cayman patch 20120206 */
 
 	SMD_DBG("smd_stream_write() %d -> ch%d\n", len, ch->n);
 	if (len < 0)
@@ -1135,8 +1136,10 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len,
 		return 0;
 
 	while ((xfer = ch_write_buffer(ch, &ptr)) != 0) {
-		if (!ch_is_open(ch))
+		if (!ch_is_open(ch)){
+			is_pause = 1;			/*LGE_CHANGE : samjinjang  Cayman patch 20120206*/
 			break;
+		}
 		if (xfer > len)
 			xfer = len;
 		if (user_buf) {
@@ -1157,7 +1160,7 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len,
 			break;
 	}
 
-	if (orig_len - len)
+	if (orig_len - len  && is_pause == 0)		/*LGE_CHANGE : samjinjang  Cayman patch 20120206 */
 		ch->notify_other_cpu();
 
 	return orig_len - len;

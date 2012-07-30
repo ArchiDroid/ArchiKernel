@@ -30,6 +30,14 @@
 #include <mach/msm_rpcrouter.h>
 #include <mach/debug_mm.h>
 
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_MSM7X27A_U0)
+#include "../lge/board-u0.h"
+
+static int fm_enable;
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 struct snd_ctxt {
 	struct mutex lock;
 	int opened;
@@ -56,6 +64,29 @@ static struct snd_ctxt the_snd;
 #define SND_SET_VOLUME_PROC 3
 #define SND_AVC_CTL_PROC 29
 #define SND_AGC_CTL_PROC 30
+
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_LGE)
+#define SND_SET_LOOPBACK_MODE_PROC 61
+#define SND_SET_VOCCAL_PARAM_PROC 62
+#define SND_SET_VOCCAL_IIR_PARAM_PROC 63
+#define SND_SET_NEXT_EC_PARAM_PROC 64
+#define SND_SET_RX_VOLUME_PROC 65
+#define SND_SET_DTMF_VOLUME_PROC 66
+#define SND_SET_PAD_VALUE_PROC 67
+#define SND_WRITE_EFS_PROC 68
+#define SND_SET_MICAMP_GAIN_PROC 69
+#define SND_SET_AMP_GAIN_PROC 70
+#define SND_WRITE_MEM_PROC 71
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+/* LGE_CHANGE_S :  2011-12-30, gt.kim@lge.com, Description: Bluetooth NERC Cmd Support */
+#define SND_SET_NREC_PROC 77
+/* LGE_CHANGE_E :  Bluetooth NERC Cmd Support*/
+
+/* LGE_CHANGE_S :  2012-01-26, gt.kim@lge.com, Description:  Display Service Type */
+#define SND_GET_SERVICE_TYPE_PROC	78
+/* LGE_CHANGE_E :   Display Service Type*/
 
 struct rpc_snd_set_device_args {
 	uint32_t device;
@@ -107,6 +138,265 @@ struct snd_agc_ctl_msg {
 	struct rpc_snd_agc_ctl_args args;
 };
 
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_LGE)
+struct snd_set_loopback_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_mode;
+} lrep;
+
+struct rpc_snd_set_loopback_mode_args {
+	uint32_t mode;
+	uint32_t cb_func;
+	uint32_t client_data;
+};
+
+struct snd_set_loopback_mode_msg {
+	struct rpc_request_hdr hdr;
+	struct rpc_snd_set_loopback_mode_args args;
+};
+
+int wefs;
+struct snd_set_voccal_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_voccal;
+}crep;
+struct snd_set_voccal_iir_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_voccal_iir;
+}cirep;
+struct snd_set_nextec_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_nextec;
+}nrep;
+struct snd_set_rxvol_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_rxvol;
+} rrep;
+struct snd_set_dtmfvol_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_dtmfvol;
+}frep;
+struct snd_set_padvalue_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_padvalue;
+}prep;
+struct snd_set_amp_gain_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_gainvalue;
+}arep;
+struct snd_write_efs_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t result;
+}wrep;
+struct snd_set_micamp_item_param_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_gainvalue;
+}mrep;
+
+struct rpc_snd_set_voccal_param_args {
+	voc_codec_type voc_codec;
+	int voccal_param_type; //voccal_property_enum_type voccal_param_type;
+	uint32_t get_flag;  //get_flag = 0 for set, get_flag = 1 for get
+    	uint32_t param_val;
+/* LGE_CHANGE_S :  2011-12-12, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+	uint32_t service_cfg;
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+
+	uint32_t cb_func;
+	uint32_t client_data;
+};
+
+struct snd_set_voccal_param_msg {
+	struct rpc_request_hdr hdr;
+	struct rpc_snd_set_voccal_param_args args;
+};
+
+struct rpc_snd_set_voccal_iir_param_args {
+     voc_codec_type voc_codec;
+     voccal_iir_filter_type voccal_iir_param_type;
+	 int get_flag;  //get_flag = 0 for set, get_flag = 1 for get
+     int32_t param_val;
+/* LGE_CHANGE_S :  2011-12-12, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+     uint32_t service_cfg;
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+
+     uint32_t cb_func;
+     uint32_t client_data;
+};
+
+struct snd_set_voccal_iir_param_msg {
+    struct rpc_request_hdr hdr;
+    struct rpc_snd_set_voccal_iir_param_args args;
+};
+
+struct rpc_snd_set_next_ec_param_args {
+     voc_ec_type ec_mode;
+     nextgen_ec_param_enum_type ec_param_type;
+	 int get_flag;  //get_flag = 0 for set, get_flag = 1 for get
+     int32_t param_val;
+/* LGE_CHANGE_S :  2011-12-12, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+     uint32_t service_cfg;
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+
+     uint32_t cb_func;
+     uint32_t client_data;
+};
+
+struct snd_set_next_ec_param_msg {
+    struct rpc_request_hdr hdr;
+    struct rpc_snd_set_next_ec_param_args args;
+};
+
+struct rpc_snd_set_rx_volume_param_args {
+	uint32_t device;
+	uint32_t method;
+	uint32_t idx;
+	int get_flag;	/* get_flag = 0 for set, get_flag = 1 for get */
+	int32_t param_val;
+/* LGE_CHANGE_S :  2011-12-12, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+	uint32_t service_cfg;
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+
+	uint32_t cb_func;
+	uint32_t client_data;
+};
+
+struct snd_set_rx_volume_param_msg {
+    struct rpc_request_hdr hdr;
+    struct rpc_snd_set_rx_volume_param_args args;
+};
+struct rpc_snd_set_dtmf_volume_param_args {
+	uint32_t device;
+	uint32_t method;
+	uint32_t idx;
+	int get_flag;	/* get_flag = 0 for set, get_flag = 1 for get */
+	int32_t param_val;
+/* LGE_CHANGE_S :  2011-12-12, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+	uint32_t service_cfg;
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+
+	uint32_t cb_func;
+	uint32_t client_data;
+};
+
+struct snd_set_dtmf_volume_param_msg {
+    struct rpc_request_hdr hdr;
+    struct rpc_snd_set_dtmf_volume_param_args args;
+};
+struct rpc_snd_set_pad_value_param_args {
+     uint32_t device;
+     uint32_t method;
+     uint32_t idx;
+	 int get_flag;  //get_flag = 0 for set, get_flag = 1 for get
+     int32_t param_val;
+
+     uint32_t cb_func;
+     uint32_t client_data;
+};
+
+struct snd_set_pad_value_param_msg {
+    struct rpc_request_hdr hdr;
+    struct rpc_snd_set_pad_value_param_args args;
+};
+
+struct rpc_snd_set_amp_gain_param_args {
+     voc_codec_type voc_codec;
+     amp_gain_type gain_type;
+     int get_flag;  //get_flag = 0 for set, get_flag = 1 for get
+	 int get_param;
+     uint32_t cb_func;
+     uint32_t client_data;
+};
+
+struct snd_set_set_amp_gain_param_msg {
+    struct rpc_request_hdr hdr;
+    struct rpc_snd_set_amp_gain_param_args args;
+};
+
+struct rpc_snd_write_efs_args {
+     uint32_t cb_func;
+     uint32_t client_data;
+};
+
+struct snd_write_efs_msg {
+    struct rpc_request_hdr hdr;
+    struct rpc_snd_write_efs_args args;
+};
+struct rpc_snd_set_micamp_gain_param_args {
+     int32_t voc_codec;
+     int32_t mic_channel;
+	 int get_flag;  //get_flag = 0 for set, get_flag = 1 for get
+     int32_t get_param;
+     uint32_t cb_func;
+     uint32_t client_data;
+};
+
+struct snd_set_micamp_gain_param_msg {
+    struct rpc_request_hdr hdr;
+    struct rpc_snd_set_micamp_gain_param_args args;
+};
+
+/* LGE_CHANGE_S :  2012-1-2, gt.kim@lge.com, Description: Bluetooth NERC Cmd Support */
+struct rpc_snd_set_bt_nerc_mode_args {
+	uint32_t mode;
+	uint32_t cb_func;
+	uint32_t client_data;
+};
+
+struct snd_set_bt_nerc_mode_msg {
+	struct rpc_request_hdr hdr;
+	struct rpc_snd_set_bt_nerc_mode_args args;
+};
+
+struct snd_set_bt_nerc_mode_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_mode;
+}bt_nerc_rep;
+
+/* LGE_CHANGE_E :  Bluetooth NERC Cmd Support */
+
+/* LGE_CHANGE_S :  2012-01-26, gt.kim@lge.com, Description:  Display Service Type */
+int service_type;
+struct rpc_snd_get_service_type_args {
+	uint32_t cb_func;
+	uint32_t client_data;
+};
+
+struct snd_get_service_type_msg{
+	struct rpc_request_hdr hdr;
+	struct rpc_snd_get_service_type_args args;
+};
+
+struct snd_get_service_type_rep {
+	struct rpc_reply_hdr hdr;
+	uint32_t get_service;
+}get_service_rep;
+/* LGE_CHANGE_E :   Display Service Type*/
+
+union snd_set_union_param_msg{
+	struct snd_set_loopback_mode_msg lbmsg;
+	struct snd_set_voccal_param_msg cmsg;
+	struct snd_set_voccal_iir_param_msg cimsg;
+	struct snd_set_next_ec_param_msg nmsg;
+	struct snd_set_rx_volume_param_msg rmsg;
+	struct snd_set_dtmf_volume_param_msg fmsg;
+	struct snd_set_pad_value_param_msg pmsg;
+	struct snd_set_set_amp_gain_param_msg amsg;
+	struct snd_write_efs_msg wmsg;
+	struct snd_set_micamp_gain_param_msg mamsg;
+/* LGE_CHANGE_S :  2012-1-2, gt.kim@lge.com, Description: Bluetooth NERC Cmd Support */
+	struct snd_set_bt_nerc_mode_msg bt_nerc;
+/* LGE_CHANGE_E :  Bluetooth NERC Cmd Support */
+
+/* LGE_CHANGE_S :  2012-01-26, gt.kim@lge.com, Description:  Display Service Type */
+	struct snd_get_service_type_msg get_service;
+/* LGE_CHANGE_E :   Display Service Type*/
+};
+
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 struct snd_endpoint *get_snd_endpoints(int *size);
 
 static inline int check_mute(int mute)
@@ -154,6 +444,25 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct msm_snd_device_config dev;
 	struct msm_snd_volume_config vol;
 	struct snd_ctxt *snd = file->private_data;
+
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_LGE)
+	struct msm_snd_set_loopback_mode_param loopback;
+	struct msm_snd_set_voccal_param voccal;
+	struct msm_snd_set_voccal_iir_param voccaliir;
+	struct msm_snd_set_next_ec_param nextec;
+	struct msm_snd_set_rx_volume_param rxvol;
+	struct msm_snd_set_dtmf_volume_param dtmfvol;
+	struct msm_snd_set_pad_value_param padvalue;
+	struct msm_snd_set_amp_gain_param ampgain;
+	struct msm_snd_set_micamp_gain_param micampgain;
+/* LGE_CHANGE_S :  2012-01-05, gt.kim@lge.com, Decription: Bluetooth NERC Cmd Support */	
+    struct msm_snd_set_bt_nerc_param bt_nerc;
+/* LGE_CHANGE_E :Bluetooth NERC Cmd Support*/	
+	union snd_set_union_param_msg umsg;
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 	int rc = 0;
 
 	uint32_t avc, agc;
@@ -181,6 +490,15 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		MM_INFO("snd_set_device %d %d %d\n", dev.device,
 				dev.ear_mute, dev.mic_mute);
+
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_MSM7X27A_U0)
+		if (dev.device == 10 || dev.device == 11)
+			fm_enable = 1;
+		else
+			fm_enable = 0;
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 
 		rc = msm_rpc_call(snd->ept,
 			SND_SET_DEVICE_PROC,
@@ -264,6 +582,419 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case SND_GET_ENDPOINT:
 		rc = get_endpoint(snd, arg);
 		break;
+
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_LGE)
+	case SND_SET_LOOPBACK_MODE:
+		if (copy_from_user(&loopback, (void __user *) arg, sizeof(loopback))) {
+			pr_err("snd_ioctl set_loopback_mode: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+
+		umsg.lbmsg.args.mode = cpu_to_be32(loopback.mode);
+		umsg.lbmsg.args.cb_func = -1;
+		umsg.lbmsg.args.client_data = 0;
+
+
+		pr_info("set_loopback_mode %d \n", loopback.mode);
+
+		rc = msm_rpc_call(snd->ept,
+			SND_SET_LOOPBACK_MODE_PROC,
+			&umsg.lbmsg, sizeof(umsg.lbmsg), 5 * HZ);
+
+		if (rc < 0) {
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		} else {
+			loopback.get_param = be32_to_cpu(lrep.get_mode);
+			printk(KERN_INFO "%s:loopback mode ->%d\n", __func__, loopback.get_param);
+			if (copy_to_user((void __user *)arg, &loopback, sizeof(loopback))) {
+				pr_err("snd_ioctl get loopback mode: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+	break;
+
+	case SND_SET_VOCCAL_PARAM:
+		if (copy_from_user(&voccal, (void __user *) arg, sizeof(voccal))) {
+			pr_err("snd_ioctl set voccal_param: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+		umsg.cmsg.args.voc_codec = cpu_to_be32(voccal.voc_codec);
+		umsg.cmsg.args.voccal_param_type = cpu_to_be32(voccal.voccal_param_type);
+		umsg.cmsg.args.get_flag = cpu_to_be32(voccal.get_flag);
+		umsg.cmsg.args.param_val = cpu_to_be32(voccal.param_val);
+/* LGE_CHANGE_S :  2011-12-14, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+		umsg.cmsg.args.service_cfg = cpu_to_be32(voccal.service_cfg);	// gt.kim@lge.com
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+		umsg.cmsg.args.cb_func = -1;
+		umsg.cmsg.args.client_data = 0;
+		pr_info("snd_set_voccal_param %d %d %d %d\n", voccal.voc_codec,
+						 voccal.voccal_param_type, voccal.get_flag,  voccal.param_val);
+		pr_info("snd_set_voccal_param %d %d %d %d\n", umsg.cmsg.args.voc_codec,
+						 umsg.cmsg.args.voccal_param_type, umsg.cmsg.args.get_flag ,  umsg.cmsg.args.param_val );
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_SET_VOCCAL_PARAM_PROC,
+			&umsg.cmsg, sizeof(umsg.cmsg),&crep, sizeof(crep), 5 * HZ);
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			voccal.get_param = be32_to_cpu(crep.get_voccal);
+			printk(KERN_INFO "%s:voccal ->%d\n", __func__, voccal.get_param);
+			if (copy_to_user((void __user *)arg, &voccal, sizeof(voccal))) {
+				pr_err("snd_ioctl get voccal: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+
+	case SND_SET_VOCCAL_IIR_PARAM:
+		if (copy_from_user(&voccaliir, (void __user *) arg, sizeof(voccaliir))) {
+			pr_err("snd_ioctl set_voccal_iir_param: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+		umsg.cimsg.args.voc_codec = cpu_to_be32(voccaliir.voc_codec);
+		umsg.cimsg.args.voccal_iir_param_type = cpu_to_be32(voccaliir.voccal_iir_param_type);
+		umsg.cimsg.args.get_flag = cpu_to_be32(voccaliir.get_flag);
+		umsg.cimsg.args.param_val = cpu_to_be32(voccaliir.param_val);
+/* LGE_CHANGE_S :  2011-12-14, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+		umsg.cimsg.args.service_cfg = cpu_to_be32(voccaliir.service_cfg);		// gt.kim@lge.com
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+
+		umsg.cimsg.args.cb_func = -1;
+		umsg.cimsg.args.client_data = 0;
+		pr_info("set_voccal_iir_param %d %d %d\n", voccaliir.voc_codec,
+						 voccaliir.voccal_iir_param_type, voccaliir.param_val);
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_SET_VOCCAL_IIR_PARAM_PROC,
+			&umsg.cimsg, sizeof(umsg.cimsg),&cirep, sizeof(cirep), 5 * HZ);
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			voccaliir.get_param = be32_to_cpu(cirep.get_voccal_iir);
+			printk(KERN_INFO "%s:voccal_iir ->%d\n", __func__, voccaliir.get_param);
+			if (copy_to_user((void __user *)arg, &voccaliir, sizeof(voccaliir))) {
+				pr_err("snd_ioctl get voccal iir: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+
+	case SND_SET_NEXT_EC_PARAM:
+		if (copy_from_user(&nextec, (void __user *) arg, sizeof(nextec))) {
+			pr_err("snd_ioctl set_next_ec_param: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+		umsg.nmsg.args.ec_mode = cpu_to_be32(nextec.ec_mode);
+		umsg.nmsg.args.ec_param_type = cpu_to_be32(nextec.ec_param_type);
+		umsg.nmsg.args.get_flag = cpu_to_be32(nextec.get_flag);
+		umsg.nmsg.args.param_val = cpu_to_be32(nextec.param_val);
+/* LGE_CHANGE_S :  2011-12-14, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+		umsg.nmsg.args.service_cfg = cpu_to_be32(nextec.service_cfg);
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+		umsg.nmsg.args.cb_func = -1;
+		umsg.nmsg.args.client_data = 0;
+		pr_info("set_next_ec_param %d %d %d\n", nextec.ec_mode,
+						 nextec.ec_param_type, nextec.param_val);
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_SET_NEXT_EC_PARAM_PROC,
+			&umsg.nmsg, sizeof(umsg.nmsg),&nrep, sizeof(nrep), 5 * HZ);
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			nextec.get_param = be32_to_cpu(nrep.get_nextec);
+			printk(KERN_INFO "%s:nextec ->%d\n", __func__, nextec.get_param);
+			if (copy_to_user((void __user *)arg, &nextec, sizeof(nextec))) {
+				pr_err("snd_ioctl get next ec: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+
+	case SND_SET_RX_VOLUME:
+		if (copy_from_user(&rxvol, (void __user *) arg, sizeof(rxvol))) {
+			pr_err("snd_ioctl set_rx_volume: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+		umsg.rmsg.args.device = cpu_to_be32(rxvol.device);
+		umsg.rmsg.args.method = cpu_to_be32(rxvol.method);
+		umsg.rmsg.args.idx = cpu_to_be32(rxvol.idx);
+		umsg.rmsg.args.get_flag = cpu_to_be32(rxvol.get_flag);
+		umsg.rmsg.args.param_val = cpu_to_be32(rxvol.param_val);
+/* LGE_CHANGE_S :  2011-12-14, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+		umsg.rmsg.args.service_cfg = cpu_to_be32(rxvol.service_cfg);
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+		umsg.rmsg.args.cb_func = -1;
+		umsg.rmsg.args.client_data = 0;
+		pr_info("set_rx_volume %d %d %d %d\n", rxvol.device,
+						 rxvol.method, rxvol.idx, rxvol.param_val);
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_SET_RX_VOLUME_PROC,
+			&umsg.rmsg, sizeof(umsg.rmsg), &rrep, sizeof(rrep), 5 * HZ);
+		if (rc < 0)
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		else {
+			rxvol.get_param = be32_to_cpu(rrep.get_rxvol);
+			printk(KERN_INFO "%s:rx vol ->%d\n", __func__, rxvol.get_param);
+			if (copy_to_user((void __user *)arg, &rxvol, sizeof(rxvol))) {
+				pr_err("snd_ioctl get rx vol: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+
+	case SND_SET_DTMF_VOLUME:
+		if (copy_from_user(&dtmfvol, (void __user *) arg, sizeof(dtmfvol))) {
+			pr_err("snd_ioctl set_dtmf_volume: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+		umsg.fmsg.args.device = cpu_to_be32(dtmfvol.device);
+		umsg.fmsg.args.method = cpu_to_be32(dtmfvol.method);
+		umsg.fmsg.args.idx = cpu_to_be32(dtmfvol.idx);
+		umsg.fmsg.args.get_flag = cpu_to_be32(dtmfvol.get_flag);
+		umsg.fmsg.args.param_val = cpu_to_be32(dtmfvol.param_val);
+/* LGE_CHANGE_S :  2011-12-14, gt.kim@lge.com, Desc: Audio Part Merge From GB   */
+        umsg.fmsg.args.service_cfg = cpu_to_be32(dtmfvol.service_cfg);
+/* LGE_CHANGE_E :Audio Part Merge From GB*/
+		umsg.fmsg.args.cb_func = -1;
+		umsg.fmsg.args.client_data = 0;
+		pr_info("set_dtmf_volume %d %d %d %d\n", dtmfvol.device,
+				dtmfvol.method, dtmfvol.idx, dtmfvol.param_val);
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_SET_DTMF_VOLUME_PROC,
+			&umsg.fmsg, sizeof(umsg.fmsg), &frep, sizeof(frep), 5 * HZ);
+		if (rc < 0)
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		else {
+			dtmfvol.get_param = be32_to_cpu(frep.get_dtmfvol);
+			printk(KERN_INFO "%s:rx vol ->%d\n", __func__, dtmfvol.get_param);
+			if (copy_to_user((void __user *)arg, &dtmfvol, sizeof(dtmfvol))) {
+				pr_err("snd_ioctl get dtmf vol: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+	case SND_SET_PAD_VALUE:
+		if (copy_from_user(&padvalue, (void __user *) arg, sizeof(padvalue))) {
+			pr_err("snd_ioctl set_pad_value: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+		umsg.pmsg.args.device = cpu_to_be32(padvalue.device);
+		umsg.pmsg.args.method = cpu_to_be32(padvalue.method);
+		umsg.pmsg.args.idx = cpu_to_be32(padvalue.idx);
+		umsg.pmsg.args.get_flag = cpu_to_be32(padvalue.get_flag);
+		umsg.pmsg.args.param_val = cpu_to_be32(padvalue.param_val);
+		umsg.pmsg.args.cb_func = -1;
+		umsg.pmsg.args.client_data = 0;
+		pr_info("set_pad_value %d %d %d %d\n", padvalue.device,
+						 padvalue.method, padvalue.idx, padvalue.param_val);
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_SET_PAD_VALUE_PROC,
+			&umsg.pmsg, sizeof(umsg.pmsg),&prep, sizeof(prep), 5 * HZ);
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			padvalue.get_param = be32_to_cpu(prep.get_padvalue);
+			printk(KERN_INFO "%s:rx vol ->%d\n", __func__, padvalue.get_param);
+			if (copy_to_user((void __user *)arg, &padvalue, sizeof(padvalue))) {
+				pr_err("snd_ioctl get pad value: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+
+	case SND_WRITE_MEM:
+		umsg.wmsg.args.cb_func = -1;
+		umsg.wmsg.args.client_data = 0;
+		pr_info("set_write_efs \n");
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_WRITE_MEM_PROC,
+			&umsg.wmsg, sizeof(umsg.wmsg),&wrep, sizeof(wrep), 5 * HZ);
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			wefs = be32_to_cpu(wrep.result);
+			printk(KERN_INFO "%s:loopback mode ->%d\n", __func__, wefs);
+			if (copy_to_user((void __user *)arg, &wefs, sizeof(wefs))) {
+				pr_err("snd_ioctl write efs: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+
+	case SND_SET_AMP_GAIN:
+		if (copy_from_user(&ampgain, (void __user *) arg, sizeof(ampgain))) {
+			pr_err("snd_ioctl set amp_gain: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+		umsg.amsg.args.voc_codec = cpu_to_be32(ampgain.voc_codec);
+		umsg.amsg.args.gain_type = cpu_to_be32(ampgain.gain_type);
+		umsg.amsg.args.get_flag = cpu_to_be32(ampgain.get_flag);
+		umsg.amsg.args.get_param = cpu_to_be32(ampgain.value);
+		umsg.amsg.args.cb_func = -1;
+		umsg.amsg.args.client_data = 0;
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_SET_AMP_GAIN_PROC,
+			&umsg.amsg, sizeof(umsg.amsg),&arep, sizeof(arep), 5 * HZ);
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			ampgain.get_param = be32_to_cpu(arep.get_gainvalue);
+			printk(KERN_INFO "%s:rx vol ->%d\n", __func__, ampgain.get_param);
+			if (copy_to_user((void __user *)arg, &ampgain, sizeof(ampgain))) {
+				pr_err("snd_ioctl get pad value: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+
+		if (copy_to_user((void __user *)arg, &ampgain, sizeof(ampgain))) {
+			pr_err("snd_ioctl get amp gain: invalid write pointer.\n");
+			rc = -EFAULT;
+		}
+		break;
+
+	case SND_WRITE_EFS:
+		umsg.wmsg.args.cb_func = -1;
+		umsg.wmsg.args.client_data = 0;
+		pr_info("set_write_efs \n");
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_WRITE_EFS_PROC,
+			&umsg.wmsg, sizeof(umsg.wmsg),&wrep, sizeof(wrep), 5 * HZ);
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			wefs = be32_to_cpu(wrep.result);
+			printk(KERN_INFO "%s:loopback mode ->%d\n", __func__, wefs);
+			if (copy_to_user((void __user *)arg, &wefs, sizeof(wefs))) {
+				pr_err("snd_ioctl write efs: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+
+/* LGE_CHANGE_S :  2012-01-26, gt.kim@lge.com, Description:  Display Service Type */
+	case SND_GET_SERVICE_TYPE:
+		umsg.wmsg.args.cb_func = -1;
+		umsg.wmsg.args.client_data = 0;
+
+		pr_info("get_service~~ \n");
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_GET_SERVICE_TYPE_PROC,
+			&umsg.get_service, sizeof(umsg.get_service),&get_service_rep, sizeof(get_service_rep), 5 * HZ);
+
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			service_type = be32_to_cpu(get_service_rep.get_service);
+			printk(KERN_INFO "%s:get Service ->%d\n", __func__, service_type);
+			if (copy_to_user((void __user *)arg, &service_type, sizeof(service_type))) {
+				pr_err("snd_ioctl get service: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+/* LGE_CHANGE_E :	Display Service Type*/
+
+	case SND_SET_MICAMP_GAIN:
+		if (copy_from_user(&micampgain, (void __user *) arg, sizeof(micampgain))) {
+			pr_err("snd_ioctl set_pad_value: invalid pointer.\n");
+			rc = -EFAULT;
+			break;
+		}
+		umsg.mamsg.args.voc_codec = cpu_to_be32(micampgain.voc_codec);
+		umsg.mamsg.args.mic_channel = cpu_to_be32(micampgain.channel);
+		umsg.mamsg.args.get_flag = cpu_to_be32(micampgain.get_flag);
+		umsg.mamsg.args.get_param = cpu_to_be32(micampgain.value);
+		umsg.mamsg.args.cb_func = -1;
+		umsg.mamsg.args.client_data = 0;
+		pr_info("SND_SET_MICAMP_GAIN %d %d %d %d\n", micampgain.voc_codec,
+						 micampgain.channel, micampgain.get_flag, micampgain.get_param);
+
+		rc = msm_rpc_call_reply(snd->ept,
+			SND_SET_MICAMP_GAIN_PROC,
+			&umsg.mamsg, sizeof(umsg.mamsg),&mrep, sizeof(mrep), 5 * HZ);
+		if (rc < 0){
+			printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+		}
+		else
+		{
+			micampgain.get_param = be32_to_cpu(mrep.get_gainvalue);
+			printk(KERN_INFO "%s:rx vol ->%d\n", __func__, micampgain.get_param);
+			if (copy_to_user((void __user *)arg, &micampgain, sizeof(micampgain))) {
+				pr_err("snd_ioctl get pad value: invalid write pointer.\n");
+				rc = -EFAULT;
+			}
+		}
+		break;
+
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
+/* LGE_CHANGE_S :  2011-12-30, gt.kim@lge.com, Description: Bluetooth NERC Cmd Support */
+case SND_SET_NREC:
+	if (copy_from_user(&bt_nerc, (void __user *) arg, sizeof(bt_nerc))) {
+		pr_err("snd_ioctl set_NREC: invalid pointer.\n");
+		rc = -EFAULT;
+		break;
+	}
+
+    umsg.bt_nerc.args.mode          = cpu_to_be32(bt_nerc.mode);
+    umsg.bt_nerc.args.cb_func       = -1;
+    umsg.bt_nerc.args.client_data   = 0;
+
+	pr_info("set_NREC %d \n", bt_nerc.mode);
+
+	rc = msm_rpc_call_reply(snd->ept,
+		SND_SET_NREC_PROC,
+		&umsg.bt_nerc, sizeof(umsg.bt_nerc),&bt_nerc_rep, sizeof(bt_nerc_rep), 5 * HZ);
+
+	if (rc < 0){
+		printk(KERN_ERR "%s:rpc err because of %d\n", __func__, rc);
+	}
+	else
+	{
+		bt_nerc.get_param = be32_to_cpu(bt_nerc_rep.get_mode);
+		printk(KERN_INFO "%s:NREC mode ->%d\n", __func__, bt_nerc.get_param);
+		if (copy_to_user((void __user *)arg, &bt_nerc, sizeof(bt_nerc))) {
+			pr_err("snd_ioctl get NREC mode: invalid write pointer.\n");
+			rc = -EFAULT;
+		}
+	}
+
+	break;
+/* LGE_CHANGE_E :  Bluetooth NERC Cmd Support */
 
 	default:
 		MM_ERR("unknown command\n");
@@ -545,11 +1276,46 @@ static long snd_dev_enable(const char *arg)
 	MM_INFO("snd_set_device %d %d %d\n", dev.device, dev.ear_mute,
 			dev.mic_mute);
 
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_MSM7X27A_U0)
+	if (dev.device == 10 || dev.device == 11)
+		fm_enable = 1;
+	else
+		fm_enable = 0;
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 	rc = msm_rpc_call(snd_sys->ept,
 		SND_SET_DEVICE_PROC,
 		&dmsg, sizeof(dmsg), 5 * HZ);
 	return rc;
 }
+
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_MSM7X27A_U0)
+void snd_fm_vol_mute()
+{
+	struct snd_sys_ctxt *snd_sys = &the_snd_sys;
+	int rc = 0;
+
+	rc = snd_sys_open();
+	if (rc)
+		return;
+
+	mutex_lock(&snd_sys->lock);
+
+	if (!fm_enable) {
+		mutex_unlock(&snd_sys->lock);
+		return;
+	}
+
+	snd_vol_enable("32 0 0");
+	mutex_unlock(&snd_sys->lock);
+
+	snd_sys_release();
+}
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 
 static ssize_t snd_dev_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
@@ -613,6 +1379,11 @@ static int snd_probe(struct platform_device *pdev)
 	struct snd_sys_ctxt *snd_sys = &the_snd_sys;
 	int rc = 0;
 
+/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#if defined (CONFIG_MACH_MSM7X27A_U0)
+	fm_enable = 0;
+#endif
+/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 	mutex_init(&snd->lock);
 	mutex_init(&snd_sys->lock);
 	snd_sys->ept = NULL;

@@ -194,7 +194,7 @@ static int diag_sdio_probe(struct platform_device *pdev)
 static int diag_sdio_remove(struct platform_device *pdev)
 {
 	pr_debug("\n diag: sdio remove called");
-	/* Disable SDIO channel to prevent further read/write */
+	/*Disable SDIO channel to prevent further read/write */
 	driver->sdio_ch = NULL;
 	return 0;
 }

@@ -636,6 +636,12 @@ KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
 # conserve stack if available
 KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
+# LGE_CHANGE_S, [LGE_DATA_US_009] d3sw1-data@lge.com, 2012-02-03 <MAX RTO SET TO 3SEC FOR ATT, TRF>
+ifeq ($(TARGET_PRODUCT),u0_trf_us)
+KBUILD_CFLAGS += -DLGE_TRACFONE
+endif
+# LGE_CHANGE_E, [LGE_DATA_US_009] d3sw1-data@lge.com, 2012-02-03 <MAX RTO SET TO 3SEC FOR ATT, TRF>
+
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := $(call ar-option,D)
 

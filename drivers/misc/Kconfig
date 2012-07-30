@@ -610,6 +610,16 @@ config PMIC8XXX_UPL
 	  simple truth table based logic via a set of control registers. I/O may
 	  be routed in and out of the UPL module via GPIO or DTEST pins.
 
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+config LGE_ATCMD_TTY
+	bool "Support LGE atcmd bypassing tty"
+	default n
+	help
+	  Support LGE atcmd bypassing tty. "/dev/atcmd-tty0" is back-end tty,
+	  and "dev/atcmd-tty1" is front-end tty. Back-end tty will be interfaced
+	  with portbridge and front-end tty will be interfaced with parser/filter.
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
+
 config PMIC8058_XOADC
 	tristate "Qualcomm PM8058 XOADC driver"
 	depends on PMIC8058

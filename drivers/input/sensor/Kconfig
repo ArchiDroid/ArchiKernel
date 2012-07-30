@@ -1,0 +1,109 @@
+#
+# Sensor driver configuration
+#
+menuconfig INPUT_SENSOR
+	bool "Sensors"
+	help
+	  Say Y here, and a list of supported touchscreens will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if INPUT_SENSOR
+
+config SENSOR_GP2AP
+	tristate "GP2AP based proximity sensor"
+	help
+	  Say Y here if you have a sensor interface using the
+	  GP2AP controller, and your board-specific
+	  setup code includes i2c devices.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ads7846.
+
+config SENSOR_AK8975
+	tristate "AK8975 compass support"
+	help
+	  If you say yes here you get support for Asahi Kasei's
+	  orientation sensor AK8975.
+config SENSOR_BMA222
+	tristate "BMA222 acceleration sensor support"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for Bosch Sensortec's 
+	  acceleration sensors BMA222.
+
+config SENSOR_BMA222_USE_SMBUS
+	tristate "BMA222 acceleration sensor use smbus"
+	depends on SENSOR_BMA222=y
+	help
+	  If you say yes here you use smbus for Bosch Sensortec's 
+	  acceleration sensors BMA222.
+
+config SENSOR_BMA222_WITH_DEBUG
+	tristate "BMA222 acceleration sensor with debug imformation"
+	depends on SENSOR_BMA222=y
+	help
+	  If you say yes here you get debug imformation for Bosch Sensortec's 
+	  acceleration sensors BMA222.
+
+config SENSOR_BMA222_HAS_EARLYSUSPEND
+	tristate "BMA222 acceleration sensor has early suspend and late resume"
+	depends on SENSOR_BMA222=y
+	help
+	  If you say yes here you get has early suspend and late resume for Bosch Sensortec's 
+	  acceleration sensors BMA222.
+
+config SENSOR_AMI304
+        tristate "AMI304 based compass sensor"
+        help
+          Say Y here if you have a sensor interface using the
+          AMI304 controller, and your board-specific
+          setup code includes i2c devices.
+
+          If unsure, say N (but it's safe to say "Y"). 
+	  
+config SENSOR_AMI306
+        tristate "AMI306 based gyro sensor"
+        help
+          Say Y here if you have a sensor interface using the
+          AMI306 controller, and your board-specific
+          setup code includes i2c devices.
+
+          If unsure, say N (but it's safe to say "Y"). 
+
+config SENSOR_K3DH
+        tristate "K3DH based acceleration sensor"
+        help
+          Say Y here if you have a sensor interface using the
+          K3DH controller, and your board-specific
+          setup code includes i2c devices.
+
+          If unsure, say N (but it's safe to say "Y").
+
+config SENSORS_BH1721
+	tristate "ROHM BH1721fvc ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the ROHM BH1721fvc
+	  ambient light sensor.
+	  This driver can also be built as a module.  If so, the module
+	  will be called bh1721fvc.
+
+config SENSORS_BMA250
+	tristate "BMA250 Acceleration Sensor Driver"
+	depends on I2C
+	help
+	 BMA250 Acceleration Sensor Driver implemented by Bosch-Sensortec.
+
+config SENSORS_BMM050
+	tristate "BMM050 Magnetic Sensor Driver"
+	depends on I2C
+	help
+	 BMM050 Magnetic Sensor Driver implemented by Bosch-Sensortec.	  
+
+# HSCDTD004A sensor
+source "drivers/input/sensor/alps_IF_Driver/Kconfig"
+endif

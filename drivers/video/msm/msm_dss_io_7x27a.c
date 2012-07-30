@@ -328,7 +328,25 @@ void mipi_dsi_clk_enable(void)
 	mipi_dsi_pclk_ctrl(&dsi_pclk, 1);
 	mipi_dsi_clk_ctrl(&dsicore_clk, 1);
 }
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+void lglogo_mipi_dsi_clk_enable(void)
+{
+     	printk(KERN_INFO "[DISPLAY]::%s\n",__func__);
+	if (clk_set_rate(ebi1_dsi_clk, 65000000)) /* 65 MHz */
+                pr_err("%s: ebi1_dsi_clk set rate failed\n", __func__);
+	clk_enable(ebi1_dsi_clk);
+}
 
+void lglogo_mipi_dsi_clk_disable(void)
+{
+	printk(KERN_INFO "[DISPLAY]::%s\n",__func__);
+	/* DSIPHY_PLL_CTRL_0, disable dsi pll */
+        MIPI_OUTP(MIPI_DSI_BASE + 0x0200, 0x40);
+        if (clk_set_rate(ebi1_dsi_clk, 0))
+                pr_err("%s: ebi1_dsi_clk set rate failed\n", __func__);
+        clk_disable(ebi1_dsi_clk);
+}
+#endif
 void mipi_dsi_clk_disable(void)
 {
 	mipi_dsi_pclk_ctrl(&dsi_pclk, 0);

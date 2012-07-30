@@ -1453,6 +1453,10 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	}
 
 	sbi->max_cluster = total_clusters + FAT_START_ENT;
+	/* LGE_CHANGE_S [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
+	printk(KERN_ERR "%s(%d): max_cluster (%ld)\n", __func__, __LINE__, sbi->max_cluster);
+	/* LGE_CHANGE_S [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
+
 	/* check the free_clusters, it's not necessarily correct */
 	if (sbi->free_clusters != -1 && sbi->free_clusters > total_clusters)
 		sbi->free_clusters = -1;

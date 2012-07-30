@@ -1,0 +1,199 @@
+config MACH_LGE
+	bool
+
+menu "LGE Device-Specific Changes"
+
+menu "LGE Board Selection"
+
+config MACH_MSM7X27A_U0
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x27A U0"
+    help
+        Support for the LG Electronics MSM7x27A U0EU.
+
+
+endmenu
+
+menu "LGE Specific Patches"
+config LGE_H9DA4VH4JJMMCR_NAND_PATCH
+	bool "LGE Hynix H9DA4VH4JJMMCR nand probe patch"
+	help
+	  This patch is used for Hynix H9DAVH4JJMMCR nand probing.
+	  Because Read ID 4th(page & block size) are not match with QCT code,
+	  Put directly to parameter tables for device id 0xBC.
+
+config LGE_PROC_COMM
+	bool "LGE added proc comm"
+	depends on MACH_LGE
+	default n
+	help
+	  LGE added proc_comm
+
+config LGE_FBCON_INACTIVE_CONSOLE
+	bool "Support LGE FBCON inactive console"
+	default n
+	depends on MACH_LGE
+	help
+	 Choose if inactive console
+config LGE_SUPPORT_AT_CMD
+	bool "Support LGE AT_CMD system"
+	default n 
+	depends on MACH_LGE
+	help
+	 LGE AT_CMD Support
+
+config LGE_HANDLE_PANIC
+	tristate "Support LGE Kernel Panic Handler"
+	default n 
+	depends on MACH_LGE
+	depends on ANDROID_RAM_CONSOLE
+	help
+	 LGE crash handler
+
+config LGE_SILENCE_RESET
+	tristate "Support LGE Kernel Silence Reset"
+	default n 
+	depends on MACH_LGE
+	depends on ANDROID_RAM_CONSOLE
+	help
+	 LGE crash handler
+
+config LGE_GRAM_REFRESH_PATCH
+	bool "LGE gram refresh patch"
+	default n
+	help
+	  This patch is added for gram-embedded device like mddi.
+	  because, when suspend state, power of mddi is off usually,
+	  gram of DDI chip has garbage data until data of gram is refreshed.
+	  this can cause displaying broken screen in time of turning backlight on.
+	  for preventing this problem, add refreshing routine before turning 
+	  backlight on by using late resume mechanism.
+
+
+config LGE_HANDLE_PANIC
+	tristate "Support LGE Kernel Panic Handler"
+	default n 
+	depends on MACH_LGE
+	depends on ANDROID_RAM_CONSOLE
+	help
+	 LGE crash handler
+
+config LGE_BDI_TIMER_BUG_PATCH
+	bool "LGE bdi timer bug patch"
+	default n 
+	depends on MACH_LGE
+	help
+	  This patch is added for preventing from kernel panic which is
+	  generated during executing bdi_writeback_thread(). Root cause of
+	  this kernel panic starts from the synchronization problem between
+	  kernel threads. When mmc card is once removed, kernel try to 
+	  unregister data structures of bdi and delete bdi timer in kthread
+	  context. But, if bdi writeback kthread is already in execution,
+	  there is a probablity that that kthread trys to delete bdi timer
+	  which has been deleted already. In that case, 
+	  "del_timer(&wb->wakeup_timer)" code can generate kernel panic.
+	  So, I add the codes which checks whether bdi is unregitered or not 
+	  before removing timer.
+
+config LGE_REPORT_RMT_STORAGE_CLIENT_READY
+	bool "Report that RMT_STORAGE_CLIENT is ready to modem"
+	depends on MACH_LGE
+	default n
+	help
+	 Report that Remote storage client is ready to modem.
+	 After this signal modem can call efs_sync().
+
+config LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+	bool "Wait in power off/reset until SYNC complete"
+	depends on MACH_LGE
+	default y
+	help
+	 This patch waits in power down/ reset handler if any efs sync is going on.
+	 Turn Off phone only when currently active sync complete.This makes sure that
+	 modem file system is proper.
+
+config LGE_POWER_ON_STATUS_PATCH
+	bool "Report power on satus of handset"
+	depends on MACH_LGE
+	default n
+	help
+	 This patch is added to read the power on status from modem and update
+	 the same in apps processor's /proc/sys/kernel/boot_reason file.
+	 Ref: Documentation/arcr/arm/msm/boot.txt
+
+config LGE_DETECT_USB_CABLE_TYPE
+	bool "Check the type of usb cable is connected to Handset"
+	depends on MACH_LGE
+	default n
+	help
+	 Check the type of usb cable is connected to handset, like Factory USB or UART, normal
+	 charger and unknown cable.
+
+config LGE_FAULTY_WALL_CHARGER_PATCH
+        bool "For faulty wall charger, set 500mA maximum chargering current"
+        depends on MACH_LGE
+        default n
+        help
+	 If we connects faulty wall charger, charger type is detected as STD Downstream Port(i.e USB charger)
+	 and not configured as USB device.
+
+config LGE_MODEL_U0_EU_REV_C
+	bool "U0 Board Configuration"
+	default n
+	help
+	 Configuration U0 Board Revision information.
+
+config LGE_MODEL_U0_EU_REV_F
+	bool "U0 Board Configuration"
+	default n
+	help
+	 Configuration U0 Board Revision information.
+	 
+config FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+	bool "Removes the glitch in lg booting logo"
+	default n
+	help
+	  Removes the glitch in lg booting logo
+	  
+config LGE_LCD_ESD_DETECTION
+	bool "Enable to reset LCD on ESD detection"
+	depends on MACH_LGE
+	default n
+	help
+	 This enables ESD detection of LCD & resets LCD if ESD shock occurs.
+
+config LGE_SUSPEND_TIME
+    tristate "Log time spent in suspend"
+    default y
+    depends on MACH_LGE
+	help
+	  Prints the time spent in suspend in the kernel log, and
+	  keeps statistics on the time spent in suspend in
+	  /sys/kernel/debug/suspend_time
+
+	  This patch serves same function with google's suspend_time.c	 
+
+config LGE_EARLYSUSPEND_FUNC_TIME
+    tristate "Log time spent in each earlysuspend call"
+    default y
+    depends on MACH_LGE
+	help
+	  Keeps the time statistics spent in each earlysuspend in 
+	  /sys/kernel/debug/earlysuspend_func_time.
+	  This file shows the average and max time of each 
+	  earlysuspend/lateresume function.
+	  
+config LGE_SUSPEND_AUTOTEST
+    tristate "Test suspend/resume and earlysuspend/lateresume automatically"
+    default y
+    depends on MACH_LGE && SUSPEND && EARLYSUSPEND
+	help
+      This option will let you suspend your machine, and make it wake up
+	  a few seconds later using an timer automatically.  
+	  Enable this with a kernel parameter by sysfs.	  
+
+endmenu
+ 
+endmenu

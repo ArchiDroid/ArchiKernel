@@ -913,11 +913,70 @@ int bdi_writeback_thread(void *data)
 	trace_writeback_thread_start(bdi);
 
 	while (!kthread_should_stop()) {
+#ifdef CONFIG_LGE_BDI_TIMER_BUG_PATCH
+#ifdef CONFIG_LGE_BDI_TIMER_BUG_PATCH_LOG
+		/* FIXME : for getting debugging information
+		 * this should be removed after debugging.
+		 * 2011-08-01, cleaneye.kim@lge.com
+		 */
+		if (wb->wakeup_timer.entry.prev == NULL) {
+			printk(KERN_INFO"%s: wakeup timer is already removed\n", __func__);
+			printk(KERN_INFO"%s: current jiffies %lu\n", __func__, jiffies);
+			printk(KERN_INFO"%s: prev %p\n",__func__, wb->wakeup_timer.entry.prev);
+			printk(KERN_INFO"%s: next %p\n",__func__, wb->wakeup_timer.entry.next);
+			printk(KERN_INFO"%s: bdi->dev %p\n",__func__, bdi->dev);
+			printk(KERN_INFO"%s: kthread_should_stop %d\n",__func__, kthread_should_stop());
+			if (wb->wakeup_timer.entry.next != NULL) {
+				printk(KERN_INFO"%s: information of wb structure\n", __func__);
+				show_data((unsigned long)wb, sizeof(struct bdi_writeback), "wb data");
+			}
+		}
+#endif
+		/*
+		 * This patch is added for preventing from kernel panic which is
+		 * generated during executing bdi_writeback_thread(). Root cause of
+		 * this kernel panic starts from the synchronization problem between
+		 * kernel threads. When mmc card is once removed, kernel tries to
+		 * unregister data structures of bdi and delete bdi timer in kthread
+		 * context. But, if bdi writeback kthread is already in execution,
+		 * there is a probablity that that kthread tries to delete bdi timer
+		 * which has been deleted already.
+		 * In some cases, timer list data are abnormal. "prev" pointer
+		 * has NULL, but "next" pointer has non-NULL. This case is very
+		 * abnormal. I think that this case is caused by synchronization
+		 * problem between kernel threads.
+		 * In that case, "del_timer(&wb->wakeup_timer)" code can generate
+		 * kernel panic. So, I add the codes which checks whether abnormal
+		 * timer list data. If so, force timer list to be initialized.
+		 * 2011-08-11, cleaneye.kim@lge.com
+		 */
+		if (wb->wakeup_timer.entry.prev == NULL &&
+			wb->wakeup_timer.entry.next != NULL) {
+#ifdef CONFIG_LGE_BDI_TIMER_BUG_PATCH_LOG
+			printk(KERN_INFO"%s: wakeup_timer.entry.next->prev %p\n",__func__, wb->wakeup_timer.entry.next->prev);
+			printk(KERN_INFO"%s: wakeup_timer.entry.next->prev->next %p\n",__func__, wb->wakeup_timer.entry.next->prev->next);
+			printk(KERN_INFO"%s: \n",__func__);
+#endif			
+			wb->wakeup_timer.entry.next = NULL;
+		}
+#endif
 		/*
 		 * Remove own delayed wake-up timer, since we are already awake
 		 * and we'll take care of the preriodic write-back.
 		 */
+		
+		/* LGE_CHANGE_S : Kernel panic in del_timer
+        	 * 2012-02-01, jyothishre.nk@lge.com
+         	 * Kernel crash when del_timer is called from bdi_writeback_thread.
+         	 * To verify timer before deactivate, changed to del_timer_sync function
+         	*/
+	
+#ifdef CONFIG_MACH_LGE
+		del_timer_sync(&wb->wakeup_timer);
+#else
 		del_timer(&wb->wakeup_timer);
+#endif
+		/* LGE_CHANGE_E	: Kernel panic*/
 
 		pages_written = wb_do_writeback(wb, 0);
 

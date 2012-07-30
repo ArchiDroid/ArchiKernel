@@ -50,8 +50,13 @@ static inline void mmc_delay(unsigned int ms)
 	if (ms < 1000 / HZ) {
 		cond_resched();
 		mdelay(ms);
+// [LGE_CHANGE_S] seyun.kim : 2012-02-21 : sd card resume suspend problem 
+#if 1
+#else
 	} else if (ms < jiffies_to_msecs(2)) {
 		usleep_range(ms * 1000, (ms + 1) * 1000);
+#endif
+// [LGE_CHANGE_E] seyun.kim : sd card resume suspend problem 
 	} else {
 		msleep(ms);
 	}

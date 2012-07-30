@@ -32,6 +32,16 @@
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>
 #endif
+
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+#include <linux/wait.h>
+#include <linux/sched.h>
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
+
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
 #ifdef CONFIG_CPU_V7
@@ -117,6 +127,11 @@ module_param_named(
 /******************************************************************************
  * Sleep Modes and Parameters
  *****************************************************************************/
+/* LGE_CHANGE_S: eternalblue@lge.com.2009-11-15
+ * 0001956: [ARM9] operationg code added for AT%FRST */
+int msm_pm_boot_complete = 0;
+module_param_named(boot_complete, msm_pm_boot_complete, int, S_IRUGO | S_IWUSR | S_IWGRP); 
+/* LGE_CHANGE_E: eternalblue@lge.com.2009-11-15 */
 
 static int msm_pm_sleep_mode = CONFIG_MSM7X00A_SLEEP_MODE;
 module_param_named(
@@ -1720,8 +1735,46 @@ static struct platform_suspend_ops msm_pm_ops = {
 
 static uint32_t restart_reason = 0x776655AA;
 
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+struct pm_rmt_clnt_wait_info *pm_rmt_wait;
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
+
 static void msm_pm_power_off(void)
 {
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+	int ret = -1;
+	if(pm_rmt_wait)
+	{
+		if(atomic_read(&pm_rmt_wait->wait_for_RPC_close) != 0)
+		{
+			printk("Waiting For RMT sync :: Start \n");
+			atomic_set(&pm_rmt_wait->waiting_for_rmt, 1);
+			ret = wait_event_interruptible_timeout(pm_rmt_wait->pm_event_q,
+					(atomic_read(&pm_rmt_wait->wait_for_RPC_close) == 0), 6 * HZ);
+			printk("Waiting For RMT sync :: Done \n");
+		}
+		if( (0 >= ret) && ( -1 != ret ))
+		{
+			msleep(200);
+			printk("200msec wait for rmt RPC complete \n");
+		}
+		atomic_set(&pm_rmt_wait->waiting_for_rmt, 0);
+	}
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+/*EFS Sync from shutdown thread*/
+#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+	rmt_storate_report_available(0);
+#endif
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 	msm_rpcrouter_close();
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 	for (;;)
@@ -1730,8 +1783,48 @@ static void msm_pm_power_off(void)
 
 static void msm_pm_restart(char str, const char *cmd)
 {
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+	int ret = -1;
+	if(pm_rmt_wait)
+	{
+		if(atomic_read(&pm_rmt_wait->wait_for_RPC_close) != 0)
+		{
+			printk("Waiting For RMT sync :: Start \n");
+			atomic_set(&pm_rmt_wait->waiting_for_rmt, 1);
+			ret = wait_event_interruptible_timeout(pm_rmt_wait->pm_event_q,
+					(atomic_read(&pm_rmt_wait->wait_for_RPC_close) == 0), 6 * HZ);
+			printk("Waiting For RMT sync :: Done \n");
+		}
+		if( (0 >= ret) && ( -1 != ret ))
+		{
+			msleep(200);
+			printk("200msec wait for rmt RPC complete \n");
+		}
+		atomic_set(&pm_rmt_wait->waiting_for_rmt, 0);
+	}
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+/*EFS Sync from shutdown thread*/
+#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+	rmt_storate_report_available(0);
+#endif
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 	msm_rpcrouter_close();
+/* LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38 */
+#ifdef CONFIG_LGE_HANDLE_PANIC
+#define CRASH_REBOOT    0x618E1000
+	if (restart_reason == CRASH_REBOOT)
+		msm_proc_comm(PCOM_RESET_CHIP_IMM, &restart_reason, 0);
+	else
 	msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
+#else
+	msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
+#endif
+/* LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38 */
 
 	for (;;)
 		;
@@ -1751,6 +1844,16 @@ static int msm_reboot_call
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned code = simple_strtoul(cmd + 4, 0, 16) & 0xff;
 			restart_reason = 0x6f656d00 | code;
+		/* LGE_CHANGE_S : 20110819 inho@lge.com for LG B&R */
+                } else if (!strcmp(cmd, "--bnr_recovery")) {
+                        restart_reason = 0x77665555;
+		//20110819 inho@lge.com for LG B&R [end]
+		} else if (!strcmp(cmd, "charge_reset")) {
+		/* LGE: murali.ramaiah@lge.com [2011-07-21]- to handle reboot cmd from chargerlogo */
+			restart_reason = 0x776655AA;
+		} else if (!strncmp(cmd, "", 1)) {
+			restart_reason = 0x776655AA;
+                /* LGE_CHANGE_E : 20110819 inho@lge.com for LG B&R */
 		} else {
 			restart_reason = 0x77665501;
 		}
@@ -1762,6 +1865,16 @@ static struct notifier_block msm_reboot_notifier = {
 	.notifier_call = msm_reboot_call,
 };
 
+/* LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38 */
+#if defined(CONFIG_MACH_LGE)
+void lge_set_reboot_reason(unsigned int reason)
+{
+	restart_reason = reason;
+
+	return;
+}
+#endif
+/* LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38 */
 
 /******************************************************************************
  *
@@ -1808,6 +1921,23 @@ static int __init msm_pm_init(void)
 	msm_pm_pc_pgd = virt_to_phys(pc_pgd);
 #endif
 
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+	pm_rmt_wait = kzalloc(sizeof(struct pm_rmt_clnt_wait_info), GFP_KERNEL);
+	if (!pm_rmt_wait) {
+		pr_err("%s: Unable to allocate memory for RMT Client Wait \n", __func__);
+	}
+	else
+	{
+		init_waitqueue_head(&pm_rmt_wait->pm_event_q);
+		atomic_set(&pm_rmt_wait->wait_for_RPC_close, 0);
+		atomic_set(&pm_rmt_wait->waiting_for_rmt, 0);
+		printk("Rmt Wait Info Success \n");
+	}
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
 	pm_power_off = msm_pm_power_off;
 	arm_pm_restart = msm_pm_restart;
 	register_reboot_notifier(&msm_reboot_notifier);

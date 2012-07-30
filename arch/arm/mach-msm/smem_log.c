@@ -29,7 +29,10 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
-
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+/*Print UTC Time  in smem log*/	
+#include <linux/rtc.h>
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 #include <mach/msm_iomap.h>
 #include <mach/smem_log.h>
 
@@ -703,12 +706,30 @@ static void _smem_log_event(
 	uint32_t idx;
 	uint32_t next_idx;
 	unsigned long flags;
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+	/*Print UTC Time  in smem log*/	
+	struct timespec ts;
+	struct rtc_time tm;
+	getnstimeofday(&ts);
+	rtc_time_to_tm(ts.tv_sec, &tm);
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 
 	item.timetick = read_timestamp();
 	item.identifier = id;
 	item.data1 = data1;
 	item.data2 = data2;
 	item.data3 = data3;
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+	/*Print UTC Time  in smem log*/
+	if (item.identifier )
+	{
+		item.timetick = (tm.tm_sec & 0xFF);
+		tm.tm_min = tm.tm_min << 8;
+		item.timetick |= (tm.tm_min & 0xFF00);
+		tm.tm_hour = tm.tm_hour << 16;
+		item.timetick |= (tm.tm_hour & 0xFF0000);
+	}		
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 
 	remote_spin_lock_irqsave(lock, flags);
 
@@ -1314,6 +1335,10 @@ static int _debug_dump_sym(int log, char *buf, int max, uint32_t cont)
 	uint32_t data1 = 0;
 	uint32_t data2 = 0;
 	uint32_t data3 = 0;
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+/*Print UTC Time  in smem log*/
+	uint32_t utc_hr,utc_min,utc_sec,temp_time_tick;
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 
 	if (!inst[log].events)
 		return 0;
@@ -1371,9 +1396,28 @@ static int _debug_dump_sym(int log, char *buf, int max, uint32_t cont)
 						       PROC &
 						       inst[log].events[idx].
 						       identifier);
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+/*Print UTC Time  in smem log*/
+				utc_hr = 0;
+				utc_min = 0;
+				utc_sec = 0;
+				temp_time_tick = inst[log].events[idx].timetick;
+					
+				utc_sec =  temp_time_tick & 0xFF;
+				temp_time_tick = temp_time_tick >> 8;
+				utc_min =  temp_time_tick & 0xFF;
+				temp_time_tick = temp_time_tick >> 8;
+				utc_hr =  temp_time_tick & 0xFF;
 
+				if ( 0 == proc_val)
 				i += scnprintf(buf + i, max - i, "%10u ",
 					       inst[log].events[idx].timetick);
+				else
+					i += scnprintf(buf + i, max - i, " %02d:%02d:%2d	",
+					       utc_hr,utc_min,utc_sec);
+
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/	
+
 
 				sub = find_sym(BASE_SYM, sub_val);
 

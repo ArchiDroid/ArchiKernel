@@ -327,6 +327,36 @@ config BACKLIGHT_PCF50633
 	  If you have a backlight driven by a NXP PCF50633 MFD, say Y here to
 	  enable its driver.
 
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+config BACKLIGHT_LM3528
+	tristate "LM3528 Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && MACH_LGE
+	default n
+	help
+	  If you have a National Semiconductor LM3528, say Y to enable the backlight driver
+
+config BACKLIGHT_LM3530
+	tristate "LM3530 Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && MACH_LGE
+	default n
+	help
+	  If you have a National Semiconductor LM3530, say Y to enable the backlight driver
+
+config BACKLIGHT_AAT2870
+	tristate "AAT2870 Backlight Driver "
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have a ANALOGIC TECH AAT2870, say y to enable the backlight driver
+
+config SUBPMIC_LP8720
+	tristate "LP8720 LDO Driver "
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have a National Semiconductor LP8720, say y to enable the backlight driver
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT

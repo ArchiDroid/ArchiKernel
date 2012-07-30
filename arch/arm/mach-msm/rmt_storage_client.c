@@ -109,6 +109,16 @@ struct rmt_shrd_mem {
 	struct rmt_storage_srv *srv;
 };
 
+/* LGE_CHANFE_S: [murali.ramaiah@lge.com]-2012-03-03,
+	Interchanged place of declaration */
+struct rmt_storage_sync_sts_arg {
+	int token;
+};
+
+static int rmt_storage_send_sync_sts_arg(struct msm_rpc_client *client,
+				struct msm_rpc_xdr *xdr, void *data);
+/* LGE_CHANFE_E: [murali.ramaiah@lge.com]-2012-03-03 */
+
 static struct rmt_storage_srv *rmt_storage_get_srv(uint32_t prog);
 static uint32_t rmt_storage_get_sid(const char *path);
 #ifdef CONFIG_MSM_SDIO_SMEM
@@ -162,6 +172,16 @@ static struct dentry *stats_dentry;
 #define RMT_STORAGE_READ_IOVEC_CB_TYPE_PROC     4
 #define RMT_STORAGE_ALLOC_RMT_BUF_CB_TYPE_PROC  5
 
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+/* LGE_CHANGE
+*  notify that rmt storage client is ready to msm
+* 2011-03-23, cheongil.hyun@lge.com
+*/
+#define RMT_STORAGE_CHANGE_STATUS 11
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 #define RAMFS_INFO_MAGICNUMBER		0x654D4D43
 #define RAMFS_INFO_VERSION		0x00000001
 #define RAMFS_DEFAULT			0xFFFFFFFF
@@ -177,6 +197,16 @@ static struct dentry *stats_dentry;
 #define RAMFS_SSD_STORAGE_ID		0x00535344
 #define RAMFS_SHARED_SSD_RAM_BASE	0x42E00000
 #define RAMFS_SHARED_SSD_RAM_SIZE	0x2000
+
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+		/* LGE_CHANGE
+		*  notify that rmt storage client is ready to msm
+		* 2011-03-23, cheongil.hyun@lge.com
+		*/
+static struct rmt_storage_srv *rmt_storage_get_srv(uint32_t prog);
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 
 static struct rmt_storage_client *rmt_storage_get_client(uint32_t handle)
 {
@@ -913,6 +943,30 @@ out:
 	return rc;
 }
 
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+/* LGE_CHANGE
+*  nv default write. 
+* 2011-03-23, cheongil.hyun@lge.com
+*/
+/* LGE: [murali.ramaiah@lge.com]-2012-03-03,
+	modified this function to send a parameter to modem,
+	based on parameter value, efs sync is initiates from modem.
+*/
+//static 
+int rmt_storate_report_available(int sync_flag)
+{
+	struct rmt_storage_sync_sts_arg send_args;
+	struct rmt_storage_srv *srv = rmt_storage_get_srv(MSM_RMT_STORAGE_APIPROG);
+
+	send_args.token = sync_flag;
+
+	return msm_rpc_client_req2(srv->rpc_client, RMT_STORAGE_CHANGE_STATUS,
+			rmt_storage_send_sync_sts_arg, &send_args, NULL, NULL, -1);
+}
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 static int rmt_storage_open(struct inode *ip, struct file *fp)
 {
 	int ret = 0;
@@ -923,6 +977,16 @@ static int rmt_storage_open(struct inode *ip, struct file *fp)
 	else
 		ret = -EBUSY;
 	spin_unlock(&rmc->lock);
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+	/* LGE_CHANGE
+	 *  notify that rmt storage client is ready to msm
+	 * 2011-03-23, cheongil.hyun@lge.com
+	 */
+	if(ret == 0)
+		rmt_storate_report_available(1);
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 
 	return ret;
 }
@@ -932,7 +996,13 @@ static int rmt_storage_release(struct inode *ip, struct file *fp)
 	spin_lock(&rmc->lock);
 	rmc->open_excl = 0;
 	spin_unlock(&rmc->lock);
-
+/* LGE_CHANGE_S: [murali.ramaiah@lge.com]-2012-03-03
+		Notify to modem, rmt storage client is not stoped
+*/
+#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+	rmt_storate_report_available(0);
+#endif
+/* LGE_CHANGE_S: [murali.ramaiah@lge.com]-2012-03-03 */
 	return 0;
 }
 
@@ -978,7 +1048,7 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 		break;
 
 	case RMT_STORAGE_WAIT_FOR_REQ:
-		pr_debug("%s: wait for request ioctl\n", __func__);
+		pr_info("%s: wait for request ioctl\n", __func__);
 		if (atomic_read(&rmc->total_events) == 0) {
 			ret = wait_event_interruptible(rmc->event_q,
 				atomic_read(&rmc->total_events) != 0);
@@ -989,11 +1059,26 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 
 		kevent = get_event(rmc);
 		WARN_ON(kevent == NULL);
+		pr_info("%s: Got Event from modem %d \n", __func__,kevent->event.id);
 		if (copy_to_user((void __user *)arg, &kevent->event,
 			sizeof(struct rmt_storage_event))) {
 			pr_err("%s: copy to user failed\n\n", __func__);
 			ret = -EFAULT;
 		}
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+		else
+		{
+			if( pm_rmt_wait && (RMT_STORAGE_WRITE == kevent->event.id) )
+			{
+				atomic_set(&pm_rmt_wait->wait_for_RPC_close,1);
+				printk("RMT Events Left %d \n",atomic_read(&rmc->total_events));	
+			}
+		}
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
 		kfree(kevent);
 		break;
 
@@ -1005,6 +1090,21 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 			ret = -EFAULT;
 			if (atomic_dec_return(&rmc->wcount) == 0)
 				wake_unlock(&rmc->wlock);
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+			if(pm_rmt_wait)
+			{
+				atomic_set(&pm_rmt_wait->wait_for_RPC_close,0);
+				if( 1 == atomic_read(&pm_rmt_wait->waiting_for_rmt))
+				{
+					printk("RMT Queue Left %d \n",atomic_read(&rmc->wcount));
+					wake_up(&pm_rmt_wait->pm_event_q);
+				}
+			}			
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
 			break;
 		}
 #ifdef CONFIG_MSM_RMT_STORAGE_CLIENT_STATS
@@ -1036,6 +1136,21 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 				__func__, ret);
 		if (atomic_dec_return(&rmc->wcount) == 0)
 			wake_unlock(&rmc->wlock);
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  21/03/2012*/
+/*Wait for EFS sync comeplete while power off/ reset*/
+			if(pm_rmt_wait)
+			{
+				atomic_set(&pm_rmt_wait->wait_for_RPC_close,0);
+				if( 1 == atomic_read(&pm_rmt_wait->waiting_for_rmt))
+				{
+					printk("RMT Queue Left %d \n",atomic_read(&rmc->wcount));
+					wake_up(&pm_rmt_wait->pm_event_q);
+				}
+			}			
+/*Wait for EFS sync comeplete while power off/ reset*/
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  21/03/2012*/
+#endif
 		break;
 
 	default:
@@ -1077,10 +1192,6 @@ static int rmt_storage_force_sync(struct msm_rpc_client *client)
 	}
 	return 0;
 }
-
-struct rmt_storage_sync_sts_arg {
-	int token;
-};
 
 static int rmt_storage_send_sync_sts_arg(struct msm_rpc_client *client,
 				struct msm_rpc_xdr *xdr, void *data)
@@ -1304,7 +1415,37 @@ static int rmt_storage_get_ramfs(struct rmt_storage_srv *srv)
 	}
 	return 0;
 }
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+/*EFS Sync from shutdown thread*/
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+static ssize_t
+set_force_sync(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct platform_device *pdev;
+	struct rpcsvr_platform_device *rpc_pdev;
+	struct rmt_storage_srv *srv;
+	int value, rc;
 
+	pdev = container_of(dev, struct platform_device, dev);
+	rpc_pdev = container_of(pdev, struct rpcsvr_platform_device, base);
+	srv = rmt_storage_get_srv(rpc_pdev->prog);
+	if (!srv) {
+		pr_err("%s: Unable to find prog=0x%x\n", __func__,
+		       rpc_pdev->prog);
+		return -EINVAL;
+	}
+
+	sscanf(buf, "%d", &value);
+	if (!!value) {
+		rc = rmt_storage_force_sync(srv->rpc_client);
+		if (rc)
+			return rc;
+	}
+	return count;
+}
+
+#else
 static ssize_t
 show_force_sync(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -1324,7 +1465,8 @@ show_force_sync(struct device *dev, struct device_attribute *attr,
 
 	return rmt_storage_force_sync(srv->rpc_client);
 }
-
+#endif
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 /* Returns -EINVAL for invalid sync token and an error value for any failure
  * in RPC call. Upon success, it returns a sync status of 1 (sync done)
  * or 0 (sync still pending).
@@ -1347,6 +1489,32 @@ show_sync_sts(struct device *dev, struct device_attribute *attr, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			rmt_storage_get_sync_status(srv->rpc_client));
 }
+
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+/* Add interface "send_sync" for syncing efs */
+static ssize_t
+store_send_sync(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int value;
+
+	pr_info("%s: do rmt_storage sync!\n", __func__);
+
+	sscanf(buf, "%d", &value);
+	/* LGE_CHANGE_S: [murali.ramaiah@lge.com]-2012-03-03
+	Report to modem, rmt_storage service is running or stoped */
+	#ifdef CONFIG_LGE_REPORT_RMT_STORAGE_CLIENT_READY
+	if (!!value && (1 == rmc->open_excl)) {
+		rmt_storate_report_available(1);
+	}
+	else {
+		rmt_storate_report_available(0);
+	}
+	#endif
+	/* LGE_CHANGE_E: [murali.ramaiah@lge.com]-2012-03-03 */
+	return count;
+}
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 
 static int rmt_storage_init_ramfs(struct rmt_storage_srv *srv)
 {
@@ -1398,12 +1566,24 @@ static void rmt_storage_set_client_status(struct rmt_storage_srv *srv,
 				shrd_mem->smem_info->client_sts = !!enable;
 	spin_unlock(&rmc->lock);
 }
-
+/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
+/*EFS Sync from shutdown thread*/
+#ifdef CONFIG_LGE_WAIT_FOR_EFS_SYNC_COMPLETE
+static DEVICE_ATTR(force_sync, S_IRUGO | S_IWUSR, NULL, set_force_sync);
+#else
 static DEVICE_ATTR(force_sync, S_IRUGO | S_IWUSR, show_force_sync, NULL);
+#endif
+/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 static DEVICE_ATTR(sync_sts, S_IRUGO | S_IWUSR, show_sync_sts, NULL);
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+static DEVICE_ATTR(send_sync, S_IRUGO | S_IWUSR, NULL, store_send_sync);
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 static struct attribute *dev_attrs[] = {
 	&dev_attr_force_sync.attr,
 	&dev_attr_sync_sts.attr,
+        /*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+	&dev_attr_send_sync.attr,
+        /*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {

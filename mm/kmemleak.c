@@ -964,7 +964,13 @@ void __ref kmemleak_scan_area(const void *ptr, size_t size, gfp_t gfp)
 {
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
+	/*LGE_CHANGE_S : seven.kim@lge.com , Only scan non-zero-size areas*/
+	#ifdef CONFIG_MACH_LGE
+	if (atomic_read(&kmemleak_enabled) && ptr && size && !IS_ERR(ptr))
+	#else /*QCT original*/
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
+	#endif
+	/*LGE_CHANGE_E : seven.kim@lge.com , Only scan non-zero-size areas*/
 		add_scan_area((unsigned long)ptr, size, gfp);
 	else if (atomic_read(&kmemleak_early_log))
 		log_early(KMEMLEAK_SCAN_AREA, ptr, size, 0);

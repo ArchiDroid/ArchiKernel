@@ -122,6 +122,12 @@ void vt_event_post(unsigned int event, unsigned int old, unsigned int new)
 static void vt_event_wait(struct vt_event_wait *vw)
 {
 	unsigned long flags;
+/* LGE_CHANGE_S : seven.kim@lge.com workaround for suspend corruption*/
+#ifdef CONFIG_MACH_LGE
+	long rc = 0;
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com workaround for suspend corruption*/
+
 	/* Prepare the event */
 	INIT_LIST_HEAD(&vw->list);
 	vw->done = 0;
@@ -129,8 +135,18 @@ static void vt_event_wait(struct vt_event_wait *vw)
 	spin_lock_irqsave(&vt_event_lock, flags);
 	list_add(&vw->list, &vt_events);
 	spin_unlock_irqrestore(&vt_event_lock, flags);
+/* LGE_CHANGE_S : seven.kim@lge.com workaround for suspend corruption*/
+#ifdef CONFIG_MACH_LGE
+	rc = wait_event_interruptible_timeout(vt_event_waitqueue, vw->done, msecs_to_jiffies(500));
+   if (rc == 0) {
+		printk("VT : vt_event_wait timeout !!!!!!\n");
+   }
+#else /*qct original*/
 	/* Wait for it to pass */
 	wait_event_interruptible_tty(vt_event_waitqueue, vw->done);
+#endif /*CONFIG_MACH_LGE*/
+/*LGE_CHANGE_E : seven.kim@lge.com workaround for suspend corruption*/
+
 	/* Dequeue it */
 	spin_lock_irqsave(&vt_event_lock, flags);
 	list_del(&vw->list);

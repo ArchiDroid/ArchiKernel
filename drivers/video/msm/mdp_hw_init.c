@@ -15,7 +15,12 @@
 
 /* mdp primary csc limit vector */
 uint32 mdp_plv[] = { 0x10, 0xeb, 0x10, 0xf0 };
-
+/* LGE_CHANGE_S : boot logo mdp power consumption patch
+ * 2011-12-15, sinjo.mattappallil@lge.com,
+ * For every MDP_BLOCK_POWER_ON there should be a matching MDP_BLOCK_POWER_OFF
+ */
+static boolean boologo_mdpon = FALSE;
+ /* LGE_CHANGE_E : boot logo mdp power consumption patch */
 /* Color Coefficient matrix for YUV -> RGB */
 struct mdp_ccs mdp_ccs_yuv2rgb = {
 	MDP_CCS_YUV2RGB,
@@ -711,6 +716,33 @@ void mdp_hw_init(void)
 		 ((16 << 6) << 16) | (16) << 6);
 #endif
 
+/* LGE_CHANGE_S : boot logo mdp power consumption patch
+ * 2011-12-15, sinjo.mattappallil@lge.com,
+ * For every MDP_BLOCK_POWER_ON there should be a matching MDP_BLOCK_POWER_OFF
+ */
+#if 0
 	/* MDP cmd block disable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+#else
+     boologo_mdpon = TRUE;
+#endif	   
+ /* LGE_CHANGE_E : boot logo mdp power consumption patch */
 }
+
+/* LGE_CHANGE_S : boot logo mdp power consumption patch
+ * 2011-12-15, sinjo.mattappallil@lge.com,
+ * For every MDP_BLOCK_POWER_ON there should be a matching MDP_BLOCK_POWER_OFF
+ */
+boolean mdp_hw_bootlogo_mdponstate(void)
+{
+	printk(KERN_INFO "[DISPLAY]::%s:boologo_mdpon = %d\n",__func__,boologo_mdpon);
+	return boologo_mdpon;
+}
+EXPORT_SYMBOL(mdp_hw_bootlogo_mdponstate);
+
+void mdp_hw_set_bootlogo_mdponstate(boolean value)
+{
+	boologo_mdpon = value;
+}
+EXPORT_SYMBOL(mdp_hw_set_bootlogo_mdponstate);
+ /* LGE_CHANGE_E : boot logo mdp power consumption patch */

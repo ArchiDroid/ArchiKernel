@@ -94,7 +94,11 @@ static int suspend_prepare(void)
 	if (!suspend_ops || !suspend_ops->enter)
 		return -EPERM;
 
+/*LGE_CHANGE_S : seven.kim@lge.com patch for suspend queue corruption*/
+#ifndef CONFIG_FB_EARLYSUSPEND
 	pm_prepare_console();
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com patch for suspend queue corruption*/
 
 	error = pm_notifier_call_chain(PM_SUSPEND_PREPARE);
 	if (error)
@@ -105,14 +109,28 @@ static int suspend_prepare(void)
 		goto Finish;
 
 	error = suspend_freeze_processes();
+	/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+	#ifdef CONFIG_MACH_LGE
+	if (error) {
+		suspend_stats.failed_freeze++;
+		dpm_save_failed_step(SUSPEND_FREEZE);
+	} else
+		return 0;
+	#else /*qct orginal*/
 	if (!error)
 		return 0;
+	#endif
+	/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
 
 	suspend_thaw_processes();
 	usermodehelper_enable();
  Finish:
 	pm_notifier_call_chain(PM_POST_SUSPEND);
+/*LGE_CHANGE_S : seven.kim@lge.com patch for suspend queue corruption*/
+#ifndef CONFIG_FB_EARLYSUSPEND	
 	pm_restore_console();
+#endif
+/*LGE_CHANGE_E : seven.kim@lge.com patch for suspend queue corruption*/
 	return error;
 }
 
@@ -308,8 +326,23 @@ int enter_state(suspend_state_t state)
  */
 int pm_suspend(suspend_state_t state)
 {
+	/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+	#ifdef CONFIG_MACH_LGE
+	int ret;
+	if (state > PM_SUSPEND_ON && state <= PM_SUSPEND_MAX) {
+		ret = enter_state(state);
+		if (ret) {
+			suspend_stats.fail++;
+			dpm_save_failed_errno(ret);
+		} else
+			suspend_stats.success++;
+		return ret;
+	}	
+	#else /*qct original*/
 	if (state > PM_SUSPEND_ON && state <= PM_SUSPEND_MAX)
 		return enter_state(state);
+	#endif
+	/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
 	return -EINVAL;
 }
 EXPORT_SYMBOL(pm_suspend);

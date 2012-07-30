@@ -38,6 +38,9 @@
 u32 dsi_irq;
 
 static boolean tlmm_settings = FALSE;
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+static boolean lglogo_firstboot = TRUE;
+#endif
 
 static int mipi_dsi_probe(struct platform_device *pdev);
 static int mipi_dsi_remove(struct platform_device *pdev);
@@ -61,7 +64,19 @@ static struct platform_driver mipi_dsi_driver = {
 };
 
 struct device dsi_dev;
-
+//LGE_CHANGE_S [Kiran] Change LCD sleep sequence
+#define DSI_VIDEO_BASE	0xF0000
+/*LGE_START: Kiran.kanneganti@lge.com 25-2-2012*/
+/*In case of ESD no delays required in power off*/
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+extern boolean is_esd_occured;
+#endif
+/*LGE_END: Kiran.kanneganti@lge.com*/
+//LGE_CHANGE_E [Kiran] Change LCD sleep sequence
+/*LGE_CHANGE_S: Kiran.kanneganti@lge.com 05-03-2012*/
+/*LCD Reset After data pulled Down*/
+extern void mipi_ldp_lcd_panel_poweroff(void);
+/*LGE_CHANGE_E LCD Reset After Data Pulled Down*/
 static int mipi_dsi_off(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -97,7 +112,17 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	 * Desctiption: change to DSI_CMD_MODE since it needed to
 	 * tx DCS dsiplay off comamnd to panel
 	 */
+//LGE_CHANGE_S [Kiran] Change LCD sleep sequence
+/*LGE_CHANGE_S: Kiran.kanneganti@lge.com 05-03-2012*/
+/*LCD Reset After data pulled Down*/
+#if 0
+	if(lglogo_firstboot)
+	{
 	mipi_dsi_op_mode_config(DSI_CMD_MODE);
+	}
+#endif
+/*LGE_CHANGE_E LCD Reset After Data Pulled Down*/
+//LGE_CHANGE_E [Kiran] Change LCD sleep sequence
 
 	if (mfd->panel_info.type == MIPI_CMD_PANEL) {
 		if (pinfo->lcd.vsync_enable) {
@@ -114,20 +139,64 @@ static int mipi_dsi_off(struct platform_device *pdev)
 #ifdef CONFIG_MSM_BUS_SCALING
 	mdp_bus_scale_update_request(0);
 #endif
+/*LGE_START: Kiran.kanneganti@lge.com 25-2-2012*/
+/*In case of ESD no delays required in power off*/
+//LGE_CHANGE_S [Kiran] Change LCD sleep sequence
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+	if (true == is_esd_occured)
+	{
+		printk("ESD.Paneloff ASAP\n");
+	}
+	else
+#endif
+		msleep(300);
+//LGE_CHANGE_E [Kiran] Change LCD sleep sequence
+/*LGE_END: Kiran.kanneganti@lge.com*/
 
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+	if(lglogo_firstboot)
+	{
+		printk(KERN_INFO "[DISPLAY]::%s\n",__func__);
+		local_bh_disable();
+		lglogo_mipi_dsi_clk_disable();
+		local_bh_enable();
+	}
+	else
+#endif
+	{
 	local_bh_disable();
 	mipi_dsi_clk_disable();
 	local_bh_enable();
+	}
 
 	/* disbale dsi engine */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x0000, 0);
 
 	mipi_dsi_phy_ctrl(0);
 
-
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO       
+	if(!lglogo_firstboot)
+#endif
+    {
 	local_bh_disable();
 	mipi_dsi_ahb_ctrl(0);
 	local_bh_enable();
+    }
+//LGE_CHANGE_S [Kiran] Change LCD sleep sequence
+#if 1
+		/* MDP cmd block enable */
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+		MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE, 0);
+		/* MDP cmd block disable */
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+		/*Turning off DMA_P block*/
+		mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+#endif
+//LGE_CHANGE_E [Kiran] Change LCD sleep sequence
+/*LGE_CHANGE_S: Kiran.kanneganti@lge.com 05-03-2012*/
+/*LCD Reset After data pulled Down*/
+	mipi_ldp_lcd_panel_poweroff();
+/*LGE_CHANGE_E LCD Reset After Data Pulled Down*/
 
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(0);
@@ -139,6 +208,9 @@ static int mipi_dsi_off(struct platform_device *pdev)
 
 	pr_debug("%s-:\n", __func__);
 
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+	lglogo_firstboot = FALSE;
+#endif
 	return ret;
 }
 
@@ -160,6 +232,28 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	fbi = mfd->fbi;
 	var = &fbi->var;
 	pinfo = &mfd->panel_info;
+
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+	if(lglogo_firstboot)
+	{
+		printk(KERN_INFO "[DISPLAY]::%s\n",__func__);
+	        if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
+                	mipi_dsi_pdata->dsi_power_save(1);
+	
+		local_bh_disable();
+		lglogo_mipi_dsi_clk_enable();
+		local_bh_enable();
+	
+		if (mdp_rev >= MDP_REV_41)
+			mutex_lock(&mfd->dma->ov_mutex);
+		else
+			down(&mfd->dma->mutex);
+
+		ret = panel_next_on(pdev);
+	}
+	else
+#endif
+	{
 
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(1);
@@ -315,6 +409,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 			}
 			mipi_dsi_set_tear_on(mfd);
 		}
+	}
 	}
 
 #ifdef CONFIG_MSM_BUS_SCALING
@@ -615,5 +710,37 @@ static int __init mipi_dsi_driver_init(void)
 
 	return ret;
 }
+
+/* LGE_CHANGE_S : LCD ESD Protection 
+ * 2012-01-30, yoonsoo@lge.com
+ * LCD ESD Protection
+ */
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+/********************************************************************
+Function Name  :-  esd_sw_test_lcd_panel_power_off
+Arguments 	   :-  None
+Return Value   :-  None
+Functionality  :-  to power off LCD panel.  
+dependencies   :-  Should be called when lcd panel is on.
+*********************************************************************/
+void esd_sw_test_lcd_panel_power_off()
+{
+	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
+		mipi_dsi_pdata->dsi_power_save(0);	
+}
+/********************************************************************
+Function Name  :-  esd_sw_test_lcd_panel_power_on
+Arguments 	   :-  None
+Return Value   :-  None
+Functionality  :-  to power on LCD panel.  
+dependencies   :-  Should be called when lcd panel is off.
+*********************************************************************/
+void esd_sw_test_lcd_panel_power_on()
+{
+	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
+		mipi_dsi_pdata->dsi_power_save(1);	
+}
+#endif
+/* LGE_CHANGE_E : LCD ESD Protection*/ 
 
 module_init(mipi_dsi_driver_init);

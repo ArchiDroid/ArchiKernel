@@ -49,6 +49,11 @@ obj-$(CONFIG_LEDS_ASIC3)		+= leds-asic3.o
 obj-$(CONFIG_LEDS_PMIC8058)		+= leds-pmic8058.o
 obj-$(CONFIG_LEDS_QCIBL)		+= leds-qci-backlight.o
 obj-$(CONFIG_LEDS_MSM_PDM)		+= leds-msm-pdm.o
+#LGE_CHANGE_S : U0 board config
+# 20011-10-27, samjinjang@lge.com, 
+# Porting AS3647 LED Flash Driver
+obj-$(CONFIG_LEDS_AS364X)		+= leds-as364x.o
+# LGE_CHANGE_E : U0 board config
 
 # LED SPI Drivers
 obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o

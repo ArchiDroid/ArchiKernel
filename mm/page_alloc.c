@@ -2661,6 +2661,12 @@ void show_free_areas(unsigned int filter)
 			" writeback_tmp:%lukB"
 			" pages_scanned:%lu"
 			" all_unreclaimable? %s"
+/*LGE_CHANGE_S: Kiran.kanneganti@lge.com 05-03-2012*/
+/*Display available file pages in KB*/
+#if 1			
+			" file Pages : %lukB"
+#endif
+/*LGE_CHANGE_E Display available file pages in KB*/
 			"\n",
 			zone->name,
 			K(zone_page_state(zone, NR_FREE_PAGES)),
@@ -2690,6 +2696,12 @@ void show_free_areas(unsigned int filter)
 			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
 			zone->pages_scanned,
 			(zone->all_unreclaimable ? "yes" : "no")
+/*LGE_CHANGE_S: Kiran.kanneganti@lge.com 05-03-2012*/
+/*Display available file pages in KB*/
+#if 1
+			,K(zone_page_state(zone, NR_FILE_PAGES))
+#endif
+/*LGE_CHANGE_E Display available file pages in KB*/
 			);
 		printk("lowmem_reserve[]:");
 		for (i = 0; i < MAX_NR_ZONES; i++)

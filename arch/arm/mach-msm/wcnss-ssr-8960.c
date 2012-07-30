@@ -62,7 +62,7 @@ static void smsm_state_cb_hdlr(void *data, uint32_t old_state,
 	if (new_state & SMSM_RESET) {
 		ss_restart_inprogress = true;
 		schedule_work(&riva_smsm_cb_work);
-	}
+}
 }
 
 static void riva_fatal_fn(struct work_struct *work)

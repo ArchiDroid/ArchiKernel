@@ -27,6 +27,21 @@
 #include <linux/msm_ssbi.h>
 #include <mach/msm_bus.h>
 
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38
+ * struct msm_acpu_clock_platform_data was minssed in kernel3.0 source
+ * If this structure will not need in kernel3.0, please remove 
+ */
+/* platform device data structures */
+struct msm_acpu_clock_platform_data {
+	uint32_t acpu_switch_time_us;
+	uint32_t max_speed_delta_khz;
+	uint32_t vdd_switch_time_us;
+	unsigned int max_axi_khz;
+	unsigned int max_vdd;
+	int (*acpu_set_vdd) (int mvolts);
+};
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 struct msm_camera_io_ext {
 	uint32_t mdcphy;
 	uint32_t mdcsz;
@@ -62,6 +77,11 @@ struct msm_camera_device_platform_data {
 	struct msm_camera_io_clk ioclk;
 	uint8_t csid_core;
 	struct msm_bus_scale_pdata *cam_bus_scale_table;
+        /*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting*/
+	/* TODO: it is needed??? */
+	int (*camera_power_on) (void);
+	int (*camera_power_off)(void);
+        /*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting*/
 };
 enum msm_camera_csi_data_format {
 	CSI_8BIT,
@@ -401,6 +421,13 @@ struct msm_i2c_platform_data {
 	int pri_dat;
 	int aux_clk;
 	int aux_dat;
+/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38
+ * At this time, below two clcok relatee members were missed in kernel3.0
+ * If those parameters will not need in kernel3.0, please remove 
+ */
+	const char *clk;
+	const char *pclk;
+/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 	int src_clk_rate;
 	int use_gsbi_shared_mode;
 	void (*msm_i2c_config_gpio)(int iface, int config_type);

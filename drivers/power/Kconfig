@@ -241,7 +241,14 @@ config BATTERY_MSM
 	default m
 	help
 	  Say Y to enable support for the battery in Qualcomm MSM.
-
+# LGE_CHANGE_S 20120116 yoonsin.woo@lge.com
+config LGE_FUEL_GAUGE
+        bool "LGE Fuel Gauge IC"
+        depends on (BATTERY_MSM && MACH_LGE)
+        default N
+        help
+          Say Y to use the fuel gauge ic on AMSS in Qualcomm MSM
+# LGE_CHANGE_E 20120116 yoonsin.woo@lge.com
 config BATTERY_MSM8X60
 	tristate "MSM8X60 battery"
 	select PMIC8XXX_BATTALARM

@@ -1272,6 +1272,19 @@ msmsdcc_pio_irq(int irq, void *dev_id)
 				| MCI_RXDATAAVLBL)))
 			break;
 
+#ifdef CONFIG_MACH_LGE
+		/* LGE_CHANGE
+		* Exception handling : Kernel Panic issue by Null Pointer
+		* 2012-01-14, warkap.seo@lge.com from G1TDR
+		*/
+		if(!host->curr.data)
+		{
+			writel(0, base + MMCIMASK1);
+			spin_unlock(&host->lock);
+			return IRQ_HANDLED;
+		}
+#endif
+
 		/* Map the current scatter buffer */
 		local_irq_save(flags);
 		buffer = kmap_atomic(sg_page(host->pio.sg),
@@ -3052,8 +3065,10 @@ msmsdcc_slot_status(struct msmsdcc_host *host)
 	}
 	return status;
 }
-
-static void
+/*LGE_CHANGE:Changed from static void to void
+ *[jyothishre.nk@lge.com] 2012-03-16
+*/
+void
 msmsdcc_check_status(unsigned long data)
 {
 	struct msmsdcc_host *host = (struct msmsdcc_host *)data;
@@ -3062,9 +3077,18 @@ msmsdcc_check_status(unsigned long data)
 	if (host->plat->status || host->plat->status_gpio) {
 		if (host->plat->status)
 			status = host->plat->status(mmc_dev(host->mmc));
-		else
+		else {
 			status = msmsdcc_slot_status(host);
 
+#ifdef CONFIG_MACH_LGE
+		/* LGE_CHANGE
+		* Exception handling : Kernel Panic issue by Null Pointer
+		* 2012-01-14, warkap.seo@lge.com from G1TDR
+		*/
+		printk(KERN_INFO "[LGE][MMC][%-18s( )] slot_status:%d, host->oldstat:%d, host->eject:%d\n", __func__, status, host->oldstat, host->eject);
+#endif
+                }
+		
 		host->eject = !status;
 
 		if (status ^ host->oldstat) {
@@ -3097,6 +3121,14 @@ static irqreturn_t
 msmsdcc_platform_status_irq(int irq, void *dev_id)
 {
 	struct msmsdcc_host *host = dev_id;
+
+#ifdef CONFIG_MACH_LGE
+	/* LGE_CHANGE
+	* Exception handling : Kernel Panic issue by Null Pointer
+	* 2012-01-14, warkap.seo@lge.com from G1TDR
+	*/
+	printk(KERN_INFO "[LGE][MMC][%-18s( )] irq:%d\n", __func__, irq);
+#endif
 
 	pr_debug("%s: %d\n", __func__, irq);
 	msmsdcc_check_status((unsigned long) host);
@@ -4273,8 +4305,20 @@ msmsdcc_probe(struct platform_device *pdev)
 	 * for every claim/release operation on a host. We use this
 	 * notification to increment/decrement runtime pm usage count.
 	 */
+	/* LGE_CHANGE_S : sd card
+	 * 2012-01-16, bohyun.jung@lge.com,
+	 * there is problem that Unnecesary sd card detected as new during suspend/resume due to CRC error. 
+	 */
+#if 1
 	mmc->caps |= MMC_CAP_DISABLE;
 	pm_runtime_enable(&(pdev)->dev);
+#else
+	if (host->mmc->index != 1) {
+		mmc->caps |= MMC_CAP_DISABLE;
+		pm_runtime_enable(&(pdev)->dev);
+	}
+#endif
+	/* LGE_CHANGE_S : sd card */
 #else
 	if (mmc->caps & MMC_CAP_NONREMOVABLE) {
 		mmc->caps |= MMC_CAP_DISABLE;

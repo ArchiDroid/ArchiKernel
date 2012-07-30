@@ -21,6 +21,9 @@
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/fb.h>
+/* LGE_CHANGE_S [yoonsoo.kim@lge.com] 20120130 : LCD ESD Protection*/
+#include <linux/jiffies.h>
+/* LGE_CHANGE_E  [yoonsoo.kim@lge.com] 20120130 : LCD ESD Protection*/
 #include <asm/system.h>
 #include <mach/hardware.h>
 #include "mdp.h"
@@ -32,6 +35,17 @@
 
 static int first_pixel_start_x;
 static int first_pixel_start_y;
+
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+static boolean lglogo_firstboot = TRUE;
+#endif
+
+/* LGE_CHANGE_S [yoonsoo.kim@lge.com] 20120130 : LCD ESD Protection*/
+/*For LCD ESD detection 27-01-2012*/
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+static struct platform_device *esd_reset_pdev;
+#endif
+/* LGE_CHANGE_E  [yoonsoo.kim@lge.com]  20120130  :  LCD ESD Protection*/
 
 int mdp_dsi_video_on(struct platform_device *pdev)
 {
@@ -74,6 +88,18 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 	struct msm_fb_data_type *mfd;
 	int ret;
 
+/* LGE_CHANGE_S : LCD ESD Protection 
+ * 2012-01-30, yoonsoo@lge.com
+ * LCD ESD Protection
+ */	
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+	if( (!esd_reset_pdev) && (pdev))
+	{
+		esd_reset_pdev = pdev;
+	}
+#endif
+/* LGE_CHANGE_E : LCD ESD Protection*/ 
+
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
 	if (!mfd)
@@ -81,7 +107,22 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+	if(lglogo_firstboot)
+	{
+		printk(KERN_INFO "[DISPLAY]::%s\n",__func__);		
+		ret = panel_next_on(pdev);
 
+		/* LGE_CHANGE_S : LCD Blank Issue
+		 * 2012-01-22, yoonsoo@lge.com
+		 * Multiple Power OFF DMA block issue FIX. From kiran 
+		 */
+		mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+		/* LGE_CHANGE_E : LCD Blank Issue */ 
+	}
+	else
+#endif
+	{
 	fbi = mfd->fbi;
 	var = &fbi->var;
 
@@ -211,6 +252,7 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 
 	/* MDP cmd block disable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	}
 
 	return ret;
 }
@@ -218,6 +260,21 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 int mdp_dsi_video_off(struct platform_device *pdev)
 {
 	int ret = 0;
+
+/* LGE_CHANGE_S : LCD ESD Protection 
+ * 2012-01-30, yoonsoo@lge.com
+ * LCD ESD Protection
+ */
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION	
+	if( (!esd_reset_pdev) && (pdev))
+	{
+		esd_reset_pdev = pdev;
+	}
+#endif
+/* LGE_CHANGE_E : LCD ESD Protection*/ 
+
+//LGE_CHANGE_S [Kiran] Change LCD sleep sequence
+#if 0
 	/* MDP cmd block enable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE, 0);
@@ -225,11 +282,20 @@ int mdp_dsi_video_off(struct platform_device *pdev)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 	/*Turning off DMA_P block*/
 	mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+#endif
+//LGE_CHANGE_E [Kiran] Change LCD sleep sequence
 
 	ret = panel_next_off(pdev);
 	/* delay to make sure the last frame finishes */
 	msleep(20);
 
+#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+	if(lglogo_firstboot)
+	{
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+		lglogo_firstboot = FALSE;
+	}
+#endif
 	return ret;
 }
 
@@ -268,3 +334,40 @@ void mdp_dsi_video_update(struct msm_fb_data_type *mfd)
 	mdp_disable_irq(irq_block);
 	up(&mfd->dma->mutex);
 }
+
+/* LGE_CHANGE_S : LCD ESD Protection 
+ * 2012-01-30, yoonsoo@lge.com
+ * LCD ESD Protection
+ */
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+/********************************************************************
+Function Name  :-  esd_dma_dsi_panel_off
+Arguments 	   :-  None
+Return Value   :-  None
+Functionality  :-  to power off DMA , MIPI DSI & LCD panel.  
+dependencies   :-  Should be called after dsi_video_on or off function.
+*********************************************************************/
+void esd_dma_dsi_panel_off(void)
+{
+	if(esd_reset_pdev)
+	{
+		mdp_dsi_video_off(esd_reset_pdev);
+	}
+}
+/********************************************************************
+Function Name  :-  esd_dma_dsi_panel_on
+Arguments 	   :-  None
+Return Value   :-  None
+Functionality  :-  to power on DMA , MIPI DSI & LCD panel.  
+dependencies   :-  Should be called after dsi_video_on or off function.
+*********************************************************************/
+void esd_dma_dsi_panel_on(void)
+{
+	if(esd_reset_pdev)
+	{
+		mdp_dsi_video_on(esd_reset_pdev);
+	}
+}
+#endif
+/* LGE_CHANGE_E : LCD ESD Protection*/ 
+

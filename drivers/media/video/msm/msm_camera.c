@@ -3556,8 +3556,10 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 			CDBG("%s: PP_SNAP in progress: pp_mask %x\n",
 				__func__, sync->pp_mask);
 		} else {
+#if 0		// QCT patch for kernel memory leak
 			if (atomic_read(&qcmd->on_heap))
 				atomic_add(1, &qcmd->on_heap);
+#endif 
 			CDBG("%s: VFE_MSG_SNAPSHOT store\n",
 				__func__);
 			if (sync->stereocam_enabled &&
@@ -3729,6 +3731,7 @@ static int __msm_open(struct msm_cam_device *pmsm, const char *const apps_id,
 		msm_camvfe_fn_init(&sync->vfefn, sync);
 		if (sync->vfefn.vfe_init) {
 			sync->pp_frame_avail = 0;
+			sync->pp_mask = 0; /* LGE_CHANGE : Add power consumption patch from M4 (fxcamera issue), 20120126, donghyun.kwon@lge.com */
 			sync->get_pic_abort = 0;
 			rc = msm_camio_sensor_clk_on(sync->pdev);
 			if (rc < 0) {

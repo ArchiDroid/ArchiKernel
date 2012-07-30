@@ -236,6 +236,16 @@ struct msm_cam_evt_msg {
 	void *data;
 };
 
+/* LGE_CHANGE_S : Build Error Fixed in Kernel 3.0 */
+struct msm_isp_stats_event_ctrl {
+	unsigned short resptype;
+	union {
+		struct msm_cam_evt_msg isp_msg;
+		struct msm_ctrl_cmd ctrl;
+	} isp_data;
+};
+/* LGE_CHANGE_E : Build Error Fixed in Kernel 3.0 */
+
 struct msm_pp_frame_sp {
 	/* phy addr of the buffer */
 	unsigned long  phy_addr;
@@ -755,10 +765,14 @@ struct msm_snapshot_pp_status {
 #define CAMERA_EFFECT_GREENISH	14
 
 /* QRD */
+/* LGE_CHANGE_S : Build Error Fixed in Kernel 3.0 */
+#if 0
 #define CAMERA_ANTIBANDING_OFF		0
 #define CAMERA_ANTIBANDING_50HZ		2
 #define CAMERA_ANTIBANDING_60HZ		1
 #define CAMERA_ANTIBANDING_AUTO		3
+#endif
+/* LGE_CHANGE_E : Build Error Fixed in Kernel 3.0 */
 
 #define CAMERA_CONTRAST_LV0			0
 #define CAMERA_CONTRAST_LV1			1
@@ -815,6 +829,8 @@ struct msm_snapshot_pp_status {
 /* QRD */
 #define CFG_SET_EXPOSURE_COMPENSATION 35
 
+/* LGE_CHANGE_S : Build Error Fixed in Kernel 3.0 */
+#if 0
 #define  CAMERA_WB_AUTO               1 /* This list must match aeecamera.h */
 #define  CAMERA_WB_CUSTOM             2
 #define  CAMERA_WB_INCANDESCENT       3
@@ -823,6 +839,8 @@ struct msm_snapshot_pp_status {
 #define  CAMERA_WB_CLOUDY_DAYLIGHT    6
 #define  CAMERA_WB_TWILIGHT           7
 #define  CAMERA_WB_SHADE              8
+#endif
+/* LGE_CHANGE_E : Build Error Fixed in Kernel 3.0 */
 
 #define CAMERA_EXPOSURE_COMPENSATION_LV0			12
 #define CAMERA_EXPOSURE_COMPENSATION_LV1			6

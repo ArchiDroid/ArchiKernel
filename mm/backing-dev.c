@@ -609,6 +609,28 @@ void bdi_unregister(struct backing_dev_info *bdi)
 		bdi_set_min_ratio(bdi, 0);
 		trace_writeback_bdi_unregister(bdi);
 		bdi_prune_sb(bdi);
+#ifdef CONFIG_LGE_BDI_TIMER_BUG_PATCH
+#ifdef CONFIG_LGE_BDI_TIMER_BUG_PATCH_LOG		 
+		/* FIXME : for getting debugging information
+		 * this should be removed after debugging.
+		 * 2011-08-01, cleaneye.kim@lge.com
+		 */
+		printk(KERN_INFO"%s: bdi->name %s \n",__func__, bdi->name);
+		printk(KERN_INFO"%s: bdi->wb.task %p\n",__func__, bdi->wb.task);
+		printk(KERN_INFO"%s: current jiffies %lu\n", __func__, jiffies);
+		printk(KERN_INFO"%s: prev %p\n",__func__, bdi->wb.wakeup_timer.entry.prev);
+		printk(KERN_INFO"%s: next %p\n",__func__, bdi->wb.wakeup_timer.entry.next);
+#endif
+
+		if (bdi->wb.wakeup_timer.entry.prev == NULL &&
+			bdi->wb.wakeup_timer.entry.next != NULL) {
+#ifdef CONFIG_LGE_BDI_TIMER_BUG_PATCH_LOG
+			printk(KERN_INFO"%s: wakeup_timer.entry.next->prev %p\n",__func__, bdi->wb.wakeup_timer.entry.next->prev);
+			printk(KERN_INFO"%s: wakeup_timer.entry.next->prev->next %p\n",__func__, bdi->wb.wakeup_timer.entry.next->prev->next);
+#endif
+            bdi->wb.wakeup_timer.entry.next = NULL;
+		}
+#endif
 		del_timer_sync(&bdi->wb.wakeup_timer);
 
 		if (!bdi_cap_flush_forker(bdi))
@@ -685,6 +707,21 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	}
 
 	bdi_unregister(bdi);
+
+	 /* LGE_CHANGE_S : Kernel Memory
+         * 2012-02-01, jyothishre.nk@lge.com
+         * For crash in del_timer due to synchronization problem
+         */
+
+        /*
+        * If bdi_unregister() had already been called earlier, the
+        * wakeup_timer could still be armed because bdi_prune_sb()
+        * can race with the bdi_wakeup_thread_delayed() calls from
+        * __mark_inode_dirty().
+        */
+
+        del_timer_sync(&bdi->wb.wakeup_timer);
+	/* LGE_CHANGE_E	: Kernel Memory*/
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);

@@ -20,7 +20,10 @@ config ARCH_MSM7X25
 config ARCH_MSM7X27
 	bool "MSM7x27"
 	select ARCH_MSM_ARM11 if MSM_SOC_REV_NONE
-	select ARCH_HAS_BARRIERS if MSM_SOC_REV_NONE
+	# QCT PATCH - Adreno GPU Hang bohyun.jung@lge.com [START]
+	select ARCH_HAS_BARRIERS
+	#select ARCH_HAS_BARRIERS if MSM_SOC_REV_NONE 
+	# QCT PATCH - Adreno GPU Hang bohyun.jung@lge.com [END]
 	select ARCH_MSM_CORTEX_A5 if MSM_SOC_REV_A
 	select MSM_VIC
 	select CPU_V6 if MSM_SOC_REV_NONE
@@ -375,53 +378,60 @@ config MACH_MSM7X27_FFA
 	help
 	  Support for the Qualcomm MSM7x27 FFA eval board.
 
-config MACH_MSM7X27A_RUMI3
-        depends on ARCH_MSM7X27A
-        depends on !MSM_STACKED_MEMORY
-        default y
-        bool "MSM7x27A RUMI3"
-        help
-          Support for the Qualcomm MSM7x27A RUMI3 Emulation Platform.
 
-config MACH_MSM7X27A_SURF
-        depends on ARCH_MSM7X27A
-        depends on !MSM_STACKED_MEMORY
-        default y
-        bool "MSM7x27A SURF"
-        help
-          Support for the Qualcomm MSM7x27A SURF.
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+#MACH_MSM7625A_SURF/MACH_MSM7625A_FFA/MACH_MSM7627A_QRD1 was setted to yes in .config
+#So, temporally blocked all configs in this Kconfig file
+#Why compiled? Check one more!!!!!
+#config MACH_MSM7X27A_RUMI3
+#        depends on ARCH_MSM7X27A
+#        depends on !MSM_STACKED_MEMORY
+#        default y
+#        bool "MSM7x27A RUMI3"
+#        help
+#          Support for the Qualcomm MSM7x27A RUMI3 Emulation Platform.
 
-config MACH_MSM7X27A_FFA
-        depends on ARCH_MSM7X27A
-        depends on !MSM_STACKED_MEMORY
-        default y
-        bool "MSM7x27A FFA"
-        help
-          Support for the Qualcomm MSM7x27A FFA.
+#config MACH_MSM7X27A_SURF
+#        depends on ARCH_MSM7X27A
+#        depends on !MSM_STACKED_MEMORY
+#        default y
+#        bool "MSM7x27A SURF"
+#        help
+#          Support for the Qualcomm MSM7x27A SURF.
 
-config MACH_MSM7625A_SURF
-        depends on ARCH_MSM7X27A
-        depends on !MSM_STACKED_MEMORY
-        default y
-        bool "MSM7625A SURF"
-        help
-          Support for the Qualcomm MSM7625A SURF.
+#config MACH_MSM7X27A_FFA
+#        depends on ARCH_MSM7X27A
+#        depends on !MSM_STACKED_MEMORY
+#        default y
+#        bool "MSM7x27A FFA"
+#        help
+#          Support for the Qualcomm MSM7x27A FFA.
 
-config MACH_MSM7625A_FFA
-        depends on ARCH_MSM7X27A
-        depends on !MSM_STACKED_MEMORY
-        default y
-        bool "MSM7625A FFA"
-        help
-          Support for the Qualcomm MSM7625A FFA.
 
-config MACH_MSM7627A_QRD1
-        depends on ARCH_MSM7X27A
-        depends on !MSM_STACKED_MEMORY
-        default y
-        bool "MSM7627A QRD1"
-        help
-          Support for the Qualcomm MSM7627A Refrence Design.
+#config MACH_MSM7625A_SURF
+#        depends on ARCH_MSM7X27A
+#        depends on !MSM_STACKED_MEMORY
+#        default y
+#        bool "MSM7625A SURF"
+#        help
+#          Support for the Qualcomm MSM7625A SURF.
+
+#config MACH_MSM7625A_FFA
+#        depends on ARCH_MSM7X27A
+#       depends on !MSM_STACKED_MEMORY
+#        default y
+#        bool "MSM7625A FFA"
+#        help
+#          Support for the Qualcomm MSM7625A FFA.
+
+#config MACH_MSM7627A_QRD1
+#        depends on ARCH_MSM7X27A
+#        depends on !MSM_STACKED_MEMORY
+#        default y
+#        bool "MSM7627A QRD1"
+#        help
+#          Support for the Qualcomm MSM7627A Refrence Design.
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
 
 config MACH_MSM7X30_SURF
        depends on ARCH_MSM7X30
@@ -686,6 +696,10 @@ config MACH_FSM9XXX_SURF
 	  FFA board.
 
 endmenu
+
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+source "arch/arm/mach-msm/lge/Kconfig"
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
 
 config MSM_STACKED_MEMORY
 	bool "Stacked Memory"

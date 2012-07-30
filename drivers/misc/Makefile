@@ -65,3 +65,13 @@ obj-$(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN) \
 obj-$(CONFIG_PMIC8058_XOADC) += pmic8058-xoadc.o
 obj-$(CONFIG_TZCOM) += tzcom.o
 obj-$(CONFIG_QFP_FUSE) += qfp_fuse.o
+
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+obj-$(CONFIG_LGE_ATCMD_TTY) += lge_tty_atcmd.o
+obj-y += eve_at_class.o
+obj-y += eve_at.o
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
+#LGE_CHANGE_S : jongyoung.koo@lge.com 20120116 at%kcal
+obj-y += lge_kcal.o
+#LGE_CHANGE_E : jongyoung.koo@lge.com 20120116 at%kcal
+

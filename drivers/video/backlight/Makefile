@@ -37,4 +37,9 @@ obj-$(CONFIG_BACKLIGHT_ADP8860)	+= adp8860_bl.o
 obj-$(CONFIG_BACKLIGHT_ADP8870)	+= adp8870_bl.o
 obj-$(CONFIG_BACKLIGHT_88PM860X) += 88pm860x_bl.o
 obj-$(CONFIG_BACKLIGHT_PCF50633)	+= pcf50633-backlight.o
-
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+obj-$(CONFIG_BACKLIGHT_LM3530) += lm3530_bl.o
+obj-$(CONFIG_BACKLIGHT_LM3528) += lm3528_bl.o
+obj-$(CONFIG_BACKLIGHT_AAT2870) += aat2870_bl.o
+obj-$(CONFIG_SUBPMIC_LP8720) += lp8720.o
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting

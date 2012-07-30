@@ -17,7 +17,10 @@
 #include <linux/err.h>
 #include <linux/qcomwlan7x27a_pwrif.h>
 
-#define WLAN_GPIO_EXT_POR_N     134
+/* LGE_CHANGE_S : 2011-11-30 real-wifi@lge.com[wo0gi] Modify WLAN_GPIO_EXT_POR_N [START]*/
+#define WLAN_GPIO_EXT_POR_N     5
+/* #define WLAN_GPIO_EXT_POR_N     134 */
+/*LGE_CHANGE_E : 2011-11-30 real-wifi@lge.com[wo0gi] Modify WLAN_GPIO_EXT_POR_N [END]*/
 
 static const char *id = "WLAN";
 

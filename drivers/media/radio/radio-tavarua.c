@@ -92,6 +92,7 @@ struct tavarua_device {
 	/* synchrnous xfr data */
 	unsigned char sync_xfr_regs[XFR_REG_NUM];
 	struct completion sync_xfr_start;
+	struct completion shutdown_done;
 	struct completion sync_req_done;
 	int tune_req;
 	/* internal register status */
@@ -524,7 +525,27 @@ static int xfr_intf_own(struct tavarua_device *radio)
 	}
 	return 0;
 }
+/*QCT Patch to check FMRDS Int is coming or not*/
+/*Applied :- yoonsoo.kim@lge.com 09-03-2012*/
+static void read_intstat_reg(struct tavarua_device *radio)
+{
+	FMDBG("%s: Reading the INTSTAT Registers\n", __func__);
+	tavarua_read_registers(radio, STATUS_REG1, STATUS_REG_NUM);
 
+	FMDBG("INTSTAT1 <%x>\n", radio->registers[STATUS_REG1]);
+	FMDBG("INTSTAT2 <%x>\n", radio->registers[STATUS_REG2]);
+	FMDBG("INTSTAT3 <%x>\n", radio->registers[STATUS_REG3]);
+
+	/* Data transfer (XFR) completed */
+	if (radio->registers[STATUS_REG3] & TRANSFER) {
+		FMDBG("%s: XFR Interrupt happened but GPIO did not toggle\n",
+			__func__);
+		tavarua_read_registers(radio, XFRCTRL, XFR_REG_NUM+1);
+		FMDBG("%s: XFRCTRL IS: %x\n", __func__,
+			radio->registers[XFRCTRL]);
+	} else
+		FMDBG("%s: TRANSFER interrupt did not happen!\n", __func__);
+}
 /*=============================================================================
 FUNCTION:  sync_read_xfr
 =============================================================================*/
@@ -538,10 +559,15 @@ FUNCTION:  sync_read_xfr
   @return => 0 if successful.
   @return < 0 if failure.
 */
+/*QCT patch to check Transfer Interrupt configured or not */
+/*QCT patch to check Transfer Interrupt coming or not */
+/*Applied :- yoonsoo.kim@lge.com 09-03-2012*/
 static int sync_read_xfr(struct tavarua_device *radio,
 			enum tavarua_xfr_ctrl_t xfr_type, unsigned char *buf)
 {
 	int retval;
+	unsigned char int_ctrl[XFR_REG_NUM];
+
 	retval = xfr_intf_own(radio);
 	if (retval < 0)
 		return retval;
@@ -552,6 +578,28 @@ static int sync_read_xfr(struct tavarua_device *radio,
 		(&radio->sync_req_done); call */
 		if (!wait_for_completion_timeout(&radio->sync_req_done,
 			msecs_to_jiffies(wait_timeout)) || (retval < 0)) {
+
+			FMDERR("%s: Timeout while waiting for TRANSFER"
+				" interrupt for %x Mode\n", __func__, xfr_type);
+
+			/* Check if all interrupts are enabled */
+			FMDERR("%s: Check if TRANSFER interrupt is"
+				" configured\n", __func__);
+			retval = sync_read_xfr(radio, INT_CTRL, int_ctrl);
+			if (retval >= 0) {
+				if (radio->registers[XFRDAT0+2] & TRANSFER)
+					FMDERR("%s: TRANSFER interrupt is"
+						" configured\n", __func__);
+				else
+					FMDERR("%s: TRANSFER interrupt is"
+						" NOT configured\n", __func__);
+			}
+			/*
+			 * Read the INTSTAT Register to see if the
+			 * TRANSFER interrupt happened or not
+			 */
+			read_intstat_reg(radio);
+
 			retval = -ETIME;
 		} else {
 			memcpy(buf, radio->sync_xfr_regs, XFR_REG_NUM);
@@ -954,8 +1002,17 @@ static void tavarua_handle_interrupts(struct tavarua_device *radio)
 			tavarua_q_event(radio, TAVARUA_EVT_NEW_AF_LIST);
 			radio->xfr_in_progress = 0;
 			break;
-		case RX_CONFIG:
+/*QCT patch to check transfer Interrupt*/
+/*Applied By:- yoonsoo.kim@lge.com 09-03-2012*/
 		case RADIO_CONFIG:
+			FMDERR("%s: TRANSFER interrupt for RADIO_CONFIG!\n",
+				__func__);
+			memcpy(radio->sync_xfr_regs,
+				&radio->registers[XFRCTRL+1], XFR_REG_NUM);
+			complete(&radio->sync_req_done);
+			break;
+/*END:: QCT patch to check transfer Interrupt*/
+		case RX_CONFIG:
 		case RDS_CONFIG:
 			memcpy(radio->sync_xfr_regs,
 				&radio->registers[XFRCTRL+1], XFR_REG_NUM);
@@ -989,12 +1046,36 @@ static void tavarua_handle_interrupts(struct tavarua_device *radio)
 			FMDBG("read PHY_TXGAIN is successful");
 			complete(&radio->sync_req_done);
 			break;
+/*QCT patch to check transfer Interrupt*/
+/*Applied By:- yoonsoo.kim@lge.com 09-03-2012*/
+		case INT_CTRL:
+			FMDERR("%s: TRANSFER interrupt for Reading the"
+				" Requested Interrupts\n", __func__);
+			FMDERR("%s: INTSTAT1 <0x%x>\n", __func__,
+				radio->registers[XFRDAT0]);
+			FMDERR("%s: INTSTAT2 <0x%x>\n", __func__,
+				radio->registers[XFRDAT0+1]);
+			FMDERR("%s: INTSTAT3 <0x%x>\n", __func__,
+				radio->registers[XFRDAT0+2]);
+			complete(&radio->sync_req_done);
+			break;
 		case (0x80 | RX_CONFIG):
 		case (0x80 | RADIO_CONFIG):
 		case (0x80 | RDS_CONFIG):
-		case (0x80 | INT_CTRL):
 			complete(&radio->sync_req_done);
 			break;
+		case (0x80 | INT_CTRL):
+			FMDERR("%s: TRANSFER interrupt for Configuring the"
+				" Interrupts\n", __func__);
+			FMDERR("%s: INTSTAT1 <0x%x>\n", __func__,
+				radio->registers[XFRDAT0]);
+			FMDERR("%s: INTSTAT2 <0x%x>\n", __func__,
+				radio->registers[XFRDAT0+1]);
+			FMDERR("%s: INTSTAT3 <0x%x>\n", __func__,
+				radio->registers[XFRDAT0+2]);
+			complete(&radio->sync_req_done);
+			break;
+/*END:: QCT patch to check transfer Interrupt*/
 		case (0x80 | RDS_RT_0):
 			FMDBG("RT Header Sent\n");
 			complete(&radio->sync_req_done);
@@ -1073,6 +1154,15 @@ static void read_int_stat(struct work_struct *work)
 	tavarua_handle_interrupts(radio);
 }
 
+static void fm_shutdown(struct work_struct *work)
+{
+	struct tavarua_device *radio = container_of(work,
+					struct tavarua_device, work.work);
+	radio->pdata->fm_shutdown(radio->pdata);
+	complete(&radio->shutdown_done);
+}
+
+
 /*************************************************************************
  * irq helper functions
  ************************************************************************/
@@ -1100,9 +1190,6 @@ static int tavarua_request_irq(struct tavarua_device *radio)
    * is limited to ten characters; it is only used for generating the "command"
    * for the kernel thread(s) (which can be seen in ps or top).
    */
-	radio->wqueue  = create_singlethread_workqueue("kfmradio");
-	if (!radio->wqueue)
-		return -ENOMEM;
   /* allocate an interrupt line */
   /* On success, request_irq() returns 0 if everything goes  as
      planned.  Your interrupt handler will start receiving its
@@ -1156,10 +1243,9 @@ static int tavarua_disable_irq(struct tavarua_device *radio)
 		return -EINVAL;
 	irq = radio->pdata->irq;
 	disable_irq_wake(irq);
+	free_irq(irq, radio);
 	cancel_delayed_work_sync(&radio->work);
 	flush_workqueue(radio->wqueue);
-	free_irq(irq, radio);
-	destroy_workqueue(radio->wqueue);
 	return 0;
 }
 
@@ -1404,6 +1490,7 @@ static int tavarua_set_region(struct tavarua_device *radio,
 				int req_region)
 {
 	int retval = 0;
+       int loop_sc;
 	unsigned int rdsMask = 0;
 	unsigned char xfr_buf[XFR_REG_NUM];
 	unsigned char value;
@@ -1455,6 +1542,12 @@ static int tavarua_set_region(struct tavarua_device *radio,
 	xfr_buf[1] = GET_ABS_VAL(band_low);
 	xfr_buf[2] = RSH_DATA(band_high, 8);
 	xfr_buf[3] = GET_ABS_VAL(band_high);
+ 	FMDBG("init remain xfr_buf\n");
+       for(loop_sc =0; loop_sc<XFR_REG_NUM; loop_sc++)
+       {
+             if(loop_sc > 3)
+                 xfr_buf[loop_sc]=0x00;
+       }
 	retval = sync_write_xfr(radio, RADIO_CONFIG, xfr_buf);
 	if (retval < 0) {
 		FMDERR("Could not set regional settings\n");
@@ -1805,6 +1898,7 @@ static int tavarua_fops_open(struct file *file)
 	char buffer[] = {0x00, 0x48, 0x8A, 0x8E, 0x97, 0xB7};
 	int bahama_present = -ENODEV;
 
+	INIT_DELAYED_WORK(&radio->work, read_int_stat);
 	if (!atomic_dec_and_test(&radio->users)) {
 		pr_err("%s: Device already in use."
 			"Try again later", __func__);
@@ -2037,10 +2131,7 @@ static int tavarua_fops_release(struct file *file)
 
 	FMDBG("In %s", __func__);
 
-	/* disable radio ctrl */
-	retval = tavarua_write_register(radio, RDCTRL, 0x00);
-
-	FMDBG("%s, Disable IRQs\n", __func__);
+	FMDBG("%s, Disabling the IRQs\n", __func__);
 	/* disable irq */
 	retval = tavarua_disable_irq(radio);
 	if (retval < 0) {
@@ -2048,10 +2139,17 @@ static int tavarua_fops_release(struct file *file)
 		return retval;
 	}
 
+	/* disable radio ctrl */
+	retval = tavarua_write_register(radio, RDCTRL, 0x00);
+
+	init_completion(&radio->shutdown_done);
+
 	bahama_present = is_bahama();
 
 	if (bahama_present == -ENODEV)
 		return -ENODEV;
+
+	INIT_DELAYED_WORK(&radio->work, fm_shutdown);
 
 	if (bahama_present)	{
 		/*Write first sequence of bytes to FM_CTL0*/
@@ -2131,15 +2229,19 @@ static int tavarua_fops_release(struct file *file)
 	}
 exit:
 	FMDBG("%s, Calling fm_shutdown\n", __func__);
+	queue_delayed_work(radio->wqueue, &radio->work,
+				msecs_to_jiffies(TAVARUA_DELAY/2));
 	/* teardown gpio and pmic */
 
 	marimba_set_fm_status(radio->marimba, false);
-	radio->pdata->fm_shutdown(radio->pdata);
+	wait_for_completion(&radio->shutdown_done);
 	if (radio->pdata->config_i2s_gpio != NULL)
 		radio->pdata->config_i2s_gpio(FM_I2S_OFF);
 	radio->handle_irq = 1;
+	radio->lp_mode = 1;
 	atomic_inc(&radio->users);
 	radio->marimba->mod_id = SLAVE_ID_BAHAMA;
+	flush_workqueue(radio->wqueue);
 	return retval;
 }
 
@@ -2457,6 +2559,37 @@ static int tavarua_vidioc_queryctrl(struct file *file, void *priv,
 	if (retval < 0)
 		printk(KERN_WARNING DRIVER_NAME
 			": query conv4ltrol failed with %d\n", retval);
+
+	return retval;
+}
+
+#define PSALL_POKE_MSB	0x00
+#define PSALL_POKE_LSB	0xD5
+
+static int poke_PSALL(struct tavarua_device *radio, unsigned char data)
+{
+	int retval = 0;
+	unsigned char xfr_buf[XFR_REG_NUM];
+	unsigned char size = 0;
+
+	FMDERR("Inside poke_PSALL(): request to POKE PSALL : %d", data);
+
+	/*Poking the PSALL register : 0x00D5 */
+	size = 0x01;
+	xfr_buf[0] = (XFR_POKE_MODE | (size << 1));
+	xfr_buf[1] = PSALL_POKE_MSB;
+	xfr_buf[2] = PSALL_POKE_LSB;
+	xfr_buf[3] = data;
+
+	retval = tavarua_write_registers(radio, XFRCTRL, xfr_buf, 4);
+	if (retval < 0) {
+		FMDERR("%s: Failed to configure PSALL value\n", __func__);
+		return retval;
+	} else
+		FMDERR("%s: PSALL value configured successfully\n", __func__);
+
+	/*Wait for the XFR interrupt */
+	msleep(TAVARUA_DELAY*5);
 
 	return retval;
 }
@@ -2903,20 +3036,10 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 			radio->xfr_bytes_left = 0;
 			FMDBG("turning on ..\n");
 			retval = tavarua_start(radio, ctrl->value);
-			if (retval >= 0) {
-				/* Enabling 'SoftMute' & 'SignalBlending' */
-				value = (radio->registers[IOCTRL] |
-				    IOC_SFT_MUTE | IOC_SIG_BLND);
-				retval = tavarua_write_register(radio,
-					IOCTRL, value);
-				if (retval < 0)
-					FMDBG("SMute and SBlending"
-						"not enabled\n");
-			}
 		}
 		/* check if off */
 		else if ((ctrl->value == FM_OFF) && radio->registers[RDCTRL]) {
-			FMDBG("turning off...\n");
+			FMDBG("%s: turning off...\n", __func__);
 			tavarua_write_register(radio, RDCTRL, ctrl->value);
 			/* flush the event and work queues */
 			kfifo_reset(&radio->data_buf[TAVARUA_BUF_EVENTS]);
@@ -3065,18 +3188,23 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 		retval = sync_write_xfr(radio, RDS_CONFIG, xfr_buf);
 		break;
 	case V4L2_CID_PRIVATE_TAVARUA_PSALL:
-		retval = sync_read_xfr(radio, RDS_CONFIG, xfr_buf);
-		value = ctrl->value & RDS_CONFIG_PSALL;
-		if (retval < 0)
-			break;
-		xfr_buf[12] &= ~RDS_CONFIG_PSALL;
-		xfr_buf[12] |= value;
-		retval = sync_write_xfr(radio, RDS_CONFIG, xfr_buf);
+		retval = poke_PSALL(radio, (unsigned char)ctrl->value);
 		break;
+/*QCT patch to check LPM mode*/
+/*Applied By:- yoonsoo.kim@lge.com 09-03-2012*/
 	case V4L2_CID_PRIVATE_TAVARUA_LP_MODE:
 		retval = 0;
-		if (ctrl->value == radio->lp_mode)
+		if (ctrl->value == radio->lp_mode) {
+			if (ctrl->value) {
+				FMDBG("%s: System already in LOW Power Mode\n",
+					__func__);
+				break;
+			} else {
+				FMDBG("%s: System already in Normal Mode\n",
+					__func__);
 			break;
+			}
+		}
 		if (ctrl->value) {
 			FMDBG("going into low power mode\n");
 			retval = tavarua_disable_interrupts(radio);
@@ -3086,6 +3214,7 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 				(radio->registers[RDCTRL] & 0x03));
 		}
 		break;
+/*END: QCT patch to check LPM mode*/
 	case V4L2_CID_PRIVATE_TAVARUA_ANTENNA:
 		SET_REG_FIELD(radio->registers[IOCTRL], ctrl->value,
 					IOC_ANTENNA_OFFSET, IOC_ANTENNA_MASK);
@@ -3648,10 +3777,22 @@ static int tavarua_setup_interrupts(struct tavarua_device *radio,
 					enum radio_state_t state)
 {
 	int retval;
-	unsigned char int_ctrl[XFR_REG_NUM];
+/* LGE_CHANGE_S : FM Radio I2C gabage Fixed 
+ * 2012-01-30, yoonsoo@lge.com
+ * Intialize to 0. Updating only 3 bytes But writing all registers
+ * Garbage values going to I2C. from sri kiran
+ */
+	unsigned char int_ctrl[XFR_REG_NUM] ={0,} ; 
+/* LGE_CHANGE_E : FM Radio I2C gabage Fixed */ 
 
-	if (!radio->lp_mode)
+/*QCT patch to check transfer interrupt*/
+/*Applied By:- yoonsoo.kim@lge.com 09-03-2012*/
+	retval = sync_read_xfr(radio, INT_CTRL, int_ctrl);
+	FMDBG("tavarua_setup_interrupts - lp_mode[%d],  retval[%d]",radio->lp_mode,retval);
+	if (!radio->lp_mode) {
+		FMDERR("%s: All interrupts are enabled already\n", __func__);
 		return 0;
+	}
 
 	int_ctrl[STATUS_REG1] = READY | TUNE | SEARCH | SCANNEXT |
 				SIGNAL | INTF | SYNC | AUDIO;
@@ -3665,10 +3806,13 @@ static int tavarua_setup_interrupts(struct tavarua_device *radio,
 	/* use xfr for interrupt setup */
     if (radio->chipID == MARIMBA_2_1 || radio->chipID == BAHAMA_1_0
 		|| radio->chipID == BAHAMA_2_0) {
-		FMDBG("Setting interrupts\n");
+		FMDERR("%s: Setting interrupts for Chip : %x\n", __func__,
+			radio->chipID);
 		retval =  sync_write_xfr(radio, INT_CTRL, int_ctrl);
 	/* use register write to setup interrupts */
 	} else {
+		FMDERR("%s: Setting interrupts for Chip : %x\n", __func__,
+			radio->chipID);
 		retval = tavarua_write_register(radio,
 					STATUS_REG1, int_ctrl[STATUS_REG1]);
 		if (retval < 0)
@@ -3684,7 +3828,7 @@ static int tavarua_setup_interrupts(struct tavarua_device *radio,
 		if (retval < 0)
 			return retval;
 	}
-
+/*END: QCT patch to check LPM mode*/
 	radio->lp_mode = 0;
 	/* tavarua_handle_interrupts force reads all the interrupt status
 	*  registers and it is not valid for MBA 2.1
@@ -3710,7 +3854,14 @@ FUNCTION:  tavarua_disable_interrupts
 */
 static int tavarua_disable_interrupts(struct tavarua_device *radio)
 {
-	unsigned char lpm_buf[XFR_REG_NUM];
+/* LGE_CHANGE_S : FM Radio I2C gabage Fixed 
+ * 2012-01-30, yoonsoo@lge.com
+ * Intialize to 0. Updating only 3 bytes But writing all registers
+ * Garbage values going to I2C. from sri kiran
+ */
+	unsigned char lpm_buf[XFR_REG_NUM] = {0,};
+ /* LGE_CHANGE_E : FM Radio I2C gabage Fixed */ 
+	
 	int retval;
 	if (radio->lp_mode)
 		return 0;
@@ -3733,6 +3884,7 @@ static int tavarua_disable_interrupts(struct tavarua_device *radio)
 	/*INT_CTL writes may fail with TIME_OUT as all the
 	interrupts have been disabled
 	*/
+	FMDERR("%s: Return value is : %d\n", __func__, retval);
 	if (retval > -1 || retval == -ETIME) {
 		radio->lp_mode = 1;
 		/*Consider timeout as a valid case here*/
@@ -3795,17 +3947,22 @@ static int tavarua_suspend(struct platform_device *pdev, pm_message_t state)
 	int retval;
 	int users = 0;
 	printk(KERN_INFO DRIVER_NAME "%s: radio suspend\n\n", __func__);
+/*QCT patch to check FM Radio Status*/
+/*Applied By:- yoonsoo.kim@lge.com 09-03-2012*/
 	if (radio) {
 		users = atomic_read(&radio->users);
 		if (!users) {
+			FMDERR("%s: Suspending FM...\n", __func__);
 			retval = tavarua_disable_interrupts(radio);
 			if (retval < 0) {
 				printk(KERN_INFO DRIVER_NAME
 					"tavarua_suspend error %d\n", retval);
 				return -EIO;
 			}
+		} else
+			FMDERR("%s: FM is in TURNED OFF state\n", __func__);
 		}
-	}
+/*END: QCT patch to check FM Radio Status*/
 	return 0;
 }
 
@@ -3826,10 +3983,13 @@ static int tavarua_resume(struct platform_device *pdev)
 	int retval;
 	int users = 0;
 	printk(KERN_INFO DRIVER_NAME "%s: radio resume\n\n", __func__);
+/*QCT patch to check FM Radio Status*/
+/*Applied By:- yoonsoo.kim@lge.com 09-03-2012*/
 	if (radio) {
 		users = atomic_read(&radio->users);
 
 		if (!users) {
+			FMDERR("%s: Resuming FM...\n", __func__);
 			retval = tavarua_setup_interrupts(radio,
 			(radio->registers[RDCTRL] & 0x03));
 			if (retval < 0) {
@@ -3837,8 +3997,10 @@ static int tavarua_resume(struct platform_device *pdev)
 					tavarua_resume %d\n", retval);
 				return -EIO;
 			}
+		} else
+			FMDERR("%s : FM is in TURNED OFF state\n", __func__);
 		}
-	}
+/*END: QCT patch to check FM Radio Status*/
 	return 0;
 }
 
@@ -4014,7 +4176,9 @@ static int  __init tavarua_probe(struct platform_device *pdev)
 	video_set_drvdata(radio->videodev, radio);
     /*Start the worker thread for event handling and register read_int_stat
 	as worker function*/
-	INIT_DELAYED_WORK(&radio->work, read_int_stat);
+	radio->wqueue  = create_singlethread_workqueue("kfmradio");
+	if (!radio->wqueue)
+		return -ENOMEM;
 
 	/* register video device */
 	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr)) {
@@ -4053,6 +4217,9 @@ static int __devexit tavarua_remove(struct platform_device *pdev)
 
 	/* disable irq */
 	tavarua_disable_irq(radio);
+
+	/* destroy the workqueue */
+	destroy_workqueue(radio->wqueue);
 
 	video_unregister_device(radio->videodev);
 

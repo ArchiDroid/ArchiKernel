@@ -606,7 +606,13 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	if (!hs)
 		return -ENOMEM;
 
-	hs->sdev.name	= "h2w";
+	/* LGE_UPDATE_S	myunghee.kim 2011.12.09 						*/
+	/* WiredAccessoryObserver.java check h2w device not h2w_headset for headset detecdtion */
+	/* so we modified board-u0-sound.c & this file						*/
+	/* modify here because of OS Upgrade							*/
+	/* original code : hs->sdev.name	= "h2w";					*/
+	hs->sdev.name	= "h2w_handset";
+	/* LGE_UPDATE_E										*/
 	hs->sdev.print_name = msm_headset_print_name;
 
 	rc = switch_dev_register(&hs->sdev);
