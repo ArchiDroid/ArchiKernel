@@ -15,6 +15,7 @@
 #define MT9T013_H
 
 #include <linux/types.h>
+#include <mach/board.h>
 
 extern struct mt9t013_reg mt9t013_regs; /* from mt9t013_reg.c */
 
