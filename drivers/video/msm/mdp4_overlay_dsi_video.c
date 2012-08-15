@@ -652,12 +652,11 @@ int mdp4_dsi_video_off(struct platform_device *pdev)
 	while (vctrl->wait_vsync_cnt)
 		msleep(20);	/* >= 17 ms */
 
+	mdp_histogram_ctrl_all(FALSE);
+
 	MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE, 0);
 
 	dsi_video_enabled = 0;
-
-	mdp_histogram_ctrl_all(FALSE);
-
 
 	if (pipe) {
 		/* sanity check, free pipes besides base layer */
