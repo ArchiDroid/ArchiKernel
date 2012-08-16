@@ -197,6 +197,8 @@ int mdp4_dsi_video_pipe_commit(void)
 	}
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
 
+	mdp4_overlay_mdp_perf_upd(vctrl->mfd, 1);
+
 	if (vctrl->blt_change) {
 		pipe = vctrl->base_pipe;
 		spin_lock_irqsave(&vctrl->spin_lock, flags);
@@ -210,6 +212,7 @@ int mdp4_dsi_video_pipe_commit(void)
 	}
 
 	pipe = vp->plist;
+
 	for (i = 0; i < OVERLAY_PIPE_MAX; i++, pipe++) {
 		if (pipe->pipe_used) {
 			cnt++;
@@ -542,6 +545,8 @@ int mdp4_dsi_video_on(struct platform_device *pdev)
 	pipe->dst_h = fbi->var.yres;
 	pipe->dst_w = fbi->var.xres;
 
+	mdp4_overlay_mdp_pipe_req(pipe, mfd);
+
 	atomic_set(&vctrl->suspend, 0);
 
 	mdp4_overlay_dmap_xy(pipe);	/* dma_p */
@@ -825,13 +830,6 @@ static void mdp4_dsi_video_blt_dmap_update(struct mdp4_overlay_pipe *pipe)
 	MDP_OUTP(MDP_BASE + 0x90008, addr);
 }
 
-void mdp4_overlay_dsi_video_set_perf(struct msm_fb_data_type *mfd)
-{
-	/* change mdp clk while mdp is idle */
-	mdp4_set_perf_level();
-}
-
-
 /*
  * mdp4_primary_vsync_dsi_video: called from isr
  */
@@ -1017,15 +1015,7 @@ void mdp4_dsi_video_overlay(struct msm_fb_data_type *mfd)
 	}
 
 	mutex_lock(&mfd->dma->ov_mutex);
-	if (mfd->use_ov0_blt != mfd->ov0_blt_state) {
-
-		if (mfd->use_ov0_blt)
-			mdp4_dsi_video_do_blt(mfd, 1);
-		else
-			mdp4_dsi_video_do_blt(mfd, 0);
-
-		mfd->ov0_blt_state = mfd->use_ov0_blt;
-	}
+	mdp4_overlay_mdp_perf_upd(mfd, 1);
 
 	mdp4_dsi_video_pipe_commit();
 	mutex_unlock(&mfd->dma->ov_mutex);
@@ -1034,5 +1024,7 @@ void mdp4_dsi_video_overlay(struct msm_fb_data_type *mfd)
 		mdp4_dsi_video_wait4ov(0);
 	else
 		mdp4_dsi_video_wait4dmap(0);
+
+	mdp4_overlay_mdp_perf_upd(mfd, 0);
 }
 

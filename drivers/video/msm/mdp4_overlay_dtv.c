@@ -655,8 +655,7 @@ static void mdp4_dtv_blt_dmae_update(struct mdp4_overlay_pipe *pipe)
 
 void mdp4_overlay_dtv_set_perf(struct msm_fb_data_type *mfd)
 {
-	/* change mdp clk while mdp is idle` */
-	mdp4_set_perf_level();
+
 }
 
 static void mdp4_overlay_dtv_alloc_pipe(struct msm_fb_data_type *mfd,
@@ -709,9 +708,13 @@ static void mdp4_overlay_dtv_alloc_pipe(struct msm_fb_data_type *mfd,
 	pipe->src_width = fbi->var.xres;
 	pipe->src_h = fbi->var.yres;
 	pipe->src_w = fbi->var.xres;
+	pipe->dst_h = fbi->var.yres;
+	pipe->dst_w = fbi->var.xres;
 	pipe->src_y = 0;
 	pipe->src_x = 0;
 	pipe->srcp0_ystride = fbi->fix.line_length;
+
+	mdp4_overlay_mdp_pipe_req(pipe, mfd);
 
 	ret = mdp4_overlay_format2pipe(pipe);
 	if (ret < 0)
