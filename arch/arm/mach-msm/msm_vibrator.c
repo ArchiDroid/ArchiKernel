@@ -32,7 +32,17 @@
 #endif
 
 #define HTC_PROCEDURE_SET_VIB_ON_OFF	21
+
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+#if 0 /*original*/
 #define PMIC_VIBRATOR_LEVEL	(3000)
+#else
+/* LGE_CHANGE_S, hoseong.kang@lge.com, 2012-04-27, reduced voltage 3100 -> 2900 */
+//int voltage = 3100;
+int voltage = 2900;
+/* LGE_CHANGE_E, reduced voltage 3100 -> 2900 */
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 static struct work_struct work_vibrator_on;
 static struct work_struct work_vibrator_off;
@@ -49,8 +59,14 @@ static void set_pmic_vibrator(int on)
 		return;
 	}
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
 	if (on)
+#if 0 /*original*/
 		rc = pmic_vib_mot_set_volt(PMIC_VIBRATOR_LEVEL);
+#else
+		rc = pmic_vib_mot_set_volt(voltage);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 	else
 		rc = pmic_vib_mot_set_volt(0);
 
@@ -75,9 +91,14 @@ static void set_pmic_vibrator(int on)
 		}
 	}
 
-
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
 	if (on)
+#if 0 /*original*/
 		req.data = cpu_to_be32(PMIC_VIBRATOR_LEVEL);
+#else
+		req.data = cpu_to_be32(voltage);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 	else
 		req.data = cpu_to_be32(0);
 
@@ -96,10 +117,14 @@ static void pmic_vibrator_off(struct work_struct *work)
 	set_pmic_vibrator(0);
 }
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+#if 0
 static void timed_vibrator_on(struct timed_output_dev *sdev)
 {
 	schedule_work(&work_vibrator_on);
 }
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 static void timed_vibrator_off(struct timed_output_dev *sdev)
 {
@@ -109,7 +134,12 @@ static void timed_vibrator_off(struct timed_output_dev *sdev)
 static void vibrator_enable(struct timed_output_dev *dev, int value)
 {
 	hrtimer_cancel(&vibe_timer);
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+	cancel_work_sync(&work_vibrator_off);
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+#if 0 /*original*/
 	if (value == 0)
 		timed_vibrator_off(dev);
 	else {
@@ -121,7 +151,28 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 			      ktime_set(value / 1000, (value % 1000) * 1000000),
 			      HRTIMER_MODE_REL);
 	}
+#else
+	if (value == 0)
+		set_pmic_vibrator(0);
+	else {
+		value = (value > 20000 ? 20000 : value);
+		set_pmic_vibrator(1);
+
+		hrtimer_start(&vibe_timer,
+			      ktime_set(value / 1000, (value % 1000) * 1000000),
+			      HRTIMER_MODE_REL);
+	}
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 }
+
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+static void vibrator_voltage(struct timed_output_dev *dev, int value)
+{
+	voltage = value;
+	printk(KERN_INFO "[LGE] Setting vibrator voltage is %dmV\n", voltage);
+}
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 static int vibrator_get_time(struct timed_output_dev *dev)
 {
@@ -143,6 +194,9 @@ static struct timed_output_dev pmic_vibrator = {
 	.name = "vibrator",
 	.get_time = vibrator_get_time,
 	.enable = vibrator_enable,
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+	.voltage = vibrator_voltage,
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 };
 
 void __init msm_init_pmic_vibrator(void)

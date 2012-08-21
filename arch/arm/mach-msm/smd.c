@@ -37,6 +37,7 @@
 #include <mach/system.h>
 #include <mach/subsystem_notif.h>
 #include <mach/socinfo.h>
+#include <asm/cacheflush.h>
 
 #include "smd_private.h"
 #include "proc_comm.h"
@@ -1127,6 +1128,7 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len,
 	unsigned xfer;
 	int orig_len = len;
 	int r = 0;
+	unsigned char is_pause = 0;//[m4] Defect ID 7445 merge for cayman
 
 	SMD_DBG("smd_stream_write() %d -> ch%d\n", len, ch->n);
 	if (len < 0)
@@ -1135,8 +1137,10 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len,
 		return 0;
 
 	while ((xfer = ch_write_buffer(ch, &ptr)) != 0) {
-		if (!ch_is_open(ch))
+		if (!ch_is_open(ch)){
+			is_pause = 1;//[m4] Defect ID 7445 merge for cayman
 			break;
+		}
 		if (xfer > len)
 			xfer = len;
 		if (user_buf) {
@@ -1157,7 +1161,7 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len,
 			break;
 	}
 
-	if (orig_len - len)
+	if (orig_len - len && is_pause == 0)//[m4] Defect ID 7445 merge for cayman
 		ch->notify_other_cpu();
 
 	return orig_len - len;
@@ -2135,10 +2139,17 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 			modem_queue_start_reset_notify();
 
 		} else if (modm & SMSM_RESET) {
-			if (!cpu_is_msm8960() && !cpu_is_msm8930())
-				apps |= SMSM_RESET;
+			//if (!cpu_is_msm8960() && !cpu_is_msm8930())
+				//apps |= SMSM_RESET;
 
 			pr_err("\nSMSM: Modem SMSM state changed to SMSM_RESET.");
+			
+			if (!cpu_is_msm8960() && !cpu_is_msm8930()) {
+			        apps |= SMSM_RESET;
+			        flush_cache_all();
+			        outer_flush_all();
+			}
+			
 			modem_queue_start_reset_notify();
 
 		} else if (modm & SMSM_INIT) {

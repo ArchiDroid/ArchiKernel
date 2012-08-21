@@ -600,6 +600,13 @@ int usb_diag_update_pid_and_serial_num(uint32_t pid, const char *snum)
 {
 	int ret;
 
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	if (pid == 0 || snum == NULL || snum[0] == '\0') {
+		pr_info(" *** skip update_pid_and_serial_num()\n");
+		return 0;
+	}
+#endif
+
 	ret = msm_hsusb_send_productID(pid);
 	if (ret)
 		return ret;

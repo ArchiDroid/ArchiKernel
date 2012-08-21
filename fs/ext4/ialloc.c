@@ -1287,7 +1287,14 @@ extern int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 			   group, used_blks,
 			   ext4_itable_unused_count(sb, gdp));
 		ret = 1;
-		goto out;
+	/* LGE_CHANGE_S : Not syncing file system error
+         * 2012-02-24, jyothishre.nk@lge.com
+         * Kernel panic-not syncing Ext4-fs (device..):panic forced after error
+	 * Ext4 patch added here changed from out ->err_out
+         */
+		//goto out;
+		goto err_out;
+	/* LGE_CHANGE_E : Not syncing file system error*/
 	}
 
 	blk = ext4_inode_table(sb, gdp) + used_blks;

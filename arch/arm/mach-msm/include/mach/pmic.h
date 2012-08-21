@@ -745,4 +745,16 @@ int pmic_gpio_set_value(unsigned gpio, int value);
 int pmic_gpio_get_value(unsigned gpio);
 int pmic_gpio_get_direction(unsigned gpio);
 int pmic_gpio_config(struct pm8xxx_gpio_rpc_cfg *);
+
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+int pmic_miniabb_ldo_control(uint16_t ldo_num, uint16_t enable);
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
+ * When user enter the streaming service, change the charging current
+ */
+int pmic_miniabb_charging_current_change(uint16_t charging_current);
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/
+
 #endif

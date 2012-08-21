@@ -179,10 +179,12 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	switch (params->cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-		if (params->key_len != WLAN_KEY_LEN_WEP40)
-			return -EINVAL;
-		break;
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-05-24, "Patch for TD47685"
+	/* case WLAN_CIPHER_SUITE_WEP40: */
+	/* 	if (params->key_len != WLAN_KEY_LEN_WEP40) */
+	/* 		return -EINVAL; */
+	/* 	break; */
+//LGE_CHANGE_E, moon-wifi@lge.com by wonho.ki 2012-05-24, "Patch for TD47685"
 	case WLAN_CIPHER_SUITE_TKIP:
 		if (params->key_len != WLAN_KEY_LEN_TKIP)
 			return -EINVAL;
@@ -191,10 +193,12 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		if (params->key_len != WLAN_KEY_LEN_CCMP)
 			return -EINVAL;
 		break;
-	case WLAN_CIPHER_SUITE_WEP104:
-		if (params->key_len != WLAN_KEY_LEN_WEP104)
-			return -EINVAL;
-		break;
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-05-24, "Patch for TD47685"
+	/* case WLAN_CIPHER_SUITE_WEP104: */
+	/* 	if (params->key_len != WLAN_KEY_LEN_WEP104) */
+	/* 		return -EINVAL; */
+	/* 	break; */
+//LGE_CHANGE_E, moon-wifi@lge.com by wonho.ki 2012-05-24, "Patch for TD47685"
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		if (params->key_len != WLAN_KEY_LEN_AES_CMAC)
 			return -EINVAL;

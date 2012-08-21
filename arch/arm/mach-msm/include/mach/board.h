@@ -27,6 +27,17 @@
 #include <linux/msm_ssbi.h>
 #include <mach/msm_bus.h>
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+struct msm_acpu_clock_platform_data {
+	uint32_t acpu_switch_time_us;
+	uint32_t max_speed_delta_khz;
+	uint32_t vdd_switch_time_us;
+	unsigned int max_axi_khz;
+	unsigned int max_vdd;
+	int (*acpu_set_vdd) (int mvolts);
+};
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
 struct msm_camera_io_ext {
 	uint32_t mdcphy;
 	uint32_t mdcsz;
@@ -401,6 +412,10 @@ struct msm_i2c_platform_data {
 	int pri_dat;
 	int aux_clk;
 	int aux_dat;
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+	const char *clk;
+	const char *pclk;
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 	int src_clk_rate;
 	int use_gsbi_shared_mode;
 	void (*msm_i2c_config_gpio)(int iface, int config_type);

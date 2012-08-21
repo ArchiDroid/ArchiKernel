@@ -120,7 +120,13 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCP_DELACK_MIN	4U
 #define TCP_ATO_MIN	4U
 #endif
+// LGE_CHANGE_S, [LGE_DATA_US_009] d3sw1-data@lge.com, 2012-02-03 <MAX RTO SET TO 3SEC FOR ATT, TRF>
+#ifdef LGE_TRACFONE
+#define TCP_RTO_MAX	((unsigned)(3*HZ))
+#else
 #define TCP_RTO_MAX	((unsigned)(120*HZ))
+#endif
+// LGE_CHANGE_E, [LGE_DATA_US_009] d3sw1-data@lge.com, 2012-02-03 <MAX RTO SET TO 3SEC FOR ATT, TRF>
 #define TCP_RTO_MIN	((unsigned)(HZ/5))
 #define TCP_TIMEOUT_INIT ((unsigned)(3*HZ))	/* RFC 1122 initial RTO value	*/
 

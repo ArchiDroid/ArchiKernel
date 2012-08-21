@@ -594,6 +594,16 @@ config KEYBOARD_W90P910
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
 
+
+#LGE_CHANGE_S : kernel3.0 porting
+config KEYBOARD_PP2106
+	tristate "PP2106 qwerty keypad"
+	depends on MACH_LGE
+	default n
+	help
+	  Say Y here if you want to enable the driver for the PP2106 qwerty
+	  keypad.
+#LGE_CHANGE_E : kernel3.0 porting
 endif
 
 

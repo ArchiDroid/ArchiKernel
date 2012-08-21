@@ -340,8 +340,20 @@ static inline void *mmc_priv(struct mmc_host *host)
 #define mmc_dev(x)	((x)->parent)
 #define mmc_classdev(x)	(&(x)->class_dev)
 #define mmc_hostname(x)	(dev_name(&(x)->class_dev))
+/* LGE_CHANGE_S : sd card
+ * 2012-01-16, bohyun.jung@lge.com,
+ * there is problem that Unnecesary sd card detected as new during suspend/resume due to CRC error. 
+ */
+#if 1
 #define mmc_bus_needs_resume(host) ((host)->bus_resume_flags & MMC_BUSRESUME_NEEDS_RESUME)
 #define mmc_bus_manual_resume(host) ((host)->bus_resume_flags & MMC_BUSRESUME_MANUAL_RESUME)
+#else
+#define mmc_bus_needs_resume(host) (host->card && mmc_card_sd(host->card) && \
+		((host)->bus_resume_flags & MMC_BUSRESUME_NEEDS_RESUME))
+#define mmc_bus_manual_resume(host) (host->card && mmc_card_sd(host->card) && \
+		((host)->bus_resume_flags & MMC_BUSRESUME_MANUAL_RESUME))
+#endif
+/* LGE_CHANGE_S : sd card */
 
 static inline void mmc_set_bus_resume_policy(struct mmc_host *host, int manual)
 {

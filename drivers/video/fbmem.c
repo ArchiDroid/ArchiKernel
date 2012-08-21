@@ -1051,6 +1051,19 @@ fb_blank(struct fb_info *info, int blank)
  	return ret;
 }
 
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+int
+fb_esdcheck(struct fb_info *info, int esdcheck)
+{	
+ 	int ret = -EINVAL; 	
+
+	if (info->fbops->fb_esdcheck)
+ 		ret = info->fbops->fb_esdcheck(esdcheck, info); 	
+
+ 	return ret;
+}
+#endif
+
 static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
@@ -1168,6 +1181,20 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		console_unlock();
 		unlock_fb_info(info);
 		break;
+
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+	case FBIOGET_ESDCHECKLOOP:
+		if (!lock_fb_info(info))
+			return -ENODEV;
+		console_lock();
+		info->flags |= FBINFO_MISC_USEREVENT;
+		ret = fb_esdcheck(info, arg);
+		info->flags &= ~FBINFO_MISC_USEREVENT;
+		console_unlock();
+		unlock_fb_info(info);
+		break;
+#endif
+
 	default:
 		fb = info->fbops;
 		if (fb->fb_ioctl)
@@ -1924,6 +1951,9 @@ EXPORT_SYMBOL(registered_fb);
 EXPORT_SYMBOL(fb_show_logo);
 EXPORT_SYMBOL(fb_set_var);
 EXPORT_SYMBOL(fb_blank);
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+EXPORT_SYMBOL(fb_esdcheck);
+#endif
 EXPORT_SYMBOL(fb_pan_display);
 EXPORT_SYMBOL(fb_get_buffer_offset);
 EXPORT_SYMBOL(fb_set_suspend);

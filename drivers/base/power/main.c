@@ -50,6 +50,9 @@ LIST_HEAD(dpm_noirq_list);
 static DEFINE_MUTEX(dpm_list_mtx);
 static pm_message_t pm_transition;
 
+/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs */
+struct suspend_stats suspend_stats; 
+/*LGE_CHANGG_E : seven.kim@lge.com create sleep debugfs */
 static void dpm_drv_timeout(unsigned long data);
 struct dpm_drv_wd_data {
 	struct device *dev;
@@ -471,8 +474,19 @@ void dpm_resume_noirq(pm_message_t state)
 		mutex_unlock(&dpm_list_mtx);
 
 		error = device_resume_noirq(dev, state);
+		/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+		#ifdef CONFIG_MACH_LGE
+		if (error) {			
+			suspend_stats.failed_resume_noirq++;			
+			dpm_save_failed_step(SUSPEND_RESUME_NOIRQ);			
+			dpm_save_failed_dev(dev_name(dev));			
+			pm_dev_err(dev, state, " early", error);		
+		}
+		#else /*qct original*/
 		if (error)
 			pm_dev_err(dev, state, " early", error);
+		#endif
+		/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
 
 		mutex_lock(&dpm_list_mtx);
 		put_device(dev);
@@ -649,8 +663,19 @@ void dpm_resume(pm_message_t state)
 			mutex_unlock(&dpm_list_mtx);
 
 			error = device_resume(dev, state, false);
+			/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+			#ifdef CONFIG_MACH_LGE
+			if (error) {				
+				suspend_stats.failed_resume++;				
+				dpm_save_failed_step(SUSPEND_RESUME);				
+				dpm_save_failed_dev(dev_name(dev));				
+				pm_dev_err(dev, state, "", error);			
+			}
+			#else /*qct original */
 			if (error)
 				pm_dev_err(dev, state, "", error);
+			#endif
+			/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
 
 			mutex_lock(&dpm_list_mtx);
 		}
@@ -823,11 +848,24 @@ int dpm_suspend_noirq(pm_message_t state)
 		error = device_suspend_noirq(dev, state);
 
 		mutex_lock(&dpm_list_mtx);
+		/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+		#ifdef CONFIG_MACH_LGE
+		if (error) {			
+			pm_dev_err(dev, state, " late", error);			
+			suspend_stats.failed_suspend_noirq++;			
+			dpm_save_failed_step(SUSPEND_SUSPEND_NOIRQ);			
+			dpm_save_failed_dev(dev_name(dev));			
+			put_device(dev);			
+			break;		
+		}
+		#else /*qct original */
 		if (error) {
 			pm_dev_err(dev, state, " late", error);
 			put_device(dev);
 			break;
 		}
+		#endif
+		/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs */
 		if (!list_empty(&dev->power.entry))
 			list_move(&dev->power.entry, &dpm_noirq_list);
 		put_device(dev);
@@ -952,8 +990,17 @@ static void async_suspend(void *data, async_cookie_t cookie)
 	int error;
 
 	error = __device_suspend(dev, pm_transition, true);
+	/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+	#ifdef CONFIG_MACH_LGE
+	if (error) {		
+		dpm_save_failed_dev(dev_name(dev));		
+		pm_dev_err(dev, pm_transition, " async", error);	
+	}
+	#else /*qct original*/
 	if (error)
 		pm_dev_err(dev, pm_transition, " async", error);
+	#endif
+	/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
 
 	put_device(dev);
 }
@@ -996,6 +1043,11 @@ int dpm_suspend(pm_message_t state)
 		mutex_lock(&dpm_list_mtx);
 		if (error) {
 			pm_dev_err(dev, state, "", error);
+			/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+			#ifdef CONFIG_MACH_LGE
+			dpm_save_failed_dev(dev_name(dev)); 
+			#endif
+			/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
 			put_device(dev);
 			break;
 		}
@@ -1009,8 +1061,18 @@ int dpm_suspend(pm_message_t state)
 	async_synchronize_full();
 	if (!error)
 		error = async_error;
+	/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+	#ifdef CONFIG_MACH_LGE
+	if (error) {		
+		suspend_stats.failed_suspend++;		
+		dpm_save_failed_step(SUSPEND_SUSPEND);	
+	} else		
+		dpm_show_time(starttime, state, NULL);
+	#else /*qct original*/
 	if (!error)
 		dpm_show_time(starttime, state, NULL);
+	#endif
+	/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
 	return error;
 }
 
@@ -1123,8 +1185,18 @@ int dpm_suspend_start(pm_message_t state)
 	int error;
 
 	error = dpm_prepare(state);
+	/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
+	#ifdef CONFIG_MACH_LGE
+	if (error) {		
+		suspend_stats.failed_prepare++;		
+		dpm_save_failed_step(SUSPEND_PREPARE);	
+	} else		
+		error = dpm_suspend(state);
+	#else
 	if (!error)
 		error = dpm_suspend(state);
+	#endif
+	/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
 	return error;
 }
 EXPORT_SYMBOL_GPL(dpm_suspend_start);

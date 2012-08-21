@@ -65,3 +65,11 @@ obj-$(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN) \
 obj-$(CONFIG_PMIC8058_XOADC) += pmic8058-xoadc.o
 obj-$(CONFIG_TZCOM) += tzcom.o
 obj-$(CONFIG_QFP_FUSE) += qfp_fuse.o
+
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_ANDROID_VIBRATOR) += android_vibrator.o
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
+# LGE AT-CMD Bypass interface porting, myunghwan.kim@lge.com [START]
+obj-$(CONFIG_LGE_ATCMD_TTY) += lge_tty_atcmd.o
+# LGE AT-CMD Bypass interface porting, myunghwan.kim@lge.com [END]

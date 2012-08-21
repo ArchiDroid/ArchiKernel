@@ -591,6 +591,7 @@ static int adreno_start(struct kgsl_device *device, unsigned int init_ram)
 	if (status != 0)
 		goto error_irq_off;
 
+	KGSL_PWR_INFO(device, "Start done\n");					// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 	mod_timer(&device->idle_timer, jiffies + FIRST_TIMEOUT);
 	return status;
 
@@ -599,6 +600,7 @@ error_irq_off:
 	kgsl_mmu_stop(device);
 error_clk_off:
 	kgsl_pwrctrl_disable(device);
+	KGSL_PWR_INFO(device, "Start failed %d\n", status);		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 
 	return status;
 }
@@ -614,9 +616,12 @@ static int adreno_stop(struct kgsl_device *device)
 	kgsl_mmu_stop(device);
 
 	device->ftbl->irqctrl(device, 0);
+	kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_OFF);
+	del_timer_sync(&device->idle_timer);
 
 	/* Power down the device */
 	kgsl_pwrctrl_disable(device);
+	KGSL_PWR_INFO(device, "stop done\n");				// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 
 	return 0;
 }
@@ -728,8 +733,21 @@ adreno_dump_and_recover(struct kgsl_device *device)
 	} else {
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_DUMP_AND_RECOVER);
 		INIT_COMPLETION(device->recovery_gate);
-		/* Detected a hang - trigger an automatic dump */
+		/* Detected a hang */
+
+
+		/*
+		 * Trigger an automatic dump of the state to
+		 * the console
+		 */
 		adreno_postmortem_dump(device, 0);
+
+		/*
+		 * Make a GPU snapshot.  For now, do it after the PM dump so we
+		 * can at least be sure the PM dump will work as it always has
+		 */
+		kgsl_device_snapshot(device, 1);
+
 		result = adreno_recover_hang(device);
 		if (result)
 			kgsl_pwrctrl_set_state(device, KGSL_STATE_HUNG);
@@ -854,7 +872,20 @@ int adreno_idle(struct kgsl_device *device, unsigned int timeout)
 	unsigned int rbbm_status;
 	unsigned long wait_timeout =
 		msecs_to_jiffies(adreno_dev->wait_timeout);
-	unsigned long wait_time = jiffies + wait_timeout;
+	//CRs-fixed: 340123 , Case 829809
+	//Poking once during adreno_idle is not enough; a GPU hang may still happen.
+	//Seen on 7x27A. Write a few times during the wait timeout, to ensure that
+	//the WPTR is updated properly.
+	
+	//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-17
+	//unsigned long wait_time = jiffies + wait_timeout;
+	unsigned long wait_time;
+	unsigned long wait_time_part;
+	unsigned int msecs;
+	unsigned int msecs_first;
+	unsigned int msecs_part;
+	//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-04-17
+
 
 	kgsl_cffdump_regpoll(device->id, REG_RBBM_STATUS << 2,
 		0x00000000, 0x80000000);
@@ -863,8 +894,33 @@ int adreno_idle(struct kgsl_device *device, unsigned int timeout)
 	 */
 retry:
 	if (rb->flags & KGSL_FLAGS_STARTED) {
+	//CRs-fixed: 340123 , Case 829809
+	//Poking once during adreno_idle is not enough; a GPU hang may still happen.
+	//Seen on 7x27A. Write a few times during the wait timeout, to ensure that
+	//the WPTR is updated properly.
+	
+	//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-17
+		msecs = adreno_dev->wait_timeout;
+		msecs_first = (msecs <= 100) ? ((msecs + 4) / 5) : 100;
+		msecs_part = (msecs - msecs_first + 3) / 4;
+		wait_time = jiffies + wait_timeout;
+		wait_time_part = jiffies + msecs_to_jiffies(msecs_first);
+	//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-04-17
+
 		adreno_poke(device);
 		do {
+	//CRs-fixed: 340123 , Case 829809
+	//Poking once during adreno_idle is not enough; a GPU hang may still happen.
+	//Seen on 7x27A. Write a few times during the wait timeout, to ensure that
+	//the WPTR is updated properly.
+	
+	//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-17
+			if (time_after(jiffies, wait_time_part)) {
+				adreno_poke(device);
+				wait_time_part = jiffies +
+					msecs_to_jiffies(msecs_part);
+			}
+	//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-04-17	
 			GSL_RB_GET_READPTR(rb, &rb->rptr);
 			if (time_after(jiffies, wait_time)) {
 				KGSL_DRV_ERR(device, "rptr: %x, wptr: %x\n",
@@ -969,15 +1025,6 @@ const struct kgsl_memdesc *adreno_find_region(struct kgsl_device *device,
 		spin_unlock(&priv->mem_lock);
 	}
 	mutex_unlock(&kgsl_driver.process_mutex);
-
-	BUG_ON(!mutex_is_locked(&device->mutex));
-	list_for_each_entry(entry, &device->memqueue, list) {
-		if (kgsl_gpuaddr_in_memdesc(&entry->memdesc, gpuaddr, size)) {
-			result = &entry->memdesc;
-			return result;
-		}
-
-	}
 
 	while (1) {
 		struct adreno_context *adreno_context = NULL;
@@ -1151,12 +1198,20 @@ static int adreno_waittimestamp(struct kgsl_device *device,
 	msecs_first = (msecs <= 100) ? ((msecs + 4) / 5) : 100;
 	msecs_part = (msecs - msecs_first + 3) / 4;
 	for (retries = 0; retries < 5; retries++) {
-		if (!kgsl_check_timestamp(device, timestamp)) {
+		if (kgsl_check_timestamp(device, timestamp)) {
+			/* if the timestamp happens while we're not
+			 * waiting, there's a chance that an interrupt
+			 * will not be generated and thus the timestamp
+			 * work needs to be queued.
+			 */
+			queue_work(device->work_queue, &device->ts_expired_ws);
+			status = 0;
+			goto done;
+		}
 			adreno_poke(device);
 			io_cnt = (io_cnt + 1) % 100;
 			if (io_cnt <
-				pwr->pwrlevels[pwr->active_pwrlevel].
-					io_fraction)
+		    pwr->pwrlevels[pwr->active_pwrlevel].io_fraction)
 				io = 0;
 			mutex_unlock(&device->mutex);
 			/* We need to make sure that the process is
@@ -1180,28 +1235,19 @@ static int adreno_waittimestamp(struct kgsl_device *device,
 			}
 			/*this wait timed out*/
 		}
-	}
-	if (!kgsl_check_timestamp(device, timestamp)) {
 		status = -ETIMEDOUT;
 		KGSL_DRV_ERR(device,
-			"Device hang detected while waiting "
-			"for timestamp: %x, last "
-			"submitted(rb->timestamp): %x, wptr: "
-			"%x\n", timestamp,
-			adreno_dev->ringbuffer.timestamp,
+		     "Device hang detected while waiting for timestamp: %x,"
+		      "last submitted(rb->timestamp): %x, wptr: %x\n",
+		      timestamp, adreno_dev->ringbuffer.timestamp,
 			adreno_dev->ringbuffer.wptr);
 		if (!adreno_dump_and_recover(device)) {
 			/* wait for idle after recovery as the
 			 * timestamp that this process wanted
 			 * to wait on may be invalid */
-			if (!adreno_idle(device,
-				KGSL_TIMEOUT_DEFAULT))
+		if (!adreno_idle(device, KGSL_TIMEOUT_DEFAULT))
 				status = 0;
 		}
-	} else {
-		status = 0;
-	}
-
 done:
 	return (int)status;
 }
@@ -1341,6 +1387,7 @@ static const struct kgsl_functable adreno_functable = {
 	.power_stats = adreno_power_stats,
 	.irqctrl = adreno_irqctrl,
 	.gpuid = adreno_gpuid,
+	.snapshot = adreno_snapshot,
 	/* Optional functions */
 	.setstate = adreno_setstate,
 	.drawctxt_create = adreno_drawctxt_create,

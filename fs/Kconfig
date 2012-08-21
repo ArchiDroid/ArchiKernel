@@ -57,6 +57,15 @@ config FILE_LOCKING
           for filesystems like NFS and for the flock() system
           call. Disabling this option saves about 11k.
 
+#LGE_CHANGE_S:[jyothishre.nk@lge.com], 2012-02-15 Data Encryption support
+config LGE_ENCRYPTION_SUPPORT
+	bool "LGE changes to enable Data Encryption"
+	default n
+	help
+	  This option enables LGE Data Encryption support
+          for /data ext4 filesystem.
+#LGE_CHANGE_E
+
 source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"

@@ -259,6 +259,12 @@ core-y				+= arch/arm/perfmon/
 
 libs-y				:= arch/arm/lib/ $(libs-y)
 
+# LGE TestMode interface porting, myunghwan.kim@lge.com [START]
+ifeq ($(CONFIG_LGE_DIAGTEST),y)
+	core-y			+= lge/
+endif
+# LGE TestMode interface porting, myunghwan.kim@lge.com [END]
+
 # Default target when executing plain make
 ifeq ($(CONFIG_XIP_KERNEL),y)
 KBUILD_IMAGE := xipImage

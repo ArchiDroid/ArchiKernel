@@ -132,6 +132,17 @@
 #define GPIO_GET_PROC 111
 #define GPIO_SET_VOLTAGE_SOURCE_PROC 112
 #define GPIO_SET_OUTPUT_BUFFER_DRIVE_STRENGTH_PROC 113
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+#define MINIABB_LDO_CONTROL_PROC 114	// myunghee.kim	test!!
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
+ * When user enter the streaming service, change the charging current
+ */
+#define MINIABB_CHARGING_CURRENT_PROC 115
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/
+
 
 /* rpc related */
 #define PMIC_RPC_TIMEOUT (5*HZ)
@@ -1284,3 +1295,23 @@ int pmic_gpio_config(struct pm8xxx_gpio_rpc_cfg *param)
 			GPIO_SET_GPIO_CONFIG_PROC);
 }
 EXPORT_SYMBOL(pmic_gpio_config);
+
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+int pmic_miniabb_ldo_control(uint16_t ldo_num, uint16_t enable)
+{
+	return pmic_rpc_set_only(ldo_num, enable, 0, 0, 2, MINIABB_LDO_CONTROL_PROC);
+}
+EXPORT_SYMBOL(pmic_miniabb_ldo_control);
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com,
+ * When user enter the streaming service, change the charging current
+ */
+int pmic_miniabb_charging_current_change(uint16_t charging_current)
+{
+	return pmic_rpc_set_only(charging_current, 0, 0, 0, 1, MINIABB_CHARGING_CURRENT_PROC);
+}
+EXPORT_SYMBOL(pmic_miniabb_charging_current_change);
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/
+

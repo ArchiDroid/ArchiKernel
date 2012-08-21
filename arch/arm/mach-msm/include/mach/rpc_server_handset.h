@@ -21,4 +21,9 @@ struct msm_handset_platform_data {
 
 void report_headset_status(bool connected);
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+#ifdef CONFIG_MACH_LGE
+void rpc_server_hs_register_callback(void *callback_func);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 #endif

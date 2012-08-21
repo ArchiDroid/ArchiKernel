@@ -1106,10 +1106,34 @@ static void hci_cs_auth_requested(struct hci_dev *hdev, __u8 status)
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
 	if (conn) {
+		// +s QCT_BT_BLUEZCOM_BUGFIX_FIXREPEATEDATTEMPERR, (qct patch 00724431) jeonghoon.lim@lge.com
+		/*
 		if (status && conn->state == BT_CONFIG) {
 			hci_proto_connect_cfm(conn, status);
 			hci_conn_put(conn);
 		}
+		*/
+		if (status) {
+			mgmt_auth_failed(hdev->id, &conn->dst, status);
+			conn->sec_level = BT_SECURITY_LOW;
+			clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
+			if (conn->state == BT_CONFIG) {
+				conn->state = BT_CONNECTED;
+				hci_proto_connect_cfm(conn, status);
+				hci_conn_put(conn);
+			} else {
+				hci_auth_cfm(conn, status);
+				hci_conn_hold(conn);
+				conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+				hci_conn_put(conn);
+			}
+			if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend)) {
+				clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend);
+				hci_encrypt_cfm(conn, status, 0x00);
+			}
+		}
+		// +e QCT_BT_BLUEZCOM_BUGFIX_FIXREPEATEDATTEMPERR
+		
 		conn->auth_initiator = 1;
 	}
 
@@ -1705,7 +1729,11 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 			cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
 			cp.max_latency    = cpu_to_le16(0x000A);
 			cp.content_format = cpu_to_le16(hdev->voice_setting);
-			cp.retrans_effort = 0x01;
+
+			// LGBT_BLUEZCOM_BUGFIX_SCORECONNFAILNTG, 
+			// sco reconnection fail with NTG4.5 (qct patch in e0), jeonghoon.lim@lge.com
+			// cp.retrans_effort = 0x01; // original
+			cp.retrans_effort = 0xff; 
 
 			hci_send_cmd(hdev, HCI_OP_ACCEPT_SYNC_CONN_REQ,
 							sizeof(cp), &cp);
@@ -1937,6 +1965,11 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 		hci_send_cmd(hdev, HCI_OP_READ_REMOTE_EXT_FEATURES,
 							sizeof(cp), &cp);
 		goto unlock;
+// +s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+	} else  if (!(lmp_ssp_capable(conn)) && conn->auth_initiator &&
+		(conn->pending_sec_level == BT_SECURITY_HIGH)) {
+		conn->pending_sec_level = BT_SECURITY_MEDIUM;
+// +e LGBT_COMMON_PATCH_SR00818097
 	}
 
 	if (!ev->status) {
@@ -2711,9 +2744,22 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 		conn->ssp_mode = (ev->features[0] & 0x01);
 		/*In case if remote device ssp supported/2.0 device
 		reduce the security level to MEDIUM if it is HIGH*/
+// *s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+		/* QCT Original
 		if (!conn->ssp_mode &&
+		*/
+		if (!conn->ssp_mode && conn->auth_initiator &&
+// *e LGBT_COMMON_PATCH_SR00818097
 			(conn->pending_sec_level == BT_SECURITY_HIGH))
 			conn->pending_sec_level = BT_SECURITY_MEDIUM;
+
+// +s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+		if (conn->ssp_mode && conn->auth_initiator &&
+			conn->io_capability != 0x03) {
+			conn->pending_sec_level = BT_SECURITY_HIGH;
+			conn->auth_type = HCI_AT_DEDICATED_BONDING_MITM;
+		}
+// +e LGBT_COMMON_PATCH_SR00818097
 	}
 
 	if (conn->state != BT_CONFIG)

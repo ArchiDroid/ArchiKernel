@@ -46,6 +46,10 @@
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
 
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+#include "u_lgeusb.h"
+#endif
+
 static const char driver_name[] = "msm72k_udc";
 
 /* #define DEBUG */
@@ -457,6 +461,27 @@ static int usb_ep_get_stall(struct msm_endpoint *ept)
 	else
 		return (CTRL_RXS & n) ? 1 : 0;
 }
+
+// LGE_CHANGE_S, myunghwan.kim@lge.com
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+static void ulpi_write(struct usb_info *ui, unsigned val, unsigned reg)
+{
+	unsigned timeout = 10000;
+
+	/* initiate write operation */
+	writel(ULPI_RUN | ULPI_WRITE |
+			ULPI_ADDR(reg) | ULPI_DATA(val),
+			USB_ULPI_VIEWPORT);
+
+	/* wait for completion */
+	while ((readl(USB_ULPI_VIEWPORT) & ULPI_RUN) && (--timeout))
+		;
+
+	if (timeout == 0)
+		dev_err(&ui->pdev->dev, "ulpi_write: timeout\n");
+}
+#endif
+// LGE_CHANGE_E, myunghwan.kim@lge.com
 
 static void init_endpoints(struct usb_info *ui)
 {
@@ -1397,9 +1422,26 @@ static void usb_prepare(struct usb_info *ui)
 
 static void usb_reset(struct usb_info *ui)
 {
+	// LGE_CHANGE_S, myunghwan.kim@lge.com
+	#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	// unsigned int tmp = 0; // not use (we don`t need to change USB speed)
+	int udc_cable = -1;
+	int is_factory;
+	#endif /* CONFIG_LGE_USB_GADGET_DRIVER */
+	// LGE_CHANGE_E, myunghwan.kim@lge.com
+
 	struct msm_otg *otg = to_msm_otg(ui->xceiv);
 
 	dev_dbg(&ui->pdev->dev, "reset controller\n");
+
+	// LGE_CHANGE_S, myunghwan.kim@lge.com
+	#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	msleep(300);
+	is_factory = android_lge_is_factory_cable(&udc_cable);
+	android_lge_set_factory_mode(is_factory);
+	pr_info(" *** lge_get_cable_info: %x (%d)\n", udc_cable, is_factory);
+	#endif /* CONFIG_LGE_USB_GADGET_DRIVER */
+	// LGE_CHANGE_E, myunghwan.kim@lge.com
 
 	atomic_set(&ui->running, 0);
 
@@ -1417,6 +1459,17 @@ static void usb_reset(struct usb_info *ui)
 							USB_USBCMD);
 
 	writel(ui->dma, USB_ENDPOINTLISTADDR);
+
+	// LGE_CHANGE_S, myunghwan.kim@lge.com
+	#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	if (is_factory)
+	{
+		// 4.7V defence code
+		ulpi_write(ui, 0x0A, 0x0F);
+		ulpi_write(ui, 0x0A, 0x12);
+	}
+	#endif /* CONFIG_LGE_USB_GADGET_DRIVER */
+	// LGE_CHANGE_E, myunghwan.kim@lge.com
 
 	configure_endpoints(ui);
 

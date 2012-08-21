@@ -60,7 +60,10 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_struct *tty, size_t size)
 
 	if (tty->buf.memory_used + size > 65536)
 		return NULL;
-	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
+	/* In general, when to return NULL, a caller can control allocation problem by using a circular buffer. 
+	 * So it is reasonable to hide this failure message because it does not mean the real memory allocation failure.
+	 */
+	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC | __GFP_NOWARN);
 	if (p == NULL)
 		return NULL;
 	p->used = 0;

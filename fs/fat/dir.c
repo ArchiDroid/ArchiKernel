@@ -98,8 +98,14 @@ next:
 
 	*bh = sb_bread(sb, phys);
 	if (*bh == NULL) {
+/* LGE_CHANGE_S : avoid error message
+	 * 2012-02-02, jyothishre.nk@lge.com
+	 */
+#ifndef CONFIG_MACH_LGE
 		fat_msg(sb, KERN_ERR, "Directory bread(block %llu) failed",
 		       (llu)phys);
+#endif
+/* LGE_CHANGE_E :avoid error message */
 		/* skip this block */
 		*pos = (iblock + 1) << sb->s_blocksize_bits;
 		goto next;

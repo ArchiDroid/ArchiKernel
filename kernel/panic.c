@@ -82,7 +82,17 @@ NORET_TYPE void panic(const char * fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-20
+#ifdef CONFIG_LGE_HANDLE_PANIC
+	set_crash_store_enable();
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-20
 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-20
+#ifdef CONFIG_LGE_HANDLE_PANIC
+	set_crash_store_disable();
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-20
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	dump_stack();
 #endif

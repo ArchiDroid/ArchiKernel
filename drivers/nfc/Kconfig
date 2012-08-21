@@ -14,7 +14,7 @@ menuconfig NFC_DEVICES
 
 if NFC_DEVICES
 
-config PN544_NFC
+config LGE_NFC_PN544
 	tristate "PN544 NFC driver"
 	depends on I2C
 	select CRC_CCITT

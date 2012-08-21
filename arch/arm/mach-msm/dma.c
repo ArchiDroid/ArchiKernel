@@ -286,12 +286,18 @@ void msm_dmov_enqueue_cmd_ext(unsigned id, struct msm_dmov_cmd *cmd)
 	int ch = DMOV_ID_TO_CHAN(id);
 
 	spin_lock_irqsave(&dmov_conf[adm].lock, irq_flags);
-	if (dmov_conf[adm].clk_ctl == CLK_DIS)
-		msm_dmov_clk_toggle(adm, 1);
-	else if (dmov_conf[adm].clk_ctl == CLK_TO_BE_DIS)
+/*LGE_CHANGE_S: Remove warning messages during restart
+ *[08-03-2012] [jyothishre.nk@lge.com]*/
+//	if (dmov_conf[adm].clk_ctl == CLK_DIS)
+//		msm_dmov_clk_toggle(adm, 1);
+	if (dmov_conf[adm].clk_ctl == CLK_DIS){
+		status=	msm_dmov_clk_toggle(adm, 1);
+		if(status!=0)
+			goto error;
+	}else if (dmov_conf[adm].clk_ctl == CLK_TO_BE_DIS)
 		del_timer(&dmov_conf[adm].timer);
 	dmov_conf[adm].clk_ctl = CLK_EN;
-
+/*LGE_CHANGE_E*/
 	status = readl_relaxed(DMOV_REG(DMOV_STATUS(ch), adm));
 	if (status & DMOV_STATUS_CMD_PTR_RDY) {
 		PRINT_IO("msm_dmov_enqueue_cmd(%d), start command, status %x\n",
@@ -316,7 +322,11 @@ void msm_dmov_enqueue_cmd_ext(unsigned id, struct msm_dmov_cmd *cmd)
 		    "%x\n", id, status);
 		list_add_tail(&cmd->list, &dmov_conf[adm].ready_commands[ch]);
 	}
+/*LGE_CHANGE_S: Remove warning messages during restart
+ *[08-03-2012] [jyothishre.nk@lge.com]*/
+error:
 	spin_unlock_irqrestore(&dmov_conf[adm].lock, irq_flags);
+/*LGE_CHANGE_E*/
 }
 EXPORT_SYMBOL(msm_dmov_enqueue_cmd_ext);
 

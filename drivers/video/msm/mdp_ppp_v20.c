@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2009, 2012 Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1625,6 +1625,7 @@ static int mdp_get_edge_cond(MDPIBUF *iBuf, uint32 *dup, uint32 *dup2)
 		 * offsite in vertical axis
 		 */
 	case MDP_Y_CBCR_H2V2:
+	case MDP_Y_CBCR_H2V2_ADRENO:
 	case MDP_Y_CRCB_H2V2:
 		/* floor( luma_interp_point_left / 2) */
 		chroma_interp_point_left = luma_interp_point_left >> 1;
@@ -1678,6 +1679,7 @@ static int mdp_get_edge_cond(MDPIBUF *iBuf, uint32 *dup, uint32 *dup2)
 			break;
 
 		case MDP_Y_CBCR_H2V2:
+		case MDP_Y_CBCR_H2V2_ADRENO:
 		case MDP_Y_CRCB_H2V2:
 			/*
 			 * cosite in horizontal dir, and offsite in vertical dir
@@ -2446,6 +2448,70 @@ void mdp_set_blend_attr(MDPIBUF *iBuf,
 			uint32 *tpVal,
 			uint32 perPixelAlpha, uint32 *pppop_reg_ptr)
 {
+	if (mdp_rev == MDP_REV_303) {
+		int bg_alpha;
+
+		*alpha = iBuf->mdpImg.alpha;
+		*tpVal = iBuf->mdpImg.tpVal;
+
+		if (iBuf->mdpImg.mdpOp & MDPOP_FG_PM_ALPHA) {
+			if (perPixelAlpha) {
+				*pppop_reg_ptr |= PPP_OP_ROT_ON |
+						  PPP_OP_BLEND_ON |
+						  PPP_OP_BLEND_CONSTANT_ALPHA;
+			} else {
+				if ((iBuf->mdpImg.mdpOp & MDPOP_ALPHAB)
+					&& (iBuf->mdpImg.alpha == 0xff)) {
+					iBuf->mdpImg.mdpOp &= ~(MDPOP_ALPHAB);
+				}
+
+				if ((iBuf->mdpImg.mdpOp & MDPOP_ALPHAB)
+				   || (iBuf->mdpImg.mdpOp & MDPOP_TRANSP)) {
+
+					*pppop_reg_ptr |= PPP_OP_ROT_ON |
+						PPP_OP_BLEND_ON |
+						PPP_OP_BLEND_CONSTANT_ALPHA |
+						PPP_OP_BLEND_ALPHA_BLEND_NORMAL;
+				}
+			}
+
+			bg_alpha = PPP_BLEND_BG_USE_ALPHA_SEL |
+				PPP_BLEND_BG_ALPHA_REVERSE;
+
+			if (perPixelAlpha) {
+				bg_alpha |= PPP_BLEND_BG_SRCPIXEL_ALPHA;
+			} else {
+				bg_alpha |= PPP_BLEND_BG_CONSTANT_ALPHA;
+				bg_alpha |= iBuf->mdpImg.alpha << 24;
+			}
+			outpdw(MDP_BASE + 0x70010, bg_alpha);
+
+			if (iBuf->mdpImg.mdpOp & MDPOP_TRANSP)
+				*pppop_reg_ptr |= PPP_BLEND_CALPHA_TRNASP;
+		} else if (perPixelAlpha) {
+				*pppop_reg_ptr |= PPP_OP_ROT_ON |
+						  PPP_OP_BLEND_ON |
+						  PPP_OP_BLEND_SRCPIXEL_ALPHA;
+			} else {
+				if ((iBuf->mdpImg.mdpOp & MDPOP_ALPHAB)
+					&& (iBuf->mdpImg.alpha == 0xff)) {
+						iBuf->mdpImg.mdpOp &=
+							~(MDPOP_ALPHAB);
+				}
+
+				if ((iBuf->mdpImg.mdpOp & MDPOP_ALPHAB)
+				   || (iBuf->mdpImg.mdpOp & MDPOP_TRANSP)) {
+					*pppop_reg_ptr |= PPP_OP_ROT_ON |
+						PPP_OP_BLEND_ON |
+						PPP_OP_BLEND_CONSTANT_ALPHA |
+						PPP_OP_BLEND_ALPHA_BLEND_NORMAL;
+				}
+
+				if (iBuf->mdpImg.mdpOp & MDPOP_TRANSP)
+					*pppop_reg_ptr |=
+						PPP_BLEND_CALPHA_TRNASP;
+			}
+	} else {
 	if (perPixelAlpha) {
 		*pppop_reg_ptr |= PPP_OP_ROT_ON |
 		    PPP_OP_BLEND_ON | PPP_OP_BLEND_SRCPIXEL_ALPHA;
@@ -2479,5 +2545,6 @@ void mdp_set_blend_attr(MDPIBUF *iBuf,
 				*alpha = iBuf->mdpImg.alpha;
 			}
 		}
+	}
 	}
 }

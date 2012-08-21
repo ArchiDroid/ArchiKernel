@@ -1075,7 +1075,23 @@ static void mmc_power_up(struct mmc_host *host)
 	 * This delay should be sufficient to allow the power supply
 	 * to reach the minimum voltage.
 	 */
+
+#ifdef CONFIG_MACH_LGE
+	/* LGE_CHANGE
+	* Augmenting delay-time for some crappy card.
+	* 2012-01-14, warkap.seo@lge.com from G1TDR
+	*/
+    if (!strcmp(mmc_hostname(host), "mmc1")){
+		printk("%s: mmc power up delayed 250ms before\n", mmc_hostname(host));
+		mmc_delay(250);
+		printk("%s: mmc power up delayed 250ms after\n", mmc_hostname(host));
+    }
+	else{
+		mmc_delay(20);
+	}
+#else
 	mmc_delay(10);
+#endif
 
 	host->ios.clock = host->f_init;
 
@@ -1159,11 +1175,26 @@ int mmc_resume_bus(struct mmc_host *host)
 {
 	unsigned long flags;
 
+	/* LGE_CHANGE_S : sd card
+	 * 2012-01-16, bohyun.jung@lge.com,
+	 * there is problem that Unnecesary sd card detected as new during suspend/resume due to CRC error. 
+	 */
+#if 1
 	if (!mmc_bus_needs_resume(host))
 		return -EINVAL;
-
 	printk("%s: Starting deferred resume\n", mmc_hostname(host));
 	spin_lock_irqsave(&host->lock, flags);
+#else
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (!mmc_bus_needs_resume(host)) {
+		spin_unlock_irqrestore(&host->lock, flags);
+ 		return -EINVAL;
+	}
+	printk("%s: Starting deferred resume\n", mmc_hostname(host));
+#endif
+	/* LGE_CHANGE_S : sd card */
+
 	host->bus_resume_flags &= ~MMC_BUSRESUME_NEEDS_RESUME;
 	host->rescan_disable = 0;
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -1179,6 +1210,16 @@ int mmc_resume_bus(struct mmc_host *host)
 		host->bus_ops->detect(host);
 
 	mmc_bus_put(host);
+	/* LGE_CHANGE_S : sd card
+	 * 2012-01-16, bohyun.jung@lge.com,
+	 * there is problem that Unnecesary sd card detected as new during suspend/resume due to CRC error. 
+	 */
+#if 1
+#else
+	if (!host->card)
+		mmc_detect_change(host, 0);
+#endif
+	/* LGE_CHANGE_S : sd card */
 	printk("%s: Deferred resume completed\n", mmc_hostname(host));
 	return 0;
 }
@@ -1246,6 +1287,13 @@ void mmc_detach_bus(struct mmc_host *host)
  */
 void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
+#ifdef CONFIG_MACH_LGE
+	/* LGE_CHANGE
+	* Checking for result of delayed-work.
+	* 2012-01-14, warkap.seo@lge.com from G1TDR
+	*/
+	int result_delayed_work = -1;
+#endif
 #ifdef CONFIG_MMC_DEBUG
 	unsigned long flags;
 	spin_lock_irqsave(&host->lock, flags);
@@ -1255,7 +1303,16 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 
 	wake_lock(&host->detect_wake_lock);
 	host->detect_change = 1;
+#ifdef CONFIG_MACH_LGE
+	/* LGE_CHANGE
+	* Checking for result of delayed-work.
+	* 2012-01-14, warkap.seo@lge.com from G1TDR
+	*/
+	result_delayed_work = mmc_schedule_delayed_work(&host->detect, delay);
+	printk(KERN_INFO "[LGE][mmc][%-18s( )] result_delayed_work:%d, delay:%ld\n", __func__, result_delayed_work, delay);
+#else
 	mmc_schedule_delayed_work(&host->detect, delay);
+#endif
 }
 
 EXPORT_SYMBOL(mmc_detect_change);
@@ -1706,6 +1763,26 @@ void mmc_rescan(struct work_struct *work)
 		container_of(work, struct mmc_host, detect.work);
 	bool extend_wakelock = false;
 
+	/* LGE_CHANGE_S : sd card
+	 * 2012-01-16, bohyun.jung@lge.com,
+	 * there is problem that Unnecesary sd card detected as new during suspend/resume due to CRC error. 
+	 */
+#if 1	 
+#else
+#ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	if (mmc_bus_needs_resume(host)) {
+		mmc_resume_bus(host);
+	}
+#endif
+#endif
+	/* LGE_CHANGE_S : sd card */
+#ifdef CONFIG_MACH_LGE
+	/* LGE_CHANGE
+	* Adding Print
+	2012-01-14, warkap.seo@lge.com from G1TDR
+	*/
+	printk(KERN_INFO "[LGE][MMC][%-18s( ) START!] \n", __func__);
+#endif
 	if (host->rescan_disable)
 		return;
 
@@ -1902,6 +1979,18 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (mmc_bus_needs_resume(host))
 		return 0;
 
+/* LGE_CHANGE_S : sdcard
+ * 2012-04-12, kh.tak@lge.com
+ * Support SD card always on
+*/
+	if (!strncmp(mmc_hostname(host),"mmc1",4))
+	{
+		// printk("mmc1 : skip sd card suspend...\n"); // do nothing! for do not issue cmd0,cmd41 at wakekup time
+	}
+	else
+	{
+/* LGE_CHANGE_E : sdcard */
+
 	if (host->caps & MMC_CAP_DISABLE)
 		cancel_delayed_work(&host->disable);
 	if (cancel_delayed_work(&host->detect))
@@ -1953,6 +2042,12 @@ int mmc_suspend_host(struct mmc_host *host)
 
 	if (!err && !mmc_card_keep_power(host))
 		mmc_power_off(host);
+/* LGE_CHANGE_S : sdcard
+ * 2012-04-12, kh.tak@lge.com
+ * Support SD card always on
+*/
+	}
+/* LGE_CHANGE_E : sdcard */
 
 	return err;
 }
@@ -1973,6 +2068,18 @@ int mmc_resume_host(struct mmc_host *host)
 		mmc_bus_put(host);
 		return 0;
 	}
+
+/* LGE_CHANGE_S : sdcard
+ * 2012-04-12, kh.tak@lge.com
+ * Support SD card always on
+*/
+	if (!strncmp(mmc_hostname(host),"mmc1",4))
+	{
+		// printk("mmc1 : skip sd card resume...\n"); // do nothing! for do not issue cmd0,cmd41 at wakekup time
+	}
+	else
+	{
+/* LGE_CHANGE_E : sdcard */
 
 	if (host->bus_ops && !host->bus_dead) {
 		if (!mmc_card_keep_power(host)) {
@@ -2001,6 +2108,12 @@ int mmc_resume_host(struct mmc_host *host)
 		}
 	}
 	host->pm_flags &= ~MMC_PM_KEEP_POWER;
+/* LGE_CHANGE_S : sdcard
+ * 2012-04-12, kh.tak@lge.com
+ * Support SD card always on
+*/
+	}
+/* LGE_CHANGE_E : sdcard */
 	mmc_bus_put(host);
 
 	return err;

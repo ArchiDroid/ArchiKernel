@@ -49,6 +49,9 @@ obj-$(CONFIG_LEDS_ASIC3)		+= leds-asic3.o
 obj-$(CONFIG_LEDS_PMIC8058)		+= leds-pmic8058.o
 obj-$(CONFIG_LEDS_QCIBL)		+= leds-qci-backlight.o
 obj-$(CONFIG_LEDS_MSM_PDM)		+= leds-msm-pdm.o
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_LEDS_GPIO_M4)		+= leds-gpio-m4.o
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 # LED SPI Drivers
 obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o

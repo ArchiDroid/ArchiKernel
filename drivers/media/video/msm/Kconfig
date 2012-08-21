@@ -87,6 +87,30 @@ config MT9P012
 	---help---
 	  MICRON 5M Bayer Sensor with Autofocus
 
+config MT9P017
+	bool "Sensor mt9p017 (BAYER 5M)"
+	depends on MSM_CAMERA && ARCH_MSM7X27A
+	default n
+	---help---
+	  APTINA 5M Bayer Sensor
+
+config HI542
+	bool "Hynix Sensor HI542 (BAYER 5M)"
+	depends on MSM_CAMERA && ARCH_MSM7X27A
+	default y
+	---help---
+	  HYNIX 5M Bayer Sensor
+
+# LGE_CHANGE_S : VGA Camera config
+# Camera sensor configuration has been changed for VGA
+config MT9V113
+	bool "Sensor mt9v113 (VGA)"
+	depends on MSM_CAMERA && ARCH_MSM7X27A
+	default y
+	---help---
+	  APTINA VGA YUV Sensor
+# LGE_CHANGE_E : VGA Camera config
+
 choice
 	prompt "AF module"
 	depends on MT9P012 && !ARCH_MSM8X60 && !MSM_CAMERA_V4L2
@@ -159,6 +183,23 @@ config MSM_CAMERA_FLASH_SC628A
 	  supports spotlight and flash light modes with
 	  differrent current levels.
 
+config MSM_CAMERA_FLASH_LM2759
+	bool "MSM camera LM2759 flash support"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  Enable support for LED flash for msm camera.
+	  It is a samtech charge pump flash driver and it
+	  supports spotlight and flash light modes with
+	  differrent current levels.
+
+config MSM_CAMERA_FLASH_LM3559
+	bool "MSM camera LM3559 flash support"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  Enable support for NSC LM3559 flash for msm camera.
+
 config IMX072
 	bool "Sensor imx072 (Sony 5M)"
 	default n
@@ -172,6 +213,12 @@ config OV2720
 	bool "Sensor ov2720 (Omnivision 2MP)"
 	depends on MSM_CAMERA && ARCH_MSM8960
 	default y
+
+config QS_MT9P017
+	bool "Sensor qs_mt9p017 (Aptina 3D 5M)"
+	depends on MSM_CAMERA
+	---help---
+	  Aptina 3D 5M with Autofocus
 
 config VB6801
 	bool "Sensor vb6801"
@@ -189,6 +236,7 @@ config MSM_CAMERA_FLASH
 config MSM_CAMERA_SENSOR
 	bool "Qualcomm MSM camera sensor support"
 	depends on MSM_CAMERA
+	default y
 
 config MSM_ACTUATOR
 	bool "Qualcomm MSM actuator support"

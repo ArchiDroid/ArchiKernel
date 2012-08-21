@@ -48,7 +48,10 @@
 #define POWER_COLLAPSE_KHZ 19200
 
 /* Max CPU frequency allowed by hardware while in standby waiting for an irq. */
+// 2012-02-06 sohyun.nam@lge.com prevent from holding irq function in low power mode because the min frequency is 320000
+// 2012-03-09 roll-back to the original version from 350000
 #define MAX_WAIT_FOR_IRQ_KHZ 128000
+//#define MAX_WAIT_FOR_IRQ_KHZ 350000
 
 enum {
 	ACPU_PLL_TCXO	= -1,
@@ -129,9 +132,18 @@ static struct clkctl_acpu_speed *acpu_freq_tbl;
 static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200_pll4_0[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 0, 30720 },
 	{ 0, 120000, ACPU_PLL_0, 4, 7,  60000, 1, 3,  61440 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance		
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 122880, ACPU_PLL_1, 1, 1,	61440, 1, 3,  61440 },
+    { 0, 200000, ACPU_PLL_2, 2, 5,	66667, 2, 4,  61440 },
+    { 0, 245760, ACPU_PLL_1, 1, 0, 122880, 1, 4,  61440 },
+#else
 	{ 1, 122880, ACPU_PLL_1, 1, 1,  61440, 1, 3,  61440 },
 	{ 0, 200000, ACPU_PLL_2, 2, 5,  66667, 2, 4,  61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 0, 122880, 1, 4,  61440 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 160000, 1, 5, 160000 },
 	{ 0, 400000, ACPU_PLL_2, 2, 2, 133333, 2, 5, 160000 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 160000, 2, 6, 160000 },
@@ -142,9 +154,18 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200_pll4_0[] = {
 /* 7627 with CDMA capable modem */
 static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_1200_pll4_0[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 0, 24576 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance		
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0,  98304, ACPU_PLL_1, 1, 1,	98304, 0, 3,  49152 },
+    { 0, 120000, ACPU_PLL_0, 4, 7,	60000, 1, 3,  49152 },
+    { 0, 196608, ACPU_PLL_1, 1, 0,	65536, 2, 4,  98304 },
+#else
 	{ 1,  98304, ACPU_PLL_1, 1, 1,  98304, 0, 3,  49152 },
 	{ 0, 120000, ACPU_PLL_0, 4, 7,  60000, 1, 3,  49152 },
 	{ 1, 196608, ACPU_PLL_1, 1, 0,  65536, 2, 4,  98304 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 200000, ACPU_PLL_2, 2, 5,  66667, 2, 4,  98304 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 160000, 1, 5, 160000 },
 	{ 0, 400000, ACPU_PLL_2, 2, 2, 133333, 2, 5, 160000 },
@@ -157,9 +178,18 @@ static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_1200_pll4_0[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_800_pll4_0[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 0, 30720 },
 	{ 0, 120000, ACPU_PLL_0, 4, 7,  60000, 1, 3,  61440 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance		
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 122880, ACPU_PLL_1, 1, 1,	61440, 1, 3,  61440 },
+    { 0, 200000, ACPU_PLL_2, 2, 3,	66667, 2, 4,  61440 },
+    { 0, 245760, ACPU_PLL_1, 1, 0, 122880, 1, 4,  61440 },
+#else
 	{ 1, 122880, ACPU_PLL_1, 1, 1,  61440, 1, 3,  61440 },
 	{ 0, 200000, ACPU_PLL_2, 2, 3,  66667, 2, 4,  61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 0, 122880, 1, 4,  61440 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 160000, 1, 5, 160000 },
 	{ 0, 400000, ACPU_PLL_2, 2, 1, 133333, 2, 5, 160000 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 160000, 2, 6, 160000 },
@@ -170,9 +200,18 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_800_pll4_0[] = {
 /* 7627 with CDMA capable modem - PLL2 @ 800 */
 static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_800_pll4_0[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 0, 24576 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance		
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0,  98304, ACPU_PLL_1, 1, 1,	98304, 0, 3,  49152 },
+    { 0, 120000, ACPU_PLL_0, 4, 7,	60000, 1, 3,  49152 },
+    { 0, 196608, ACPU_PLL_1, 1, 0,	65536, 2, 4,  98304 },
+#else
 	{ 1,  98304, ACPU_PLL_1, 1, 1,  98304, 0, 3,  49152 },
 	{ 0, 120000, ACPU_PLL_0, 4, 7,  60000, 1, 3,  49152 },
 	{ 1, 196608, ACPU_PLL_1, 1, 0,  65536, 2, 4,  98304 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 200000, ACPU_PLL_2, 2, 3,  66667, 2, 4,  98304 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 160000, 1, 5, 160000 },
 	{ 0, 400000, ACPU_PLL_2, 2, 1, 133333, 2, 5, 160000 },
@@ -185,8 +224,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_800_pll4_0[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200_pll4_800[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 30720 },
 	{ 0, 61440, ACPU_PLL_1, 1, 3,  7680, 3, 1,  61440 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 122880, ACPU_PLL_1, 1, 1,	15360, 3, 2,  61440 },
+    { 0, 245760, ACPU_PLL_1, 1, 0, 30720, 3, 3,  61440 },
+#else
 	{ 1, 122880, ACPU_PLL_1, 1, 1,  15360, 3, 2,  61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 0, 30720, 3, 3,  61440 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 150000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 122880 },
 	{ 0, 400000, ACPU_PLL_4, 6, 1, 50000, 3, 4, 122880 },
@@ -200,8 +247,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200_pll4_800[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_1200_pll4_800[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 24576 },
 	{ 0, 65536, ACPU_PLL_1, 1, 3,  8192, 3, 1,  49152 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 98304, ACPU_PLL_1, 1, 1,  12288, 3, 2,  49152 },
+    { 0, 196608, ACPU_PLL_1, 1, 0, 24576, 3, 3,  98304 },
+#else
 	{ 1, 98304, ACPU_PLL_1, 1, 1,  12288, 3, 2,  49152 },
 	{ 1, 196608, ACPU_PLL_1, 1, 0, 24576, 3, 3,  98304 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 120000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 120000 },
 	{ 0, 400000, ACPU_PLL_4, 6, 1, 50000, 3, 4, 120000 },
@@ -215,8 +270,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_1200_pll4_800[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200_pll4_1008[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 30720 },
 	{ 0, 61440, ACPU_PLL_1, 1, 3,  7680, 3, 1, 61440 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 122880, ACPU_PLL_1, 1, 1,	15360, 3, 2, 61440 },
+    { 0, 245760, ACPU_PLL_1, 1, 0, 30720, 3, 3, 61440 },
+#else
 	{ 1, 122880, ACPU_PLL_1, 1, 1,  15360, 3, 2, 61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 0, 30720, 3, 3, 61440 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 150000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 60000, 3, 5, 122880 },
@@ -230,8 +293,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200_pll4_1008[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_1200_pll4_1008[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 24576 },
 	{ 0, 65536, ACPU_PLL_1, 1, 3,  8192, 3, 1, 49152 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+	{ 0, 98304, ACPU_PLL_1, 1, 1,  12288, 3, 2, 49152 },
+	{ 0, 196608, ACPU_PLL_1, 1, 0, 24576, 3, 3, 98304 },
+#else
 	{ 1, 98304, ACPU_PLL_1, 1, 1,  12288, 3, 2, 49152 },
 	{ 1, 196608, ACPU_PLL_1, 1, 0, 24576, 3, 3, 98304 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 150000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 60000, 3, 5, 122880 },
@@ -245,8 +316,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_1200_pll4_1008[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200_25a[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 30720 },
 	{ 0, 61440, ACPU_PLL_1, 1, 3,  7680, 3, 1,  61440 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 122880, ACPU_PLL_1, 1, 1,	15360, 3, 2,  61440 },
+    { 0, 245760, ACPU_PLL_1, 1, 0, 30720, 3, 3,  61440 },
+#else
 	{ 1, 122880, ACPU_PLL_1, 1, 1,  15360, 3, 2,  61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 0, 30720, 3, 3,  61440 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 150000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 122880 },
 	{ 0, 400000, ACPU_PLL_2, 2, 2, 50000, 3, 4, 122880 },
@@ -259,8 +338,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200_25a[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_737_pll2_1200_pll4_800[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 30720 },
 	{ 0, 61440, ACPU_PLL_1, 1, 11,  7680, 3, 1,  61440 },
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-13
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+	{ 0, 122880, ACPU_PLL_1, 1, 5,  15360, 3, 2,  61440 },
+	{ 0, 245760, ACPU_PLL_1, 1, 2, 30720, 3, 3,  61440 },
+#else /*original*/
 	{ 1, 122880, ACPU_PLL_1, 1, 5,  15360, 3, 2,  61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 2, 30720, 3, 3,  61440 },
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-13
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 150000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 122880 },
 	{ 0, 400000, ACPU_PLL_4, 6, 1, 50000, 3, 4, 122880 },
@@ -274,8 +361,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_737_pll2_1200_pll4_800[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_589_pll2_1200_pll4_800[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 24576 },
 	{ 0, 65536, ACPU_PLL_1, 1, 8,  8192, 3, 1,  49152 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 98304, ACPU_PLL_1, 1, 5,  12288, 3, 2,  49152 },
+    { 0, 196608, ACPU_PLL_1, 1, 2, 24576, 3, 3,  98304 },
+#else
 	{ 1, 98304, ACPU_PLL_1, 1, 5,  12288, 3, 2,  49152 },
 	{ 1, 196608, ACPU_PLL_1, 1, 2, 24576, 3, 3,  98304 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 120000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 120000 },
 	{ 0, 400000, ACPU_PLL_4, 6, 1, 50000, 3, 4, 120000 },
@@ -289,8 +384,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_589_pll2_1200_pll4_800[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_737_pll2_1200_pll4_1008[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 30720 },
 	{ 0, 61440, ACPU_PLL_1, 1, 11,  7680, 3, 1, 61440 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 122880, ACPU_PLL_1, 1, 5,	15360, 3, 2, 61440 },
+    { 0, 245760, ACPU_PLL_1, 1, 2, 30720, 3, 3, 61440 },
+#else
 	{ 1, 122880, ACPU_PLL_1, 1, 5,  15360, 3, 2, 61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 2, 30720, 3, 3, 61440 },
+#endif
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 150000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 60000, 3, 5, 122880 },
@@ -304,8 +407,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_737_pll2_1200_pll4_1008[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_589_pll2_1200_pll4_1008[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 24576 },
 	{ 0, 65536, ACPU_PLL_1, 1, 8,  8192, 3, 1, 49152 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 98304, ACPU_PLL_1, 1, 5,  12288, 3, 2, 49152 },
+    { 0, 196608, ACPU_PLL_1, 1, 2, 24576, 3, 3, 98304 },
+#else
 	{ 1, 98304, ACPU_PLL_1, 1, 5,  12288, 3, 2, 49152 },
 	{ 1, 196608, ACPU_PLL_1, 1, 2, 24576, 3, 3, 98304 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 150000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 60000, 3, 5, 122880 },
@@ -319,8 +430,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_589_pll2_1200_pll4_1008[] = {
 static struct clkctl_acpu_speed pll0_960_pll1_737_pll2_1200_25a[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 2400, 3, 0, 30720 },
 	{ 0, 61440, ACPU_PLL_1, 1, 11,  7680, 3, 1,  61440 },
+//LGE_CHANGE_S, [daewon.seo@lge.com] , 2012-01-30
+//For CPU Clock Performance
+#if defined(CONFIG_MACH_MSM7X25A_M4) :: feature is not applied.
+    { 0, 122880, ACPU_PLL_1, 1, 5,	15360, 3, 2,  61440 },
+    { 0, 245760, ACPU_PLL_1, 1, 2, 30720, 3, 3,  61440 },
+#else
 	{ 1, 122880, ACPU_PLL_1, 1, 5,  15360, 3, 2,  61440 },
 	{ 1, 245760, ACPU_PLL_1, 1, 2, 30720, 3, 3,  61440 },
+#endif	
+//LGE_CHANGE_E, [daewon.seo@lge.com] , 2012-01-30
 	{ 0, 300000, ACPU_PLL_2, 2, 3, 37500, 3, 4, 150000 },
 	{ 1, 320000, ACPU_PLL_0, 4, 2, 40000, 3, 4, 122880 },
 	{ 0, 400000, ACPU_PLL_2, 2, 2, 50000, 3, 4, 122880 },

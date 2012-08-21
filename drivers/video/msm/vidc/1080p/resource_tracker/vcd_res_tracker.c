@@ -621,7 +621,7 @@ u32 res_trk_get_firmware_addr(struct ddl_buf_addr *firm_addr)
 	memcpy(firm_addr, &resource_context.firmware_addr,
 		sizeof(struct ddl_buf_addr));
 	return 0;
-}
+	}
 
 int res_trk_get_mem_type(void)
 {
@@ -647,7 +647,7 @@ int res_trk_get_mem_type(void)
 			mem_type = (ION_HEAP(mem_type) | ION_SECURE);
 		else
 			mem_type = ION_HEAP(mem_type);
-	}
+}
 	return mem_type;
 }
 

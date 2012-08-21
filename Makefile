@@ -639,6 +639,12 @@ KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := $(call ar-option,D)
 
+#LGE_CHANGE_S, [Data_Patch_GB_US_47] [d3sw1-data@lge.com], 2012.01.15 <TCP window size bug>
+ifeq ($(TARGET_PRODUCT),m4_trf_us)
+KBUILD_CFLAGS += -DLGE_TRACFONE
+endif
+#LGE_CHANGE_E, [Data_Patch_GB_US_47] [d3sw1-data@lge.com], 2012.01.15 <TCP window size bug>
+	
 # check for 'asm goto'
 ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC)), y)
 	KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO

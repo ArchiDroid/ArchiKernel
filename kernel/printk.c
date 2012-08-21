@@ -926,7 +926,11 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 
 
 	p = printk_buf;
-
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-20
+#ifdef CONFIG_LGE_HANDLE_PANIC
+	store_crash_log(p);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-20
 	/* Read log level and handle special printk prefix */
 	plen = log_prefix(p, &current_log_level, &special);
 	if (plen) {

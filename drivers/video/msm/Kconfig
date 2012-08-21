@@ -62,6 +62,16 @@ config FB_MSM_MDP303
 	  required for msm7x2xA platform.
 	  Say Y here if this is msm7x2xA variant platform.
 
+config FB_MSM_MDP_LUT_ENABLE
+	depends on FB_MSM_MDP30
+	depends on FB_MSM_MDP303
+	bool "MDP HW ver3.03"
+	default n
+	---help---
+	  Support for MSM MDP LUT enable. This is Look Up Table to support the features
+	  required for msm7x2xA platform.
+	  Say Y here if this is msm7x2xA variant platform.
+
 config FB_MSM_MDP31
 	select FB_MSM_LCDC_HW
 	bool "MDP HW ver3.1"
@@ -156,6 +166,18 @@ config FB_MSM_MIPI_DSI_RENESAS
 	select FB_MSM_MIPI_DSI
 	default n
 
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+config FB_MSM_MIPI_DSI_R61529
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
+
+config FB_MSM_MIPI_DSI_ILI9486
+        bool
+        select FB_MSM_MIPI_DSI
+        default n
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
 config FB_MSM_MIPI_DSI_TRULY
 	bool
 	select FB_MSM_MIPI_DSI
@@ -169,6 +191,18 @@ config FB_MSM_MIPI_DSI_NOVATEK
         bool
         select FB_MSM_MIPI_DSI
         default n
+
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+config FB_MSM_MIPI_DSI_LG4572B
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
+	
+config FB_MSM_MIPI_DSI_LG4573B
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 config FB_MSM_MIPI_DSI_TC358764_DSI2LVDS
 	bool
@@ -267,6 +301,28 @@ config FB_MSM_MIPI_NOVATEK_CMD_QHD_PT
 	select FB_MSM_MIPI_DSI_NOVATEK
 	default n
 
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+config FB_MSM_MIPI_R61529_VIDEO_HVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_R61529
+	default n
+
+config FB_MSM_MIPI_R61529_CMD_HVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_R61529
+	default n
+
+config FB_MSM_MIPI_ILI9486_VIDEO_HVGA_PT
+        bool
+        select FB_MSM_MIPI_DSI_ILI9486
+        default n
+
+config FB_MSM_MIPI_ILI9486_CMD_HVGA_PT
+        bool
+        select FB_MSM_MIPI_DSI_ILI9486
+        default n
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
 config FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT
 	bool
 	select FB_MSM_MIPI_DSI_RENESAS
@@ -294,6 +350,18 @@ config FB_MSM_MIPI_SIMULATOR_VIDEO
 	bool
 	select FB_MSM_MIPI_DSI_SIMULATOR
 	default n
+
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+config FB_MSM_MIPI_LG4572B_CMD_WVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_LG4572B
+	default n
+
+config FB_MSM_MIPI_LG4573B_VIDEO_WVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_LG4573B
+	default n
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 config FB_MSM_OVERLAY0_WRITEBACK
 	depends on FB_MSM_OVERLAY
@@ -402,6 +470,12 @@ config FB_MSM_MIPI_PANEL_DETECT
 	select FB_MSM_MIPI_TOSHIBA_VIDEO_WVGA_PT
 	select FB_MSM_MIPI_TOSHIBA_VIDEO_WSVGA_PT
 	select FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+	select FB_MSM_MIPI_R61529_VIDEO_HVGA_PT
+	select FB_MSM_MIPI_R61529_CMD_HVGA_PT
+        select FB_MSM_MIPI_ILI9486_VIDEO_HVGA_PT
+        select FB_MSM_MIPI_ILI9486_CMD_HVGA_PT
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 	select FB_MSM_MIPI_RENESAS_CMD_FWVGA_PT
 	select FB_MSM_MIPI_TRULY_VIDEO_WVGA_PT
 	select FB_MSM_MIPI_NOVATEK_VIDEO_QHD_PT
@@ -491,6 +565,24 @@ config FB_MSM_MIPI_NOVATEK_CMD_QHD_PT_PANEL
 	bool "MIPI NOVATEK CMD QHD PT Panel"
 	select FB_MSM_MIPI_NOVATEK_CMD_QHD_PT
 
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+config FB_MSM_MIPI_R61529_VIDEO_HVGA_PT_PANEL
+	bool "MIPI R61529 Video HVGA PT Panel"
+	select FB_MSM_MIPI_R61529_VIDEO_HVGA_PT
+
+config FB_MSM_MIPI_R61529_CMD_HVGA_PT_PANEL
+	bool "MIPI R61529 Video CMD PT Panel"
+	select FB_MSM_MIPI_R61529_CMD_HVGA_PT
+
+config FB_MSM_MIPI_ILI9486_VIDEO_HVGA_PT_PANEL
+        bool "MIPI ILI9486 Video HVGA PT Panel"
+        select FB_MSM_MIPI_ILI9486_VIDEO_HVGA_PT
+
+config FB_MSM_MIPI_ILI9486_CMD_HVGA_PT_PANEL
+        bool "MIPI ILI9486 Video CMD PT Panel"
+        select FB_MSM_MIPI_ILI9486_CMD_HVGA_PT
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
 config FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT_PANEL
 	bool "MIPI Renesas Video FWVGA PT Panel"
 	select FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT
@@ -510,6 +602,17 @@ config FB_MSM_MIPI_TRULY_VIDEO_WVGA_PT_PANEL
 config FB_MSM_MIPI_SIMULATOR_VIDEO_PANEL
 	bool "MIPI Simulator Video Panel"
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
+
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+config FB_MSM_MIPI_LG4572B_CMD_WVGA_PT_PANEL
+	bool "MIPI LG4572B Command WVGA PT Panel"
+	select FB_MSM_MIPI_LG4572B_CMD_WVGA_PT
+	
+config FB_MSM_MIPI_LG4573B_VIDEO_WVGA_PT_PANEL
+	bool "MIPI LG4573B Command WVGA PT Panel"
+	select FB_MSM_MIPI_LG4573B_VIDEO_WVGA_PT
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+	
 
 config FB_MSM_EBI2_TMD_QVGA_EPSON_QCIF
 	bool "EBI2 TMD QVGA Epson QCIF Dual Panel"

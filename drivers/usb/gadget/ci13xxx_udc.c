@@ -878,7 +878,7 @@ static void dbg_print(u8 addr, const char *name, int status, const char *extra)
 	stamp = stamp * 1000000 + tval.tv_usec;
 
 	scnprintf(dbg_data.buf[dbg_data.idx], DBG_DATA_MSG,
-		  "%04X\t» %02X %-7.7s %4i «\t%s\n",
+		  "%04X\t?%02X %-7.7s %4i ?t%s\n",
 		  stamp, addr, name, status, extra);
 
 	dbg_inc(&dbg_data.idx);
@@ -886,7 +886,7 @@ static void dbg_print(u8 addr, const char *name, int status, const char *extra)
 	write_unlock_irqrestore(&dbg_data.lck, flags);
 
 	if (dbg_data.tty != 0)
-		pr_notice("%04X\t» %02X %-7.7s %4i «\t%s\n",
+		pr_notice("%04X\t?%02X %-7.7s %4i ?t%s\n",
 			  stamp, addr, name, status, extra);
 }
 
@@ -1046,15 +1046,15 @@ static ssize_t show_inters(struct device *dev, struct device_attribute *attr,
 
 	n += scnprintf(buf + n, PAGE_SIZE - n, "*test = %d\n",
 		       isr_statistics.test);
-	n += scnprintf(buf + n, PAGE_SIZE - n, "» ui  = %d\n",
+	n += scnprintf(buf + n, PAGE_SIZE - n, "?ui  = %d\n",
 		       isr_statistics.ui);
-	n += scnprintf(buf + n, PAGE_SIZE - n, "» uei = %d\n",
+	n += scnprintf(buf + n, PAGE_SIZE - n, "?uei = %d\n",
 		       isr_statistics.uei);
-	n += scnprintf(buf + n, PAGE_SIZE - n, "» pci = %d\n",
+	n += scnprintf(buf + n, PAGE_SIZE - n, "?pci = %d\n",
 		       isr_statistics.pci);
-	n += scnprintf(buf + n, PAGE_SIZE - n, "» uri = %d\n",
+	n += scnprintf(buf + n, PAGE_SIZE - n, "?uri = %d\n",
 		       isr_statistics.uri);
-	n += scnprintf(buf + n, PAGE_SIZE - n, "» sli = %d\n",
+	n += scnprintf(buf + n, PAGE_SIZE - n, "?sli = %d\n",
 		       isr_statistics.sli);
 	n += scnprintf(buf + n, PAGE_SIZE - n, "*none = %d\n",
 		       isr_statistics.none);

@@ -291,5 +291,16 @@ int pmic_vib_mot_set_mode(enum pm_vib_mot_mode mode);
 int pmic_vib_mot_set_polarity(enum pm_vib_mot_pol pol);
 int pmic_vid_en(uint enable);
 int pmic_vid_load_detect_en(uint enable);
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+int pmic_miniabb_ldo_control(uint16_t ldo_num, uint16_t enable);
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
+ * When user enter the streaming service, change the charging current
+ */
+int pmic_miniabb_charging_current_change(uint16_t charging_current);
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/
+
 
 #endif

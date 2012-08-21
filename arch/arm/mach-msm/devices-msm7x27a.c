@@ -17,6 +17,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/init.h>
 #include <mach/irqs.h>
+#include <linux/notifier.h>
 #include <mach/msm_iomap.h>
 #include <mach/board.h>
 #include <mach/dma.h>
@@ -24,6 +25,7 @@
 #include <asm/mach/flash.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/mmc.h>
+#include <asm/cacheflush.h>
 #include <mach/rpc_hsusb.h>
 #include <mach/socinfo.h>
 
@@ -624,11 +626,21 @@ struct platform_device msm_kgsl_3d0 = {
 void __init msm7x25a_kgsl_3d0_init(void)
 {
 	if (cpu_is_msm7x25a() || cpu_is_msm7x25aa()) {
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-25 :: for performance upgrade
+#if 0 /*original*/
 		kgsl_3d0_pdata.num_levels = 2;
 		kgsl_3d0_pdata.pwrlevel[0].gpu_freq = 133330000;
 		kgsl_3d0_pdata.pwrlevel[0].bus_freq = 160000000;
 		kgsl_3d0_pdata.pwrlevel[1].gpu_freq = 96000000;
 		kgsl_3d0_pdata.pwrlevel[1].bus_freq = 0;
+#else
+		kgsl_3d0_pdata.num_levels = 2;
+		kgsl_3d0_pdata.pwrlevel[0].gpu_freq = 220000000;
+		kgsl_3d0_pdata.pwrlevel[0].bus_freq = 200000000;
+		kgsl_3d0_pdata.pwrlevel[1].gpu_freq = 133330000;
+		kgsl_3d0_pdata.pwrlevel[1].bus_freq = 0;
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-25
 	}
 }
 
@@ -686,6 +698,12 @@ struct platform_device led_pdev = {
 	},
 };
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+ /* below structure doesn't defined in kernel2.6.38.
+ * These are defined board-[project]-sound.c file
+ * So, Temporally blocked
+ */
+#if 0
 struct platform_device asoc_msm_pcm = {
 	.name   = "msm-dsp-audio",
 	.id     = 0,
@@ -700,6 +718,8 @@ struct platform_device asoc_msm_dai1 = {
 	.name   = "msm-cpu-dai",
 	.id     = 0,
 };
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 static struct resource gpio_resources[] = {
 	{
@@ -726,6 +746,26 @@ static int msm7627a_init_gpio(void)
 }
 postcore_initcall(msm7627a_init_gpio);
 
+static int msm7627a_panic_handler(struct notifier_block *this,
+               unsigned long event, void *ptr)
+{               
+       flush_cache_all();               
+       outer_flush_all();
+       return NOTIFY_DONE;
+}       
+       
+static struct notifier_block panic_handler = {
+       .notifier_call = msm7627a_panic_handler,
+};
+
+static int __init panic_register(void)
+{
+       atomic_notifier_chain_register(&panic_notifier_list,	
+                       &panic_handler);
+       return 0;
+}                       
+module_init(panic_register);       	       
+                                 
 int __init msm7x2x_misc_init(void)
 {
 	msm_clock_init(&msm7x27a_clock_init_data);

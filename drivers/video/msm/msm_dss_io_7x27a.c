@@ -31,6 +31,146 @@ static struct clk *ahb_m_clk;
 static struct clk *ahb_s_clk;
 static struct clk *ebi1_dsi_clk;
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-02-18
+// sd card file end point must finalize necessory "$"
+#define MIPI_TIMING_TUNNING_SET		0 // 0 : normal version, 1 : timing_tuning version
+
+#if MIPI_TIMING_TUNNING_SET
+#define MIPI_TIMING_TUNNING_SET_LOG  1
+#define MIPI_TIMING_TUNNING_SET_FROM_SDCARD  1 // 0 : /data/ili9486_timing  1: /sdcard/external_sd/ili9486_timing , /sdcard2/
+
+struct mipi_register_value_pair_timing {	
+	uint32_t register_value[30];	
+};
+
+#define EXT_BUF_SIZE		50
+static struct mipi_register_value_pair_timing ext_reg_settings[EXT_BUF_SIZE];
+static int init_non_booting = 0;
+static int size_length = 0;
+
+static struct mipi_dsi_phy_ctrl dsi_cmd_mode_phy_db2 = {
+	/* DSI_BIT_CLK at 293MHz, 1 lane, RGB888 */
+	{0x00, 0x00, 0x00, 0x00},	/* regulator */
+	/* timing   */
+	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00},
+	/* phy ctrl */
+	{0x00, 0x00, 0x00, 0x00},
+	/* strength */
+	{0x00, 0x00, 0x00, 0x00},
+	/* pll control */
+	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/* set to 1 lane */
+	0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+
+#define LOOP_INTERVAL		100
+#define IS_NUM(c)			((0x30<=c)&&(c<=0x39))
+#define IS_CHAR_C(c)		((0x41<=c)&&(c<=0x46))						// Capital Letter
+#define IS_CHAR_S(c)		((0x61<=c)&&(c<=0x66))						// Small Letter
+#define IS_VALID(c)			(IS_NUM(c)||IS_CHAR_C(c)||IS_CHAR_S(c))		// NUM or CHAR
+#define TO_BE_NUM_OFFSET(c)	(IS_NUM(c) ? 0x30 : (IS_CHAR_C(c) ? 0x37 : 0x57))	
+#define TO_BE_READ_SIZE		 EXT_BUF_SIZE*40							// 8pages (4000x8)
+
+static char *file_buf_alloc_pages=NULL;
+
+static long mipi_timing_read_ext_reg(char *filename)
+{	
+	int value=0, read_idx=0, i=0, j=0, k=0;
+	struct file *phMscd_Filp = NULL;
+	mm_segment_t old_fs=get_fs();
+	phMscd_Filp = filp_open(filename, O_RDONLY |O_LARGEFILE, 0);
+
+	printk("%s : enter this function!\n", __func__);
+
+	if (IS_ERR(phMscd_Filp)) {
+		printk("%s : open error!\n", __func__);
+		return 0;
+	}
+
+	file_buf_alloc_pages = kmalloc(TO_BE_READ_SIZE, GFP_KERNEL);	
+	
+	if(!file_buf_alloc_pages) {
+		printk("%s : mem alloc error!\n", __func__);
+		return 0;
+	}
+
+	set_fs(get_ds());
+	phMscd_Filp->f_op->read(phMscd_Filp, file_buf_alloc_pages, TO_BE_READ_SIZE-1, &phMscd_Filp->f_pos);
+	set_fs(old_fs);
+
+	do
+	{		
+		if(file_buf_alloc_pages[read_idx]=='{'){
+
+			for(j=0; j < LOOP_INTERVAL; j++){
+				if (file_buf_alloc_pages[read_idx]=='0' && file_buf_alloc_pages[read_idx+1]=='x'){
+					read_idx += 2;
+					
+					value = (file_buf_alloc_pages[read_idx]-TO_BE_NUM_OFFSET(file_buf_alloc_pages[read_idx]))*0x10 \
+								+ (file_buf_alloc_pages[read_idx+1]-TO_BE_NUM_OFFSET(file_buf_alloc_pages[read_idx+1]));
+
+					read_idx += 2;
+					ext_reg_settings[i].register_value[k++] = value;
+					
+#if MIPI_TIMING_TUNNING_SET_LOG
+				printk("%s : register_value = i = %d, k = %d, %x\n", __func__, i, k, value);
+#endif
+					}	
+					else{
+						if(file_buf_alloc_pages[read_idx]=='}'){
+							read_idx -= 2;
+							break;
+						}
+						
+						read_idx += 1;
+					}
+				}	
+				k = 0;
+				read_idx += 1;
+				i++;
+		}		
+		else
+		{
+			++read_idx;
+		}
+	}while(file_buf_alloc_pages[read_idx] != '$');
+
+	kfree(file_buf_alloc_pages);
+	file_buf_alloc_pages=NULL;
+	filp_close(phMscd_Filp,NULL);
+
+	return i;
+}
+
+int mipi_timing_reg_init_ext(void)
+{	
+	uint16_t length = 0;
+
+	printk("%s\n", __func__);
+#if MIPI_TIMING_TUNNING_SET_FROM_SDCARD
+	length = mipi_timing_read_ext_reg("/sdcard/external_sd/ili9486_timing");
+#else
+	length = mipi_timing_read_ext_reg("/data/ili9486_timing");
+#endif	
+	printk("%s : length = %d!\n", __func__, length);	
+
+	if (!length)
+		return 0;
+	else
+		return length;
+}
+
+void mipi_timing_reg_init(void)
+{
+	size_length = mipi_timing_reg_init_ext();
+}
+
+EXPORT_SYMBOL(mipi_timing_reg_init);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-02-18
+
 void mipi_dsi_clk_init(struct device *dev)
 {
 	dsi_esc_clk = clk_get(NULL, "dsi_esc_clk");
@@ -248,7 +388,43 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info,
 	MIPI_OUTP(MIPI_DSI_BASE + 0x2dc, 0x0100);/* regulator_ctrl_4 */
 #endif
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-02-18
+#if MIPI_TIMING_TUNNING_SET	
+	pd = NULL;
+	if(init_non_booting == 1){
+		init_non_booting = 2;
+		for (i = 0; i < 4; i++) {
+			dsi_cmd_mode_phy_db2.regulator[i] = ext_reg_settings[0].register_value[i];
+		}
+		for (i = 0; i < 11; i++) {
+			dsi_cmd_mode_phy_db2.timing[i] = ext_reg_settings[1].register_value[i];
+		}
+		for (i = 0; i < 4; i++) {
+			dsi_cmd_mode_phy_db2.ctrl[i] = ext_reg_settings[2].register_value[i];
+		}
+		for (i = 0; i < 4; i++) {
+			dsi_cmd_mode_phy_db2.strength[i] = ext_reg_settings[3].register_value[i];
+		}
+		for (i = 0; i < 21; i++) {
+			dsi_cmd_mode_phy_db2.pll[i] = ext_reg_settings[4].register_value[i];
+		}		
+		pd = &dsi_cmd_mode_phy_db2;
+	}
+	else if(init_non_booting == 0){
+		init_non_booting = 1;
 	pd = (panel_info->mipi).dsi_phy_db;
+	}
+	else if(init_non_booting == 2){
+		pd = &dsi_cmd_mode_phy_db2;
+	}
+
+#if MIPI_TIMING_TUNNING_SET_LOG
+	printk("%s : init_non_booting = %d\n", __func__, init_non_booting);
+#endif
+#else
+	 pd = (panel_info->mipi).dsi_phy_db;
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-02-18
 
 	off = 0x02cc;	/* regulator ctrl 0 */
 	for (i = 0; i < 4; i++) {

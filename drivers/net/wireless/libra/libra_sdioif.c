@@ -17,6 +17,10 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
+/* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [START] */
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+/* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [END] */
 
 /* Libra SDIO function device */
 static struct sdio_func *libra_sdio_func;
@@ -28,6 +32,118 @@ static unsigned short  libra_sdio_card_id;
 
 static suspend_handler_t *libra_suspend_hldr;
 static resume_handler_t *libra_resume_hldr;
+static notify_card_removal_t *libra_notify_card_removal_hdlr;
+
+// 2012.03.13 real-wifi@lge.com[wo0gi] QCT patch : CMD52 timeout patch [START]
+int libra_enable_sdio_irq_in_chip(struct sdio_func *func, u8 enable)
+{
+	unsigned char reg = 0;
+	int err = 0;
+
+	sdio_claim_host(func);
+
+	/* Read the value into reg */
+	libra_sdiocmd52(func, SDIO_CCCR_IENx, &reg, 0, &err);
+	if (err)
+		printk(KERN_ERR "%s: Could not read  SDIO_CCCR_IENx register "
+				"err=%d\n",__func__, err);
+
+	if (libra_mmc_host) {
+		if (enable) {
+			reg |= 1 << func->num;
+			reg |= 1;
+		} else {
+			reg &= ~(1 << func->num);
+		}
+		libra_sdiocmd52(func, SDIO_CCCR_IENx, &reg, 1, &err);
+		if (err)
+			printk(KERN_ERR "%s: Could not enable/disable irq "
+					 "err=%d\n",__func__, err);
+	 }
+	sdio_release_host(func);        
+
+	return err;
+}
+EXPORT_SYMBOL(libra_enable_sdio_irq_in_chip);
+// 2012.03.13 real-wifi@lge.com[wo0gi] QCT patch : CMD52 timeout patch [END]
+
+/* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [START] */
+static int libra_readwrite_file(const char *filename, char *rbuf,
+		const char *wbuf, size_t length)
+{
+	int ret = 0;
+	struct file *filp = (struct file *)-ENOENT;
+	mm_segment_t oldfs;
+	oldfs = get_fs();
+	set_fs(KERNEL_DS);
+	do {
+		int mode = (wbuf) ? O_RDWR : O_RDONLY;
+		filp = filp_open(filename, mode, S_IRUSR);
+		if (IS_ERR(filp) || !filp->f_op) {
+			printk(KERN_ERR "%s: file %s filp_open error\n",
+					__func__, filename);
+			ret = -ENOENT;
+			goto file_open_fail;
+		}
+
+		if (length == 0) {
+			/* Read the length of the file only */
+			struct inode    *inode;
+
+			inode = GET_INODE_FROM_FILEP(filp);
+			if (!inode) {
+				printk(KERN_ERR "%s: Get inode from %s failed\n",
+						__func__, filename);
+				ret = -ENOENT;
+				goto file_rw_fail;
+			}
+			ret = i_size_read(inode->i_mapping->host);
+			goto file_rw_comp;
+		}
+
+		if (wbuf) {
+			ret = filp->f_op->write(filp, wbuf, length,
+					&filp->f_pos);
+			if (ret  < 0) {
+				printk(KERN_ERR "%s: Write %u bytes to file %s"
+						" error %d\n", __func__, length,
+						filename, ret);
+				goto file_rw_fail;
+			}
+		} else {
+			ret = filp->f_op->read(filp, rbuf, length,
+					&filp->f_pos);
+			if (ret < 0) {
+				printk(KERN_ERR "%s: Read %u bytes from file %s"
+						" error %d\n", __func__,
+						length, filename, ret);
+				goto file_rw_fail;
+			}
+		}
+	} while (0);
+
+
+file_rw_comp:
+file_rw_fail:
+	filp_close(filp, NULL);
+file_open_fail:
+	set_fs(oldfs);
+
+	return ret;
+}
+
+void enable_mmchost_detect_change(const char *mmc_msm_dev, int enable)
+{
+	char buf[3];
+	char filename[100] = "/sys/devices/platform/";
+	int length;
+	strncat(filename, mmc_msm_dev, strnlen(mmc_msm_dev, 20));
+	strncat(filename, "/polling", 8);
+	length = snprintf(buf, sizeof(buf), "%d\n", enable ? 1 : 0);
+	libra_readwrite_file(filename, NULL, buf, length);
+}
+EXPORT_SYMBOL(enable_mmchost_detect_change);
+/* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [END] */
 
 /**
  * libra_sdio_configure() - Function to configure the SDIO device param
@@ -88,6 +204,10 @@ int libra_sdio_configure(sdio_irq_handler_t libra_sdio_rxhandler,
 		sdio_release_host(func);
 		goto cfg_error;
 	}
+
+// 2012.03.13 real-wifi@lge.com[wo0gi] QCT patch : CMD52 timeout patch [START]
+	libra_enable_sdio_irq_in_chip(func, 0);
+// 2012.03.13 real-wifi@lge.com[wo0gi] QCT patch : CMD52 timeout patch [END]
 
 	sdio_release_host(func);
 
@@ -364,6 +484,8 @@ static int libra_sdio_probe(struct sdio_func *func,
 
 static void libra_sdio_remove(struct sdio_func *func)
 {
+	if (libra_notify_card_removal_hdlr)
+		libra_notify_card_removal_hdlr();
 	libra_sdio_func = NULL;
 
 	printk(KERN_INFO "%s : Module removed.\n", __func__);
@@ -416,6 +538,14 @@ static int libra_sdio_resume(struct device *dev)
 #define libra_sdio_resume 0
 #endif
 
+int libra_sdio_notify_card_removal(
+		notify_card_removal_t *libra_sdio_notify_card_removal_hdlr)
+{
+	libra_notify_card_removal_hdlr = libra_sdio_notify_card_removal_hdlr;
+	return 0;
+}
+EXPORT_SYMBOL(libra_sdio_notify_card_removal);
+
 static struct sdio_device_id libra_sdioid[] = {
     {.class = 0, .vendor = LIBRA_MAN_ID,  .device = LIBRA_REV_1_0_CARD_ID},
     {.class = 0, .vendor = VOLANS_MAN_ID, .device = VOLANS_REV_2_0_CARD_ID},
@@ -442,6 +572,7 @@ static int __init libra_sdioif_init(void)
 	libra_mmc_host_index = -1;
 	libra_suspend_hldr = NULL;
 	libra_resume_hldr = NULL;
+	libra_notify_card_removal_hdlr = NULL;
 
 	sdio_register_driver(&libra_sdiofn_driver);
 

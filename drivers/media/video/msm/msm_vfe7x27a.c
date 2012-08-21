@@ -715,6 +715,7 @@ config_done:
 
 config_failure:
 	kfree(scfg);
+	kfree(sfcfg);//lge add
 	kfree(axio);
 	kfree(vfecmd);
 	return rc;

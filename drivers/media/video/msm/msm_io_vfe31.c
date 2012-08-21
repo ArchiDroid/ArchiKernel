@@ -704,7 +704,7 @@ int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 	uint32_t val = 0;
 	int i;
 
-	CDBG("msm_camio_csi_config\n");
+	CDBG("msm_camio_csi_config \n");
 
 	/* SOT_ECC_EN enable error correction for SYNC (data-lane) */
 	msm_io_w(0x4, csibase + MIPI_PHY_CONTROL);

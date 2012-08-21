@@ -419,6 +419,13 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	if ((cmd == LINUX_REBOOT_CMD_POWER_OFF) && !pm_power_off)
 		cmd = LINUX_REBOOT_CMD_HALT;
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-20
+#ifdef CONFIG_MACH_LGE
+	printk(KERN_INFO"%s: sys_reboot is called from android\n",__func__);
+	printk(KERN_INFO"%s: reboot cmd is 0x%x\n", __func__, cmd);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-20
+
 	mutex_lock(&reboot_mutex);
 	switch (cmd) {
 	case LINUX_REBOOT_CMD_RESTART:

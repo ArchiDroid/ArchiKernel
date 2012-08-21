@@ -12,4 +12,13 @@ config SWITCH_GPIO
 	help
 	  Say Y here to enable GPIO based switch support.
 
+# LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+# headset detect switch
+config LGE_SWITCH_GPIO
+	bool "LGE GPIO Swith support"
+	depends on GENERIC_GPIO
+	help
+	  Say Y here to enable LGE GPIO based switch support.
+# LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
 endif # SWITCH

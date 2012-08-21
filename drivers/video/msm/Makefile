@@ -73,8 +73,13 @@ obj-$(CONFIG_FB_MSM_MIPI_DSI_TOSHIBA) += mipi_toshiba.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_NOVATEK) += mipi_novatek.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_RENESAS) += mipi_renesas.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TRULY) += mipi_truly.o
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_FB_MSM_MIPI_DSI_R61529) += mipi_r61529.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_ILI9486) += mipi_ili9486.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_LG4572B) += mipi_lg4572b.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_LG4573B) += mipi_lg4573b.o
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 obj-$(CONFIG_FB_MSM_MIPI_DSI_SIMULATOR) += mipi_simulator.o
-
 # MIPI Bridge
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TC358764_DSI2LVDS) += mipi_tc358764_dsi2lvds.o
 
@@ -113,6 +118,9 @@ ifeq ($(CONFIG_FB_MSM_MIPI_PANEL_DETECT),y)
 obj-y += mipi_toshiba_video_wvga_pt.o mipi_toshiba_video_wsvga_pt.o
 obj-y += mipi_novatek_video_qhd_pt.o mipi_novatek_cmd_qhd_pt.o
 obj-y += mipi_renesas_video_fwvga_pt.o mipi_renesas_cmd_fwvga_pt.o
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-y += mipi_r61529_video_hvga_pt.o mipi_r61529_cmd_hvga_pt.o
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 obj-y += mipi_chimei_wxga_pt.o
 obj-y += mipi_truly_video_wvga_pt.o
 else
@@ -123,8 +131,18 @@ obj-$(CONFIG_FB_MSM_MIPI_NOVATEK_CMD_QHD_PT) += mipi_novatek_cmd_qhd_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT) += mipi_renesas_video_fwvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_RENESAS_CMD_FWVGA_PT) += mipi_renesas_cmd_fwvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_TRULY_VIDEO_WVGA_PT) += mipi_truly_video_wvga_pt.o
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_FB_MSM_MIPI_R61529_VIDEO_HVGA_PT) += mipi_r61529_video_hvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_R61529_CMD_HVGA_PT) += mipi_r61529_cmd_hvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_ILI9486_VIDEO_HVGA_PT) += mipi_ili9486_video_hvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_ILI9486_CMD_HVGA_PT) += mipi_ili9486_cmd_hvga_pt.o
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 obj-$(CONFIG_FB_MSM_MIPI_SIMULATOR_VIDEO) += mipi_simulator_video.o
 obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WXGA) += mipi_chimei_wxga_pt.o
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_FB_MSM_MIPI_LG4572B_CMD_WVGA_PT) += mipi_lg4572b_cmd_wvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_LG4573B_VIDEO_WVGA_PT) += mipi_lg4573b_video_wvga_pt.o
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 endif
 
 obj-$(CONFIG_FB_MSM_LCDC_PANEL) += lcdc_panel.o

@@ -24,6 +24,12 @@
 #include "sd.h"
 #include "sd_ops.h"
 
+/* LGE_CHANGE_S : SDcard Suspend resume timeout error
+ * 		 2012-03-16, jyothishre.nk@lge.com
+ */
+#include "../host/msm_sdcc.h"
+/*LGE_CHANGE_E: SDcard Suspend resume timeout error*/
+
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
 	0,		0,		0,		0
@@ -396,6 +402,13 @@ int mmc_sd_switch_hs(struct mmc_card *card)
 		printk(KERN_WARNING "%s: Problem switching card "
 			"into high-speed mode!\n",
 			mmc_hostname(card->host));
+/*LGE_CHANGE_S: If it is SD card error in switching to highspeed send CMD0
+ 		jyothishre.nk@lge.com 2012-03-21*/
+		if(mmc_card_sd(card)){
+			printk(KERN_INFO "%s:SD card has to go to Idle state\n", mmc_hostname(card->host));
+			mmc_go_idle(card->host);
+		}
+/*LGE_CHANGE_E*/
 		err = 0;
 	} else {
 		err = 1;
@@ -1123,8 +1136,27 @@ static int mmc_sd_suspend(struct mmc_host *host)
 static int mmc_sd_resume(struct mmc_host *host)
 {
 	int err;
+/* LGE_CHANGE_S : SDcard Suspend resume timeout error
+ *               2012-03-16, jyothishre.nk@lge.com
+ */
+	struct msmsdcc_host *msm_host = mmc_priv(host);
+#ifdef CONFIG_MMC_SUSPEND_RESUME_ERR_HANDLER
+	int err_retries=1;
+#endif
+/*LGE_CHANGE_E:SDcard Suspend resume timeout error*/
+
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
-	int retries;
+	/* LGE_CHANGE_S : sd card
+	 * 2012-01-16, bohyun.jung@lge.com,
+	 * there is problem that Unnecesary sd card detected as new during suspend/resume due to CRC error. 
+	 */
+
+#if 1
+	int retries = 5;
+#else
+	int retries = 100;	// 5;
+#endif
+	/* LGE_CHANGE_S : sd card */
 #endif
 
 	BUG_ON(!host);
@@ -1136,6 +1168,17 @@ static int mmc_sd_resume(struct mmc_host *host)
 	while (retries) {
 		err = mmc_sd_init_card(host, host->ocr, host->card);
 
+#ifdef CONFIG_MACH_LGE
+		/* LGE_CHANGE
+		* Skip below When ENOMEDIUM
+  	    * 2012-01-14, warkap.seo@lge.com from G1TDR
+		*/
+		if (err == ENOMEDIUM) {
+			printk(KERN_INFO "[LGE][MMC][%-18s( )] error:ENOMEDIUM\n", __func__);
+			break;
+		}
+#endif
+
 		if (err) {
 			printk(KERN_ERR "%s: Re-init card rc = %d (retries = %d)\n",
 			       mmc_hostname(host), err, retries);
@@ -1143,11 +1186,33 @@ static int mmc_sd_resume(struct mmc_host *host)
 			retries--;
 			continue;
 		}
+		printk(KERN_INFO "!!!!!!Host Information host->eject=%d host->oldstat=%d\n", msm_host->eject, msm_host->oldstat);
 		break;
 	}
 #else
 	err = mmc_sd_init_card(host, host->ocr, host->card);
 #endif
+
+/* LGE_CHANGE_S : SDcard Suspend resume timeout error
+ *               2012-03-16, jyothishre.nk@lge.com
+ *If err=-110 timeout error and again try to read the Slot status
+ *If card is still present continue instead of removing card and detecting again. 
+ */
+#ifdef CONFIG_MMC_SUSPEND_RESUME_ERR_HANDLER
+	if(err == -ETIMEDOUT && err_retries ==1 && !(strcmp(mmc_hostname(host), "mmc1"))){
+		printk(KERN_INFO "SD card Data timeout again check Slot status\n");
+		if(msm_host->plat->status_irq){
+			printk(KERN_INFO "status irq is checked\n");
+			if(msm_host->oldstat == 1)
+				msm_host->oldstat=0;
+			msmsdcc_check_status((unsigned long)msm_host);
+			printk(KERN_INFO "********Host Information host->eject=%d host->oldstat=%d\n", msm_host->eject, msm_host->oldstat);
+		}
+		err_retries=0;
+		err=0;
+	}
+#endif
+/*LGE_CHANGE_E:SDcard Suspend resume timeout error*/
 	mmc_release_host(host);
 
 	return err;

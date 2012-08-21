@@ -885,6 +885,26 @@ static void __remove_hrtimer(struct hrtimer *timer,
 			     struct hrtimer_clock_base *base,
 			     unsigned long newstate, int reprogram)
 {
+// [LGE_CHANGE_S] seyun.kim : 2012-02-21 : sd card resume suspend problem 
+#if 1
+
+	if (!(timer->state & HRTIMER_STATE_ENQUEUED))
+		goto out;
+	if (&timer->node == timerqueue_getnext(&base->active)) {
+#ifdef CONFIG_HIGH_RES_TIMERS
+		/* Reprogram the clock event device. if enabled */
+		if (reprogram && hrtimer_hres_active()) {
+			ktime_t expires;
+
+			expires = ktime_sub(hrtimer_get_expires(timer),
+						base->offset);
+			if (base->cpu_base->expires_next.tv64 == expires.tv64)
+				hrtimer_force_reprogram(base->cpu_base, 1);
+		}
+#endif
+	}
+	timerqueue_del(&base->active, &timer->node);	
+#else
 	struct timerqueue_node *next_timer;
 	if (!(timer->state & HRTIMER_STATE_ENQUEUED))
 		goto out;
@@ -904,6 +924,8 @@ static void __remove_hrtimer(struct hrtimer *timer,
 		}
 #endif
 	}
+#endif	
+// [LGE_CHANGE_E] seyun.kim : 2012-02-21 : sd card resume suspend problem 
 	if (!timerqueue_getnext(&base->active))
 		base->cpu_base->active_bases &= ~(1 << base->index);
 out:

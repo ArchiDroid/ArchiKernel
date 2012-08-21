@@ -310,6 +310,15 @@ int adreno_ringbuffer_start(struct adreno_ringbuffer *rb, unsigned int init_ram)
 	adreno_regwrite(device, REG_SCRATCH_UMSK,
 			     GSL_RB_MEMPTRS_SCRATCH_MASK);
 
+        /* LGE_CHANGE_S : QCT Patch, Fix the Reset on Video Recording
+         * 2012-03-22, hyukmin7.kwon@lge.com
+         * QCT Adreno GPU Hang Patch Side Effect. This patch contains to fix it.
+         */
+	kgsl_sharedmem_writel(&device->memstore,
+                        KGSL_DEVICE_MEMSTORE_OFFSET(eoptimestamp),
+                        rb->timestamp);
+        /* LGE_CHANGE_E : QCT Patch, Fix the Reset on Video Recording */
+
 	/* load the CP ucode */
 
 	status = adreno_ringbuffer_load_pm4_ucode(device);
@@ -576,7 +585,13 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 			drawctxt);
 		return -EDEADLK;
 	}
-	link = kzalloc(sizeof(unsigned int) * numibs * 3, GFP_KERNEL);
+
+	/* LGE CHANGES: QCT PATCH for Adreno related kernel panic
+	 * 				Keep this until QCT provide official patch.
+	 *				bohyun.jung@lge.com */
+	link = kzalloc(sizeof(unsigned int) * (numibs * 3 + 2), GFP_KERNEL); 
+	//link = kzalloc(sizeof(unsigned int) * numibs * 3, GFP_KERNEL);
+
 	cmds = link;
 	if (!link) {
 		KGSL_MEM_ERR(device, "Failed to allocate memory for for command"
@@ -597,6 +612,12 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 					device->id));
 
 	adreno_drawctxt_switch(adreno_dev, drawctxt, flags);
+
+	/* LGE CHANGES: QCT PATCH for Adreno related kernel panic
+	 * 				Keep this until QCT provide official patch.
+	 *				bohyun.jung@lge.com */
+	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1); 
+ 	*cmds++ = 0; 
 
 	*timestamp = adreno_ringbuffer_addcmds(&adreno_dev->ringbuffer,
 					KGSL_CMD_FLAGS_NOT_KERNEL_CMD,

@@ -32,17 +32,28 @@ static int process_sdio_pending_irqs(struct mmc_card *card)
 	int i, ret, count;
 	unsigned char pending;
 	struct sdio_func *func;
-
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-03-27, "QCT patch for SDIO reset"	
+	unsigned char reg;
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-03-27, "QCT patch for SDIO reset"	
 	/*
 	 * Optimization, if there is only 1 function interrupt registered
 	 * call irq handler directly
 	 */
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-03-27, "QCT patch for SDIO reset"	 
+#if 0	 
 	func = card->sdio_single_irq;
 	if (func) {
 		func->irq_handler(func);
 		return 1;
 	}
-
+#endif
+	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_IENx, 0, &reg);
+	if (ret) {
+		printk(KERN_ERR "%s: error %d reading SDIO_CCCR_IENx\n",
+				mmc_card_id(card), ret);
+		return ret;
+	}
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-03-27, "QCT patch for SDIO reset"
 	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, &pending);
 	if (ret) {
 		printk(KERN_DEBUG "%s: error %d reading SDIO_CCCR_INTx\n",
@@ -53,6 +64,13 @@ static int process_sdio_pending_irqs(struct mmc_card *card)
 	count = 0;
 	for (i = 1; i <= 7; i++) {
 		if (pending & (1 << i)) {
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-03-27, "QCT patch for SDIO reset"			
+			if (!(reg & 0x1)) {
+				pr_err("%s: Master interrupt is disabled but still "
+					"we have pending interrupt, bug in h/w??\n", __func__);
+				return -EINVAL;
+			}
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-03-27, "QCT patch for SDIO reset"			
 			func = card->sdio_func[i - 1];
 			if (!func) {
 				printk(KERN_WARNING "%s: pending IRQ for "
@@ -60,8 +78,16 @@ static int process_sdio_pending_irqs(struct mmc_card *card)
 					mmc_card_id(card));
 				ret = -EINVAL;
 			} else if (func->irq_handler) {
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-03-27, "QCT patch for SDIO reset"
+				if ((reg & (1 << func->num))) {
 				func->irq_handler(func);
 				count++;
+			} else {
+					pr_err("%s: Interrupt ocurred even when IEx "
+						"bit is not set, bug in h/w??\n", mmc_card_id(card));
+					ret = -EINVAL;
+				}
+//LGE_CHANGE_S, moon-wifi@lge.com by wonho.ki 2012-03-27, "QCT patch for SDIO reset"				
 			} else {
 				printk(KERN_WARNING "%s: pending IRQ with no handler\n",
 				       sdio_func_id(func));

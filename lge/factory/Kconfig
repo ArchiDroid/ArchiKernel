@@ -1,0 +1,75 @@
+#platform.team@lge.com	2011.01
+
+config LGE_FACTORY
+        default n
+        bool "LGE factory Configuration"
+        help
+                LGE factory Configuration
+
+config LGE_ERROR_HANDLER
+        default n
+        bool "LGE error handler"
+        help
+                Enable LGE error handler
+
+config LGE_SUPPORT_RAPI
+        depends on LGE_FACTORY
+        default n
+        bool "LGE Remote communcation api support"
+        help
+                LGE Remote communcation api support
+
+config LGE_DIAGTEST
+        depends on LGE_FACTORY
+        default y
+        bool "LGE TestMode Diag Support"
+        help
+                LGE TestMode Diag Supports
+
+config LGE_DIAG_KEYPRESS
+        depends on LGE_DIAGTEST
+        default y
+        bool "LGE UTS KEYPRESS Support"
+        help
+                LGE UTS KEYPRESS Supports
+
+config LGE_DIAG_UDM
+        depends on LGE_FACTORY
+        default n
+        bool "LGE UDM Support"
+        help
+                LGE UDM Supports
+
+config LGE_DIAG_SCREENSHOT
+        depends on LGE_FACTORY
+        default n
+        bool "LGE UTS SCREENSHOT Support"
+        help
+                LGE UTS SCREENSHOT Supports
+
+config LGE_DLOAD_SRD
+        depends on LGE_FACTORY
+        default n
+        bool "LGE Dload SelfRecoveryDownload Support"
+        help
+                LGE Dload SelfRecoveryDownload Support
+
+config LGE_EMMC_DIRECT_ACCESS
+	default n
+	bool "LGE eMMC direct access driver"
+	help
+                LGE eMMC direct access driver
+	 
+config CONFIG_LGE_DIAG_ERI
+        depends on LGE_FACTORY
+        default n
+        bool "LGE CONFIG_LGE_DIAG_ERI Support"
+        help
+                LGE Dload CONFIG_LGE_DIAG_ERI Support
+
+config LGE_DIAG_DISABLE_INPUT_DEVICES_ON_SLEEP_MODE
+        depends on LGE_FACTORY
+        default n
+        bool "CONFIG_LGE_DIAG_DISABLE_INPUT_DEVICES_ON_SLEEP_MODE"
+        help
+                Disable Input Devices on Sleep Mode(250-42-0) for inspector to control key or touch

@@ -184,6 +184,10 @@ source "drivers/input/touchscreen/Kconfig"
 
 source "drivers/input/misc/Kconfig"
 
+
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+source "drivers/input/sensor/Kconfig"
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 endif
 
 menu "Hardware I/O ports"

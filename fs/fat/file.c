@@ -273,8 +273,13 @@ static int fat_free(struct inode *inode, int skip)
 		}
 		fatent_brelse(&fatent);
 		if (ret < 0)
-			return ret;
+		{		
+            /* LGE_CHANGE_S [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
+            printk(KERN_ERR "%s(%d): FAT Entry Read Error cluster (%d)\n", __func__, __LINE__, dclus);
+            /* LGE_CHANGE_E [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
 
+			return ret;
+		}
 		free_start = ret;
 	}
 	inode->i_blocks = skip << (MSDOS_SB(sb)->cluster_bits - 9);

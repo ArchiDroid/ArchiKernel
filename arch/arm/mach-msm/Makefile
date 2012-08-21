@@ -318,3 +318,6 @@ endif
 
 obj-$(CONFIG_ARCH_MSM8960) += mdm2.o mdm_common.o
 obj-$(CONFIG_MSM_RTB) += msm_rtb.o
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_MACH_LGE) += lge/
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08

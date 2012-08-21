@@ -128,6 +128,12 @@ static __u16 tcp_advertise_mss(struct sock *sk)
 		}
 	}
 
+// LGE_CHANGE_S, [LGE_DATA_US_008] d3sw1-data@lge.com, 2012-03-30 <Define MSS Size 1370>
+#ifdef LGE_TRACFONE
+	mss = 1370; 
+	tp->advmss = mss;
+#endif
+// LGE_CHANGE_E, [LGE_DATA_US_008] d3sw1-data@lge.com, 2012-03-30 <Define MSS Size 1370>
 	return (__u16)mss;
 }
 

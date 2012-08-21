@@ -370,6 +370,28 @@ config LEDS_PMIC8058
 	  (Power Management IC) chip on Qualcomm reference boards,
 	  for example SURF and FFAs.
 
+config LEDS_AS364X
+	tristate "LED driver for AS364X"
+	depends on I2C
+	default n
+	help
+	  This option enables support for austriamicrosystems
+	  AS364X led controller for flash LEDs. It does not use LED framework
+	  but has its own sysfs API due to the specialties of flashing.
+
+choice
+	prompt "Chip Type"
+	depends on LEDS_AS364X
+	default AS3647
+
+config  AS3647
+	bool "AS3647"
+
+config  AS3648
+	bool "AS3648"
+
+endchoice
+
 config LEDS_INTEL_SS4200
 	tristate "LED driver for Intel NAS SS4200 series"
 	depends on LEDS_CLASS
@@ -453,6 +475,14 @@ config LEDS_ASIC3
 	  ASIC3 LED GPIOs are inputs, not outputs, thus the leds-gpio driver
 	  cannot be used. This driver supports hardware blinking with an on+off
 	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
+
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-10
+config LEDS_GPIO_M4
+        tristate "LED Support for GPIO LEDs"       
+        help
+          This option enables support for GPIO LEDs
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-10  
+
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"

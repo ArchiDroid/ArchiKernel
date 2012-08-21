@@ -144,6 +144,163 @@ static uint32 mdp_prim_panel_type = NO_PANEL;
 #ifndef CONFIG_FB_MSM_MDP22
 DEFINE_MUTEX(mdp_lut_push_sem);
 static int mdp_lut_i;
+
+// LGE_CHANGE_S, sohyun.nam@lge.com
+//#define LCDCal_LUT_enable	1 //sohyun.nam
+#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE
+extern int g_lge_lcd_k_cal[6];
+
+uint32 lge_gc_lut[] = {	
+#if 0	/* linear */
+	0x00000000,0x00010101,0x00020202,0x00030303,0x00040404,0x00050505,0x00060606,0x00070707,
+	0x00080808,0x00090909,0x000A0A0A,0x000B0B0B,0x000C0C0C,0x000D0D0D,0x000E0E0E,0x000F0F0F,
+	0x00101010,0x00111111,0x00121212,0x00131313,0x00141414,0x00151515,0x00161616,0x00171717,
+	0x00181818,0x00191919,0x001A1A1A,0x001B1B1B,0x001C1C1C,0x001D1D1D,0x001E1E1E,0x001F1F1F,
+	0x00202020,0x00212121,0x00222222,0x00232323,0x00242424,0x00252525,0x00262626,0x00272727,
+	0x00282828,0x00292929,0x002A2A2A,0x002B2B2B,0x002C2C2C,0x002D2D2D,0x002E2E2E,0x002F2F2F,
+	0x00303030,0x00313131,0x00323232,0x00333333,0x00343434,0x00353535,0x00363636,0x00373737,
+	0x00383838,0x00393939,0x003A3A3A,0x003B3B3B,0x003C3C3C,0x003D3D3D,0x003E3E3E,0x003F3F3F,
+	0x00404040,0x00414141,0x00424242,0x00434343,0x00444444,0x00454545,0x00464646,0x00474747, 
+	0x00484848,0x00494949,0x004A4A4A,0x004B4B4B,0x004C4C4C,0x004D4D4D,0x004E4E4E,0x004F4F4F,
+	0x00505050,0x00515151,0x00525252,0x00535353,0x00545454,0x00555555,0x00565656,0x00575757,
+	0x00585858,0x00595959,0x005A5A5A,0x005B5B5B,0x005C5C5C,0x005D5D5D,0x005E5E5E,0x005F5F5F,
+	0x00606060,0x00616161,0x00626262,0x00636363,0x00646464,0x00656565,0x00666666,0x00676767,
+	0x00686868,0x00696969,0x006A6A6A,0x006B6B6B,0x006C6C6C,0x006D6D6D,0x006E6E6E,0x006F6F6F,
+	0x00707070,0x00717171,0x00727272,0x00737373,0x00747474,0x00757575,0x00767676,0x00777777,
+	0x00787878,0x00797979,0x007A7A7A,0x007B7B7B,0x007C7C7C,0x007D7D7D,0x007E7E7E,0x007F7F7F,
+	0x00808080,0x00818181,0x00828282,0x00838383,0x00848484,0x00858585,0x00868686,0x00878787,
+	0x00888888,0x00898989,0x008A8A8A,0x008B8B8B,0x008C8C8C,0x008D8D8D,0x008E8E8E,0x008F8F8F,
+	0x00909090,0x00919191,0x00929292,0x00939393,0x00949494,0x00959595,0x00969696,0x00979797,
+	0x00989898,0x00999999,0x009A9A9A,0x009B9B9B,0x009C9C9C,0x009D9D9D,0x009E9E9E,0x009F9F9F,
+	0x00A0A0A0,0x00A1A1A1,0x00A2A2A2,0x00A3A3A3,0x00A4A4A4,0x00A5A5A5,0x00A6A6A6,0x00A7A7A7,
+	0x00A8A8A8,0x00A9A9A9,0x00AAAAAA,0x00ABABAB,0x00ACACAC,0x00ADADAD,0x00AEAEAE,0x00AFAFAF,
+	0x00B0B0B0,0x00B1B1B1,0x00B2B2B2,0x00B3B3B3,0x00B4B4B4,0x00B5B5B5,0x00B6B6B6,0x00B7B7B7,
+	0x00B8B8B8,0x00B9B9B9,0x00BABABA,0x00BBBBBB,0x00BCBCBC,0x00BDBDBD,0x00BEBEBE,0x00BFBFBF,
+	0x00C0C0C0,0x00C1C1C1,0x00C2C2C2,0x00C3C3C3,0x00C4C4C4,0x00C5C5C5,0x00C6C6C6,0x00C7C7C7,
+	0x00C8C8C8,0x00C9C9C9,0x00CACACA,0x00CBCBCB,0x00CCCCCC,0x00CDCDCD,0x00CECECE,0x00CFCFCF,
+	0x00D0D0D0,0x00D1D1D1,0x00D2D2D2,0x00D3D3D3,0x00D4D4D4,0x00D5D5D5,0x00D6D6D6,0x00D7D7D7,
+	0x00D8D8D8,0x00D9D9D9,0x00DADADA,0x00DBDBDB,0x00DCDCDC,0x00DDDDDD,0x00DEDEDE,0x00DFDFDF,
+	0x00E0E0E0,0x00E1E1E1,0x00E2E2E2,0x00E3E3E3,0x00E4E4E4,0x00E5E5E5,0x00E6E6E6,0x00E7E7E7,
+	0x00E8E8E8,0x00E9E9E9,0x00EAEAEA,0x00EBEBEB,0x00ECECEC,0x00EDEDED,0x00EEEEEE,0x00EFEFEF,
+	0x00F0F0F0,0x00F1F1F1,0x00F2F2F2,0x00F3F3F3,0x00F4F4F4,0x00F5F5F5,0x00F6F6F6,0x00F7F7F7,
+	0x00F8F8F8,0x00F9F9F9,0x00FAFAFA,0x00FBFBFB,0x00FCFCFC,0x00FDFDFD,0x00FEFEFE,0x00FFFFFF,
+#else // test1 03_22_version
+	0x00000000,0x00010100,0x00020201,0x00030301,0x00040402,0x00050502,0x00060603,0x00070703,
+	0x00080804,0x00090904,0x000A0A05,0x000B0B05,0x000C0C06,0x000D0D06,0x000E0E07,0x000F0F07,
+	0x00101008,0x00111109,0x00121209,0x0013130A,0x0014140A,0x0015150B,0x0016160C,0x0017170C,
+	0x0018180D,0x0019190E,0x001A1A0F,0x001B1B0F,0x001C1C10,0x001D1D11,0x001E1E12,0x001F1F12,
+	0x00202013,0x00212114,0x00222215,0x00232316,0x00242417,0x00252518,0x00262619,0x0027271A,
+	0x0028281B,0x0029291C,0x002A2A1D,0x002B2B1E,0x002C2C1F,0x002D2D20,0x002E2E21,0x002F2F22,
+	0x00303023,0x00313124,0x00323225,0x00333326,0x00343427,0x00353529,0x0036362A,0x0037372B,
+	0x0038382C,0x0039392D,0x003A3A2E,0x003B3B30,0x003C3C31,0x003D3D32,0x003E3E33,0x003F3F34,
+	0x00404035,0x00414136,0x00424237,0x00434337,0x00444438,0x00454538,0x00464639,0x0047473A,
+	0x0048483A,0x0049493B,0x004A4A3C,0x004B4B3C,0x004C4C3D,0x004D4D3E,0x004E4E3E,0x004F4F3F,
+	0x00505040,0x00515141,0x00525241,0x00535342,0x00545443,0x00555544,0x00565644,0x00575745,
+	0x00585846,0x00595947,0x005A5A48,0x005B5B49,0x005C5C49,0x005D5D4A,0x005E5E4B,0x005F5F4C,
+	0x0060604D,0x0061614E,0x0062624F,0x00636350,0x00646451,0x00656552,0x00666653,0x00676754,
+	0x00686855,0x00696956,0x006A6A57,0x006B6B58,0x006C6C59,0x006D6D5A,0x006E6E5C,0x006F6F5D,
+	0x0070705E,0x0071715F,0x00727260,0x00737361,0x00747463,0x00757564,0x00767665,0x00777766,
+	0x00787867,0x00797969,0x007A7A6A,0x007B7B6B,0x007C7C6C,0x007D7D6E,0x007E7E6F,0x007F7F70,
+	0x00808071,0x00818172,0x00828273,0x00838374,0x00848474,0x00858575,0x00868676,0x00878777,
+	0x00888878,0x00898979,0x008A8A7A,0x008B8B7B,0x008C8C7B,0x008D8D7C,0x008E8E7D,0x008F8F7E,
+	0x0090907F,0x00919180,0x00929281,0x00939382,0x00949483,0x00959584,0x00969685,0x00979786,
+	0x00989887,0x00999988,0x009A9A89,0x009B9B8A,0x009C9C8B,0x009D9D8C,0x009E9E8D,0x009F9F8E,
+	0x00A0A08F,0x00A1A190,0x00A2A291,0x00A3A392,0x00A4A494,0x00A5A595,0x00A6A696,0x00A7A797,
+	0x00A8A898,0x00A9A999,0x00AAAA9A,0x00ABAB9C,0x00ACAC9D,0x00ADAD9E,0x00AEAE9F,0x00AFAFA0,
+	0x00B0B0A2,0x00B1B1A3,0x00B2B2A4,0x00B3B3A5,0x00B4B4A6,0x00B5B5A8,0x00B6B6A9,0x00B7B7AA,
+	0x00B8B8AB,0x00B9B9AD,0x00BABAAE,0x00BBBBAF,0x00BCBCB1,0x00BDBDB2,0x00BEBEB3,0x00BFBFB4,
+	0x00C0C0B5,0x00C1C1B7,0x00C2C2B8,0x00C3C3B9,0x00C4C4BA,0x00C5C5BB,0x00C6C6BC,0x00C7C7BD,
+	0x00C8C8BE,0x00C9C9BF,0x00CACAC0,0x00CBCBC1,0x00CCCCC2,0x00CDCDC3,0x00CECEC4,0x00CFCFC5,
+	0x00D0D0C6,0x00D1D1C7,0x00D2D2C9,0x00D3D3CA,0x00D4D4CB,0x00D5D5CC,0x00D6D6CD,0x00D7D7CE,
+	0x00D8D8CF,0x00D9D9D0,0x00DADAD1,0x00DBDBD3,0x00DCDCD4,0x00DDDDD5,0x00DEDED6,0x00DFDFD7,
+	0x00E0E0D8,0x00E1E1DA,0x00E2E2DB,0x00E3E3DC,0x00E4E4DD,0x00E5E5DE,0x00E6E6E0,0x00E7E7E1,
+	0x00E8E8E2,0x00E9E9E3,0x00EAEAE4,0x00EBEBE6,0x00ECECE7,0x00EDEDE8,0x00EEEEE9,0x00EFEFEB,
+	0x00F0F0EC,0x00F1F1ED,0x00F2F2EE,0x00F3F3F0,0x00F4F4F1,0x00F5F5F2,0x00F6F6F3,0x00F7F7F5,
+	0x00F8F8F6,0x00F9F9F7,0x00FAFAF9,0x00FBFBFA,0x00FCFCFB,0x00FDFDFC,0x00FEFEFE,0x00FFFFFF,
+#endif
+};
+
+static int mdp_lut_initial_hw_update(void )
+{
+	int i;
+	uint32 r, g, b;
+	uint32 cal_R, cal_G, cal_B;
+	uint32 gain_R, gain_G, gain_B;
+
+	printk("### mdp_lut_hw_updae++: mdp_lut_i = %d\n", mdp_lut_i);
+
+	cal_R = g_lge_lcd_k_cal[0]; cal_G = g_lge_lcd_k_cal[1]; cal_B = g_lge_lcd_k_cal[2];
+
+	if (memcmp(g_lge_lcd_k_cal+3, "cal", 3) == 0) {
+		gain_R = (uint32)((cal_R * 100000) / 255);
+		gain_G = (uint32)((cal_G * 100000) / 255);
+		gain_B = (uint32)((cal_B * 100000) / 255);
+
+		printk("#### Sign is Matched, Gain RGB : %d,%d,%d\n", gain_R, gain_G, gain_B);
+	}
+	else {
+		printk("#### Sign is not Matched");
+		gain_R = gain_G = gain_B = 100000;
+	}
+
+	for (i=0; i<256; i++)
+	{
+		r = lge_gc_lut[i];
+		g = lge_gc_lut[i];
+		b = lge_gc_lut[i];
+
+		cal_R = (uint32)((((r & 0xff0000) >> 16) * gain_R) / 100000);
+		cal_G = (uint32)((((g & 0x00ff00) >> 8)  * gain_G) / 100000);
+		cal_B = (uint32) (((b & 0x0000ff)        * gain_B) / 100000);
+
+#ifdef CONFIG_FB_MSM_MDP40
+		MDP_OUTP(MDP_BASE + 0x94800 + (0x400*mdp_lut_i) + i*4, ((cal_G & 0xff) | ((cal_B & 0xff) << 8) | (cal_R << 16)));
+#else
+     	MDP_OUTP(MDP_BASE + 0x93800 + (0x400*mdp_lut_i) + i*4, ((cal_G & 0xff) | ((cal_B & 0xff) << 8) | (cal_R << 16)));
+#endif
+	}
+
+	printk("#### Cal value R=%d G=%d B=%d\n", cal_R, cal_G, cal_B);
+	return 0;
+}
+
+int __LUT_once__ = 0;  /*sohyun.nam@lge.com 12-02-10, add lut parsing*/
+int mdp_lut_init_update_lcdc(void)
+{
+	int ret;
+
+	printk("%s start ..\n", __func__);
+	if (__LUT_once__ == 0) 	{
+		__LUT_once__ = 1;
+		printk("### Once update the table\n");
+	}
+	else {
+		 __LUT_once__ = 0;
+		printk("### LUT already updated\n");
+		return 0;
+	}
+
+	printk("### %s mdp_lut_init_update_lcdc++: mdp_lut_i = %d\n", __func__,mdp_lut_i);
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	// ret = mdp_lut_hw_update(cmap);
+
+	ret = mdp_lut_initial_hw_update();
+	if (ret) {
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+		return ret;
+	}
+
+	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x17);
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	mdp_lut_i = (mdp_lut_i+1) % 2;
+	printk("%s end.........\n", __func__);
+
+	return 0;
+}
+
+#endif /* CONFIG_FB_MSM_MDP_LUT_ENABLE */
+// LGE_CHANGE_E, sohyun.nam@lge.com
+
 static int mdp_lut_hw_update(struct fb_cmap *cmap)
 {
 	int i;
@@ -153,6 +310,7 @@ static int mdp_lut_hw_update(struct fb_cmap *cmap)
 	c[0] = cmap->green;
 	c[1] = cmap->blue;
 	c[2] = cmap->red;
+	printk("%s\n", __func__);
 
 	for (i = 0; i < cmap->len; i++) {
 		if (copy_from_user(&r, cmap->red++, sizeof(r)) ||
@@ -186,6 +344,7 @@ static int mdp_lut_update_nonlcdc(struct fb_info *info, struct fb_cmap *cmap)
 
 	if (ret)
 		return ret;
+	printk("%s\n", __func__);
 
 	mutex_lock(&mdp_lut_push_sem);
 	mdp_lut_push = 1;
@@ -193,6 +352,7 @@ static int mdp_lut_update_nonlcdc(struct fb_info *info, struct fb_cmap *cmap)
 	mutex_unlock(&mdp_lut_push_sem);
 
 	mdp_lut_i = (mdp_lut_i + 1)%2;
+	printk("%s\n", __func__);
 
 	return 0;
 }
@@ -211,6 +371,7 @@ static int mdp_lut_update_lcdc(struct fb_info *info, struct fb_cmap *cmap)
 	}
 
 	/*mask off non LUT select bits*/
+	printk("%s\n", __func__);
 	out = inpdw(MDP_BASE + 0x90070) & ~(0x1 << 10);
 	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | out);
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
@@ -680,8 +841,12 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 			* other blocks
 			*/
 			if (block != MDP_MASTER_BLOCK) {
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-10
+#if 0 /*original*/
 				MSM_FB_INFO("mdp_block_power_cnt[block=%d] \
 				multiple power-off request\n", block);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-10
 			}
 			atomic_set(&mdp_block_power_cnt[block], 0);
 		}
@@ -1319,6 +1484,71 @@ static int mdp_irq_clk_setup(void)
 	return 0;
 }
 
+// LGE_CHANGE_S, sohyun.nam@lge.com
+#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE
+#define __LGE_TO_INT(ch)		((ch)-'0')
+
+int mdp_write_kcal_reg(const char* buf)
+{
+	int i;
+	uint32 r, g, b;
+	uint32 cal_R, cal_G, cal_B;
+	uint32 gain_R, gain_G, gain_B;
+
+	cal_R = __LGE_TO_INT(buf[0])*100 + __LGE_TO_INT(buf[1])*10 + __LGE_TO_INT(buf[2]);
+	cal_G = __LGE_TO_INT(buf[3])*100 + __LGE_TO_INT(buf[4])*10 + __LGE_TO_INT(buf[5]);
+	cal_B = __LGE_TO_INT(buf[6])*100 + __LGE_TO_INT(buf[7])*10 + __LGE_TO_INT(buf[8]);
+
+	if(g_lge_lcd_k_cal[0]==cal_R && g_lge_lcd_k_cal[1] == cal_G && g_lge_lcd_k_cal[2] ==cal_B)
+	{
+		printk("####%s g_lge_lcd_k_cal the same new one \n", __func__);
+		return 1;
+	}
+	else{
+		g_lge_lcd_k_cal[0] = cal_R;
+		g_lge_lcd_k_cal[1] = cal_G;
+		g_lge_lcd_k_cal[2] = cal_B;
+		memcpy(&g_lge_lcd_k_cal[3], "cal", 3);
+	}
+	printk("####%s cal_R:%d, cal_G:%d, cal_B:%d\n",__func__, cal_R,cal_G,cal_B );
+	gain_R = (uint32)((cal_R * 100000)/255);
+	gain_G = (uint32)((cal_G * 100000)/255);
+	gain_B = (uint32)((cal_B * 100000)/255);
+	printk("####%s mdp_write_kcal color : R=%d, G=%d, B=%d AND gain : R=%d, G=%d, B=%d\n",
+			__func__,cal_R, cal_G, cal_B, gain_R, gain_G, gain_B);
+	printk("####%s : mdp_lut_i = %d\n", __func__,mdp_lut_i);
+
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+
+	for (i=0; i<256; i++) {
+		r = lge_gc_lut[i];
+		g = lge_gc_lut[i];
+		b = lge_gc_lut[i];
+
+		cal_R = (uint32)((((r & 0xff0000) >> 16) * gain_R) / 100000);
+		cal_G = (uint32)((((g & 0x00ff00) >> 8)  * gain_G) / 100000);
+		cal_B = (uint32) (((b & 0x0000ff)        * gain_B) / 100000);
+
+#ifdef CONFIG_FB_MSM_MDP40
+		MDP_OUTP(MDP_BASE + 0x94800 + (0x400*mdp_lut_i) + i*4, ((cal_G & 0xff) | ((cal_B & 0xff) << 8) | (cal_R << 16)));
+#else
+		// msleep(2);
+		MDP_OUTP(MDP_BASE + 0x93800 + (0x400*mdp_lut_i) + i*4, ((cal_G & 0xff) | ((cal_B & 0xff) << 8) | (cal_R << 16)));
+#endif
+	}
+
+	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x17);
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	mdp_lut_i = (mdp_lut_i+1) % 2;
+	printk("####%s : mdp_lut_i = %d\n", __func__,mdp_lut_i);
+
+
+	return 1;
+}
+EXPORT_SYMBOL(mdp_write_kcal_reg);
+#endif /* CONFIG_FB_MSM_MDP_LUT_ENABLE */
+// LGE_CHANGE_E, sohyun.nam@lge.com
+
 static int mdp_probe(struct platform_device *pdev)
 {
 	struct platform_device *msm_fb_dev = NULL;
@@ -1546,7 +1776,9 @@ static int mdp_probe(struct platform_device *pdev)
 		mdp4_display_intf_sel(if_no, DSI_CMD_INTF);
 #else
 		mfd->dma_fnc = mdp_dma2_update;
-		mfd->do_histogram = mdp_do_histogram;
+#ifndef CONFIG_FB_MSM_MDP_LUT_ENABLE
+		mfd->do_histogram = mdp_do_histogram; //sohyun.nam use LUT 
+#endif /* CONFIG_FB_MSM_MDP_LUT_ENABLE */
 		if (mfd->panel_info.pdest == DISPLAY_1)
 			mfd->dma = &dma2_data;
 		else {
@@ -1672,6 +1904,11 @@ static int mdp_probe(struct platform_device *pdev)
 		}
 	}
 #endif
+
+#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE //sohyun.nam
+	printk("### call the initial lut update routine\n");
+	mdp_lut_init_update_lcdc();
+#endif /* CONFIG_FB_MSM_MDP_LUT_ENABLE */
 
 	/* set driver data */
 	platform_set_drvdata(msm_fb_dev, mfd);

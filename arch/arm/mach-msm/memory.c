@@ -44,7 +44,8 @@ char strongly_ordered_mem[PAGE_SIZE*2-4];
 
 void map_page_strongly_ordered(void)
 {
-#if defined(CONFIG_ARCH_MSM7X27) && !defined(CONFIG_ARCH_MSM7X27A)
+#if defined(CONFIG_ARCH_MSM7X27) || defined(CONFIG_ARCH_MSM7X27A) /*LGE_CHANGE : qct patch*/
+/*#if defined(CONFIG_ARCH_MSM7X27) && !defined(CONFIG_ARCH_MSM7X27A)*/ /*qct pre_cs_original*/
 	long unsigned int phys;
 	struct map_desc map;
 
@@ -67,7 +68,8 @@ EXPORT_SYMBOL(map_page_strongly_ordered);
 
 void write_to_strongly_ordered_memory(void)
 {
-#if defined(CONFIG_ARCH_MSM7X27) && !defined(CONFIG_ARCH_MSM7X27A)
+#if defined(CONFIG_ARCH_MSM7X27) || defined(CONFIG_ARCH_MSM7X27A) /*LGE_CHANGE : seven.kim@lge.com, QCT patch*/
+/*#if defined(CONFIG_ARCH_MSM7X27) && !defined(CONFIG_ARCH_MSM7X27A)*/ /* pre-CS original*/
 	if (!strongly_ordered_page) {
 		if (!in_interrupt())
 			map_page_strongly_ordered();
@@ -85,7 +87,8 @@ EXPORT_SYMBOL(write_to_strongly_ordered_memory);
 
 void flush_axi_bus_buffer(void)
 {
-#if defined(CONFIG_ARCH_MSM7X27) && !defined(CONFIG_ARCH_MSM7X27A)
+#if defined(CONFIG_ARCH_MSM7X27) || defined(CONFIG_ARCH_MSM7X27A) /*LGE_CHANGE : seven.kim@lge.com, QCT patch*/
+/*#if defined(CONFIG_ARCH_MSM7X27) && !defined(CONFIG_ARCH_MSM7X27A)*/ /* pre-CS original*/
 	__asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" \
 				    : : "r" (0) : "memory");
 	write_to_strongly_ordered_memory();

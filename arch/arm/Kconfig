@@ -2206,3 +2206,7 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+# LGE TestMode interface porting, myunghwan.kim@lge.com [START]
+source "lge/Kconfig"
+# LGE TestMode interface porting, myunghwan.kim@lge.com [END]

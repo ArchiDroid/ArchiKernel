@@ -38,6 +38,10 @@
 #define FBIOGET_HWCINFO         0x4616
 #define FBIOPUT_MODEINFO        0x4617
 #define FBIOGET_DISPINFO        0x4618
+
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+#define FBIOGET_ESDCHECKLOOP 	0x4650
+#endif
 #define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
@@ -650,6 +654,11 @@ struct fb_ops {
 
 	/* blank display */
 	int (*fb_blank)(int blank, struct fb_info *info);
+
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+	/* esd check loop */
+	int (*fb_esdcheck)(int esdcheck, struct fb_info *info);
+#endif
 
 	/* pan display */
 	int (*fb_pan_display)(struct fb_var_screeninfo *var, struct fb_info *info);

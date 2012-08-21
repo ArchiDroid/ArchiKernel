@@ -333,6 +333,16 @@ static const struct file_operations debug_ops = {
 	.write = debug_write,
 };
 
+/* LGE_CHANGE_S : 0014110 jihoon.lee@lge.com 20110115 */
+/* MOD 0014110: [FACTORY RESET] stability */
+/* sync up with oem_rapi */
+uint32_t get_oem_rapi_open_cnt(void)
+{
+	return open_count;
+}
+EXPORT_SYMBOL(get_oem_rapi_open_cnt);
+/* LGE_CHANGE_E : 0014110 jihoon.lee@lge.com 20110115 */
+
 static void __exit oem_rapi_client_mod_exit(void)
 {
 	debugfs_remove(dent);

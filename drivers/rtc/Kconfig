@@ -358,6 +358,15 @@ config RTC_DRV_TWL4030
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-twl.
 
+# LGE_CHANGE_S [kernel secure clock]
+config RTC_INTF_SECCLK
+       bool "Android secure clock driver"
+       depends on RTC_DRV_MSM
+       default n
+       help
+         Driver for supporting Android secure clock
+# LGE_CHANGE_E [kernel secure clock]
+
 config RTC_DRV_S35390A
 	tristate "Seiko Instruments S-35390A"
 	select BITREVERSE
