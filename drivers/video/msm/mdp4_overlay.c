@@ -2565,8 +2565,7 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 	 * required(FIR).
 	 */
 	if ((mfd->panel_info.lcdc.v_back_porch <= 4) &&
-	    (pipe->src_h != pipe->dst_h) &&
-	    (mfd->panel_info.lcdc.v_back_porch)) {
+	    (pipe->src_h != pipe->dst_h)) {
 		u32 clk = 0;
 		clk = 4 * (pclk >> shift) / mfd->panel_info.lcdc.v_back_porch;
 		clk <<= shift;
@@ -3697,6 +3696,7 @@ done:
 	mutex_unlock(&mfd->dma->ov_mutex);
 	return err;
 }
+
 int mdp4_update_base_blend(struct msm_fb_data_type *mfd,
 			struct mdp_blend_cfg *mdp_blend_cfg)
 {
