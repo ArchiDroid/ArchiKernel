@@ -250,11 +250,13 @@ static void msm_cam_stop_hardware(struct msm_cam_v4l2_device *pcam)
 {
 	struct msm_cam_media_controller *pmctl;
 	int rc = 0;
-	pr_err("%s: stopping hardware upon error\n", __func__);
 	if (pcam == NULL)
 		return;
 	pmctl = msm_camera_get_mctl(pcam->mctl_handle);
 	if (pmctl && pmctl->mctl_release) {
+		pr_err("%s: stopping hardware upon error\n", __func__);
+		/*do not send any commands to hardware after reaching this point*/
+		pmctl->mctl_cmd = NULL;
 		rc = pmctl->mctl_release(pmctl);
 		if (rc < 0)
 			pr_err("mctl_release fails %d\n", rc);
