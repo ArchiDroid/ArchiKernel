@@ -246,6 +246,22 @@ command_alloc_fail:
 	return -EINVAL;
 }
 
+static void msm_cam_stop_hardware(struct msm_cam_v4l2_device *pcam)
+{
+	struct msm_cam_media_controller *pmctl;
+	int rc = 0;
+	pr_err("%s: stopping hardware upon error\n", __func__);
+	if (pcam == NULL)
+		return;
+	pmctl = msm_camera_get_mctl(pcam->mctl_handle);
+	if (pmctl && pmctl->mctl_release) {
+		rc = pmctl->mctl_release(pmctl);
+		if (rc < 0)
+			pr_err("mctl_release fails %d\n", rc);
+		pmctl->mctl_release = NULL;
+	}
+}
+
 /* send control command to config and wait for results*/
 static int msm_server_control(struct msm_cam_server_dev *server_dev,
 				struct msm_ctrl_cmd *out)
@@ -257,6 +273,7 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 	struct msm_ctrl_cmd *ctrlcmd;
 	struct msm_device_queue *queue =
 		&server_dev->server_queue[out->queue_idx].ctrl_q;
+	struct msm_cam_v4l2_device *pcam = server_dev->pcam_active;
 
 	struct v4l2_event v4l2_evt;
 	struct msm_isp_event_ctrl *isp_event;
@@ -329,6 +346,7 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 			if (++server_dev->server_evt_id == 0)
 				server_dev->server_evt_id++;
 			pr_err("%s: wait_event error %d\n", __func__, rc);
+			msm_cam_stop_hardware(pcam);
 			return rc;
 		}
 	}
@@ -2167,12 +2185,7 @@ static int msm_close(struct file *f)
 	if (pcam_inst->streamon) {
 		/*something went wrong since instance
 		is closing without streamoff*/
-		if (pmctl->mctl_release) {
-			rc = pmctl->mctl_release(pmctl);
-			if (rc < 0)
-				pr_err("mctl_release fails %d\n", rc);
-		}
-		pmctl->mctl_release = NULL;/*so that it isn't closed again*/
+		msm_cam_stop_hardware(pcam);
 	}
 
 	pcam_inst->streamon = 0;
@@ -2511,19 +2524,7 @@ static int msm_close_server(struct file *fp)
 		mutex_lock(&g_server_dev.server_lock);
 		if (g_server_dev.pcam_active) {
 			struct v4l2_event v4l2_ev;
-			struct msm_cam_media_controller *pmctl = NULL;
-			int rc;
-
-			pmctl = msm_camera_get_mctl(
-				g_server_dev.pcam_active->mctl_handle);
-			if (pmctl && pmctl->mctl_release) {
-				rc = pmctl->mctl_release(pmctl);
-				if (rc < 0)
-					pr_err("mctl_release fails %d\n", rc);
-			}
-			/*so that it isn't closed again*/
-			pmctl->mctl_release = NULL;
-
+			msm_cam_stop_hardware(g_server_dev.pcam_active);
 			v4l2_ev.type = V4L2_EVENT_PRIVATE_START
 				+ MSM_CAM_APP_NOTIFY_ERROR_EVENT;
 			v4l2_ev.id = 0;
