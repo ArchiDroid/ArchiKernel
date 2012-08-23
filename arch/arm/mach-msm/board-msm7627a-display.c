@@ -594,9 +594,12 @@ static int evb_backlight_control(int level, int mode)
 
 	int i = 0;
 	int remainder, ret = 0;
+	u32 socinfo = socinfo_get_version();
 
 	/* device address byte = 0x72 */
 	if (!mode) {
+		if (socinfo != 0x10000 && level == 0)
+			level = 10;
 		gpio_set_value(96, 0);
 		udelay(67);
 		gpio_set_value(96, 1);
