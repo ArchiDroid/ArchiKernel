@@ -114,6 +114,28 @@ static void msm_sleep(struct kgsl_device *device,
 	/* do we need to reset any parameters here? */
 }
 
+static void msm_remove_io_fraction(struct kgsl_device *device)
+{
+	int i;
+	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
+
+	for (i = 0; i < pwr->num_pwrlevels; i++)
+		pwr->pwrlevels[i].io_fraction = 100;
+
+}
+
+static void msm_restore_io_fraction(struct kgsl_device *device)
+{
+	int i;
+	struct kgsl_device_platform_data *pdata =
+				kgsl_device_get_drvdata(device);
+	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
+
+	for (i = 0; i < pdata->num_levels; i++)
+		pwr->pwrlevels[i].io_fraction =
+			pdata->pwrlevel[i].io_fraction;
+}
+
 static int msm_init(struct kgsl_device *device,
 		     struct kgsl_pwrscale *pwrscale)
 {
@@ -164,6 +186,7 @@ static int msm_init(struct kgsl_device *device,
 		} else {
 			device->pwrscale.gpu_busy = 1;
 		}
+		msm_remove_io_fraction(device);
 		return 0;
 	}
 
@@ -188,6 +211,7 @@ static void msm_close(struct kgsl_device *device,
 	msm_dcvs_freq_sink_unregister(&priv->freq_sink);
 	kfree(pwrscale->priv);
 	pwrscale->priv = NULL;
+	msm_restore_io_fraction(device);
 }
 
 struct kgsl_pwrscale_policy kgsl_pwrscale_policy_msm = {
