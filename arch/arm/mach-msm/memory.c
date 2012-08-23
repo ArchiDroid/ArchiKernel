@@ -381,3 +381,14 @@ int release_fmem_c_region(void *unused)
 {
 	return fmem_set_state(FMEM_T_STATE);
 }
+
+unsigned long get_ddr_size(void)
+{
+	unsigned int i;
+	unsigned long ret = 0;
+
+	for (i = 0; i < meminfo.nr_banks; i++)
+		ret += meminfo.bank[i].size;
+
+	return ret;
+}
