@@ -26,6 +26,8 @@
 #include <mach/socinfo.h>
 #include <mach/msm_serial_hs.h>
 
+#include <linux/ion.h>
+
 #include "devices.h"
 #include "timer.h"
 
@@ -233,6 +235,15 @@ static struct msm_i2c_platform_data msm_gsbi1_qup_i2c_pdata = {
 	.msm_i2c_config_gpio	= gsbi_qup_i2c_gpio_config,
 };
 
+#ifdef CONFIG_ION_MSM
+#define MSM_ION_HEAP_NUM        4
+static struct platform_device ion_dev;
+static int msm_ion_camera_size;
+static int msm_ion_audio_size;
+static int msm_ion_sf_size;
+#endif
+
+
 static struct resource resources_uart3[] = {
 	{
 		.start	= INT_UART3,
@@ -300,6 +311,9 @@ static struct platform_device *u0_devices[] __initdata = {
 // 0001905: [ARM9] Sound related AT CMD & Hidden menu added 
 	&eve_atcmd_device, //vlc	
 // END: eternalblue@lge.com:2009-11-11
+#ifdef CONFIG_ION_MSM
+	&ion_dev,
+#endif
 };
 
 static void __init msm_device_i2c_init(void)
