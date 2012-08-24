@@ -39,9 +39,6 @@ u32 dsi_irq;
 u32 esc_byte_ratio;
 
 static boolean tlmm_settings = FALSE;
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-static boolean lglogo_firstboot = TRUE;
-#endif
 
 static int mipi_dsi_probe(struct platform_device *pdev);
 static int mipi_dsi_remove(struct platform_device *pdev);
@@ -140,17 +137,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 /*LGE_END: Kiran.kanneganti@lge.com*/
 
 	spin_lock_bh(&dsi_clk_lock);
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-	if(lglogo_firstboot)
-	{
-		printk(KERN_INFO "[DISPLAY]::%s\n",__func__);
-		lglogo_mipi_dsi_clk_disable();
-	}
-	else
-#endif
-	{
-		mipi_dsi_clk_disable();
-	}
+	mipi_dsi_clk_disable();
 
 
 	/* disbale dsi engine */
@@ -158,12 +145,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 
 	mipi_dsi_phy_ctrl(0);
 
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO       
-	if(!lglogo_firstboot)
-#endif
-    {
 	mipi_dsi_ahb_ctrl(0);
-    }
 	spin_unlock_bh(&dsi_clk_lock);
 //LGE_CHANGE_S [Kiran] Change LCD sleep sequence
 #if 1
@@ -192,9 +174,6 @@ static int mipi_dsi_off(struct platform_device *pdev)
 
 	pr_debug("%s-:\n", __func__);
 
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-	lglogo_firstboot = FALSE;
-#endif
 	return ret;
 }
 
@@ -216,6 +195,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	fbi = mfd->fbi;
 	var = &fbi->var;
 	pinfo = &mfd->panel_info;
+
 	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
 
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
@@ -371,7 +351,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 			}
 			mipi_dsi_set_tear_on(mfd);
 		}
-	}
+        }
 
 #ifdef CONFIG_MSM_BUS_SCALING
 	mdp_bus_scale_update_request(2);

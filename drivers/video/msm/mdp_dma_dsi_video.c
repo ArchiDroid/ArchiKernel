@@ -36,10 +36,6 @@
 static int first_pixel_start_x;
 static int first_pixel_start_y;
 
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-static boolean lglogo_firstboot = TRUE;
-#endif
-
 /* LGE_CHANGE_S [yoonsoo.kim@lge.com] 20120130 : LCD ESD Protection*/
 /*For LCD ESD detection 27-01-2012*/
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
@@ -108,22 +104,6 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-	if(lglogo_firstboot)
-	{
-		printk(KERN_INFO "[DISPLAY]::%s\n",__func__);		
-		ret = panel_next_on(pdev);
-
-		/* LGE_CHANGE_S : LCD Blank Issue
-		 * 2012-01-22, yoonsoo@lge.com
-		 * Multiple Power OFF DMA block issue FIX. From kiran 
-		 */
-		mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-		/* LGE_CHANGE_E : LCD Blank Issue */ 
-	}
-	else
-#endif
-	{
 	fbi = mfd->fbi;
 	var = &fbi->var;
 
@@ -257,7 +237,6 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 
 	/* MDP cmd block disable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	}
 
 	return ret;
 }
@@ -294,13 +273,6 @@ int mdp_dsi_video_off(struct platform_device *pdev)
 	/* delay to make sure the last frame finishes */
 	msleep(20);
 
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-	if(lglogo_firstboot)
-	{
-		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-		lglogo_firstboot = FALSE;
-	}
-#endif
 	return ret;
 }
 

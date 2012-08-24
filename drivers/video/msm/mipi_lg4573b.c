@@ -32,9 +32,6 @@
 
 #define LG4573B_CMD_DELAY  0
 
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-static boolean lglogo_firstboot = TRUE;
-#endif
 /* LGE_CHANGE_S : LCD ESD Protection 
  * 2012-01-30, yoonsoo@lge.com
  * LCD ESD Protection
@@ -280,9 +277,6 @@ static int mipi_lg4573b_lcd_on(struct platform_device *pdev)
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
 
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-	if(!lglogo_firstboot)
-#endif
 	{
 	
 	printk( "mipi_lg4573b_lcd_on START\n");
@@ -424,9 +418,6 @@ static int mipi_lg4573b_lcd_off(struct platform_device *pdev)
 	mipi_ldp_lcd_panel_poweroff();
 #endif
 /*LGE_CHANGE_E LCD Reset After Data Pulled Down*/
-#ifdef CONFIG_FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
-	lglogo_firstboot = FALSE;
-#endif
 /*LCD off end Log added 27-01-2012*/	
 	printk("End %s \n",__func__);
 	return 0;
