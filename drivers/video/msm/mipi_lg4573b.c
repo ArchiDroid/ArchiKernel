@@ -314,18 +314,18 @@ static int mipi_lg4573b_lcd_on(struct platform_device *pdev)
 
 	mipi_set_tx_power_mode(1);
 
-	result=mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_init_on_cmds,
+	result=mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_init_on_cmds,
 			ARRAY_SIZE(lg4573b_init_on_cmds));
 
 	mdelay(10);
 	
-	result=mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_sleep_out_cmds,
+	result=mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_sleep_out_cmds,
 			ARRAY_SIZE(lg4573b_sleep_out_cmds));
 
 	//LGE_CHANGE_S [jangsu.lee] 20120130 : remove delay
 	//mdelay(120);
 	
-	result=mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_disp_on_cmds,
+	result=mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_disp_on_cmds,
 			ARRAY_SIZE(lg4573b_disp_on_cmds));
 
 	mipi_set_tx_power_mode(0);
@@ -412,7 +412,7 @@ static int mipi_lg4573b_lcd_off(struct platform_device *pdev)
 	if(false == is_esd_occured)
 #endif
 	{
-		mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_disp_off_cmds,
+		mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_disp_off_cmds,
 			ARRAY_SIZE(lg4573b_disp_off_cmds));
 
 		msleep(40);
@@ -485,7 +485,7 @@ static int drive_pwm_pin_to_low()
 		return -EINVAL;
 	
 	mipi_dsi_op_mode_config(DSI_CMD_MODE);
-	mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_pwm_pin_low_cmds,
+	mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_pwm_pin_low_cmds,
 			ARRAY_SIZE(lg4573b_pwm_pin_low_cmds));
 	mipi_dsi_op_mode_config(DSI_VIDEO_MODE);
 
@@ -515,7 +515,7 @@ static int drive_pwm_pin_to_high()
 		return -EINVAL;
 	
 	mipi_dsi_op_mode_config(DSI_CMD_MODE);
-	mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_disp_off_cmds,
+	mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_disp_off_cmds,
 			ARRAY_SIZE(lg4573b_disp_off_cmds));
 
 	mipi_ldp_lcd_panel_poweroff();//reset pin
@@ -526,13 +526,13 @@ static int drive_pwm_pin_to_high()
 	esd_sw_test_lcd_panel_power_on(); //panel power on
 	
 	mipi_set_tx_power_mode(1);
-	mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_init_on_cmds,
+	mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_init_on_cmds,
 			ARRAY_SIZE(lg4573b_init_on_cmds));
 	mdelay(10);
-	mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_sleep_out_cmds,
+	mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_sleep_out_cmds,
 			ARRAY_SIZE(lg4573b_sleep_out_cmds));
 	mdelay(120);
-	mipi_dsi_cmds_tx(mfd, &lg4573b_tx_buf, lg4573b_disp_on_cmds,
+	mipi_dsi_cmds_tx(&lg4573b_tx_buf, lg4573b_disp_on_cmds,
 			ARRAY_SIZE(lg4573b_disp_on_cmds));
 	mipi_set_tx_power_mode(0);
 	
