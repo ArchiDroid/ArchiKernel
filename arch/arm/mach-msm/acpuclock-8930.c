@@ -37,10 +37,12 @@ static struct hfpll_data hfpll_data __initdata = {
 	.has_droop_ctl = true,
 	.droop_offset = 0x14,
 	.droop_val = 0x0108C000,
-	.low_vdd_l_max = 40,
+	.low_vdd_l_max = 22,
+	.nom_vdd_l_max = 42,
 	.vdd[HFPLL_VDD_NONE] = LVL_NONE,
 	.vdd[HFPLL_VDD_LOW]  = LVL_LOW,
 	.vdd[HFPLL_VDD_NOM]  = LVL_NOM,
+	.vdd[HFPLL_VDD_HIGH] = LVL_HIGH,
 };
 
 static struct scalable scalable[] __initdata = {
@@ -176,9 +178,9 @@ static struct acpu_level acpu_freq_tbl_fast[] __initdata = {
 };
 
 static struct pvs_table pvs_tables[NUM_PVS] __initdata = {
-	[PVS_SLOW]    = { acpu_freq_tbl_slow, sizeof(acpu_freq_tbl_slow) },
-	[PVS_NOMINAL] = { acpu_freq_tbl_nom,  sizeof(acpu_freq_tbl_nom)  },
-	[PVS_FAST]    = { acpu_freq_tbl_fast, sizeof(acpu_freq_tbl_fast) },
+[PVS_SLOW]    = { acpu_freq_tbl_slow, sizeof(acpu_freq_tbl_slow),     0 },
+[PVS_NOMINAL] = { acpu_freq_tbl_nom,  sizeof(acpu_freq_tbl_nom),  25000 },
+[PVS_FAST]    = { acpu_freq_tbl_fast, sizeof(acpu_freq_tbl_fast), 25000 },
 };
 
 static struct acpuclk_krait_params acpuclk_8930_params __initdata = {
