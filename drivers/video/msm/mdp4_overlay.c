@@ -3330,7 +3330,7 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req)
 
 	mdp4_overlay_mdp_perf_req(mfd, ctrl->plist);
 
-	if (ctrl->panel_mode & MDP4_PANEL_MDDI)
+	if (pipe->mixer_num == MDP4_MIXER2 || ctrl->panel_mode & MDP4_PANEL_MDDI)
 		goto mddi;
 
 	if (pipe->mixer_num == MDP4_MIXER0) {
@@ -3357,12 +3357,6 @@ mddi:
 	if (pipe->pipe_type == OVERLAY_TYPE_VIDEO) {
 		mdp4_overlay_vg_setup(pipe);    /* video/graphic pipe */
 	} else {
-		if (pipe->flags & MDP_SHARPENING) {
-			pr_debug(
-			"%s: Sharpening/Smoothing not supported on RGB pipe\n",
-								     __func__);
-			pipe->flags &= ~MDP_SHARPENING;
-		}
 		mdp4_overlay_rgb_setup(pipe);	/* rgb pipe */
 	}
 
