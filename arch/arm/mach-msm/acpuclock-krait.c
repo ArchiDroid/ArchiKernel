@@ -11,8 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#define pr_fmt(fmt) "%s: " fmt, __func__
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -43,7 +41,6 @@
 #define PRI_SRC_SEL_SEC_SRC	0
 #define PRI_SRC_SEL_HFPLL	1
 #define PRI_SRC_SEL_HFPLL_DIV2	2
-#define SEC_SRC_SEL_QSB		0
 #define SEC_SRC_SEL_L2PLL	1
 #define SEC_SRC_SEL_AUX		2
 
@@ -468,8 +465,8 @@ static int acpuclk_krait_set_rate(int cpu, unsigned long rate,
 			goto out;
 	}
 
-	pr_debug("Switching from ACPU%d rate %lu KHz -> %lu KHz\n",
-		 cpu, strt_acpu_s->khz, tgt_acpu_s->khz);
+	dev_dbg(drv.dev, "Switching from ACPU%d rate %lu KHz -> %lu KHz\n",
+		cpu, strt_acpu_s->khz, tgt_acpu_s->khz);
 
 	/* Set the new CPU speed. */
 	set_speed(&drv.scalable[cpu], tgt_acpu_s);
@@ -496,7 +493,7 @@ static int acpuclk_krait_set_rate(int cpu, unsigned long rate,
 	/* Drop VDD levels if we can. */
 	decrease_vdd(cpu, &vdd_data, reason);
 
-	pr_debug("ACPU%d speed change complete\n", cpu);
+	dev_dbg(drv.dev, "ACPU%d speed change complete\n", cpu);
 
 out:
 	if (reason == SETRATE_CPUFREQ || reason == SETRATE_HOTPLUG)
@@ -504,11 +501,16 @@ out:
 	return rc;
 }
 
+static struct acpuclk_data acpuclk_krait_data = {
+	.set_rate = acpuclk_krait_set_rate,
+	.get_rate = acpuclk_krait_get_rate,
+};
+
 /* Initialize a HFPLL at a given rate and enable it. */
 static void __init hfpll_init(struct scalable *sc,
 			      const struct core_speed *tgt_s)
 {
-	pr_debug("Initializing HFPLL%d\n", sc - drv.scalable);
+	dev_dbg(drv.dev, "Initializing HFPLL%d\n", sc - drv.scalable);
 
 	/* Disable the PLL for re-programming. */
 	hfpll_disable(sc, true);
@@ -763,7 +765,7 @@ static int __cpuinit per_cpu_init(int cpu)
 	}
 
 	acpu_level = find_cur_acpu_level(cpu);
-	if (!acpu_level || acpu_level->speed.src == QSB) {
+	if (!acpu_level) {
 		acpu_level = find_min_acpu_level();
 		if (!acpu_level) {
 			ret = -ENODEV;
@@ -851,20 +853,20 @@ static void __init cpufreq_table_init(void)
 static void __init cpufreq_table_init(void) {}
 #endif
 
-#define HOT_UNPLUG_KHZ STBY_KHZ
 static int __cpuinit acpuclk_cpu_callback(struct notifier_block *nfb,
 					    unsigned long action, void *hcpu)
 {
 	static int prev_khz[NR_CPUS];
 	int rc, cpu = (int)hcpu;
 	struct scalable *sc = &drv.scalable[cpu];
+	unsigned long hot_unplug_khz = acpuclk_krait_data.power_collapse_khz;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DEAD:
 		prev_khz[cpu] = acpuclk_krait_get_rate(cpu);
 		/* Fall through. */
 	case CPU_UP_CANCELED:
-		acpuclk_krait_set_rate(cpu, HOT_UNPLUG_KHZ, SETRATE_HOTPLUG);
+		acpuclk_krait_set_rate(cpu, hot_unplug_khz, SETRATE_HOTPLUG);
 		regulator_set_optimum_mode(sc->vreg[VREG_CORE].reg, 0);
 		break;
 	case CPU_UP_PREPARE:
@@ -960,13 +962,6 @@ static int __init select_freq_plan(u32 qfprom_phys)
 	return tbl_idx;
 }
 
-static struct acpuclk_data acpuclk_krait_data = {
-	.set_rate = acpuclk_krait_set_rate,
-	.get_rate = acpuclk_krait_get_rate,
-	.power_collapse_khz = STBY_KHZ,
-	.wait_for_irq_khz = STBY_KHZ,
-};
-
 static void __init drv_data_init(struct device *dev,
 				 const struct acpuclk_krait_params *params)
 {
@@ -999,6 +994,9 @@ static void __init drv_data_init(struct device *dev,
 				    GFP_KERNEL);
 	BUG_ON(!drv.acpu_freq_tbl);
 	drv.boost_uv = params->pvs_tables[tbl_idx].boost_uv;
+
+	acpuclk_krait_data.power_collapse_khz = params->stby_khz;
+	acpuclk_krait_data.wait_for_irq_khz = params->stby_khz;
 }
 
 static void __init hw_init(void)
@@ -1021,9 +1019,10 @@ static void __init hw_init(void)
 	BUG_ON(rc);
 
 	l2_level = find_cur_l2_level();
-	if (!l2_level || l2_level->speed.src == QSB) {
+	if (!l2_level) {
 		l2_level = drv.l2_freq_tbl;
-		dev_dbg(drv.dev, "L2 is running at an unknown rate. Defaulting to QSB.\n");
+		dev_dbg(drv.dev, "L2 is running at an unknown rate. Defaulting to %lu KHz.\n",
+			l2_level->speed.khz);
 	} else {
 		dev_dbg(drv.dev, "L2 is running at %lu KHz\n",
 			l2_level->speed.khz);
