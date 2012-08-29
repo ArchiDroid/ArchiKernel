@@ -3876,11 +3876,22 @@ static int tabla_set_channel_map(struct snd_soc_dai *dai,
 		}
 	} else if (dai->id == AIF1_CAP || dai->id == AIF2_CAP ||
 		   dai->id == AIF3_CAP) {
-		for (i = 0; i < tx_num; i++) {
-			tabla->dai[dai->id - 1].ch_num[i]  = tx_slot[i];
-			tabla->dai[dai->id - 1].ch_act = 0;
-			tabla->dai[dai->id - 1].ch_tot = tx_num;
+		tabla->dai[dai->id - 1].ch_tot = tx_num;
+		/* All channels are already active.
+		 * do not reset ch_act flag
+		 */
+		if ((tabla->dai[dai->id - 1].ch_tot != 0)
+			&& (tabla->dai[dai->id - 1].ch_act ==
+			tabla->dai[dai->id - 1].ch_tot)) {
+			pr_info("%s: ch_act = %d, ch_tot = %d\n", __func__,
+				tabla->dai[dai->id - 1].ch_act,
+				tabla->dai[dai->id - 1].ch_tot);
+			return 0;
 		}
+
+		tabla->dai[dai->id - 1].ch_act = 0;
+		for (i = 0; i < tx_num; i++)
+			tabla->dai[dai->id - 1].ch_num[i]  = tx_slot[i];
 	}
 	return 0;
 }
@@ -7337,14 +7348,13 @@ int tabla_hs_detect(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(tabla_hs_detect);
 
-static unsigned long slimbus_value;
-
 static irqreturn_t tabla_slimbus_irq(int irq, void *data)
 {
 	struct tabla_priv *priv = data;
 	struct snd_soc_codec *codec = priv->codec;
 	struct tabla_priv *tabla_p = snd_soc_codec_get_drvdata(codec);
 	int i, j, port_id, k, ch_mask_temp;
+	unsigned long slimbus_value;
 	u8 val;
 
 	for (i = 0; i < WCD9XXX_SLIM_NUM_PORT_REG; i++) {
@@ -7377,7 +7387,8 @@ static irqreturn_t tabla_slimbus_irq(int irq, void *data)
 			}
 		}
 		wcd9xxx_interface_reg_write(codec->control_data,
-			TABLA_SLIM_PGD_PORT_INT_CLR0 + i, 0xFF);
+			TABLA_SLIM_PGD_PORT_INT_CLR0 + i, slimbus_value);
+		val = 0x0;
 	}
 
 	return IRQ_HANDLED;
