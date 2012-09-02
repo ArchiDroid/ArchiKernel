@@ -155,6 +155,7 @@ static char *msm_pm_sleep_mode_labels[MSM_PM_SLEEP_MODE_NR] = {
 
 static struct msm_pm_platform_data *msm_pm_modes;
 static struct msm_pm_irq_calls *msm_pm_irq_extns;
+static struct msm_pm_cpr_ops *msm_cpr_ops;
 
 struct msm_pm_kobj_attribute {
 	unsigned int cpu;
@@ -416,6 +417,11 @@ void __init msm_pm_set_irq_extns(struct msm_pm_irq_calls *irq_calls)
 		irq_calls->exit_sleep3 == NULL);
 
 	msm_pm_irq_extns = irq_calls;
+}
+
+void __init msm_pm_set_cpr_ops(struct msm_pm_cpr_ops *ops)
+{
+	msm_cpr_ops = ops;
 }
 
 /******************************************************************************
@@ -879,6 +885,10 @@ static int msm_pm_power_collapse
 		WARN_ON(ret);
 	}
 
+	/* Call CPR suspend only for "idlePC" case */
+	if (msm_cpr_ops && from_idle)
+		msm_cpr_ops->cpr_suspend();
+
 	msm_pm_irq_extns->enter_sleep1(true, from_idle,
 						&msm_pm_smem_data->irq_mask);
 	msm_sirc_enter_sleep();
@@ -1116,6 +1126,10 @@ static int msm_pm_power_collapse
 		WARN_ON(ret);
 	}
 
+	/* Call CPR resume only for "idlePC" case */
+	if (msm_cpr_ops && from_idle)
+		msm_cpr_ops->cpr_resume();
+
 	return 0;
 
 power_collapse_early_exit:
@@ -1167,6 +1181,10 @@ power_collapse_restore_gpio_bail:
 
 	if (collapsed)
 		smd_sleep_exit();
+
+	/* Call CPR resume only for "idlePC" case */
+	if (msm_cpr_ops && from_idle)
+		msm_cpr_ops->cpr_resume();
 
 power_collapse_bail:
 	if (cpu_is_msm8625()) {
