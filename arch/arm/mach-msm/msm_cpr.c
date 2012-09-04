@@ -56,6 +56,8 @@ struct msm_cpr {
 	bool max_volt_set;
 	void __iomem *base;
 	unsigned int irq;
+	uint32_t cur_Vmin;
+	uint32_t cur_Vmax;
 	struct mutex cpr_mutex;
 	struct regulator *vreg_cx;
 	const struct msm_cpr_config *config;
@@ -189,7 +191,7 @@ cpr_2pt_kv_analysis(struct msm_cpr *cpr, struct msm_cpr_mode *chip_data)
 	 * voltage, offset is always subtracted from it.
 	 *
 	 */
-	level_uV = chip_data->Vmax -
+	level_uV = chip_data->turbo_Vmax -
 		(chip_data->tgt_volt_offset * cpr->vp->step_size);
 	pr_debug("tgt_volt_uV = %d\n", level_uV);
 
@@ -319,8 +321,8 @@ cpr_up_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	 * freq switch handler and CPR interrupt handler here
 	 */
 	/* Set New PMIC voltage */
-	set_volt_uV = (new_volt < chip_data->Vmax ? new_volt
-				: chip_data->Vmax);
+	set_volt_uV = (new_volt < cpr->cur_Vmax ? new_volt
+				: cpr->cur_Vmax);
 	rc = regulator_set_voltage(cpr->vreg_cx, set_volt_uV,
 					set_volt_uV);
 	if (rc) {
@@ -331,13 +333,7 @@ cpr_up_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	}
 	pr_info("(railway_voltage: %d uV)\n", set_volt_uV);
 
-	cpr->max_volt_set = (set_volt_uV == chip_data->Vmax) ? 1 : 0;
-
-	/**
-	 * Save the new calibrated voltage to be re-used
-	 * whenever we return to same mode after a mode switch.
-	 */
-	chip_data->calibrated_uV = set_volt_uV;
+	cpr->max_volt_set = (set_volt_uV == cpr->cur_Vmax) ? 1 : 0;
 
 	/* Clear all the interrupts */
 	cpr_write_reg(cpr, RBIF_IRQ_CLEAR, ALL_CPR_IRQ);
@@ -367,8 +363,8 @@ cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	 * freq switch handler and CPR interrupt handler here
 	 */
 	/* Set New PMIC volt */
-	set_volt_uV = (new_volt > chip_data->Vmin ? new_volt
-				: chip_data->Vmin);
+	set_volt_uV = (new_volt > cpr->cur_Vmin ? new_volt
+				: cpr->cur_Vmin);
 	rc = regulator_set_voltage(cpr->vreg_cx, set_volt_uV,
 					set_volt_uV);
 	if (rc) {
@@ -381,16 +377,10 @@ cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 
 	cpr->max_volt_set = 0;
 
-	/**
-	 * Save the new calibrated voltage to be re-used
-	 * whenever we return to same mode after a mode switch.
-	 */
-	chip_data->calibrated_uV = set_volt_uV;
-
 	/* Clear all the interrupts */
 	cpr_write_reg(cpr, RBIF_IRQ_CLEAR, ALL_CPR_IRQ);
 
-	if (new_volt <= chip_data->Vmin) {
+	if (new_volt <= cpr->cur_Vmin) {
 		/*
 		 * Disable down interrupt to App after we hit Vmin
 		 * It shall be enabled after we service an up interrupt
@@ -422,7 +412,8 @@ static void cpr_set_vdd(struct msm_cpr *cpr, enum cpr_action action)
 	chip_data = &cpr->config->cpr_mode_data[cpr->cpr_mode];
 	error_step = cpr_read_reg(cpr, RBCPR_RESULT_0) >> 2;
 	error_step &= 0xF;
-	curr_volt = chip_data->calibrated_uV;
+
+	curr_volt = regulator_get_voltage(cpr->vreg_cx);
 
 	if (action == UP) {
 		/* Clear IRQ, ACK and return if Vdd already at Vmax */
@@ -580,7 +571,7 @@ cpr_freq_transition(struct notifier_block *nb, unsigned long val,
 {
 	struct msm_cpr *cpr = container_of(nb, struct msm_cpr, freq_transition);
 	struct cpufreq_freqs *freqs = data;
-	uint32_t quot, new_freq;
+	uint32_t quot, new_freq, ctl_reg;
 
 	switch (val) {
 	case CPUFREQ_PRECHANGE:
@@ -604,13 +595,20 @@ cpr_freq_transition(struct notifier_block *nb, unsigned long val,
 
 	case CPUFREQ_POSTCHANGE:
 		pr_debug("post freq change notification to cpr\n");
+		ctl_reg = cpr_read_reg(cpr, RBCPR_CTL);
 		/**
 		 * As per chip characterization data, use max nominal freq
 		 * to calculate quot for all lower frequencies too
 		 */
-		new_freq = (freqs->new > cpr->config->max_nom_freq)
-					? freqs->new
-					: cpr->config->max_nom_freq;
+		if (freqs->new > cpr->config->max_nom_freq) {
+			new_freq = freqs->new;
+			cpr->cur_Vmin = cpr->config->cpr_mode_data[1].turbo_Vmin;
+			cpr->cur_Vmax = cpr->config->cpr_mode_data[1].turbo_Vmax;
+		} else {
+			new_freq = cpr->config->max_nom_freq;
+			cpr->cur_Vmin = cpr->config->cpr_mode_data[1].nom_Vmin;
+			cpr->cur_Vmax = cpr->config->cpr_mode_data[1].nom_Vmax;
+		}
 
 		/* Configure CPR for the new frequency */
 		quot = cpr->config->get_quot(cpr->config->max_quot,
@@ -630,6 +628,14 @@ cpr_freq_transition(struct notifier_block *nb, unsigned long val,
 		 * state if vdd had hit Vmax / Vmin earlier
 		 */
 		cpr_irq_set(cpr, INT_MASK & ~MID_INT, 1);
+
+		/**
+		 * Clear the auto NACK down bit if enabled in the freq.
+		 * transition phase.
+		 */
+		if (ctl_reg & SW_AUTO_CONT_NACK_DN_EN)
+			cpr_modify_reg(cpr, RBCPR_CTL,
+				 SW_AUTO_CONT_NACK_DN_EN_M, 0);
 		pr_debug("RBIF_IRQ_EN(0): 0x%x\n",
 			cpr_read_reg(cpr, RBIF_IRQ_EN(cpr->config->irq_line)));
 		pr_debug("RBCPR_CTL: 0x%x\n",
@@ -752,6 +758,10 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 
 	/* Initialize platform_data */
 	cpr->config = pdata;
+
+	/* Set initial Vmin,Vmax equal to turbo */
+	cpr->cur_Vmin = cpr->config->cpr_mode_data[1].turbo_Vmin;
+	cpr->cur_Vmax = cpr->config->cpr_mode_data[1].turbo_Vmax;
 
 	cpr_pdev = pdev;
 
