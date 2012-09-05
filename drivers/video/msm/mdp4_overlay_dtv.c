@@ -1033,6 +1033,7 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 		pr_warn("%s: dtv_pipe == NULL\n", __func__);
 		return;
 	}
+	mdp_update_pm(mfd, vsync_ctrl_db[0].vsync_time);
 
 	if (hdmi_prim_display && (pipe->pipe_used == 0 ||
 			pipe->mixer_stage != MDP4_MIXER_STAGE_BASE)) {
