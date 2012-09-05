@@ -291,6 +291,7 @@ void mdp4_writeback_kickoff_video(struct msm_fb_data_type *mfd,
 	mdp4_mixer_stage_commit(pipe->mixer_num);
 
 	mdp4_writeback_overlay_kickoff(mfd, pipe);
+	mdp4_writeback_dma_busy_wait(mfd);
 
 	mutex_lock(&mfd->writeback_mutex);
 	list_add_tail(&node->active_entry, &mfd->writeback_busy_queue);
