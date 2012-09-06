@@ -49,7 +49,7 @@
 #include <linux/smsc911x.h>
 #include <linux/atmel_maxtouch.h>
 #include <linux/msm_adc.h>
-#include <linux/ion.h>
+#include <linux/msm_ion.h>
 #include <linux/dma-contiguous.h>
 #include <linux/dma-mapping.h>
 #include "devices.h"
