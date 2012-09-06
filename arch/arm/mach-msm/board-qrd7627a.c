@@ -30,7 +30,7 @@
 #include <linux/memblock.h>
 #include <linux/input/ft5x06_ts.h>
 #include <linux/msm_adc.h>
-#include <linux/ion.h>
+#include <linux/msm_ion.h>
 #include <linux/i2c-gpio.h>
 #include <linux/regulator/onsemi-ncp6335d.h>
 #include <linux/dma-contiguous.h>
