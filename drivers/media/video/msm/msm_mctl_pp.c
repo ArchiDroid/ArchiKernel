@@ -299,6 +299,10 @@ static int msm_mctl_pp_get_phy_addr(
 	struct videobuf2_contig_pmem *mem;
 	int i, buf_idx = 0;
 
+	if (0 == frame_handle) {
+		pr_err("%s:%d] Invalid frame handle", __func__, __LINE__);
+		return -EINVAL;
+	}
 	vb = (struct msm_frame_buffer *)frame_handle;
 	buf_idx = vb->vidbuf.v4l2_buf.index;
 	memset(pp_frame, 0, sizeof(struct msm_pp_frame));
@@ -310,6 +314,11 @@ static int msm_mctl_pp_get_phy_addr(
 	 * Also use this to check the number of planes in
 	 * this buffer.*/
 	mem = vb2_plane_cookie(&vb->vidbuf, 0);
+
+	if (NULL == mem) {
+		pr_err("%s:%d] Invalid mem", __func__, __LINE__);
+		return -EINVAL;
+	}
 	pp_frame->image_type = (unsigned short)mem->path;
 	if (mem->buffer_type == VIDEOBUF2_SINGLE_PLANE) {
 		pp_frame->num_planes = 1;
