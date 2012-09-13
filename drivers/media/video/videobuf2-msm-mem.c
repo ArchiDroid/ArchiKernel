@@ -28,6 +28,7 @@
 #include <linux/memory_alloc.h>
 #include <media/videobuf2-msm-mem.h>
 #include <media/msm_camera.h>
+#include <linux/msm_ion.h>
 #include <mach/memory.h>
 #include <media/videobuf2-core.h>
 #include <mach/iommu_domains.h>
@@ -64,7 +65,7 @@ static unsigned long msm_mem_allocate(struct videobuf2_contig_pmem *mem)
 	rc = ion_map_iommu(mem->client, mem->ion_handle,
 			CAMERA_DOMAIN, GEN_POOL, SZ_4K, 0,
 			(unsigned long *)&phyaddr,
-			(unsigned long *)&len, UNCACHED, 0);
+			(unsigned long *)&len, 0, 0);
 	if (rc < 0) {
 		pr_err("%s Could not get physical address\n", __func__);
 		goto phys_failed;
@@ -191,7 +192,7 @@ int videobuf2_pmem_contig_user_get(struct videobuf2_contig_pmem *mem,
 		return PTR_ERR(mem->ion_handle);
 	}
 	rc = ion_map_iommu(client, mem->ion_handle, CAMERA_DOMAIN, GEN_POOL,
-		SZ_4K, 0, (unsigned long *)&mem->phyaddr, &len, UNCACHED, 0);
+		SZ_4K, 0, (unsigned long *)&mem->phyaddr, &len, 0, 0);
 	if (rc < 0)
 		ion_free(client, mem->ion_handle);
 #elif CONFIG_ANDROID_PMEM
