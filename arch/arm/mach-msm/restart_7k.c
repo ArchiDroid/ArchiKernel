@@ -27,7 +27,6 @@ static uint32_t restart_reason = 0x776655AA;
 
 static void msm_pm_power_off(void)
 {
-	msm_rpcrouter_close();
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 	for (;;)
 		;
@@ -35,7 +34,6 @@ static void msm_pm_power_off(void)
 
 static void msm_pm_restart(char str, const char *cmd)
 {
-	msm_rpcrouter_close();
 	pr_debug("The reset reason is %x\n", restart_reason);
 
 	/* Disable interrupts */
