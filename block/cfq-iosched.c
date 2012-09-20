@@ -2310,6 +2310,9 @@ static void cfq_choose_cfqg(struct cfq_data *cfqd)
 		return;
 //V7_LGSI_E[panchaxari.t@lge.com][QCT-SR#1068475]	
 
+	if (!cfqg)
+		return;
+
 	cfqd->serving_group = cfqg;
 
 	/* Restore the workload type data */
