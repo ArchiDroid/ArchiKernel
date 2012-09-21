@@ -78,7 +78,6 @@ static struct msm_camera_gpio_conf gpio_conf_ov9726 = {
 
 #ifdef CONFIG_OV7692
 static struct gpio ov7692_cam_req_gpio[] = {
-	{GPIO_SKU1_CAM_VGA_SHDN, GPIOF_DIR_OUT, "CAM_VGA_SHDN"},
 	{GPIO_SKU1_CAM_VGA_RESET_N, GPIOF_DIR_OUT, "CAM_VGA_RESET"},
 };
 
@@ -582,6 +581,26 @@ static void evb_camera_gpio_cfg(void)
 	if (rc < 0)
 		pr_err("%s: unable to set gpio: %d direction for ov5647 camera\n",
 			__func__, msm_camera_sensor_ov5647_data.sensor_reset);
+
+	/*OV7692 GPIO Config*/
+	rc = gpio_request(msm_camera_sensor_ov7692_data.sensor_pwd, "ov7692");
+	if (rc < 0)
+		pr_err("%s: gpio_request OV7692 sensor_pwd: %d failed!",
+			 __func__, msm_camera_sensor_ov7692_data.sensor_pwd);
+
+	rc = gpio_tlmm_config(GPIO_CFG(msm_camera_sensor_ov7692_data.sensor_pwd,
+				0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+	if (rc < 0) {
+		pr_err("%s:unable to enable Powr Dwn gpio for main camera!\n",
+			 __func__);
+		gpio_free(msm_camera_sensor_ov7692_data.sensor_pwd);
+	}
+
+	rc = gpio_direction_output(msm_camera_sensor_ov7692_data.sensor_pwd, 0);
+	if (rc < 0)
+		pr_err("%s: unable to set gpio: %d direction for ov7692 camera\n",
+			__func__, msm_camera_sensor_ov7692_data.sensor_pwd);
 
 }
 
