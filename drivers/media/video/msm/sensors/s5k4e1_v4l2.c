@@ -253,10 +253,11 @@ static int32_t s5k4e1_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 {
 	uint16_t max_legal_gain = 0x0200;
 	int32_t rc = 0;
-	static uint32_t fl_lines, offset;
-
+	uint32_t fl_lines, offset;
+	fl_lines = s_ctrl->curr_frame_length_lines;
 	pr_info("s5k4e1_write_prev_exp_gain :%d %d\n", gain, line);
 	offset = s_ctrl->sensor_exp_gain_info->vert_offset;
+	fl_lines = (fl_lines * s_ctrl->fps_divider) / Q10;
 	if (gain > max_legal_gain) {
 		CDBG("Max legal gain Line:%d\n", __LINE__);
 		gain = max_legal_gain;
@@ -272,8 +273,7 @@ static int32_t s5k4e1_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 		s5k4e1_byte(gain, LSB),
 		MSM_CAMERA_I2C_BYTE_DATA);
 
-	if (line > (s_ctrl->curr_frame_length_lines - offset)) {
-		fl_lines = line + offset;
+	if (line > (fl_lines - offset)) {
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 			s_ctrl->sensor_output_reg_addr->frame_length_lines,
@@ -294,7 +294,6 @@ static int32_t s5k4e1_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 			MSM_CAMERA_I2C_BYTE_DATA);
 		s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
 	} else if (line < (fl_lines - offset)) {
-		fl_lines = line + offset;
 		if (fl_lines < s_ctrl->curr_frame_length_lines)
 			fl_lines = s_ctrl->curr_frame_length_lines;
 
@@ -318,8 +317,15 @@ static int32_t s5k4e1_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 			MSM_CAMERA_I2C_BYTE_DATA);
 		s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
 	} else {
-		fl_lines = line+4;
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
+		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
+			s_ctrl->sensor_output_reg_addr->frame_length_lines,
+			s5k4e1_byte(fl_lines, MSB),
+			MSM_CAMERA_I2C_BYTE_DATA);
+			msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
+			s_ctrl->sensor_output_reg_addr->frame_length_lines + 1,
+			s5k4e1_byte(fl_lines, LSB),
+			MSM_CAMERA_I2C_BYTE_DATA);
 		/* Coarse Integration Time */
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 			s_ctrl->sensor_exp_gain_info->coarse_int_time_addr,
@@ -329,7 +335,7 @@ static int32_t s5k4e1_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 			s_ctrl->sensor_exp_gain_info->coarse_int_time_addr + 1,
 			s5k4e1_byte(line, LSB),
 			MSM_CAMERA_I2C_BYTE_DATA);
-		s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
+			s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
 	}
 	return rc;
 }
