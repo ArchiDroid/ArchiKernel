@@ -2465,4 +2465,9 @@ config MSM_HSIC_SYSMON_TEST
 	  can be read and written to send character data to the sysmon port of
 	  the modem over USB.
 
+config MSM_8X60_FUSION_GPIO_GLITCH
+	tristate "Mask unexpected glitch during boot up"
+	help
+	  Enable masking of glitch during boot up, which helps in avoiding unwanted
+	  noise or s/w code from toggling the ap2mdm err fatal.
 endif
