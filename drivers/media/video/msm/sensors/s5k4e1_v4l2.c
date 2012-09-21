@@ -171,7 +171,7 @@ static struct msm_camera_i2c_reg_conf s5k4e1_recommend_settings[] = {
 
 static struct v4l2_subdev_info s5k4e1_subdev_info[] = {
 	{
-	.code   = V4L2_MBUS_FMT_SGRBG10_1X10,
+	.code   = V4L2_MBUS_FMT_SBGGR10_1X10,
 	.colorspace = V4L2_COLORSPACE_JPEG,
 	.fmt    = 1,
 	.order    = 0,
