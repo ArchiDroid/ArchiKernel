@@ -29,7 +29,6 @@
 #include <linux/iopoll.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
-#include <linux/syscore_ops.h>
 
 #include <mach/irqs.h>
 
@@ -783,11 +782,6 @@ static int msm_cpr_resume(void)
 	return 0;
 }
 
-static void msm_cpr_resume_syscore(void)
-{
-	msm_cpr_resume();
-}
-
 static int msm_cpr_suspend(void)
 {
 	struct msm_cpr *cpr = msm_cpr;
@@ -815,11 +809,6 @@ static int msm_cpr_suspend(void)
 		cpr_read_reg(cpr, RBCPR_CTL);
 
 	return 0;
-}
-
-static int msm_cpr_suspend_syscore(void)
-{
-	return msm_cpr_suspend();
 }
 
 void msm_cpr_pm_resume(void)
@@ -869,11 +858,6 @@ void msm_cpr_enable(void)
 	cpr_enable(cpr);
 }
 EXPORT_SYMBOL(msm_cpr_enable);
-
-static struct syscore_ops msm_cpr_syscore_ops = {
-	.suspend = msm_cpr_suspend_syscore,
-	.resume = msm_cpr_resume_syscore,
-};
 
 static int __devinit msm_cpr_probe(struct platform_device *pdev)
 {
@@ -1004,8 +988,6 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	cpufreq_register_notifier(&cpr->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
-	pr_info("MSM CPR driver successfully registered!\n");
-
 	return res;
 
 err_reg_get:
@@ -1021,7 +1003,6 @@ static int __devexit msm_cpr_remove(struct platform_device *pdev)
 {
 	struct msm_cpr *cpr = platform_get_drvdata(pdev);
 
-	unregister_syscore_ops(&msm_cpr_syscore_ops);
 	cpufreq_unregister_notifier(&cpr->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
