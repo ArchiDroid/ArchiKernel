@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <mach/clk.h>
 #include <mach/camera.h>
+#include <mach/dal_axi.h>
 #include "msm_vfe7x27a_v4l2.h"
 #include "msm.h"
 
@@ -114,6 +115,7 @@
 #define VFE_ASYNC_TIMER2_START  29
 #define VFE_STATS_AUTOFOCUS_UPDATE  30
 #define VFE_STATS_WB_EXP_UPDATE  31
+#define VFE_IMMEDIATE_STOP      32
 #define VFE_ROLL_OFF_UPDATE  33
 #define VFE_DEMOSAICv3_BPC_UPDATE  34
 #define VFE_TESTGEN_START  35
@@ -238,7 +240,7 @@ struct cmd_id_map cmds_map[] = {
 	{VFE_CMD_CAPTURE, VFE_START, QDSP_CMDQUEUE,
 			"VFE_CMD_CAPTURE", "VFE_START"},
 	{VFE_CMD_DUMMY_7, VFE_MAX, VFE_MAX},
-	{VFE_CMD_STOP, VFE_STOP, QDSP_CMDQUEUE, "VFE_CMD_STOP", "VFE_STOP"},
+        {VFE_CMD_STOP, VFE_IMMEDIATE_STOP, QDSP_CMDQUEUE, "VFE_CMD_STOP", "VFE_IMMEDIATE_STOP"},
 	{VFE_CMD_GET_HW_VERSION, VFE_MAX, VFE_MAX},
 	{VFE_CMD_GET_FRAME_SKIP_COUNTS, VFE_MAX, VFE_MAX},
 	{VFE_CMD_OUTPUT1_BUFFER_ENQ, VFE_MAX, VFE_MAX},
@@ -427,7 +429,6 @@ static void vfe_7x_ops(void *driver_data, unsigned id, size_t len,
 		/* messages */
 		getevent(data, len);
 		CDBG("%s:messages:msg_id=%d\n", __func__, id);
-
 		switch (id) {
 		case MSG_SNAPSHOT:
 			while (vfe2x_ctrl->snap.frame_cnt <
@@ -1485,6 +1486,7 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
 		if (queue == QDSP_CMDQUEUE) {
 			switch (vfecmd.id) {
 			case VFE_CMD_RESET:
+				axi_halt(AXI_HALT_PORT_VFE);
 				msm_camio_vfe_blk_reset_2();
 				vfestopped = 0;
 				break;
