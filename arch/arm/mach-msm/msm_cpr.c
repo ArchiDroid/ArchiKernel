@@ -29,6 +29,7 @@
 #include <linux/iopoll.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
+#include <linux/syscore_ops.h>
 
 #include <mach/irqs.h>
 
@@ -681,6 +682,11 @@ static int msm_cpr_resume(struct device *dev)
 	return 0;
 }
 
+static void msm_cpr_resume_syscore(void)
+{
+	msm_cpr_resume(&cpr_pdev->dev);
+}
+
 static int msm_cpr_suspend(struct device *dev)
 
 {
@@ -711,6 +717,11 @@ static int msm_cpr_suspend(struct device *dev)
 	return 0;
 }
 
+static int msm_cpr_suspend_syscore(void)
+{
+	return msm_cpr_suspend(&cpr_pdev->dev);
+}
+
 void msm_cpr_pm_resume(void)
 {
 	msm_cpr_resume(&cpr_pdev->dev);
@@ -722,6 +733,9 @@ void msm_cpr_pm_suspend(void)
 	msm_cpr_suspend(&cpr_pdev->dev);
 }
 EXPORT_SYMBOL(msm_cpr_pm_suspend);
+#else
+#define msm_cpr_suspned_core NULL
+#define msm_cpr_resume_core NULL
 #endif
 
 void msm_cpr_disable(void)
@@ -737,6 +751,11 @@ void msm_cpr_enable(void)
 	cpr_enable(cpr);
 }
 EXPORT_SYMBOL(msm_cpr_enable);
+
+static struct syscore_ops msm_cpr_syscore_ops = {
+	.suspend = msm_cpr_suspend_syscore,
+	.resume = msm_cpr_resume_syscore,
+};
 
 static int __devinit msm_cpr_probe(struct platform_device *pdev)
 {
@@ -857,6 +876,8 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	cpufreq_register_notifier(&cpr->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
+	register_syscore_ops(&msm_cpr_syscore_ops);
+
 	return res;
 
 err_reg_get:
@@ -871,6 +892,7 @@ static int __devexit msm_cpr_remove(struct platform_device *pdev)
 {
 	struct msm_cpr *cpr = platform_get_drvdata(pdev);
 
+	unregister_syscore_ops(&msm_cpr_syscore_ops);
 	cpufreq_unregister_notifier(&cpr->freq_transition,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
@@ -884,20 +906,12 @@ static int __devexit msm_cpr_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct dev_pm_ops msm_cpr_dev_pm_ops = {
-	.suspend = msm_cpr_suspend,
-	.resume = msm_cpr_resume,
-};
-
 static struct platform_driver msm_cpr_driver = {
 	.probe = msm_cpr_probe,
 	.remove = __devexit_p(msm_cpr_remove),
 	.driver = {
 		.name = MODULE_NAME,
 		.owner = THIS_MODULE,
-#ifdef CONFIG_PM
-		.pm = &msm_cpr_dev_pm_ops,
-#endif
 	},
 };
 
