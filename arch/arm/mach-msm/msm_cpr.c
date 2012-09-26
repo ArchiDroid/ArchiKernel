@@ -95,6 +95,7 @@ struct msm_cpr {
 
 /* Need to maintain state data for suspend and resume APIs */
 static struct msm_cpr_reg cpr_save_state;
+static struct msm_cpr *msm_cpr;
 
 static inline
 void cpr_write_reg(struct msm_cpr *cpr, u32 offset, u32 value)
@@ -752,9 +753,9 @@ cpr_freq_transition(struct notifier_block *nb, unsigned long val,
 }
 
 #ifdef CONFIG_PM
-static int msm_cpr_resume(struct device *dev)
+static int msm_cpr_resume(void)
 {
-	struct msm_cpr *cpr = dev_get_drvdata(dev);
+	struct msm_cpr *cpr = msm_cpr;
 	int osc_num = cpr->config->cpr_mode_data->ring_osc;
 
 	cpr->config->clk_enable();
@@ -784,13 +785,12 @@ static int msm_cpr_resume(struct device *dev)
 
 static void msm_cpr_resume_syscore(void)
 {
-	msm_cpr_resume(&cpr_pdev->dev);
+	msm_cpr_resume();
 }
 
-static int msm_cpr_suspend(struct device *dev)
-
+static int msm_cpr_suspend(void)
 {
-	struct msm_cpr *cpr = dev_get_drvdata(dev);
+	struct msm_cpr *cpr = msm_cpr;
 	int osc_num = cpr->config->cpr_mode_data->ring_osc;
 
 	/* Disable CPR measurement before IRQ to avoid pending interrupts */
@@ -819,7 +819,7 @@ static int msm_cpr_suspend(struct device *dev)
 
 static int msm_cpr_suspend_syscore(void)
 {
-	return msm_cpr_suspend(&cpr_pdev->dev);
+	return msm_cpr_suspend();
 }
 
 void msm_cpr_pm_resume(void)
@@ -827,7 +827,7 @@ void msm_cpr_pm_resume(void)
 	if (!enable)
 		return;
 
-	msm_cpr_resume(&cpr_pdev->dev);
+	msm_cpr_resume();
 }
 EXPORT_SYMBOL(msm_cpr_pm_resume);
 
@@ -836,7 +836,7 @@ void msm_cpr_pm_suspend(void)
 	if (!enable)
 		return;
 
-	msm_cpr_suspend(&cpr_pdev->dev);
+	msm_cpr_suspend();
 }
 EXPORT_SYMBOL(msm_cpr_pm_suspend);
 #else
@@ -907,6 +907,7 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 	cpr->cur_Vmax = cpr->config->cpr_mode_data[1].turbo_Vmax;
 
 	cpr_pdev = pdev;
+	msm_cpr = cpr;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem || !mem->start) {
