@@ -372,10 +372,9 @@ int msm_camera_config_gpio_table(struct msm_camera_sensor_info *sinfo,
 		}
 	} else {
 		for (i = gpio_conf->cam_gpio_set_tbl_size - 1; i >= 0; i--) {
-			if (gpio_conf->cam_gpio_set_tbl[i].flags)
-				gpio_set_value_cansleep(
-					gpio_conf->cam_gpio_set_tbl[i].gpio,
-					GPIOF_OUT_INIT_LOW);
+			gpio_set_value_cansleep(
+				gpio_conf->cam_gpio_set_tbl[i].gpio,
+				gpio_conf->cam_gpio_set_tbl[i].flags);
 		}
 	}
 	return rc;
