@@ -829,7 +829,7 @@ void msm_cpr_pm_suspend(void)
 }
 EXPORT_SYMBOL(msm_cpr_pm_suspend);
 #else
-#define msm_cpr_suspned_core NULL
+#define msm_cpr_suspend_core NULL
 #define msm_cpr_resume_core NULL
 #endif
 
