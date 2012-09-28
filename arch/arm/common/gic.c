@@ -67,6 +67,9 @@ struct gic_chip_data {
 	u32 __percpu *saved_ppi_enable;
 	u32 __percpu *saved_ppi_conf;
 #endif
+#ifdef CONFIG_GIC_SECURE
+	u32 saved_dist_isr[DIV_ROUND_UP(1020, 32)];
+#endif
 	struct irq_domain *domain;
 	unsigned int gic_irqs;
 #ifdef CONFIG_GIC_NON_BANKED
@@ -640,6 +643,12 @@ static void gic_dist_save(unsigned int gic_nr)
 	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++)
 		gic_data[gic_nr].saved_spi_enable[i] =
 			readl_relaxed(dist_base + GIC_DIST_ENABLE_SET + i * 4);
+
+#ifdef CONFIG_GIC_SECURE
+	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++)
+		gic_data[gic_nr].saved_dist_isr[i] =
+			readl_relaxed(dist_base + GIC_DIST_ISR + i * 4);
+#endif
 }
 
 /*
@@ -681,6 +690,12 @@ static void gic_dist_restore(unsigned int gic_nr)
 	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++)
 		writel_relaxed(gic_data[gic_nr].saved_spi_enable[i],
 			dist_base + GIC_DIST_ENABLE_SET + i * 4);
+
+#ifdef CONFIG_GIC_SECURE
+	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++)
+		writel_relaxed(gic_data[gic_nr].saved_dist_isr[i],
+				dist_base + GIC_DIST_ISR + i * 4);
+#endif
 
 	writel_relaxed(saved_dist_ctrl, dist_base + GIC_DIST_CTRL);
 }
