@@ -144,6 +144,8 @@ struct msm_bus_hw_algorithm {
 		*fab_pdata, void *hw_data, void **cdata);
 	int (*port_unhalt)(uint32_t haltid, uint8_t mport);
 	int (*port_halt)(uint32_t haltid, uint8_t mport);
+	int (*clear_arb_data)(struct msm_bus_fabric_registration
+		*fab_pdata, void **cdata);
 };
 
 struct msm_bus_fabric_device {

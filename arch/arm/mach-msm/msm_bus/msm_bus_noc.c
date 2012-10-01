@@ -607,6 +607,7 @@ int msm_bus_noc_hw_init(struct msm_bus_fabric_registration *pdata,
 	hw_algo->commit = msm_bus_noc_commit;
 	hw_algo->port_halt = msm_bus_noc_port_halt;
 	hw_algo->port_unhalt = msm_bus_noc_port_unhalt;
+	hw_algo->clear_arb_data = NULL;
 
 	return 0;
 }
