@@ -3610,6 +3610,7 @@ int mdp4_v4l2_overlay_set(struct fb_info *info, struct mdp_overlay *req,
 		pr_err("%s:Could not allocate MDP overlay pipe\n", __func__);
 		return err;
 	}
+	msm_fb_signal_timeline(mfd);
 
 	mdp4_mixer_blend_setup(pipe->mixer_num);
 	*ppipe = pipe;
