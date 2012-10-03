@@ -1982,6 +1982,7 @@ int msm_bus_bimc_hw_init(struct msm_bus_fabric_registration *pdata,
 	hw_algo->commit = msm_bus_bimc_commit;
 	hw_algo->port_halt = msm_bus_bimc_port_halt;
 	hw_algo->port_unhalt = msm_bus_bimc_port_unhalt;
+	hw_algo->clear_arb_data = NULL;
 	/* BIMC slaves are shared. Slave registers are set through RPM */
 	if (!pdata->ahb)
 		pdata->rpm_enabled = 1;
