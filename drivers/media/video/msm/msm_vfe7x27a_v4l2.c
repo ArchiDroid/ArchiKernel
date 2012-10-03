@@ -440,6 +440,16 @@ static void vfe_7x_ops(void *driver_data, unsigned id, size_t len,
 						len, getevent);
 			}
 			vfe2x_send_isp_msg(vfe2x_ctrl, MSG_ID_SNAPSHOT_DONE);
+			vfe2x_ctrl->snapshot_done = 1;
+			if (vfe2x_ctrl->stop_pending) {
+				cmd_data = buf;
+				*(uint32_t *)cmd_data = VFE_STOP;
+				/* Send Stop cmd here */
+				len  = 4;
+				msm_adsp_write(vfe_mod, QDSP_CMDQUEUE,
+						cmd_data, len);
+				vfe2x_ctrl->stop_pending = 0;
+			}
 			kfree(data);
 			return;
 		case MSG_OUTPUT_S:
@@ -1521,16 +1531,12 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
 				vfestopped = 1;
 				spin_lock_irqsave(&vfe2x_ctrl->table_lock,
 						flags);
-				if (op_mode & SNAPSHOT_MASK_MODE) {
-					vfe2x_ctrl->stop_pending = 0;
-					vfe2x_send_isp_msg(vfe2x_ctrl,
-						msgs_map[MSG_STOP_ACK].
-						isp_id);
-					spin_unlock_irqrestore(
-							&vfe2x_ctrl->table_lock,
-							flags);
-					return 0;
-				}
+				if ((op_mode & SNAPSHOT_MASK_MODE) && !vfe2x_ctrl->snapshot_done) {
+                                        vfe2x_ctrl->stop_pending = 1;
+                                        spin_unlock_irqrestore(&vfe2x_ctrl->table_lock,
+                                                flags);
+                                        return 0;
+                                }
 				if ((!list_empty(&vfe2x_ctrl->table_q)) ||
 						vfe2x_ctrl->tableack_pending) {
 					CDBG("stop pending\n");
@@ -1540,6 +1546,7 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
 							flags);
 					return 0;
 				}
+				vfe2x_ctrl->snapshot_done = 0;
 				spin_unlock_irqrestore(&vfe2x_ctrl->table_lock,
 						flags);
 				vfe2x_ctrl->vfe_started = 0;
