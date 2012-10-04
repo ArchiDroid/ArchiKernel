@@ -1852,6 +1852,9 @@ error:
 
 static void send_vsync_work(struct work_struct *work)
 {
+#ifdef CONFIG_FB_MSM_VSYNC_SYSFS
+	msm_fb_notify_vsync(vsync_cntrl.mfd, vsync_cntrl.vsync_time);
+#else
 	char buf[64];
 	char *envp[2];
 
@@ -1860,6 +1863,7 @@ static void send_vsync_work(struct work_struct *work)
 	envp[0] = buf;
 	envp[1] = NULL;
 	kobject_uevent_env(&(vsync_cntrl.dev->kobj), KOBJ_CHANGE, envp);
+#endif
 }
 
 void mdp3_vsync_irq_enable(int intr, int term)
