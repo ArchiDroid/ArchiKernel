@@ -1618,6 +1618,7 @@ static int __init msm8625_cpu_id(void)
 		break;
 	case 0x775:
 	case 0x776:
+	case 0x779:
 	case 0x77D:
 	case 0x782:
 	case 0x8D2:
@@ -1691,9 +1692,9 @@ static struct msm_cpr_mode msm_cpr_mode_data[] = {
 			.step_quot = ~0,
 			.tgt_volt_offset = 0,
 			.turbo_Vmax = 1350000,
-			.turbo_Vmin = 950000,
+			.turbo_Vmin = 1100000,
 			.nom_Vmax = 1350000,
-			.nom_Vmin = 950000,
+			.nom_Vmin = 1100000,
 			.calibrated_uV = 1300000,
 	},
 };
@@ -1711,7 +1712,7 @@ msm_cpr_get_quot(uint32_t max_quot, uint32_t max_freq, uint32_t new_freq)
 	uint32_t quot;
 
 	/* This formula is as per chip characterization data */
-	quot = max_quot - ((max_freq / 10 - new_freq / 10) * 5);
+	quot = max_quot - (((max_freq - new_freq) * 7) / 10);
 
 	return quot;
 }
@@ -1731,7 +1732,7 @@ static void msm_cpr_clk_enable(void)
 
 static struct msm_cpr_config msm_cpr_pdata = {
 	.ref_clk_khz = 19200,
-	.delay_us = 25000,
+	.delay_us = 1000,
 	.irq_line = 0,
 	.cpr_mode_data = msm_cpr_mode_data,
 	.tgt_count_div_N = 1,
@@ -1739,7 +1740,7 @@ static struct msm_cpr_config msm_cpr_pdata = {
 	.ceiling = 40,
 	.sw_vlevel = 20,
 	.up_threshold = 1,
-	.dn_threshold = 2,
+	.dn_threshold = 4,
 	.up_margin = 0,
 	.dn_margin = 0,
 	.max_nom_freq = 700800,

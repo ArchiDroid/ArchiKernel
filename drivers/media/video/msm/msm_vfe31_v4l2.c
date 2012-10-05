@@ -388,6 +388,7 @@ static void vfe31_stop(void)
 		vfe31_ctrl->vfebase + VFE_IRQ_CLEAR_0);
 	msm_camera_io_w(VFE_CLEAR_ALL_IRQS,
 		vfe31_ctrl->vfebase + VFE_IRQ_CLEAR_1);
+
 	/* Ensure the write order while writing
 	to the command register using the barrier */
 	msm_camera_io_w_mb(1,
@@ -411,10 +412,27 @@ static void vfe31_stop(void)
 	msm_camera_io_w_mb(AXI_HALT_CLEAR,
 		vfe31_ctrl->vfebase + VFE_AXI_CMD);
 
+	/* disable all interrupts. */
+	msm_camera_io_w(VFE_DISABLE_ALL_IRQS,
+		vfe31_ctrl->vfebase + VFE_IRQ_MASK_0);
+	msm_camera_io_w(VFE_DISABLE_ALL_IRQS,
+		vfe31_ctrl->vfebase + VFE_IRQ_MASK_1);
+
+	/* clear all pending interrupts*/
+	msm_camera_io_w(VFE_CLEAR_ALL_IRQS,
+		vfe31_ctrl->vfebase + VFE_IRQ_CLEAR_0);
+	msm_camera_io_w(VFE_CLEAR_ALL_IRQS,
+		vfe31_ctrl->vfebase + VFE_IRQ_CLEAR_1);
+
+	/* Ensure the write order while writing
+	to the command register using the barrier */
+	msm_camera_io_w_mb(1,
+		vfe31_ctrl->vfebase + VFE_IRQ_CMD);
+
 	/* now enable only halt_irq & reset_irq */
 	msm_camera_io_w(0xf0000000,          /* this is for async timer. */
 		vfe31_ctrl->vfebase + VFE_IRQ_MASK_0);
-	msm_camera_io_w(VFE_IMASK_WHILE_STOPPING_1,
+	msm_camera_io_w(VFE_IMASK_RESET,
 		vfe31_ctrl->vfebase + VFE_IRQ_MASK_1);
 
 	msm_camera_io_w_mb(VFE_RESET_UPON_STOP_CMD,
