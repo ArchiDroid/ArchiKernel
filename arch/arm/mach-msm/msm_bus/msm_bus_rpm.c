@@ -347,6 +347,27 @@ static int msm_bus_rpm_compare_cdata(
 	return 0;
 }
 
+/**
+* msm_bus_rpm_clear_arb_data() - Clear arb data before turning off
+**/
+static int msm_bus_rpm_clear_arb(struct msm_bus_fabric_registration
+	*fab_pdata, void **cdata)
+{
+	size_t n;
+	struct commit_data *dual_cd, *act_cd;
+
+	dual_cd = (struct commit_data *)cdata[DUAL_CTX];
+	act_cd = (struct commit_data *)cdata[ACTIVE_CTX];
+	n = sizeof(uint16_t) * fab_pdata->nslaves;
+	memset(dual_cd->bwsum, 0, n);
+	memset(act_cd->bwsum, 0, n);
+	n = sizeof(uint16_t *) * ((fab_pdata->ntieredslaves *
+		fab_pdata->nmasters) + 1);
+	memset(dual_cd->arb, 0, n);
+	memset(act_cd->arb, 0, n);
+	return 0;
+}
+
 static int msm_bus_rpm_commit_arb(struct msm_bus_fabric_registration
 	*fab_pdata, int ctx, struct msm_rpm_iv_pair *rpm_data,
 	struct commit_data *cd, bool valid)
@@ -608,6 +629,30 @@ static void *msm_bus_rpm_allocate_rpm_data(struct platform_device *pdev,
 	rpm_data = kmalloc((sizeof(struct msm_rpm_iv_pair) * count),
 		GFP_KERNEL);
 	return (void *)rpm_data;
+}
+
+/**
+* msm_bus_rpm_clear_arb_data() - Clear arb data before turning off
+**/
+static int msm_bus_rpm_clear_arb(struct msm_bus_fabric_registration
+	*fab_pdata, void **cdata)
+{
+	int i;
+	size_t n;
+	struct commit_data *dual_cd, *act_cd;
+
+	dual_cd = (struct commit_data *)cdata[DUAL_CTX];
+	act_cd = (struct commit_data *)cdata[ACTIVE_CTX];
+	n = sizeof(uint16_t) * fab_pdata->nslaves;
+	memset(dual_cd->bwsum, 0, n);
+	memset(act_cd->bwsum, 0, n);
+	n = sizeof(uint8_t *) * ((fab_pdata->ntieredslaves *
+		fab_pdata->nmasters) + 1);
+	for (i = 0; i < NUM_TIERS; i++) {
+		memset(dual_cd->arb[i], 0, n);
+		memset(act_cd->arb[i], 0, n);
+	}
+	return 0;
 }
 
 static int msm_bus_rpm_compare_cdata(
@@ -958,6 +1003,7 @@ int msm_bus_rpm_hw_init(struct msm_bus_fabric_registration *pdata,
 	hw_algo->commit = msm_bus_rpm_commit;
 	hw_algo->port_halt = msm_bus_rpm_port_halt;
 	hw_algo->port_unhalt = msm_bus_rpm_port_unhalt;
+	hw_algo->clear_arb_data = msm_bus_rpm_clear_arb;
 	if (!pdata->ahb)
 		pdata->rpm_enabled = 1;
 	return 0;

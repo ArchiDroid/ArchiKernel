@@ -69,8 +69,11 @@ struct mxt_platform_data {
 	bool	i2c_pull_up;
 	bool	digital_pwr_regulator;
 	int reset_gpio;
+	u32 reset_gpio_flags;
 	int irq_gpio;
+	u32 irq_gpio_flags;
 	int *key_codes;
+	bool need_calibration;
 
 	u8(*read_chg) (void);
 	int (*init_hw) (bool);
