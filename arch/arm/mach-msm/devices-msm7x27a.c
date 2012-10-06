@@ -1839,8 +1839,8 @@ static void __init msm_cpr_init(void)
 	}
 
 	/* Temporary change until devices have their floor_fuse bits blown */
-	msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 1100000;
-	msm_cpr_mode_data[TURBO_MODE].turbo_Vmin = 1100000;
+	msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 1150000;
+	msm_cpr_mode_data[TURBO_MODE].turbo_Vmin = 1200000;
 
 	pr_debug("%s: cpr: ring_osc: 0x%x\n", __func__,
 		msm_cpr_mode_data[TURBO_MODE].ring_osc);
