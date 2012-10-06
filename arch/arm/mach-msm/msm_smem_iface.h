@@ -49,7 +49,7 @@ struct boot_info_for_apps {
 	uint16_t boot_keys_pressed[MAX_KEY_EVENTS]; /* Log of key presses */
 	uint32_t timetick; /* Modem tick timer value before apps out of reset */
 	struct cpr_info_type cpr_info;
-	uint8_t PAD[25];
+	uint8_t PAD[24];
 };
 
 void msm_smem_get_cpr_info(struct cpr_info_type *cpr_info);
