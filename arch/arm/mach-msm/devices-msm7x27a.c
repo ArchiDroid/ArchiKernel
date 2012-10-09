@@ -1733,7 +1733,7 @@ static void msm_cpr_clk_enable(void)
 
 static struct msm_cpr_config msm_cpr_pdata = {
 	.ref_clk_khz = 19200,
-	.delay_us = 1000,
+	.delay_us = 25000,
 	.irq_line = 0,
 	.cpr_mode_data = msm_cpr_mode_data,
 	.tgt_count_div_N = 1,
@@ -1741,7 +1741,7 @@ static struct msm_cpr_config msm_cpr_pdata = {
 	.ceiling = 40,
 	.sw_vlevel = 20,
 	.up_threshold = 1,
-	.dn_threshold = 4,
+	.dn_threshold = 3,
 	.up_margin = 0,
 	.dn_margin = 0,
 	.max_nom_freq = 700800,
@@ -1839,7 +1839,7 @@ static void __init msm_cpr_init(void)
 	}
 
 	/* Temporary change until devices have their floor_fuse bits blown */
-	msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 1150000;
+	msm_cpr_mode_data[TURBO_MODE].nom_Vmin = 1100000;
 	msm_cpr_mode_data[TURBO_MODE].turbo_Vmin = 1200000;
 
 	pr_debug("%s: cpr: ring_osc: 0x%x\n", __func__,
