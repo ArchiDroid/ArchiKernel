@@ -43,6 +43,8 @@ static struct platform_device *esd_reset_pdev;
 #endif
 /* LGE_CHANGE_E  [yoonsoo.kim@lge.com]  20120130  :  LCD ESD Protection*/
 
+static short first_vsync_done = 0;
+
 static ssize_t vsync_show_event(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -51,7 +53,7 @@ static ssize_t vsync_show_event(struct device *dev,
 	INIT_COMPLETION(vsync_cntrl.vsync_wait);
 
 	if (atomic_read(&vsync_cntrl.suspend) > 0 ||
-		atomic_read(&vsync_cntrl.vsync_resume) == 0)
+		(atomic_read(&vsync_cntrl.vsync_resume) == 0 && first_vsync_done))
 		return 0;
 
 	wait_for_completion(&vsync_cntrl.vsync_wait);
@@ -336,6 +338,10 @@ void mdp_dma_video_vsync_ctrl(int enable)
 	vsync_cntrl.vsync_irq_enabled = enable;
 	if (!enable)
 		vsync_cntrl.disabled_clocks = 0;
+
+	if (!enable && !first_vsync_done)
+		first_vsync_done = 1;
+
 	disabled_clocks = vsync_cntrl.disabled_clocks;
 	spin_unlock_irqrestore(&mdp_spin_lock, flag);
 
