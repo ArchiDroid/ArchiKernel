@@ -967,7 +967,7 @@ static int msm_fb_ext_resume(struct device *dev)
 
 	if ((!mfd) || (mfd->key != MFD_KEY))
 		return 0;
-
+	msm_fb_pan_idle(mfd);
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 	if (mfd->panel_info.type == HDMI_PANEL ||
 		mfd->panel_info.type == DTV_PANEL) {
@@ -1015,6 +1015,9 @@ static void msmfb_early_suspend(struct early_suspend *h)
 {
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
 						    early_suspend);
+
+        msm_fb_pan_idle(mfd);
+
 	msm_fb_suspend_sub(mfd);
 }
 
@@ -1076,6 +1079,7 @@ void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
 		unset_bl_level = 0;
 	}
 
+	msm_fb_pan_idle(mfd);
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 
 	if ((pdata) && (pdata->set_backlight)) {
@@ -1105,8 +1109,6 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 /*LGE_CHANGE_E, youngbae.choi@lge.com, 12-12-28, for V7 sometimes booting animation is no display*/
 	if (!op_enable)
 		return -EPERM;
-
-	msm_fb_pan_idle(mfd);
 
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 	if ((!pdata) || (!pdata->on) || (!pdata->off)) {
