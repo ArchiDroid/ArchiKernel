@@ -206,7 +206,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_s5k4e1_data = {
 
 #ifdef CONFIG_OV7692
 static struct msm_camera_sensor_platform_info sensor_board_info_ov7692 = {
-	.mount_angle = 90,
+	.mount_angle = 270,
 	.cam_vreg = msm_cam_vreg,
 	.num_vreg = ARRAY_SIZE(msm_cam_vreg),
 	.gpio_conf = &gpio_conf_ov7692,
