@@ -826,6 +826,7 @@ static void __init msm7627a_reserve(void)
 static void __init msm8625_reserve(void)
 {
 	memblock_remove(MSM8625_SECONDARY_PHYS, SZ_8);
+	memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
 	msm7627a_reserve();
 }
 

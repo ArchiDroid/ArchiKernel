@@ -31,6 +31,7 @@
 #include <linux/regulator/consumer.h>
 
 #include <mach/irqs.h>
+#include <mach/msm_iomap.h>
 
 #include "msm_cpr.h"
 
@@ -46,6 +47,8 @@
 #define STEP_QUOT_MAX 25
 #define STEP_QUOT_MIN 12
 
+void __iomem *virt_start_ptr;
+
 /* Need platform device handle for suspend and resume APIs */
 static struct platform_device *cpr_pdev;
 
@@ -54,7 +57,7 @@ static bool disable_cpr;
 module_param(enable, bool, 0644);
 MODULE_PARM_DESC(enable, "CPR Enable");
 
-static int msm_cpr_debug_mask;
+static int msm_cpr_debug_mask = 7;
 module_param_named(
 	debug_mask, msm_cpr_debug_mask, int, S_IRUGO | S_IWUSR
 );
@@ -358,6 +361,13 @@ cpr_up_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	set_volt_uV = (new_volt < cpr->cur_Vmax ? new_volt
 				: cpr->cur_Vmax);
 
+	/* Save the new voltage in static memory for debug purpose */
+	*(uint32_t *)(virt_start_ptr + 0x0) = set_volt_uV;
+	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
+		"Value of MSC2 recommended voltage saved at 0x%x: %duV\n",
+		(MSM8625_NON_CACHE_MEM + 0x0),
+		*(uint32_t *)(virt_start_ptr + 0x0));
+
 	if (cpr->prev_volt_uV == set_volt_uV)
 		rc = regulator_sync_voltage(cpr->vreg_cx);
 	else
@@ -401,6 +411,13 @@ cpr_dn_event_handler(struct msm_cpr *cpr, uint32_t new_volt)
 	/* Set New PMIC volt */
 	set_volt_uV = (new_volt > cpr->cur_Vmin ? new_volt
 				: cpr->cur_Vmin);
+
+	/* Save the new voltage in static memory for debug purpose */
+	*(uint32_t *)(virt_start_ptr + 0x0) = set_volt_uV;
+	msm_cpr_debug(MSM_CPR_DEBUG_STEPS,
+		"Value of MSC2 recommended voltage saved at 0x%x: %duV\n",
+		(MSM8625_NON_CACHE_MEM + 0x0),
+		*(uint32_t *)(virt_start_ptr + 0x0));
 
 	if (cpr->prev_volt_uV == set_volt_uV)
 		rc = regulator_sync_voltage(cpr->vreg_cx);
@@ -727,6 +744,13 @@ cpr_freq_transition(struct notifier_block *nb, unsigned long val,
 			"PVS Voltage setting is: %d\n",
 			regulator_get_voltage(cpr->vreg_cx));
 
+		/* Save the new freq in static memory for debug purpose */
+		*(uint32_t *)(virt_start_ptr + 0x4) = freqs->new;
+		msm_cpr_debug(MSM_CPR_DEBUG_FREQ_TRANS,
+			"Freq before volt change by CPR saved at 0x%x: %dkHz\n",
+			(MSM8625_NON_CACHE_MEM + 0x4),
+			*(uint32_t *)(virt_start_ptr + 0x4));
+
 		enable_irq(cpr->irq);
 		/**
 		 * Enable all interrupts. One of them could be in a disabled
@@ -908,6 +932,11 @@ static int __devinit msm_cpr_probe(struct platform_device *pdev)
 		enable = false;
 		return -ENOMEM;
 	}
+
+	virt_start_ptr = ioremap_nocache(MSM8625_NON_CACHE_MEM, SZ_2K);
+	msm_cpr_debug(MSM_CPR_DEBUG_CONFIG,
+		"virt_start_ptr = %x\n", (uint32_t) virt_start_ptr);
+	memset(virt_start_ptr, 0x0, SZ_2K);
 
 	/* Initialize platform_data */
 	cpr->config = pdata;
