@@ -149,6 +149,8 @@ static int msm_csic_config(struct csic_cfg_params *cfg_params)
 	csicbase = csic_dev->base;
 	csic_params = cfg_params->parms;
 
+	if(csicbase == NULL)
+		return rc;
 	/* Enable error correction for DATA lane. Applies to all data lanes */
 	msm_camera_io_w(0x4, csicbase + MIPI_PHY_CONTROL);
 
