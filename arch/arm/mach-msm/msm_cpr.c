@@ -57,7 +57,7 @@ static bool disable_cpr;
 module_param(enable, bool, 0644);
 MODULE_PARM_DESC(enable, "CPR Enable");
 
-static int msm_cpr_debug_mask = 7;
+static int msm_cpr_debug_mask;
 module_param_named(
 	debug_mask, msm_cpr_debug_mask, int, S_IRUGO | S_IWUSR
 );

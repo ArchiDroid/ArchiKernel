@@ -1861,14 +1861,18 @@ static void __init msm_cpr_init(void)
 		msm_cpr_mode_data[TURBO_MODE].turbo_Vmin = 1100000;
 	}
 
-	pr_debug("%s: cpr: ring_osc: 0x%x\n", __func__,
+	pr_info("%s: cpr: ring_osc: 0x%x\n", __func__,
 		msm_cpr_mode_data[TURBO_MODE].ring_osc);
 	pr_info("%s: cpr: turbo_quot: 0x%x\n", __func__, cpr_info->turbo_quot);
 	pr_info("%s: cpr: pvs_fuse: 0x%x\n", __func__, cpr_info->pvs_fuse);
 	pr_info("%s: cpr: floor_fuse: 0x%x\n", __func__, cpr_info->floor_fuse);
-	pr_debug("%s: cpr: nom_Vmin: %d, turbo_Vmin: %d\n", __func__,
+	pr_info("%s: cpr: nom_Vmin: %d, turbo_Vmin: %d\n", __func__,
 		msm_cpr_mode_data[TURBO_MODE].nom_Vmin,
 		msm_cpr_mode_data[TURBO_MODE].turbo_Vmin);
+	pr_info("%s: cpr: nom_Vmax: %d, turbo_Vmax: %d\n", __func__,
+		msm_cpr_mode_data[TURBO_MODE].nom_Vmax,
+		msm_cpr_mode_data[TURBO_MODE].turbo_Vmax);
+
 	kfree(cpr_info);
 
 	if (msm8625_cpu_id() == MSM8625A)
