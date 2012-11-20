@@ -71,7 +71,6 @@
 #define MSMFB_OVERLAY_VSYNC_CTRL _IOW(MSMFB_IOCTL_MAGIC, 160, unsigned int)
 #define MSMFB_VSYNC_CTRL  _IOW(MSMFB_IOCTL_MAGIC, 161, unsigned int)
 #define MSMFB_BUFFER_SYNC  _IOW(MSMFB_IOCTL_MAGIC, 162, struct mdp_buf_sync)
-#define MSMFB_OVERLAY_COMMIT      _IO(MSMFB_IOCTL_MAGIC, 163)
 #define MSMFB_DISPLAY_COMMIT      _IOW(MSMFB_IOCTL_MAGIC, 164, \
 						struct mdp_display_commit)
 #define MSMFB_METADATA_SET  _IOW(MSMFB_IOCTL_MAGIC, 165, struct msmfb_metadata)
@@ -679,7 +678,8 @@ struct mdp_async_blit_req_list {
 	struct mdp_blit_req req[];
 };
 
-#define MDP_DISPLAY_COMMIT_OVERLAY	1
+#define MDP_DISPLAY_COMMIT_OVERLAY 0x00000001
+
 struct mdp_buf_fence {
 	uint32_t flags;
 	uint32_t acq_fen_fd_cnt;
