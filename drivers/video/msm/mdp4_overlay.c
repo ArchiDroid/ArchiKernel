@@ -3513,9 +3513,6 @@ int mdp4_overlay_commit(struct fb_info *info)
 
 	mixer = mfd->panel_info.pdest;	/* DISPLAY_1 or DISPLAY_2 */
 
-	if (mixer >= MDP4_MIXER_MAX)
-		return -EPERM;
-
 	mutex_lock(&mfd->dma->ov_mutex);
 
 	mdp4_overlay_mdp_perf_upd(mfd, 1);
