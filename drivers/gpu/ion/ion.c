@@ -107,24 +107,6 @@ struct ion_handle {
 
 static void ion_iommu_release(struct kref *kref);
 
-static int ion_validate_buffer_flags(struct ion_buffer *buffer,
-					unsigned long flags)
-{
-	if (buffer->kmap_cnt || buffer->dmap_cnt || buffer->umap_cnt ||
-		buffer->iommu_map_cnt) {
-		if (buffer->flags != flags) {
-			pr_err("%s: buffer was already mapped with flags %lx,"
-				" cannot map with flags %lx\n", __func__,
-				buffer->flags, flags);
-			return 1;
-		}
-
-	} else {
-		buffer->flags = flags;
-	}
-	return 0;
-}
-
 /* this function should only be called while dev->lock is held */
 static void ion_buffer_add(struct ion_device *dev,
 			   struct ion_buffer *buffer)
@@ -232,6 +214,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 
 	buffer->dev = dev;
 	buffer->size = len;
+        buffer->flags = flags;
 
 	table = buffer->heap->ops->map_dma(buffer->heap, buffer);
 	if (IS_ERR_OR_NULL(table)) {
@@ -801,11 +784,6 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle,
 		return ERR_PTR(-ENODEV);
 	}
 
-	if (ion_validate_buffer_flags(buffer, flags)) {
-		mutex_unlock(&client->lock);
-		return ERR_PTR(-EEXIST);
-	}
-
 	mutex_lock(&buffer->lock);
 	vaddr = ion_handle_kmap_get(handle);
 	mutex_unlock(&buffer->lock);
@@ -1254,10 +1232,6 @@ static int ion_share_set_flags(struct ion_client *client,
 	buffer = handle->buffer;
 
 	mutex_lock(&buffer->lock);
-	if (ion_validate_buffer_flags(buffer, ion_flags)) {
-		mutex_unlock(&buffer->lock);
-		return -EEXIST;
-	}
 	mutex_unlock(&buffer->lock);
 	return 0;
 }
@@ -1341,6 +1315,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
 			return -EFAULT;
+		data.flags |= data.heap_mask;
 		data.handle = ion_alloc(client, data.len, data.align,
 					     data.flags);
 
