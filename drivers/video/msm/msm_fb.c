@@ -1638,32 +1638,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	var->yres_virtual = panel_info->yres * mfd->fb_page +
 		((PAGE_SIZE - remainder)/fix->line_length) * mfd->fb_page;
 	var->bits_per_pixel = bpp * 8;	/* FrameBuffer color depth */
-	if (mfd->dest == DISPLAY_LCD) {
-		/* LGE_CHANGE : hyungjoon.jeon@lge.com 2013-03-10 LCD CTS issue for only M4 panel*/
-		#if defined(CONFIG_MACH_MSM7X25A_M4)
-			var->reserved[3] = 55;
-		#else
-		if (panel_info->type == MDDI_PANEL && panel_info->mddi.is_type1)
-			var->reserved[3] = panel_info->lcd.refx100 / (100 * 2);
-		else
-			var->reserved[3] = panel_info->lcd.refx100 / 100;
-		#endif
-	} else {
-		if (panel_info->type == MIPI_VIDEO_PANEL) {
-			var->reserved[3] = panel_info->mipi.frame_rate;
-		} else {
-			var->reserved[3] = panel_info->clk_rate /
-				((panel_info->lcdc.h_back_porch +
-				  panel_info->lcdc.h_front_porch +
-				  panel_info->lcdc.h_pulse_width +
-				  panel_info->xres) *
-				 (panel_info->lcdc.v_back_porch +
-				  panel_info->lcdc.v_front_porch +
-				  panel_info->lcdc.v_pulse_width +
-				  panel_info->yres));
-		}
-	}
-	pr_debug("reserved[3] %u\n", var->reserved[3]);
+	var->reserved[3] = mdp_get_panel_framerate(mfd);
 
 		/*
 		 * id field for fb app
