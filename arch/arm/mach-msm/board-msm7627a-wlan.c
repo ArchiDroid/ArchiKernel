@@ -52,6 +52,7 @@ static void gpio_wlan_config(void)
 	if (machine_is_msm7627a_qrd1() || machine_is_msm7627a_evb()
 					|| machine_is_msm8625_evb()
 					|| machine_is_msm8625_evt()
+					|| machine_is_msm7627a_evt()
 					|| machine_is_msm7627a_qrd3()
 					|| machine_is_msm8625_qrd7())
 		gpio_wlan_sys_rest_en = 124;
@@ -242,6 +243,7 @@ static unsigned int msm_AR600X_setup_power(bool on)
 	if (machine_is_msm7627a_qrd1() || machine_is_msm7627a_evb()
 					|| machine_is_msm8625_evb()
 					|| machine_is_msm8625_evt()
+					|| machine_is_msm7627a_evt()
 					|| machine_is_msm7627a_qrd3()
 					|| machine_is_msm8625_qrd7()) {
 		rc = gpio_tlmm_config(GPIO_CFG(gpio_wlan_sys_rest_en, 0,
@@ -293,6 +295,7 @@ set_gpio_fail:
 	setup_wlan_gpio(0);
 gpio_fail:
 	if (!(machine_is_msm7627a_qrd1() || machine_is_msm7627a_evb() ||
+					machine_is_msm7627a_evt() ||
 	    machine_is_msm8625_evb() || machine_is_msm8625_evt() ||
 	    machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()))
 			gpio_free(gpio_wlan_sys_rest_en);
@@ -331,6 +334,7 @@ static unsigned int msm_AR600X_shutdown_power(bool on)
 	if (machine_is_msm7627a_qrd1() || machine_is_msm7627a_evb()
 					|| machine_is_msm8625_evb()
 					|| machine_is_msm8625_evt()
+					|| machine_is_msm7627a_evt()
 					|| machine_is_msm7627a_qrd3()
 					|| machine_is_msm8625_qrd7()) {
 		rc = gpio_tlmm_config(GPIO_CFG(gpio_wlan_sys_rest_en, 0,
@@ -379,6 +383,7 @@ set_gpio_fail:
 	setup_wlan_gpio(0);
 gpio_fail:
 	if (!(machine_is_msm7627a_qrd1() || machine_is_msm7627a_evb() ||
+					machine_is_msm7627a_evt() ||
 	    machine_is_msm8625_evb() || machine_is_msm8625_evt() ||
 	    machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()))
 			gpio_free(gpio_wlan_sys_rest_en);
