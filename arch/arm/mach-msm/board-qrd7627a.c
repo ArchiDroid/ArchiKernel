@@ -1067,3 +1067,13 @@ MACHINE_START(MSM8625_EVT, "QRD MSM8625 EVT")
 	.init_early	= qrd7627a_init_early,
 	.handle_irq	= gic_handle_irq,
 MACHINE_END
+MACHINE_START(MSM7627A_EVT, "QRD MSM7627A EVT")
+	.atag_offset	= 0x100,
+	.map_io		= msm_common_io_init,
+	.reserve	= msm7627a_reserve,
+	.init_irq	= msm_init_irq,
+	.init_machine	= msm_qrd_init,
+	.timer		= &msm_timer,
+	.init_early	= qrd7627a_init_early,
+	.handle_irq	= vic_handle_irq,
+MACHINE_END

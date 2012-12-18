@@ -103,6 +103,7 @@ static void gpio_bt_config(void)
 	if (machine_is_msm7627a_qrd1())
 		gpio_bt_sys_rest_en = 114;
 	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
+				|| machine_is_msm7627a_evt()
 				|| machine_is_msm8625_evt())
 		gpio_bt_sys_rest_en = 16;
 	if (machine_is_msm8625_qrd7())
