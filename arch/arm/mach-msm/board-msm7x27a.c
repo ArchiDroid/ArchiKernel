@@ -50,6 +50,8 @@
 #include <linux/atmel_maxtouch.h>
 #include <linux/msm_adc.h>
 #include <linux/ion.h>
+#include <linux/dma-contiguous.h>
+#include <linux/dma-mapping.h>
 #include "devices.h"
 #include "timer.h"
 #include "board-msm7x27a-regulator.h"
@@ -173,8 +175,15 @@ static struct platform_device ion_dev;
 static int msm_ion_camera_size;
 static int msm_ion_audio_size;
 static int msm_ion_sf_size;
+static int msm_ion_camera_size_carving;
 #endif
 
+#define CAMERA_HEAP_BASE	0x0
+#ifdef CONFIG_CMA
+#define CAMERA_HEAP_TYPE	ION_HEAP_TYPE_DMA
+#else
+#define CAMERA_HEAP_TYPE	ION_HEAP_TYPE_CARVEOUT
+#endif
 
 static struct android_usb_platform_data android_usb_pdata = {
 	.update_pid_and_serial_num = usb_diag_update_pid_and_serial_num,
@@ -767,6 +776,11 @@ static void fix_sizes(void)
 	msm_ion_camera_size = pmem_adsp_size;
 	msm_ion_audio_size = (MSM_PMEM_AUDIO_SIZE + PMEM_KERNEL_EBI1_SIZE);
 	msm_ion_sf_size = pmem_mdp_size;
+#ifdef CONFIG_CMA
+	msm_ion_camera_size_carving = 0;
+#else
+	msm_ion_camera_size_carving = msm_ion_camera_size;
+#endif
 #endif
 }
 
@@ -775,6 +789,22 @@ static void fix_sizes(void)
 static struct ion_co_heap_pdata co_ion_pdata = {
 	.adjacent_mem_id = INVALID_HEAP_ID,
 	.align = PAGE_SIZE,
+};
+
+static struct ion_co_heap_pdata co_mm_ion_pdata = {
+	.adjacent_mem_id = INVALID_HEAP_ID,
+	.align = PAGE_SIZE,
+};
+
+static u64 msm_dmamask = DMA_BIT_MASK(32);
+
+static struct platform_device ion_cma_device = {
+	.name = "ion-cma-device",
+	.id = -1,
+	.dev = {
+		.dma_mask = &msm_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	}
 };
 #endif
 
@@ -792,10 +822,11 @@ struct ion_platform_heap msm7x27a_heaps[] = {
 		/* PMEM_ADSP = CAMERA */
 		{
 			.id	= ION_CAMERA_HEAP_ID,
-			.type	= ION_HEAP_TYPE_CARVEOUT,
+			.type	= CAMERA_HEAP_TYPE,
 			.name	= ION_CAMERA_HEAP_NAME,
 			.memory_type = ION_EBI_TYPE,
-			.extra_data = (void *)&co_ion_pdata,
+			.extra_data = (void *)&co_mm_ion_pdata,
+			.priv	= (void *)&ion_cma_device.dev,
 		},
 		/* PMEM_AUDIO */
 		{
@@ -895,8 +926,9 @@ static void __init size_ion_devices(void)
 static void __init reserve_ion_memory(void)
 {
 #if defined(CONFIG_ION_MSM) && defined(CONFIG_MSM_MULTIMEDIA_USE_ION)
-	msm7x27a_reserve_table[MEMTYPE_EBI1].size += msm_ion_camera_size;
 	msm7x27a_reserve_table[MEMTYPE_EBI1].size += msm_ion_audio_size;
+	msm7x27a_reserve_table[MEMTYPE_EBI1].size +=
+		msm_ion_camera_size_carving;
 	msm7x27a_reserve_table[MEMTYPE_EBI1].size += msm_ion_sf_size;
 #endif
 }
@@ -925,6 +957,13 @@ static void __init msm7x27a_reserve(void)
 {
 	reserve_info = &msm7x27a_reserve_info;
 	msm_reserve();
+#ifdef CONFIG_CMA
+	dma_declare_contiguous(
+			&ion_cma_device.dev,
+			msm_ion_camera_size,
+			CAMERA_HEAP_BASE,
+			0xa0000000);
+#endif
 }
 
 static void __init msm8625_reserve(void)
