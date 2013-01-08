@@ -2303,7 +2303,7 @@ int mdp_ppp_pipe_wait(void)
 #define MAX_VSYNC_GAP		4
 #define DEFAULT_FRAME_RATE	60
 
-static u32 mdp_get_panel_framerate(struct msm_fb_data_type *mfd)
+u32 mdp_get_panel_framerate(struct msm_fb_data_type *mfd)
 {
 	u32 frame_rate = 0, total_pixel;
 	struct msm_panel_info *panel_info = &mfd->panel_info;
