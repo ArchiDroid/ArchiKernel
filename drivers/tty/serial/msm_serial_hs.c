@@ -1238,14 +1238,13 @@ static void msm_hs_enable_ms_locked(struct uart_port *uport)
 
 }
 
-// +s QCT2035_1a_CR419054 sunmee.choi@lge.com 2012-12-12
-static void msm_hs_flush_buffer(struct uart_port *uport)
+static void msm_hs_flush_buffer_locked(struct uart_port *uport)
 {
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
-	msm_uport->tty_flush_receive = true;
+	if (msm_uport->tx.dma_in_flight)
+		msm_uport->tty_flush_receive = true;
 }
-// +e QCT2035_1a_CR419054 
 
 /*
  *  Standard API, Break Signal
@@ -2226,9 +2225,7 @@ static struct uart_ops msm_hs_ops = {
 	.config_port = msm_hs_config_port,
 	.release_port = msm_hs_release_port,
 	.request_port = msm_hs_request_port,
-// +s QCT2035_1a_CR419054 sunmee.choi@lge.com 2012-12-12
-	.flush_buffer = msm_hs_flush_buffer,
-// +e QCT2035_1a_CR419054
+	.flush_buffer = msm_hs_flush_buffer_locked,
 };
 
 module_init(msm_serial_hs_init);
