@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1251,8 +1251,8 @@ static int mipi_dsi_panel_qrd3_power(int on)
 					return rc;
 				}
 			}
+			return 0;
 		}
-		return 0;
 	}
 
 	if (on) {
@@ -1346,11 +1346,11 @@ static int mipi_dsi_panel_qrd3_power(int on)
 			GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
 			GPIO_CFG_DISABLE);
 
-		if (machine_is_msm7627a_evt()) {
+		if (machine_is_msm7627a_evt())
 			gpio_tlmm_config(GPIO_CFG(GPIO_TSTS_LCD_BRDG_RESET_N,
 			0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 							GPIO_CFG_DISABLE);
-		} else {
+		else
 			gpio_tlmm_config(GPIO_CFG(GPIO_QRD3_LCD_BRDG_RESET_N,
 			0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 							GPIO_CFG_DISABLE);
@@ -1361,7 +1361,6 @@ static int mipi_dsi_panel_qrd3_power(int on)
 		if (rc < 0)
 			pr_err("%s: reg disable failed\n", __func__);
 
-		}
 	}
 
 	return rc;
@@ -1440,11 +1439,12 @@ void __init msm_fb_add_devices(void)
 				ARRAY_SIZE(qrd_fb_devices));
 	else if (machine_is_msm7627a_evb() || machine_is_msm8625_evb() ||
 		machine_is_msm7627a_evt() || machine_is_msm8625_evt()) {
-		mipi_NT35510_pdata.bl_lock = 1;
-		mipi_NT35516_pdata.bl_lock = 1;
+		if (!machine_is_msm7627a_evt()) {
+			mipi_NT35510_pdata.bl_lock = 1;
+			mipi_NT35516_pdata.bl_lock = 1;
+		}
 		if (disable_splash ||  machine_is_msm7627a_evt())
 			mdp_pdata.cont_splash_enabled = 0x0;
-
 
 		platform_add_devices(evb_fb_devices,
 				ARRAY_SIZE(evb_fb_devices));

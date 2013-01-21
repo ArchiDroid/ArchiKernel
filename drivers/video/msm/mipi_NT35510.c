@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -599,6 +599,8 @@ static int __devinit mipi_nt35510_lcd_probe(struct platform_device *pdev)
 		mipi_nt35510_pdata = pdev->dev.platform_data;
 		if (mipi_nt35510_pdata->bl_lock)
 			spin_lock_init(&mipi_nt35510_pdata->bl_spinlock);
+		else
+			mipi_nt35510_bl_ctrl = 1;
 		return 0;
 	}
 

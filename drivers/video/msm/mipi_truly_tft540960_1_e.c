@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -786,6 +786,8 @@ static int __devinit mipi_truly_lcd_probe(struct platform_device *pdev)
 		mipi_truly_pdata = pdev->dev.platform_data;
 		if (mipi_truly_pdata->bl_lock)
 			spin_lock_init(&mipi_truly_pdata->bl_spinlock);
+		else
+			mipi_truly_bl_ctrl = 1;
 		return rc;
 	}
 
