@@ -504,6 +504,81 @@ static DEVICE_ATTR(update_lut, 0660, mdp_read_lut, mdp_update_lut);
 #endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
 // LGE_CHANGE_E, sohyun.nam@lge.com, CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
 
+static ssize_t msm_fb_xres(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = strnlen(buf, PAGE_SIZE);
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", mfd->panel_info.xres);
+	buf[strnlen(buf, PAGE_SIZE) + 1] = '\0';
+	return ret;
+}
+static DEVICE_ATTR(xres, S_IRUGO, msm_fb_xres, NULL);
+static struct attribute *xres_fs_attrs[] = {
+	&dev_attr_xres.attr,
+	NULL,
+};
+static struct attribute_group xres_fs_attr_group = {
+	.attrs = xres_fs_attrs,
+};
+
+static ssize_t msm_fb_yres(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = strnlen(buf, PAGE_SIZE);
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", mfd->panel_info.yres);
+	buf[strnlen(buf, PAGE_SIZE) + 1] = '\0';
+	return ret;
+}
+static DEVICE_ATTR(yres, S_IRUGO, msm_fb_yres, NULL);
+static struct attribute *yres_fs_attrs[] = {
+	&dev_attr_yres.attr,
+	NULL,
+};
+static struct attribute_group yres_fs_attr_group = {
+	.attrs = yres_fs_attrs,
+};
+
+static int msm_fb_resolution_sysfs(struct platform_device *pdev)
+{
+	int rc;
+	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
+
+	if (!mfd) {
+		pr_err("%s: mfd not found\n", __func__);
+		return -ENODEV;
+	}
+	if (!mfd->fbi) {
+		pr_err("%s: mfd->fbi not found\n", __func__);
+		return -ENODEV;
+	}
+	if (!mfd->fbi->dev) {
+		pr_err("%s: mfd->fbi->dev not found\n", __func__);
+		return -ENODEV;
+	}
+	rc = sysfs_create_group(&mfd->fbi->dev->kobj,
+		&xres_fs_attr_group);
+	if (rc) {
+		pr_err("%s: sysfs group creation failed, rc=%d\n",
+			__func__, rc);
+		return rc;
+	}
+
+	rc = sysfs_create_group(&mfd->fbi->dev->kobj,
+		&yres_fs_attr_group);
+	if (rc) {
+		pr_err("%s: sysfs group creation failed, rc=%d\n",
+			__func__, rc);
+		return rc;
+	}
+	return 0;
+}
+
 static int msm_fb_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -585,6 +660,7 @@ static int msm_fb_probe(struct platform_device *pdev)
 
 	pdev_list[pdev_list_cnt++] = pdev;
 	msm_fb_create_sysfs(pdev);
+        msm_fb_resolution_sysfs(pdev);
 
 // LGE_CHANGE_S, sohyun.nam@lge.com
 #ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
