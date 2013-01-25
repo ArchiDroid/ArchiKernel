@@ -176,6 +176,13 @@ int32_t msm_actuator_write_focus(
 	uint16_t damping_code_step = 0;
 	uint16_t wait_time = 0;
 
+	if(!damping_params) {
+		pr_err("%s: damping params are NULL\n",
+				__func__);
+		rc = -EINVAL;
+		return rc;
+	}
+
 	damping_code_step = damping_params->damping_step;
 	wait_time = damping_params->damping_delay;
 
@@ -215,15 +222,31 @@ int32_t msm_actuator_piezo_move_focus(
 	int32_t dest_step_position = move_params->dest_step_pos;
 	int32_t rc = 0;
 	int32_t num_steps = move_params->num_steps;
+	struct damping_params_t ringing_params[MAX_ACTUATOR_REGION];
 
 	if (num_steps == 0)
 		return rc;
+
+	if(!move_params) {
+		pr_err("%s move_params can't be null\n",
+				__func__);
+		rc = -EINVAL;
+		return rc;
+	}
+	if (copy_from_user(&ringing_params[0],
+				(void __user *)&(move_params->
+					ringing_params[0]),
+				(sizeof(struct damping_params_t) *
+				 MAX_ACTUATOR_REGION))) {
+		rc = -EINVAL;
+		return rc;
+	}
 
 	rc = a_ctrl->func_tbl->
 		actuator_i2c_write(a_ctrl,
 		(num_steps *
 		a_ctrl->region_params[0].code_per_step),
-		move_params->ringing_params[0].hw_params);
+		ringing_params[0].hw_params);
 
 	a_ctrl->curr_step_pos = dest_step_position;
 	return rc;
@@ -242,6 +265,7 @@ int32_t msm_actuator_move_focus(
 	uint16_t curr_lens_pos = 0;
 	int dir = move_params->dir;
 	int32_t num_steps = move_params->num_steps;
+	struct damping_params_t ringing_params[MAX_ACTUATOR_REGION];
 
 	CDBG("%s called, dir %d, num_steps %d\n",
 		__func__,
@@ -260,6 +284,21 @@ int32_t msm_actuator_move_focus(
 	CDBG("curr_step_pos =%d dest_step_pos =%d curr_lens_pos=%d\n",
 		a_ctrl->curr_step_pos, dest_step_pos, curr_lens_pos);
 
+	if(!move_params) {
+		pr_err("%s move_params can't be null\n",
+				__func__);
+		rc = -EINVAL;
+		return rc;
+	}
+	if (copy_from_user(&ringing_params[0],
+				(void __user *)&(move_params->
+					ringing_params[0]),
+				(sizeof(struct damping_params_t) *
+				 MAX_ACTUATOR_REGION))) {
+		rc = -EINVAL;
+		return rc;
+	}
+
 	while (a_ctrl->curr_step_pos != dest_step_pos) {
 		step_boundary =
 			a_ctrl->region_params[a_ctrl->curr_region_index].
@@ -276,8 +315,7 @@ int32_t msm_actuator_move_focus(
 				actuator_write_focus(
 					a_ctrl,
 					curr_lens_pos,
-					&(move_params->
-						ringing_params[a_ctrl->
+					&(ringing_params[a_ctrl->
 						curr_region_index]),
 					sign_dir,
 					target_lens_pos);
@@ -298,8 +336,7 @@ int32_t msm_actuator_move_focus(
 				actuator_write_focus(
 					a_ctrl,
 					curr_lens_pos,
-					&(move_params->
-						ringing_params[a_ctrl->
+					&(ringing_params[a_ctrl->
 						curr_region_index]),
 					sign_dir,
 					target_lens_pos);

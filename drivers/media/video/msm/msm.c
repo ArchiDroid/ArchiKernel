@@ -1994,18 +1994,12 @@ msm_send_open_server_failed:
 	v4l2_fh_del(&pcam_inst->eventHandle);
 	v4l2_fh_exit(&pcam_inst->eventHandle);
 mctl_event_q_setup_failed:
-#if 1 // [CASE#1062941] QCT patch for kernel panic
 	if (pmctl->mctl_release) {
- 		if (pmctl->mctl_release(pmctl) < 0)
- 			pr_err("%s: mctl_release failed\n", __func__);
+		if (pmctl->mctl_release(pmctl) < 0)
+			pr_err("%s: mctl_release failed\n", __func__);
 		pmctl->mctl_cmd = NULL;
 		pmctl->mctl_release = NULL;
 	}
-#else
-	if (pmctl->mctl_release)
-		if (pmctl->mctl_release(pmctl) < 0)
-			pr_err("%s: mctl_release failed\n", __func__);
-#endif
 mctl_open_failed:
 	if (pcam->use_count == 1) {
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -2054,7 +2048,8 @@ int msm_cam_server_close_mctl_session(struct msm_cam_v4l2_device *pcam)
 		rc = pmctl->mctl_release(pmctl);
 		if (rc < 0)
 			pr_err("mctl_release fails %d\n", rc);
-		pmctl->mctl_cmd = NULL; // [CASE#1062941] QCT patch for kernel panic
+		pmctl->mctl_release = NULL;
+		pmctl->mctl_cmd = NULL;
 	}
 
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -2242,7 +2237,8 @@ static int msm_close(struct file *f)
 			rc = pmctl->mctl_release(pmctl);
 			if (rc < 0)
 				pr_err("mctl_release fails %d\n", rc);
-			pmctl->mctl_cmd = NULL; // [CASE#1062941] QCT patch for kernel panic
+			pmctl->mctl_release = NULL;
+			pmctl->mctl_cmd = NULL;
 		}
 
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
