@@ -866,6 +866,12 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	session->intr_sock = intr_sock;
 	session->state     = BT_CONNECTED;
 
+	session->conn = hidp_get_connection(session);
+	if (!session->conn) {
+		err = -ENOTCONN;
+		goto failed;
+	}
+
 	setup_timer(&session->timer, hidp_idle_timeout, (unsigned long)session);
 
 	skb_queue_head_init(&session->ctrl_transmit);
