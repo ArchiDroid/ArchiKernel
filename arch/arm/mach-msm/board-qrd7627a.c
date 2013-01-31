@@ -675,12 +675,19 @@ static void fix_sizes(void)
 {
 	if (get_ddr_size() > SZ_512M)
 		pmem_adsp_size = CAMERA_ZSL_SIZE;
+	else {
+		if (machine_is_qrd_skud_prime() || machine_is_msm8625q_evbd()
+					|| machine_is_msm8625q_skud())
+			pmem_mdp_size = 0;
+	}
+
 #ifdef CONFIG_ION_MSM
-	msm_ion_camera_size = pmem_adsp_size;
 	msm_ion_audio_size = MSM_PMEM_AUDIO_SIZE;
 #ifdef CONFIG_CMA
+	msm_ion_camera_size = CAMERA_ZSL_SIZE;
 	msm_ion_camera_size_carving = 0;
 #else
+	msm_ion_camera_size = pmem_adsp_size;
 	msm_ion_camera_size_carving = msm_ion_camera_size;
 #endif
 	msm_ion_sf_size = pmem_mdp_size;
