@@ -50,6 +50,8 @@ static int mipi_dsi_remove(struct platform_device *pdev);
 
 static int mipi_dsi_off(struct platform_device *pdev);
 static int mipi_dsi_on(struct platform_device *pdev);
+static int mipi_dsi_fps_level_change(struct platform_device *pdev,
+					u32 fps_level);
 
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
 static int pdev_list_cnt;
@@ -89,6 +91,14 @@ extern void mipi_ldp_lcd_panel_poweroff(void);
 extern unsigned int maker_id;  //LGE_CHANGE, sohyun.nam@lge.com, 12-12-27, maker_id is using both LG4573B and HX8379A
 extern void mipi_ldp_lcd_hx8379a_panel_poweroff(void);
 #endif
+
+static int mipi_dsi_fps_level_change(struct platform_device *pdev,
+					u32 fps_level)
+{
+	mipi_dsi_wait4video_done();
+	mipi_dsi_configure_fb_divider(fps_level);
+	return 0;
+}
 
 static int mipi_dsi_off(struct platform_device *pdev)
 {
@@ -579,6 +589,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	pdata = mdp_dev->dev.platform_data;
 	pdata->on = mipi_dsi_on;
 	pdata->off = mipi_dsi_off;
+	pdata->fps_level_change = mipi_dsi_fps_level_change;
 	pdata->late_init = mipi_dsi_late_init;
 	pdata->next = pdev;
 
