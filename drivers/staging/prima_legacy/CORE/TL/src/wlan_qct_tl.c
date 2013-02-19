@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -754,7 +754,7 @@ WLANTL_Close
     pmcDeregisterDeviceStateUpdateInd( smeContext, WLANTL_PowerStateChangedCB );
   }
 
-#if defined WLAN_FEATURE_NEIGHBOR_ROAMING
+#if defined FEATURE_WLAN_GEN6_ROAMING || defined WLAN_FEATURE_NEIGHBOR_ROAMING
   if(VOS_STATUS_SUCCESS != WLANTL_HSDeInit(pvosGCtx))
   {
     TLLOGW(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
