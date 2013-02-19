@@ -481,4 +481,8 @@ void peSetResumeChannel(tpAniSirGlobal pMac, tANI_U16 channel, tANI_U8 cbState);
 tANI_U8 peGetResumeChannel(tpAniSirGlobal pMac);
 
 
+void limCleanUpDisassocDeauthReq(tpAniSirGlobal pMac, tANI_U8 *staMac, tANI_BOOLEAN cleanRxPath);
+
+tANI_BOOLEAN limCheckDisassocDeauthAckPending(tpAniSirGlobal pMac, tANI_U8 *staMac);
+
 #endif /* __LIM_UTILS_H */

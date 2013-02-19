@@ -169,6 +169,8 @@ limProcessMlmReqMessages(tpAniSirGlobal pMac, tpSirMsgQ Msg)
 #ifdef WLAN_FEATURE_P2P
         case SIR_LIM_REMAIN_CHN_TIMEOUT:    limProcessRemainOnChnTimeout(pMac); break;
 #endif
+        case SIR_LIM_DISASSOC_ACK_TIMEOUT:  limProcessDisassocAckTimeout(pMac); break;
+        case SIR_LIM_DEAUTH_ACK_TIMEOUT:    limProcessDeauthAckTimeout(pMac); break;
         case LIM_MLM_ADDBA_REQ:             limProcessMlmAddBAReq( pMac, Msg->bodyptr ); break;
         case LIM_MLM_ADDBA_RSP:             limProcessMlmAddBARsp( pMac, Msg->bodyptr ); break;
         case LIM_MLM_DELBA_REQ:             limProcessMlmDelBAReq( pMac, Msg->bodyptr ); break;
@@ -877,9 +879,9 @@ limSendHalStartScanReq(tpAniSirGlobal pMac, tANI_U8 channelNum, tLimLimHalScanSt
         SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
 
         MTRACE(macTraceMsgTx(pMac, 0, msg.type));
-        PELOGW(limLog(pMac, LOGW, FL("Channel %d\n"), channelNum);)
+        limLog(pMac, LOG1, FL("Channel %d\n"), channelNum);
 
-            rc = wdaPostCtrlMsg(pMac, &msg);
+        rc = wdaPostCtrlMsg(pMac, &msg);
         if (rc == eSIR_SUCCESS) {
             return;
         }
@@ -1243,8 +1245,9 @@ limRestorePreScanState(tpAniSirGlobal pMac)
     {
       for(i=0;i<pMac->lim.maxBssId;i++)
       {
-        if((pMac->lim.gpSession[i].valid == TRUE) && 
-          (eLIM_MLM_LINK_ESTABLISHED_STATE == pMac->lim.gpSession[i].limMlmState))
+        if((peFindSessionBySessionId(pMac,i) != NULL) &&
+           (pMac->lim.gpSession[i].valid == TRUE) && 
+           (eLIM_MLM_LINK_ESTABLISHED_STATE == pMac->lim.gpSession[i].limMlmState))
         {
           limReactivateHeartBeatTimer(pMac, peFindSessionBySessionId(pMac,i));
         }  
@@ -1872,6 +1875,13 @@ limProcessMlmScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     {
         PELOGE(limLog(pMac, LOGE,
                FL("Sending START_SCAN from LIM while one req is pending\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf);
+        /*Send back a failure*/        
+        mlmScanCnf.resultCode = eSIR_SME_SCAN_FAILED;
+        mlmScanCnf.scanResultLength = 0;
+        limPostSmeMessage(pMac,
+                         LIM_MLM_SCAN_CNF,
+                    (tANI_U32 *) &mlmScanCnf);
         return;
     }
 
@@ -2417,6 +2427,7 @@ limProcessMlmAssocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     if( (psessionEntry = peFindSessionBySessionId(pMac,pMlmAssocReq->sessionId) )== NULL) 
     {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmAssocReq);
         return;
     }
 
@@ -2546,6 +2557,7 @@ limProcessMlmReassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     if((psessionEntry = peFindSessionBySessionId(pMac,pMlmReassocReq->sessionId)) == NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("Session Does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmReassocReq);
         return;
     }
     
@@ -2768,47 +2780,33 @@ limProcessMlmDisassocReqPostSuspend(tpAniSirGlobal pMac, eHalStatus suspendStatu
     pStaDs->mlmStaContext.cleanupTrigger = pMlmDisassocReq->disassocTrigger;
 
     /// Send Disassociate frame to peer entity
-    if (sendDisassocFrame)
+    if (sendDisassocFrame && (pMlmDisassocReq->reasonCode != eSIR_MAC_DISASSOC_DUE_TO_FTHANDOFF_REASON))
     {
-    limSendDisassocMgmtFrame(pMac,
-                             pMlmDisassocReq->reasonCode,
-                             pMlmDisassocReq->peerMacAddr,psessionEntry);
+        pMac->lim.limDisassocDeauthCnfReq.pMlmDisassocReq = pMlmDisassocReq;
+        /* Set state to mlm State to eLIM_MLM_WT_DEL_STA_RSP_STATE
+         * This is to address the issue of race condition between
+         * disconnect request from the HDD and deauth from AP
+         */
+        pStaDs->mlmStaContext.mlmState   = eLIM_MLM_WT_DEL_STA_RSP_STATE;
+
+        limSendDisassocMgmtFrame(pMac,
+                                 pMlmDisassocReq->reasonCode,
+                                 pMlmDisassocReq->peerMacAddr,
+                                 psessionEntry, TRUE);
     }
     else
     {
-       sendDisassocFrame = 1;    
+       /* Disassoc frame is not sent OTA */
+       sendDisassocFrame = 1;
+       // Receive path cleanup with dummy packet
+       if(eSIR_SUCCESS != limCleanupRxPath(pMac, pStaDs,psessionEntry))
+       {
+           mlmDisassocCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
+           goto end;
+       }
+       // Free up buffer allocated for mlmDisassocReq
+       palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDisassocReq);
     }
-
-    if (psessionEntry->limSystemRole == eLIM_AP_ROLE) 
-    {
-       //SAP mode delay DEL STA for 300ms such that disassoc can be delivered at TIM
-       //100 ms for normal TIM and 300 ms for dynamic TIM
-       vos_sleep(300); 
-    }
-
-    /// Receive path cleanup with dummy packet
-    if(eSIR_SUCCESS != limCleanupRxPath(pMac, pStaDs,psessionEntry))
-        {
-            mlmDisassocCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
-            goto end;
-        }
-
-#ifdef WLAN_FEATURE_VOWIFI_11R
-    if  ( (psessionEntry->limSystemRole == eLIM_STA_ROLE ) && 
-          ( 
-#ifdef FEATURE_WLAN_CCX
-          (psessionEntry->isCCXconnection ) || 
-#endif
-          (psessionEntry->is11Rconnection )) &&
-          (pMlmDisassocReq->reasonCode != eSIR_MAC_DISASSOC_DUE_TO_FTHANDOFF_REASON))
-    {
-          PELOGE(limLog(pMac, LOGE, FL("FT Preauth Session Cleanup \n"));)
-          limFTCleanup(pMac);
-    }
-#endif
-
-    /// Free up buffer allocated for mlmDisassocReq
-    palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDisassocReq);
 
     return;
 
@@ -2828,6 +2826,90 @@ end:
     limPostSmeMessage(pMac,
                       LIM_MLM_DISASSOC_CNF,
                       (tANI_U32 *) &mlmDisassocCnf);
+}
+
+tANI_BOOLEAN limCheckDisassocDeauthAckPending(tpAniSirGlobal pMac,
+                                              tANI_U8 *staMac
+                                              )
+{
+    tLimMlmDisassocReq      *pMlmDisassocReq;
+    tLimMlmDeauthReq        *pMlmDeauthReq;
+    pMlmDisassocReq = pMac->lim.limDisassocDeauthCnfReq.pMlmDisassocReq;
+    pMlmDeauthReq = pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq;
+    if (
+            (pMlmDisassocReq &&
+             (palEqualMemory( pMac->hHdd,(tANI_U8 *) staMac,
+                              (tANI_U8 *) &pMlmDisassocReq->peerMacAddr,
+                              sizeof(tSirMacAddr)))) 
+            ||
+            (pMlmDeauthReq &&
+             (palEqualMemory( pMac->hHdd,(tANI_U8 *) staMac,
+                              (tANI_U8 *) &pMlmDeauthReq->peerMacAddr,
+                              sizeof(tSirMacAddr))))
+       )
+    {
+        PELOGE(limLog(pMac, LOGE,FL("Disassoc/Deauth ack pending\n"));)
+        return eANI_BOOLEAN_TRUE;
+    }
+     else
+     {
+        PELOGE(limLog(pMac, LOGE,FL("Disassoc/Deauth Ack not pending\n"));)
+        return eANI_BOOLEAN_FALSE;
+     }
+}
+
+void limCleanUpDisassocDeauthReq(tpAniSirGlobal pMac,
+        tANI_U8 *staMac,
+        tANI_BOOLEAN cleanRxPath)
+{
+    tLimMlmDisassocReq       *pMlmDisassocReq;
+    tLimMlmDeauthReq        *pMlmDeauthReq;
+    pMlmDisassocReq = pMac->lim.limDisassocDeauthCnfReq.pMlmDisassocReq;
+    if (pMlmDisassocReq &&
+            (palEqualMemory( pMac->hHdd,(tANI_U8 *) staMac,
+                             (tANI_U8 *) &pMlmDisassocReq->peerMacAddr,
+                             sizeof(tSirMacAddr))))
+    {
+        if (cleanRxPath)
+        {
+            limProcessDisassocAckTimeout(pMac);
+        }
+        else
+        {
+            if (tx_timer_running(&pMac->lim.limTimers.gLimDisassocAckTimer))
+            {
+                limDeactivateAndChangeTimer(pMac, eLIM_DISASSOC_ACK_TIMER);
+            }
+            palFreeMemory(pMac->hHdd, (tANI_U8 *) pMlmDisassocReq);
+            pMac->lim.limDisassocDeauthCnfReq.pMlmDisassocReq = NULL;
+        }
+    }
+
+    pMlmDeauthReq = pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq;
+    if (pMlmDeauthReq &&
+            (palEqualMemory( pMac->hHdd,(tANI_U8 *) staMac,
+                             (tANI_U8 *) &pMlmDeauthReq->peerMacAddr,
+                             sizeof(tSirMacAddr))))
+    {
+        if (cleanRxPath)
+        {
+            limProcessDeauthAckTimeout(pMac);
+        }
+        else
+        {
+            if (tx_timer_running(&pMac->lim.limTimers.gLimDeauthAckTimer))
+            {
+                limDeactivateAndChangeTimer(pMac, eLIM_DEAUTH_ACK_TIMER);
+            }
+            palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDeauthReq);
+            pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq = NULL;
+        }
+    }
+}
+
+void limProcessDisassocAckTimeout(tpAniSirGlobal pMac)
+{
+    limSendDisassocCnf(pMac);
 }
 
 /**
@@ -2875,7 +2957,8 @@ limProcessMlmDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         return;
     }
 
-    if( isLimSessionOffChannel(pMac, pMlmDisassocReq->sessionId) )
+    if( (psessionEntry->limSystemRole == eLIM_STA_ROLE) &&
+        isLimSessionOffChannel(pMac, pMlmDisassocReq->sessionId) )
     {
       //suspend link
       limSuspendLink(pMac, eSIR_DONT_CHECK_LINK_TRAFFIC_BEFORE_SCAN, 
@@ -2887,6 +2970,7 @@ limProcessMlmDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
       limProcessMlmDisassocReqPostSuspend( pMac, eHAL_STATUS_SUCCESS,
           (tANI_U32*) pMsgBuf );
     }
+    
 } /*** limProcessMlmDisassocReq() ***/
 
 static void
@@ -2917,6 +3001,7 @@ limProcessMlmDeauthReqPostSuspend(tpAniSirGlobal pMac, eHalStatus suspendStatus,
     {
     
         PELOGE(limLog(pMac, LOGE, FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDeauthReq);
         return;
     }
     #if 0
@@ -2974,7 +3059,8 @@ limProcessMlmDeauthReqPostSuspend(tpAniSirGlobal pMac, eHalStatus suspendStatus,
                         limSendDeauthMgmtFrame(
                                    pMac,
                                    pMlmDeauthReq->reasonCode,
-                                   pMlmDeauthReq->peerMacAddr,psessionEntry);
+                                   pMlmDeauthReq->peerMacAddr,
+                                   psessionEntry, FALSE);
 
                         /// Prepare and Send LIM_MLM_DEAUTH_CNF
                         mlmDeauthCnf.resultCode = eSIR_SME_SUCCESS;
@@ -3009,6 +3095,7 @@ limProcessMlmDeauthReqPostSuspend(tpAniSirGlobal pMac, eHalStatus suspendStatus,
             break;
 
         case eLIM_STA_IN_IBSS_ROLE:
+            palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDeauthReq);
 
             return;
 
@@ -3053,7 +3140,8 @@ limProcessMlmDeauthReqPostSuspend(tpAniSirGlobal pMac, eHalStatus suspendStatus,
             /// Send Deauthentication frame to peer entity
             limSendDeauthMgmtFrame(pMac,
                                    pMlmDeauthReq->reasonCode,
-                                   pMlmDeauthReq->peerMacAddr,psessionEntry);
+                                   pMlmDeauthReq->peerMacAddr,
+                                   psessionEntry, FALSE);
         }
 
         goto end;
@@ -3083,23 +3171,11 @@ limProcessMlmDeauthReqPostSuspend(tpAniSirGlobal pMac, eHalStatus suspendStatus,
                                            pMlmDeauthReq->reasonCode;
     pStaDs->mlmStaContext.cleanupTrigger = pMlmDeauthReq->deauthTrigger;
 
+    pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq = pMlmDeauthReq;
     /// Send Deauthentication frame to peer entity
     limSendDeauthMgmtFrame(pMac, pMlmDeauthReq->reasonCode,
-                           pMlmDeauthReq->peerMacAddr,psessionEntry);
-
-    if( (psessionEntry->limSystemRole == eLIM_AP_ROLE))
-    {
-      // Delay DEL STA for 300ms such that unicast deauth is 
-      // delivered at TIM(100 for normal or 300ms for dynamic) 
-      // to power save stations after setting PVB
-      vos_sleep(300);
-    }
-
-    /// Receive path cleanup with dummy packet
-    limCleanupRxPath(pMac, pStaDs,psessionEntry);
-
-    /// Free up buffer allocated for mlmDeauthReq
-    palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDeauthReq);
+                           pMlmDeauthReq->peerMacAddr,
+                           psessionEntry, TRUE);
 
     return;
 
@@ -3119,6 +3195,12 @@ end:
                       LIM_MLM_DEAUTH_CNF,
                       (tANI_U32 *) &mlmDeauthCnf);
 
+}
+
+
+void limProcessDeauthAckTimeout(tpAniSirGlobal pMac)
+{
+    limSendDeauthCnf(pMac);
 }
 
 /**
@@ -3165,7 +3247,8 @@ limProcessMlmDeauthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         return;
     }
 
-    if( isLimSessionOffChannel(pMac, pMlmDeauthReq->sessionId) )
+    if( (psessionEntry->limSystemRole == eLIM_STA_ROLE) &&
+        isLimSessionOffChannel(pMac, pMlmDeauthReq->sessionId) )
     {
       //suspend link
       limSuspendLink(pMac, eSIR_DONT_CHECK_LINK_TRAFFIC_BEFORE_SCAN, 
@@ -3322,15 +3405,23 @@ tpPESession        psessionEntry;
   }
 
     if ((pMlmSetKeysReq->numKeys == 0) && (pMlmSetKeysReq->edType != eSIR_ED_NONE)) {
-    //
-    // Broadcast/Multicast Keys (for WEP!!) are NOT sent
-    // via this interface!!
-    //
-    // This indicates to HAL that the WEP Keys need to be
-    // extracted from the CFG and applied to hardware
-    defaultKeyId = 0xff;
-      }else
-    defaultKeyId = 0;
+        //
+        // Broadcast/Multicast Keys (for WEP!!) are NOT sent
+        // via this interface!!
+        //
+        // This indicates to HAL that the WEP Keys need to be
+        // extracted from the CFG and applied to hardware
+        defaultKeyId = 0xff;
+    }else if(pMlmSetKeysReq->key[0].keyId && 
+             ((pMlmSetKeysReq->edType == eSIR_ED_WEP40) || 
+              (pMlmSetKeysReq->edType == eSIR_ED_WEP104))){
+        /* If the Key Id is non zero and encryption mode is WEP, 
+         * the key index is coming from the upper layers so that key only 
+         * need to be used as the default tx key, This is being used only 
+         * in case of WEP mode in HAL */
+        defaultKeyId = pMlmSetKeysReq->key[0].keyId;
+    }else
+        defaultKeyId = 0;
 
     limLog( pMac, LOG1,
       FL( "Trying to set keys for STA Index [%d], using defaultKeyId [%d]\n" ),
@@ -3401,6 +3492,7 @@ tLimMlmRemoveKeyCnf  mlmRemoveKeyCnf;
     {
         PELOGE(limLog(pMac, LOGE,
                     FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf );
         return;
     }
 
@@ -3740,7 +3832,7 @@ limProcessPeriodicProbeReqTimer(tpAniSirGlobal pMac)
          * in states other than wait_scan.
          * Log error.
          */
-        limLog(pMac, LOGW,
+        limLog(pMac, LOG1,
            FL("received unexpected Periodic scan timeout in state %X\n"),
            pMac->lim.gLimMlmState);
     }
@@ -4054,19 +4146,18 @@ limProcessAssocFailureTimeout(tpAniSirGlobal pMac, tANI_U32 MsgType)
     else
     {
 
-        if ((MsgType == LIM_ASSOC) || 
+        if ((MsgType == LIM_ASSOC) ||
             ((MsgType == LIM_REASSOC) && (psessionEntry->limMlmState == eLIM_MLM_WT_FT_REASSOC_RSP_STATE)))
         {
             PELOGE(limLog(pMac, LOGE,  FL("(Re)Assoc Failure Timeout occurred.\n"));)
 
             psessionEntry->limMlmState = eLIM_MLM_IDLE_STATE;
             MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, psessionEntry->limMlmState));
-            
             //Set the RXP mode to IDLE, so it starts filtering the frames.
             if(limSetLinkState(pMac, eSIR_LINK_IDLE_STATE,psessionEntry->bssId, 
                 psessionEntry->selfMacAddr, NULL, NULL) != eSIR_SUCCESS)
                 PELOGE(limLog(pMac, LOGE,  FL("Failed to set the LinkState\n"));)
-         
+
             // 'Change' timer for future activations
             limDeactivateAndChangeTimer(pMac, eLIM_ASSOC_FAIL_TIMER);
 
@@ -4083,7 +4174,7 @@ limProcessAssocFailureTimeout(tpAniSirGlobal pMac, tANI_U32 MsgType)
             if (limSearchPreAuthList(pMac, psessionEntry->bssId))
             {
                 PELOG1(limLog(pMac, LOG1, FL(" delete pre auth node for %02X-%02X-%02X-%02X-%02X-%02X\n"),
-                    psessionEntry->bssId[0], psessionEntry->bssId[1], psessionEntry->bssId[2], 
+                    psessionEntry->bssId[0], psessionEntry->bssId[1], psessionEntry->bssId[2],
                     psessionEntry->bssId[3], psessionEntry->bssId[4], psessionEntry->bssId[5]);)
                 limDeletePreAuthNode(pMac, psessionEntry->bssId);
             }
@@ -4195,6 +4286,7 @@ tpLimMlmAddBACnf pMlmAddBACnf;
   {
       PELOGE(limLog(pMac, LOGE,
                FL("session does not exist for given sessionId\n"));)
+      palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf );
       return;
   }
   
@@ -4287,6 +4379,7 @@ tpLimMlmAddBARsp pMlmAddBARsp;
     {
         PELOGE(limLog(pMac, LOGE,
                   FL("session does not exist for given session ID\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf );
         return;
     }
   
@@ -4348,6 +4441,7 @@ void limProcessMlmDelBAReq( tpAniSirGlobal pMac,
     if((psessionEntry = peFindSessionBySessionId(pMac,pMlmDelBAReq->sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given bssId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf );
         return;
     }
 

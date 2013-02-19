@@ -1093,7 +1093,7 @@ eHalStatus sme_QosCsrEventInd(tpAniSirGlobal pMac,
       case SME_QOS_CSR_PREAUTH_SUCCESS_IND:
          status = sme_QosProcessPreauthSuccessInd(pMac, sessionId, pEvent_info);
          break;
-#ifdef FEATURE_WLAN_CCX
+#if defined(FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
       case SME_QOS_CSR_SET_KEY_SUCCESS_IND:
          status = sme_QosProcessSetKeySuccessInd(pMac, sessionId, pEvent_info);
          break;
@@ -2955,7 +2955,7 @@ sme_QosStatusType sme_QosSetup(tpAniSirGlobal pMac,
    return status;
 }
 
-#ifdef FEATURE_WLAN_CCX
+#if defined(FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
 /* This is a dummy function now. But the purpose of me adding this was to 
  * delay the TSPEC processing till SET_KEY completes. This function can be 
  * used to do any SME_QOS processing after the SET_KEY. As of now, it is 
@@ -2965,10 +2965,12 @@ sme_QosStatusType sme_QosSetup(tpAniSirGlobal pMac,
 eHalStatus sme_QosProcessSetKeySuccessInd(tpAniSirGlobal pMac, v_U8_t sessionId, void * pEvent_info)
 {
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN, 
-            "########### CCX Set Key Complete #############");
+            "########### Set Key Complete #############");
     return eHAL_STATUS_SUCCESS;
 }
+#endif
 
+#ifdef FEATURE_WLAN_CCX
 /*--------------------------------------------------------------------------
   \brief sme_QosCCXSaveTspecResponse() - This function saves the TSPEC
          parameters that came along in the TSPEC IE in the reassoc response
@@ -6079,7 +6081,7 @@ static eHalStatus sme_QosDeleteExistingFlows(tpAniSirGlobal pMac,
    pEntry = csrLLPeekHead( &sme_QosCb.flow_list, VOS_TRUE );
    if(!pEntry)
    {
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN,
                 "%s: %d: Flow List empty, nothing to delete",
                 __FUNCTION__, __LINE__);
       return eHAL_STATUS_FAILURE;
@@ -6299,7 +6301,7 @@ static eHalStatus sme_QosDeleteBufferedRequests(tpAniSirGlobal pMac,
    pEntry = csrLLPeekHead( &pSession->bufferedCommandList, VOS_TRUE );
    if(!pEntry)
    {
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN, 
                 "%s: %d: Buffered List empty, nothing to delete on session %d",
                 __FUNCTION__, __LINE__,
                 sessionId);
@@ -6308,7 +6310,7 @@ static eHalStatus sme_QosDeleteBufferedRequests(tpAniSirGlobal pMac,
    while( pEntry )
    {
       pNextEntry = csrLLNext( &pSession->bufferedCommandList, pEntry, VOS_TRUE );
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, 
                 "%s: %d: deleting entry from buffered List",
                 __FUNCTION__, __LINE__);
       //delete the entry from Flow List
@@ -7178,7 +7180,7 @@ void sme_QosPmcDeviceStateUpdateInd(void *callbackContext, tPmcState pmcState)
    }
    if(!HAL_STATUS_SUCCESS(status))
    {
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH, 
                 "%s: %d: ignoring Device(PMC) state change to %d",
                 __FUNCTION__, __LINE__,
                 pmcState);
@@ -7204,7 +7206,7 @@ eHalStatus sme_QosProcessOutOfUapsdMode(tpAniSirGlobal pMac)
    pEntry = csrLLPeekHead( &sme_QosCb.flow_list, VOS_FALSE );
    if(!pEntry)
    {
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH, 
                 "%s: %d: Flow List empty, can't search",
                 __FUNCTION__, __LINE__);
       return eHAL_STATUS_FAILURE;

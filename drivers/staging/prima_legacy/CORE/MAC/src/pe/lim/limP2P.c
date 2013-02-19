@@ -60,8 +60,8 @@
 #define   BSSID_OFFSET           16
 #define   ADDR2_OFFSET           10
 #define   ACTION_OFFSET          24
-#define   LIM_MIN_REM_TIME_FOR_TX_ACTION_FRAME                     30
-#define   LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME                 40
+#define   LIM_MIN_REM_TIME_FOR_TX_ACTION_FRAME                     50
+#define   LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME                 60
 
 
 
@@ -137,7 +137,7 @@ int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg)
                 /* get the duration from the request */
                 val = SYS_MS_TO_TICKS(MsgBuff->duration);
 
-                limLog( pMac, LOGE, "Start listen duration = %d", val);
+                limLog( pMac, LOG2, "Start listen duration = %d", val);
                 if (tx_timer_change(
                         &pMac->lim.limTimers.gLimRemainOnChannelTimer, val, 0)
                                           != TX_SUCCESS)
@@ -325,7 +325,7 @@ void limRemainOnChnlSetLinkStat(tpAniSirGlobal pMac, eHalStatus status,
       /* get the duration from the request */
     val = SYS_MS_TO_TICKS(MsgRemainonChannel->duration);
 
-    limLog( pMac, LOGE, "Start listen duration = %d", val);
+    limLog( pMac, LOG2, "Start listen duration = %d", val);
     if (tx_timer_change(&pMac->lim.limTimers.gLimRemainOnChannelTimer,
                                                 val, 0) != TX_SUCCESS)
     {
@@ -582,7 +582,7 @@ void limSendSmeMgmtFrameInd(
             pMac->lim.p2pRemOnChanTimeStamp = vos_timer_get_system_time();
             pMac->lim.gTotalScanDuration = LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME;
 
-            chanWaitTime = SYS_MS_TO_TICKS(40);
+            chanWaitTime = SYS_MS_TO_TICKS(LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME);
             vStatus = tx_timer_deactivate(&pMac->lim.limTimers.gLimRemainOnChannelTimer);
 
             if (VOS_STATUS_SUCCESS != vStatus)
@@ -631,7 +631,7 @@ void limSetHtCaps(tpAniSirGlobal pMac,tANI_U8 *pIeStartPtr,tANI_U32 nBytes)
     PopulateDot11fHTCaps(pMac,&dot11HtCap);
     pIe = limGetIEPtr(pMac,pIeStartPtr, nBytes,
                                        DOT11F_EID_HTCAPS,ONE_BYTE);
-   limLog( pMac, LOGE, FL("pIe 0x%x dot11HtCap.supportedMCSSet[0]=0x%x"),
+   limLog( pMac, LOG2, FL("pIe 0x%x dot11HtCap.supportedMCSSet[0]=0x%x"),
         (tANI_U32)pIe,dot11HtCap.supportedMCSSet[0]);
     if(pIe)
     {
@@ -852,7 +852,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
         if (SIR_MAC_MGMT_PROBE_RSP == pFc->subType)
         {
             limSetHtCaps( pMac,(tANI_U8*)pMbMsg->data + PROBE_RSP_IE_OFFSET,
-                           nBytes);
+                           nBytes - PROBE_RSP_IE_OFFSET);
         }
         
         /* The minimum wait for any action frame should be atleast 100 ms.
@@ -968,7 +968,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
         else
         {
              pMac->lim.actionFrameSessionId = pMbMsg->sessionId;
-             limLog( pMac, LOGE, FL("lim.actionFrameSessionId = %lu\n" ), 
+             limLog( pMac, LOG2, FL("lim.actionFrameSessionId = %lu\n" ), 
                      pMac->lim.actionFrameSessionId);
 
         }

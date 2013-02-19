@@ -1094,13 +1094,7 @@ tSirRetStatus peClose(tpAniSirGlobal pMac)
 
     if (ANI_DRIVER_TYPE(pMac) == eDRIVER_TYPE_MFG)
         return eSIR_SUCCESS;
-
-    palFreeMemory(pMac->hHdd, pMac->lim.limTimers.gpLimCnfWaitTimer);
-    pMac->lim.limTimers.gpLimCnfWaitTimer = NULL;
-    palFreeMemory(pMac->hHdd, pMac->lim.gpLimAIDpool);
-    pMac->lim.gpLimAIDpool = NULL;
-
-   
+    
     for(i =0; i < pMac->lim.maxBssId; i++)
     {
         if(pMac->lim.gpSession[i].valid == TRUE)
@@ -1108,7 +1102,11 @@ tSirRetStatus peClose(tpAniSirGlobal pMac)
             peDeleteSession(pMac,&pMac->lim.gpSession[i]);
         }
     }
-
+    palFreeMemory(pMac->hHdd, pMac->lim.limTimers.gpLimCnfWaitTimer);
+    pMac->lim.limTimers.gpLimCnfWaitTimer = NULL;
+    palFreeMemory(pMac->hHdd, pMac->lim.gpLimAIDpool);
+    pMac->lim.gpLimAIDpool = NULL;
+    
     palFreeMemory(pMac->hHdd, pMac->lim.gpSession);
     pMac->lim.gpSession = NULL;
     /*

@@ -1116,6 +1116,7 @@ typedef struct sSirSmeScanReq
  
 #ifdef WLAN_FEATURE_P2P
     tANI_BOOLEAN         p2pSearch;
+    tANI_BOOLEAN         skipDfsChnlInP2pSearch;
 #endif
     tANI_U16             uIEFieldLen;
     tANI_U16             uIEFieldOffset;
@@ -1310,8 +1311,11 @@ typedef struct sSirSmeJoinReq
     tCCXTspecInfo       ccxTspecInfo;
 #endif
     
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
     tAniBool            isFastTransitionEnabled;
+#endif
+#ifdef FEATURE_WLAN_LFR
+    tAniBool            isFastRoamIniFeatureEnabled;
 #endif
     
 #if (WNI_POLARIS_FW_PACKAGE == ADVANCED) && (WNI_POLARIS_FW_PRODUCT == AP)
@@ -1513,8 +1517,11 @@ typedef struct sSirSmeReassocReq
     tAniBool            isCCXconnection;
     tCCXTspecInfo       ccxTspecInfo;
 #endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
     tAniBool            isFastTransitionEnabled;
+#endif
+#ifdef FEATURE_WLAN_LFR
+    tAniBool            isFastRoamIniFeatureEnabled;
 #endif
 
 #if (WNI_POLARIS_FW_PACKAGE == ADVANCED) && (WNI_POLARIS_FW_PRODUCT == AP)
@@ -2011,6 +2018,7 @@ typedef struct sSirSmeDisassocInd
 #ifdef WLAN_SOFTAP_FEATURE
     tANI_U16            staId;
 #endif
+    tANI_U32            reasonCode;
 } tSirSmeDisassocInd, *tpSirSmeDisassocInd;
 
 /// Definition for Disassociation confirm
@@ -2073,6 +2081,7 @@ typedef struct sSirSmeDeauthInd
 #ifdef WLAN_SOFTAP_FEATURE
     tANI_U16            staId;
 #endif
+    tANI_U32            reasonCode;
 } tSirSmeDeauthInd, *tpSirSmeDeauthInd;
 
 /// Definition for Deauthentication confirm
@@ -3014,7 +3023,7 @@ typedef struct sSirDeltsRsp
     tSirDeltsReqInfo        rsp;
 } tSirDeltsRsp, *tpSirDeltsRsp;
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
 
 #define SIR_QOS_NUM_TSPEC_MAX 2
 #define SIR_QOS_NUM_AC_MAX 4

@@ -901,6 +901,9 @@ limPrintMsgInfo(tpAniSirGlobal pMac, tANI_U16 logLevel, tSirMsgQ *msg)
 void
 limInitMlm(tpAniSirGlobal pMac)
 {
+    tANI_U32 retVal;
+    pMac->lim.gLimTimersCreated = 0;
+
     MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
 
     /// Initialize scan result hash table
@@ -919,9 +922,15 @@ limInitMlm(tpAniSirGlobal pMac)
         return;
 
     // Create timers used by LIM
-    limCreateTimers(pMac);
-
-    pMac->lim.gLimTimersCreated = 1;
+    retVal = limCreateTimers(pMac);
+    if(retVal == TX_SUCCESS)
+    {
+        pMac->lim.gLimTimersCreated = 1;
+    }
+    else
+    {
+        limLog(pMac, LOGP, FL(" limCreateTimers Failed to create lim timers \n"));
+    }
 } /*** end limInitMlm() ***/
 
 
@@ -1093,6 +1102,12 @@ limCleanupMlm(tpAniSirGlobal pMac)
         tx_timer_deactivate(&pMac->lim.limTimers.gLimCcxTsmTimer);
         tx_timer_delete(&pMac->lim.limTimers.gLimCcxTsmTimer);
 #endif
+
+        tx_timer_deactivate(&pMac->lim.limTimers.gLimDisassocAckTimer);
+        tx_timer_delete(&pMac->lim.limTimers.gLimDisassocAckTimer);
+
+        tx_timer_deactivate(&pMac->lim.limTimers.gLimDeauthAckTimer);
+        tx_timer_delete(&pMac->lim.limTimers.gLimDeauthAckTimer);
 
         pMac->lim.gLimTimersCreated = 0;
     }
@@ -1389,7 +1404,7 @@ tANI_U8 limWriteDeferredMsgQ(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
             if( LIM_MAX_NUM_MGMT_FRAME_DEFERRED < count )
             {
                 //We reach the quota for management frames, drop this one
-                PELOGE(limLog(pMac, LOGE, FL("Cannot deferred. Msg: %d Too many (count=%d) already\n"), limMsg->type, count);)
+                PELOGW(limLog(pMac, LOGW, FL("Cannot deferred. Msg: %d Too many (count=%d) already"), limMsg->type, count);)
                 //Return error, caller knows what to do
                 return TX_QUEUE_FULL;
             }
@@ -1617,7 +1632,13 @@ void limHandleUpdateOlbcCache(tpAniSirGlobal pMac)
     tpPESession       psessionEntry = limIsApSessionActive(pMac);
 
     if (psessionEntry == NULL)
+    {
+        PELOGE(limLog(pMac, LOGE, FL(" Session not found\n"));)
         return;
+    }
+
+	palZeroMemory( pMac->hHdd, ( tANI_U8* )&beaconParams, sizeof( tUpdateBeaconParams) );
+	beaconParams.bssIdx = psessionEntry->bssIdx;
     
     beaconParams.paramChangeBitmap = 0;
     /*
@@ -1643,7 +1664,7 @@ void limHandleUpdateOlbcCache(tpAniSirGlobal pMac)
     else
     {
 
-        if (!psessionEntry->gLimOverlap11gParams.numSta)
+        if (!psessionEntry->gLimOlbcParams.numSta)
         {
             if (psessionEntry->gLimOlbcParams.protectionEnabled)
             {
@@ -4183,7 +4204,8 @@ limEnable11aProtection(tpAniSirGlobal pMac, tANI_U8 enable,
         else
         {
             //normal protection config check
-            if(!pMac->lim.cfgProtection.fromlla)
+            if (( psessionEntry != NULL ) && (psessionEntry->limSystemRole == eLIM_AP_ROLE) &&
+                                (!psessionEntry->cfgProtection.fromlla))
             {
                 // protection disabled.
                 PELOG3(limLog(pMac, LOG3, FL("protection from 11a is disabled\n"));)
@@ -4216,6 +4238,7 @@ limEnable11aProtection(tpAniSirGlobal pMac, tANI_U8 enable,
                 if(eSIR_HT_OP_MODE_MIXED != pMac->lim.gHTOperMode)
                 {
                     pMac->lim.gHTOperMode = eSIR_HT_OP_MODE_MIXED;
+                    psessionEntry->htOperMode = eSIR_HT_OP_MODE_MIXED;
                     limEnableHtRifsProtection(pMac, true, overlap, pBeaconParams,psessionEntry);
                     limEnableHtOBSSProtection(pMac,  true, overlap, pBeaconParams,psessionEntry);         
                     
@@ -4283,16 +4306,19 @@ limEnable11aProtection(tpAniSirGlobal pMac, tANI_U8 enable,
 
                 {
                         pMac->lim.gHTOperMode = eSIR_HT_OP_MODE_OVERLAP_LEGACY;
+                        psessionEntry->htOperMode = eSIR_HT_OP_MODE_OVERLAP_LEGACY;
                         limEnableHtRifsProtection(pMac, true, overlap, pBeaconParams,psessionEntry);
                 }
                 else if(psessionEntry->gLimHt20Params.protectionEnabled)
                 {
                         pMac->lim.gHTOperMode = eSIR_HT_OP_MODE_NO_LEGACY_20MHZ_HT;
+                        psessionEntry->htOperMode = eSIR_HT_OP_MODE_NO_LEGACY_20MHZ_HT;
                         limEnableHtRifsProtection(pMac, false, overlap, pBeaconParams,psessionEntry);
                 }
                 else
                 {
                         pMac->lim.gHTOperMode = eSIR_HT_OP_MODE_PURE;
+                        psessionEntry->htOperMode = eSIR_HT_OP_MODE_PURE;
                         limEnableHtRifsProtection(pMac, false, overlap, pBeaconParams,psessionEntry);
                 }
             }
@@ -5683,6 +5709,9 @@ void limUpdateStaRunTimeHTSwitchChnlParams( tpAniSirGlobal   pMac,
                                  "nel Offset: %d, Channel Width: %d\n" ),
                 pHTInfo->primaryChannel, secondaryChnlOffset,
                 pMac->lim.gHTRecommendedTxWidthSet );
+        psessionEntry->channelChangeReasonCode=LIM_SWITCH_CHANNEL_OPERATION;
+        pMac->lim.gpchangeChannelCallback = NULL;
+        pMac->lim.gpchangeChannelData = NULL;
 
 #if defined WLAN_FEATURE_VOWIFI  
         limSendSwitchChnlParams( pMac, ( tANI_U8 ) pHTInfo->primaryChannel,
@@ -5756,12 +5785,6 @@ void limUpdateStaRunTimeHTCapability( tpAniSirGlobal   pMac,
 void limUpdateStaRunTimeHTInfo( tpAniSirGlobal  pMac,
                                 tDot11fIEHTInfo *pHTInfo , tpPESession psessionEntry)
 {
-    if ( pMac->lim.gHTSecondaryChannelOffset != ( tANI_U8)pHTInfo->secondaryChannelOffset)
-    {
-        pMac->lim.gHTSecondaryChannelOffset = ( tSirMacHTSecondaryChannelOffset )pHTInfo->secondaryChannelOffset;
-        // Send change notification to HAL
-    }
-
     if ( pMac->lim.gHTRecommendedTxWidthSet != ( tANI_U8 )pHTInfo->recommendedTxWidthSet )
     {
         pMac->lim.gHTRecommendedTxWidthSet = ( tANI_U8 )pHTInfo->recommendedTxWidthSet;
@@ -6200,6 +6223,7 @@ limProcessDelTsInd(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 if((psessionEntry = peFindSessionByBssid(pMac,pDelTsParam->bssId,&sessionId))== NULL)
     {
          limLog(pMac, LOGE,FL("session does not exist for given BssId\n"));
+         palFreeMemory(pMac->hHdd, (void *)(limMsg->bodyptr));
          return;
     }
 
@@ -7545,6 +7569,7 @@ void limProcessAddStaRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
     if((psessionEntry = peFindSessionBySessionId(pMac,pAddStaParams->sessionId))==NULL)
     {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
+        palFreeMemory(pMac, pAddStaParams);
         return;
     }
     if (psessionEntry->limSystemRole == eLIM_STA_IN_IBSS_ROLE)
@@ -7740,6 +7765,7 @@ void limProcessAddStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
    {
       /// Buffer not available. Log error
       limLog(pMac, LOGP, FL("call to palAllocateMemory failed for Add Sta self RSP\n"));
+      palFreeMemory( pMac->hHdd, (tANI_U8 *)pAddStaSelfParams);
       return;
    }
 
@@ -7775,6 +7801,7 @@ void limProcessDelStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
    {
       /// Buffer not available. Log error
       limLog(pMac, LOGP, FL("call to palAllocateMemory failed for Add Sta self RSP\n"));
+      palFreeMemory( pMac->hHdd, (tANI_U8 *)pDelStaSelfParams);
       return;
    }
 
@@ -7835,7 +7862,7 @@ v_U8_t* limGetIEPtr(tpAniSirGlobal pMac, v_U8_t *pIes, int length, v_U8_t eid,eS
         if(elem_len > left)
         {
             limLog(pMac, LOGE,
-                    "****Invalid IEs eid = %d elem_len=%d left=%d*****\n",
+                    FL("****Invalid IEs eid = %d elem_len=%d left=%d*****"),
                                                     eid,elem_len,left);
             return NULL;
         }
@@ -8017,8 +8044,8 @@ tANI_U8 peGetResumeChannel(tpAniSirGlobal pMac)
     //the new BSS is active for some time. Other BSS was anyway suspended.
     //TODO: Comeup with a better alternative. Sending NULL with PM=0 on other BSS means
     //there will be trouble. But since it is sent on current channel, it will be missed by peer
-    //and hence shpuld be ok. Need to discuss this further
-    if( !IS_MCC_SUPPORTED )    
+    //and hence should be ok. Need to discuss this further
+    if( !limIsInMCC(pMac) )
     {
         //Get current active session channel
         return peGetActiveSessionChannel(pMac);

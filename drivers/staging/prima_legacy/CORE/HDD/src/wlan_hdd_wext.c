@@ -193,6 +193,8 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WE_STOP_AP           3
 #define WE_ENABLE_AMP        4
 #define WE_DISABLE_AMP       5
+#define WE_ENABLE_DXE_STALL_DETECT 6
+#define WE_DISPLAY_DXE_SNAP_SHOT   7
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_VAR_INT_GET_NONE   (SIOCIWFIRSTPRIV + 7)
@@ -274,6 +276,13 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WLAN_STATS_RX_BYTE_CNT        13
 #define WLAN_STATS_RX_RATE            14
 #define WLAN_STATS_TX_RATE            15
+
+#define WLAN_STATS_RX_UC_BYTE_CNT     16
+#define WLAN_STATS_RX_MC_BYTE_CNT     17
+#define WLAN_STATS_RX_BC_BYTE_CNT     18
+#define WLAN_STATS_TX_UC_BYTE_CNT     19
+#define WLAN_STATS_TX_MC_BYTE_CNT     20
+#define WLAN_STATS_TX_BC_BYTE_CNT     21
 
 #define FILL_TLV(__p, __type, __size, __val, __tlen) \
 {\
@@ -809,7 +818,7 @@ v_U8_t* wlan_hdd_get_vendor_oui_ie_ptr(v_U8_t *oui, v_U8_t oui_size, v_U8_t *ie,
         if(elem_len > left)
         {
             hddLog(VOS_TRACE_LEVEL_FATAL,
-                   "****Invalid IEs eid = %d elem_len=%d left=%d*****\n",
+                   FL("****Invalid IEs eid = %d elem_len=%d left=%d*****"),
                     eid,elem_len,left);
             return NULL;
         }
@@ -1132,16 +1141,11 @@ static int iw_get_freq(struct net_device *dev, struct iw_request_info *info,
     }
     else
     {
-       channel = pHddStaCtx->conn_info.operationChannel;
-       status = hdd_wlan_get_freq(channel, &freq);
-       if( TRUE == status )
-       {
-          /* Set Exponent parameter as 6 (MHZ) in struct iw_freq
-           * iwlist & iwconfig command shows frequency into proper
-           * format (2.412 GHz instead of 246.2 MHz)*/
-           fwrq->m = freq;
-           fwrq->e = MHZ;
-       }
+       /* Set Exponent parameter as 6 (MHZ) in struct iw_freq
+        * iwlist & iwconfig command shows frequency into proper
+        * format (2.412 GHz instead of 246.2 MHz)*/
+       fwrq->m = 0;
+       fwrq->e = MHZ;
     }
    return 0;
 }
@@ -1974,6 +1978,123 @@ VOS_STATUS  wlan_hdd_get_classAstats(hdd_adapter_t *pAdapter)
    }
    return VOS_STATUS_SUCCESS;
 }
+
+static void hdd_get_station_statisticsCB(void *pStats, void *pContext)
+{
+   struct statsContext *pStatsContext;
+   tCsrSummaryStatsInfo      *pSummaryStats;
+   tCsrGlobalClassAStatsInfo *pClassAStats;
+   hdd_adapter_t *pAdapter;
+
+   if (ioctl_debug)
+   {
+      pr_info("%s: pStats [%p] pContext [%p]\n",
+              __FUNCTION__, pStats, pContext);
+   }
+
+   if ((NULL == pStats) || (NULL == pContext))
+   {
+      hddLog(VOS_TRACE_LEVEL_ERROR,
+             "%s: Bad param, pStats [%p] pContext [%p]",
+             __FUNCTION__, pStats, pContext);
+      return;
+   }
+
+   /* there is a race condition that exists between this callback function
+      and the caller since the caller could time out either before or
+      while this code is executing.  we'll assume the timeout hasn't
+      occurred, but we'll verify that right before we save our work */
+
+   pSummaryStats = (tCsrSummaryStatsInfo *)pStats;
+   pClassAStats  = (tCsrGlobalClassAStatsInfo *)( pSummaryStats + 1 );
+   pStatsContext = pContext;
+   pAdapter      = pStatsContext->pAdapter;
+   if ((NULL == pAdapter) || (STATS_CONTEXT_MAGIC != pStatsContext->magic))
+   {
+      /* the caller presumably timed out so there is nothing we can do */
+      hddLog(VOS_TRACE_LEVEL_WARN,
+             "%s: Invalid context, pAdapter [%p] magic [%08x]",
+             __FUNCTION__, pAdapter, pStatsContext->magic);
+      if (ioctl_debug)
+      {
+         pr_info("%s: Invalid context, pAdapter [%p] magic [%08x]\n",
+                 __FUNCTION__, pAdapter, pStatsContext->magic);
+      }
+      return;
+   }
+
+   /* the race is on.  caller could have timed out immediately after
+      we verified the magic, but if so, caller will wait a short time
+      for us to copy over the stats. do so as a struct copy */
+   pAdapter->hdd_stats.summary_stat = *pSummaryStats;
+   pAdapter->hdd_stats.ClassA_stat = *pClassAStats;
+
+   /* and notify the caller */
+   complete(&pStatsContext->completion);
+}
+
+VOS_STATUS  wlan_hdd_get_station_stats(hdd_adapter_t *pAdapter)
+{
+   hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+   eHalStatus hstatus;
+   long lrc;
+   struct statsContext context;
+
+   if (NULL == pAdapter)
+   {
+       hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Padapter is NULL", __func__);
+       return VOS_STATUS_SUCCESS;
+   }
+
+   /* we are connected
+   prepare our callback context */
+   init_completion(&context.completion);
+   context.pAdapter = pAdapter;
+   context.magic = STATS_CONTEXT_MAGIC;
+
+   /* query only for Summary & Class A statistics */
+   hstatus = sme_GetStatistics(WLAN_HDD_GET_HAL_CTX(pAdapter),
+                               eCSR_HDD,
+                               SME_SUMMARY_STATS |
+                               SME_GLOBAL_CLASSA_STATS,
+                               hdd_get_station_statisticsCB,
+                               0, // not periodic
+                               FALSE, //non-cached results
+                               pHddStaCtx->conn_info.staId[0],
+                               &context);
+   if (eHAL_STATUS_SUCCESS != hstatus)
+   {
+      hddLog(VOS_TRACE_LEVEL_ERROR,
+             "%s: Unable to retrieve statistics",
+             __FUNCTION__);
+      /* we'll return with cached values */
+   }
+   else
+   {
+      /* request was sent -- wait for the response */
+      lrc = wait_for_completion_interruptible_timeout(&context.completion,
+                                    msecs_to_jiffies(WLAN_WAIT_TIME_STATS));
+      /* either we have a response or we timed out
+         either way, first invalidate our magic */
+      context.magic = 0;
+      if (lrc <= 0)
+      {
+         hddLog(VOS_TRACE_LEVEL_ERROR,
+                "%s: SME %s while retrieving statistics",
+                __FUNCTION__, (0 == lrc) ? "timeout" : "interrupt");
+         /* there is a race condition such that the callback
+            function could be executing at the same time we are. of
+            primary concern is if the callback function had already
+            verified the "magic" but hasn't yet set the completion
+            variable.  Since the completion variable is on our
+            stack, we'll delay just a bit to make sure the data is
+            still valid if that is the case */
+         msleep(50);
+      }
+   }
+   return VOS_STATUS_SUCCESS;
+}
+
 
 /*
  * Support for the LINKSPEED private command
@@ -3955,6 +4076,17 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
         }
 #endif
 
+        case WE_ENABLE_DXE_STALL_DETECT:
+        {
+            sme_transportDebug(VOS_FALSE, VOS_TRUE);
+            break;
+        }
+        case WE_DISPLAY_DXE_SNAP_SHOT:
+        {
+            sme_transportDebug(VOS_TRUE, VOS_FALSE);
+            break;
+        }
+
         default:
         {
             hddLog(LOGE, "%s: unknown ioctl %d", __FUNCTION__, sub_cmd);
@@ -4509,25 +4641,91 @@ static int iw_set_fties(struct net_device *dev, struct iw_request_info *info,
 }
 #endif
 
-static int iw_set_dynamic_mcbc_filter(struct net_device *dev, struct iw_request_info *info,
+static int iw_set_dynamic_mcbc_filter(struct net_device *dev, 
+        struct iw_request_info *info,
         union iwreq_data *wrqu, char *extra)
-{
+{   
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     tpMcBcFilterCfg pRequest = (tpMcBcFilterCfg)wrqu->data.pointer;
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+    tpSirWlanSetRxpFilters wlanRxpFilterParam;
+    VOS_STATUS vstatus;
 
-    hddLog(VOS_TRACE_LEVEL_INFO_HIGH,
-           "%s: Set MC BC Filter Config request: %d",
-           __FUNCTION__, pRequest->mcastBcastFilterSetting);
+    hddLog(VOS_TRACE_LEVEL_INFO_HIGH, 
+           "%s: Set MC BC Filter Config request: %d suspend %d",
+           __FUNCTION__, pRequest->mcastBcastFilterSetting,
+           pHddCtx->hdd_wlan_suspended);
 
-    pHddCtx->dynamic_mcbc_filter.mcastBcastFilterSetting =
+    wlanRxpFilterParam = vos_mem_malloc(sizeof(tSirWlanSetRxpFilters));
+    if(NULL == wlanRxpFilterParam)
+    {
+        hddLog(VOS_TRACE_LEVEL_FATAL,
+           "%s: vos_mem_alloc failed ", __func__);
+        return -EINVAL;
+    }
+
+    pHddCtx->dynamic_mcbc_filter.mcastBcastFilterSetting = 
+                               pRequest->mcastBcastFilterSetting; 
+    pHddCtx->dynamic_mcbc_filter.enableCfg = TRUE; 
+
+    if(pHddCtx->hdd_wlan_suspended)
+    {
+      wlanRxpFilterParam->configuredMcstBcstFilterSetting = 
                                pRequest->mcastBcastFilterSetting;
-    pHddCtx->dynamic_mcbc_filter.enableCfg = TRUE;
+      wlanRxpFilterParam->setMcstBcstFilter = TRUE;
+
+      if((pHddCtx->cfg_ini->fhostArpOffload) && 
+         (eConnectionState_Associated == 
+         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState))
+      {
+        vstatus = hdd_conf_hostarpoffload(pHddCtx, TRUE);
+        if (!VOS_IS_STATUS_SUCCESS(vstatus))
+        {
+          hddLog(VOS_TRACE_LEVEL_INFO, 
+                 "%s:Failed to enable ARPOFFLOAD Feature %d\n",
+                 __func__, vstatus);
+        }
+        else
+        {
+          if (HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST_BROADCAST == 
+              pHddCtx->dynamic_mcbc_filter.mcastBcastFilterSetting)
+          {
+            wlanRxpFilterParam->configuredMcstBcstFilterSetting = 
+                       HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST;
+          }
+          else if(HDD_MCASTBCASTFILTER_FILTER_ALL_BROADCAST == 
+                  pHddCtx->dynamic_mcbc_filter.mcastBcastFilterSetting)
+          {
+            wlanRxpFilterParam->configuredMcstBcstFilterSetting = 
+                           HDD_MCASTBCASTFILTER_FILTER_NONE;
+          }
+        }
+      }
+
+      hddLog(VOS_TRACE_LEVEL_INFO, "%s:MC/BC changed Req %d Set %d En %d",
+             __func__,
+             pHddCtx->dynamic_mcbc_filter.mcastBcastFilterSetting,
+             wlanRxpFilterParam->configuredMcstBcstFilterSetting,
+             wlanRxpFilterParam->setMcstBcstFilter);
+
+      if (eHAL_STATUS_SUCCESS != sme_ConfigureRxpFilter(WLAN_HDD_GET_HAL_CTX(pAdapter),
+                                                   wlanRxpFilterParam))
+      {
+        hddLog(VOS_TRACE_LEVEL_ERROR, 
+               "%s: Failure to execute set HW MC/BC Filter request\n",
+               __func__);
+        return -EINVAL;
+      }
+
+      pHddCtx->dynamic_mcbc_filter.mcBcFilterSuspend = 
+                         wlanRxpFilterParam->configuredMcstBcstFilterSetting;
+    }
 
     return 0;
 }
 
-static int iw_clear_dynamic_mcbc_filter(struct net_device *dev, struct iw_request_info *info,
+static int iw_clear_dynamic_mcbc_filter(struct net_device *dev, 
+        struct iw_request_info *info,
         union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -4933,9 +5131,9 @@ static int iw_get_statistics(struct net_device *dev,
               (char*) &(pStats->rx_error_cnt),
               tlen);
 
-    FILL_TLV(p, (tANI_U8)WLAN_STATS_TX_BYTE_CNT,
-              (tANI_U8) sizeof (pStats->tx_byte_cnt),
-              (char*) &(pStats->tx_byte_cnt),
+    FILL_TLV(p, (tANI_U8)WLAN_STATS_TX_BYTE_CNT, 
+              (tANI_U8) sizeof (dStats->tx_uc_byte_cnt[0]),
+              (char*) &(dStats->tx_uc_byte_cnt[0]), 
               tlen);
 
     FILL_TLV(p, (tANI_U8)WLAN_STATS_RX_BYTE_CNT,
@@ -4952,6 +5150,31 @@ static int iw_get_statistics(struct net_device *dev,
     FILL_TLV(p, (tANI_U8)WLAN_STATS_TX_RATE,
               (tANI_U8) sizeof (aStats->tx_rate),
               (char*) &(aStats->tx_rate),
+              tlen);
+
+    FILL_TLV(p, (tANI_U8)WLAN_STATS_RX_UC_BYTE_CNT, 
+              (tANI_U8) sizeof (dStats->rx_uc_byte_cnt[0]), 
+              (char*) &(dStats->rx_uc_byte_cnt[0]), 
+              tlen);
+    FILL_TLV(p, (tANI_U8)WLAN_STATS_RX_MC_BYTE_CNT, 
+              (tANI_U8) sizeof (dStats->rx_mc_byte_cnt), 
+              (char*) &(dStats->rx_mc_byte_cnt), 
+              tlen);
+    FILL_TLV(p, (tANI_U8)WLAN_STATS_RX_BC_BYTE_CNT, 
+              (tANI_U8) sizeof (dStats->rx_bc_byte_cnt), 
+              (char*) &(dStats->rx_bc_byte_cnt), 
+              tlen);
+    FILL_TLV(p, (tANI_U8)WLAN_STATS_TX_UC_BYTE_CNT, 
+              (tANI_U8) sizeof (dStats->tx_uc_byte_cnt[0]), 
+              (char*) &(dStats->tx_uc_byte_cnt[0]), 
+              tlen);
+    FILL_TLV(p, (tANI_U8)WLAN_STATS_TX_MC_BYTE_CNT, 
+              (tANI_U8) sizeof (dStats->tx_mc_byte_cnt), 
+              (char*) &(dStats->tx_mc_byte_cnt), 
+              tlen);
+    FILL_TLV(p, (tANI_U8)WLAN_STATS_TX_BC_BYTE_CNT, 
+              (tANI_U8) sizeof (dStats->tx_bc_byte_cnt), 
+              (char*) &(dStats->tx_bc_byte_cnt), 
               tlen);
 
     wrqu->data.length = tlen;
@@ -5520,7 +5743,16 @@ VOS_STATUS iw_set_power_params(struct net_device *dev, struct iw_request_info *i
     }
 
     uTotalSize -= nOffset;
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, 
+              "Power request parameter %d Total size", 
+              uTotalSize);
     ptr += nOffset;
+    /* This is added for dynamic Tele LI enable (0xF1) /disable (0xF0)*/
+    if(!(uTotalSize - nOffset) && 
+       (powerRequest.uListenInterval != SIR_NOCHANGE_POWER_VALUE))
+    {
+        uTotalSize = 0;
+    }
 
   }/*Go for as long as we have a valid string*/
 
@@ -5871,6 +6103,14 @@ static const struct iw_priv_args we_private_args[] = {
         0,
         0,
         "disableAMP" },
+    {   WE_ENABLE_DXE_STALL_DETECT,
+        0,
+        0,
+        "dxeStallDetect" },
+    {   WE_DISPLAY_DXE_SNAP_SHOT,
+        0,
+        0,
+        "dxeSnapshot" },
 
     /* handlers for main ioctl */
     {   WLAN_PRIV_SET_VAR_INT_GET_NONE,

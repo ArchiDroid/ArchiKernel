@@ -102,6 +102,7 @@ v_U8_t ccpRSNOui06[ HDD_RSN_OUI_SIZE ] = { 0x00, 0x40, 0x96, 0x00 }; // CCKM
 extern void wlan_hdd_set_mc_addr_list(hdd_context_t *pHddCtx, v_U8_t set);
 #endif
 
+void hdd_ResetCountryCodeAfterDisAssoc(hdd_adapter_t *pAdapter);
 
 static inline v_VOID_t hdd_connSetConnectionState( hdd_station_ctx_t *pHddStaCtx, eConnectionState connState )
 {         
@@ -532,6 +533,24 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
         memcpy(wrqu.ap_addr.sa_data, pCsrRoamInfo->pBssDesc->bssId, sizeof(pCsrRoamInfo->pBssDesc->bssId));
         type = WLAN_STA_ASSOC_DONE_IND;
 
+#ifdef WLAN_FEATURE_P2P_DEBUG
+        if(pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
+        {
+             if(globalP2PConnectionStatus == P2P_CLIENT_CONNECTING_STATE_1)
+             {
+                 globalP2PConnectionStatus = P2P_CLIENT_CONNECTED_STATE_1;
+                 hddLog(VOS_TRACE_LEVEL_ERROR,"[P2P State] Changing state from "
+                                "Connecting state to Connected State for 8-way "
+                                "Handshake");
+             }
+             else if(globalP2PConnectionStatus == P2P_CLIENT_CONNECTING_STATE_2)
+             {
+                 globalP2PConnectionStatus = P2P_CLIENT_COMPLETED_STATE;
+                 hddLog(VOS_TRACE_LEVEL_ERROR,"[P2P State] Changing state from "
+                           "Connecting state to P2P Client Connection Completed");
+             }
+        }
+#endif
         pr_info("wlan: connected to %02x:%02x:%02x:%02x:%02x:%02x\n",
                       wrqu.ap_addr.sa_data[0],
                       wrqu.ap_addr.sa_data[1],
@@ -654,7 +673,8 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
     netif_tx_disable(dev);
     netif_carrier_off(dev);
     
-    hdd_connSetConnectionState( pHddStaCtx, eConnectionState_NotConnected );
+    INIT_COMPLETION(pAdapter->disconnect_comp_var);
+    hdd_connSetConnectionState( pHddStaCtx, eConnectionState_Disconnecting );
     /* If only STA mode is on */
     if((pHddCtx->concurrency_mode <= 1) && (pHddCtx->no_of_sessions[WLAN_HDD_INFRA_STATION] <=1))
     {
@@ -675,10 +695,28 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
             hddLog(VOS_TRACE_LEVEL_INFO_HIGH, 
                     "%s: sent disconnected event to nl80211", 
                     __func__);
+#ifdef WLAN_FEATURE_P2P_DEBUG
+            if(pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
+            {
+                if(globalP2PConnectionStatus == P2P_CLIENT_CONNECTED_STATE_1)
+                {
+                    globalP2PConnectionStatus = P2P_CLIENT_DISCONNECTED_STATE;
+                    hddLog(VOS_TRACE_LEVEL_ERROR,"[P2P State] 8 way Handshake completed "
+                          "and moved to disconnected state");
+                }
+                else if(globalP2PConnectionStatus == P2P_CLIENT_COMPLETED_STATE)
+                {
+                    globalP2PConnectionStatus = P2P_NOT_ACTIVE;
+                    hddLog(VOS_TRACE_LEVEL_ERROR,"[P2P State] P2P Client is removed "
+                          "and moved to inactive state");
+                }
+            }
+#endif
+
             /* To avoid wpa_supplicant sending "HANGED" CMD to ICS UI */
             if( eCSR_ROAM_LOSTLINK == roamStatus )
             {
-                cfg80211_disconnected(dev, WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY, NULL, 0, GFP_KERNEL);
+                cfg80211_disconnected(dev, pRoamInfo->reasonCode, NULL, 0, GFP_KERNEL);
             }
             else
             {
@@ -688,7 +726,11 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
             //If the Device Mode is Station
             // and the P2P Client is Connected
             //Enable BMPS
-            if((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
+
+            // In case of JB, as Change-Iface may or maynot be called for p2p0
+            // Enable BMPS/IMPS in case P2P_CLIENT disconnected   
+            if(((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
+                (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)) &&
                 (vos_concurrent_sessions_running()))
             {
                //Enable BMPS only of other Session is P2P Client
@@ -703,8 +745,7 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
                    {
                        //Only P2P Client is there Enable Bmps back
                        if((0 == pHddCtx->no_of_sessions[VOS_STA_SAP_MODE]) &&
-                          (0 == pHddCtx->no_of_sessions[VOS_P2P_GO_MODE]) &&
-                          (1 == pHddCtx->no_of_sessions[VOS_P2P_CLIENT_MODE]))
+                          (0 == pHddCtx->no_of_sessions[VOS_P2P_GO_MODE]))
                        {
                            hdd_enable_bmps_imps(pHddCtx);
                        }
@@ -907,7 +948,7 @@ static VOS_STATUS hdd_roamRegisterSTA( hdd_adapter_t *pAdapter,
    return( vosStatus );
 }
 
-#ifdef FEATURE_WLAN_CCX
+#if  defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
 static void hdd_SendReAssocEvent(struct net_device *dev, hdd_adapter_t *pAdapter,
     tCsrRoamInfo *pCsrRoamInfo, v_U8_t *reqRsnIe, tANI_U32 reqRsnLength)
 {
@@ -955,7 +996,7 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
     VOS_STATUS vosStatus;
-#ifdef FEATURE_WLAN_CCX
+#if  defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
     int ft_carrier_on = FALSE;
 #endif
     int status;
@@ -991,7 +1032,7 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
            kernel. we have registered net device notifier for device change notification. With this we will come to 
            know that the device is getting activated properly.
            */
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
         if (pHddStaCtx->ft_carrier_on == FALSE)
         {
 #endif
@@ -1014,11 +1055,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 
             // Disable Linkup Event Servicing - no more service required from the net device notifier call
             pAdapter->isLinkUpSvcNeeded = FALSE;
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
         }
         else { 
             pHddStaCtx->ft_carrier_on = FALSE;
-#ifdef FEATURE_WLAN_CCX
+#if  defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
             ft_carrier_on = TRUE;
 #endif /* FEATURE_WLAN_CCX */
         }
@@ -1055,7 +1096,7 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                     pAdapter->sessionId,
                     &rspRsnLength,
                     rspRsnIe);
-#ifdef FEATURE_WLAN_CCX
+#if  defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
             if(ft_carrier_on)
                     hdd_SendReAssocEvent(dev, pAdapter, pRoamInfo, reqRsnIe, reqRsnLength);
             else
@@ -1114,12 +1155,14 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
     }  
     else 
     {
-        char country_code[3] = SME_INVALID_COUNTRY_CODE;
-        eHalStatus status = eHAL_STATUS_SUCCESS;
         hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
 
         hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
-        pr_info("wlan: connection failed\n");
+        pr_info("wlan: connection failed with %02x:%02x:%02x:%02x:%02x:%02x"
+                " reason:%d and Status:%d\n", pWextState->req_bssId[0],
+                pWextState->req_bssId[1], pWextState->req_bssId[2],
+                pWextState->req_bssId[3], pWextState->req_bssId[4],
+                pWextState->req_bssId[5], roamResult, roamStatus);
 
         /*Handle all failure conditions*/
         hdd_connSetConnectionState( pHddStaCtx, eConnectionState_NotConnected);
@@ -1131,7 +1174,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
         //If the Device Mode is Station
         // and the P2P Client is Connected
         //Enable BMPS
-        if((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
+
+        // In case of JB, as Change-Iface may or maynot be called for p2p0
+        // Enable BMPS/IMPS in case P2P_CLIENT disconnected   
+        if(((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
+            (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)) &&
             (vos_concurrent_sessions_running()))
         {
            //Enable BMPS only of other Session is P2P Client
@@ -1146,8 +1193,7 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                {
                    //Only P2P Client is there Enable Bmps back
                    if((0 == pHddCtx->no_of_sessions[VOS_STA_SAP_MODE]) &&
-                      (0 == pHddCtx->no_of_sessions[VOS_P2P_GO_MODE]) &&
-                      (1 == pHddCtx->no_of_sessions[VOS_P2P_CLIENT_MODE]))
+                      (0 == pHddCtx->no_of_sessions[VOS_P2P_GO_MODE]))
                    {
                        hdd_enable_bmps_imps(pHddCtx);
                    }
@@ -1173,22 +1219,17 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
         }
 #endif 
 
+        /*Clear the roam profile*/
+        hdd_clearRoamProfileIe( pAdapter );
+
         netif_tx_disable(dev);
         netif_carrier_off(dev);
-
-        /* Association failed; Reset the country code information
-         * so that it re-initialize the valid channel list*/
-        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-                "%s: Association failed and resetting the country code"
-                "to default \n",__func__);
-
-        status = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL, 
-                                            &country_code[0], pAdapter,
-                                            pHddCtx->pvosContext);
-        if( 0 != status )
+        
+        if (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode)
         {
-            VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                    "%s: SME Change Country code to default failed \n",__func__);
+            /* Association failed; Reset the country code information
+             * so that it re-initialize the valid channel list*/
+            hdd_ResetCountryCodeAfterDisAssoc(pAdapter);
         }
     }
 
@@ -1545,6 +1586,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
     hdd_adapter_t *pAdapter = (hdd_adapter_t *)pContext;
     hdd_wext_state_t *pWextState= WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+    VOS_STATUS status = VOS_STATUS_SUCCESS;
 
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
             "CSR Callback: status= %d result= %d roamID=%ld", 
@@ -1568,7 +1610,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
             }
             break;
             
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
             /* We did pre-auth,then we attempted a 11r or ccx reassoc.
              * reassoc failed due to failure, timeout, reject from ap
              * in any case tell the OS, our carrier is off and mark 
@@ -1596,10 +1638,30 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
             // Where in we will not mark the link down
             // Also we want to stop tx at this point when we will be
             // doing disassoc at this time. This saves 30-60 msec
-            // after reassoc. We see old traffic from old connection on new channel
+            // after reassoc.
             {
                 struct net_device *dev = pAdapter->dev;
                 netif_tx_disable(dev);
+                /*
+        		 * Deregister for this STA with TL with the objective to flush
+        		 * all the packets for this STA from wmm_tx_queue. If not done here,
+        		 * we would run into a race condition (CR390567) wherein TX
+        		 * thread would schedule packets from wmm_tx_queue AFTER peer STA has
+        		 * been deleted. And, these packets get assigned with a STA idx of
+        		 * self-sta (since the peer STA has been deleted) and get transmitted
+        		 * on the new channel before the reassoc request. Since there will be
+        		 * no ACK on the new channel, each packet gets retransmitted which
+        		 * takes several seconds before the transmission of reassoc request.
+        		 * This leads to reassoc-timeout and roam failure.
+    		     */
+                status = hdd_roamDeregisterSTA( pAdapter, pHddStaCtx->conn_info.staId [0] );
+                if ( !VOS_IS_STATUS_SUCCESS(status ) )
+                {
+                    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                            FL("hdd_roamDeregisterSTA() failed to for staID %d.  Status= %d [0x%x]"),
+                            pHddStaCtx->conn_info.staId[0], status, status );
+                    halStatus = eHAL_STATUS_FAILURE;
+                }		
             }
             pHddStaCtx->ft_carrier_on = TRUE;
             break;
@@ -1608,20 +1670,20 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
         case eCSR_ROAM_SHOULD_ROAM:
            // Dont need to do anything
             {
-                VOS_STATUS  status = VOS_STATUS_SUCCESS;
                 struct net_device *dev = pAdapter->dev;
                 hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
                 // notify apps that we can't pass traffic anymore
                 netif_tx_disable(dev);
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
                 if (pHddStaCtx->ft_carrier_on == FALSE)
                 {
 #endif
                     netif_carrier_off(dev);
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
                 }
 #endif
 
+#if  !(defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR))
                 //We should clear all sta register with TL, for now, only one.
                 status = hdd_roamDeregisterSTA( pAdapter, pHddStaCtx->conn_info.staId [0] );
                 if ( !VOS_IS_STATUS_SUCCESS(status ) )
@@ -1629,9 +1691,9 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
                         FL("hdd_roamDeregisterSTA() failed to for staID %d.  Status= %d [0x%x]"),
                                         pHddStaCtx->conn_info.staId[0], status, status );
-                    status = eHAL_STATUS_FAILURE;
+                    halStatus = eHAL_STATUS_FAILURE;
                 }
-
+#endif
                 // Clear saved connection information in HDD
                 hdd_connRemoveConnectInfo( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) );
             }
@@ -1639,10 +1701,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
         case eCSR_ROAM_LOSTLINK:
         case eCSR_ROAM_DISASSOCIATED:
             {
-                char country_code[3] = SME_INVALID_COUNTRY_CODE;
-                eHalStatus status = eHAL_STATUS_SUCCESS;
                 hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
-
                 VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                         "****eCSR_ROAM_DISASSOCIATED****");
                 halStatus = hdd_DisConnectHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
@@ -1664,18 +1723,11 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                 }
 #endif
 
-                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-                        "%s: Disconnected from the AP and "
-                        "resetting the country code to default\n",__func__);
-                /*reset the country code of previous connection*/
-                status = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL,
-                        &country_code[0], pAdapter,
-                        pHddCtx->pvosContext
-                        );
-                if( 0 != status )
+                if (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode)
                 {
-                    VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                            "%s: SME Change Country code to default failed \n",__func__);
+                    /* Disconnected from current AP. Reset the country code information
+                     * so that it re-initialize the valid channel list*/
+                    hdd_ResetCountryCodeAfterDisAssoc(pAdapter);
                 }
             }
             break;
@@ -1731,6 +1783,15 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
         case eCSR_ROAM_FT_RESPONSE:
             hdd_SendFTEvent(pAdapter);
             break;
+#endif
+#ifdef FEATURE_WLAN_LFR
+        case eCSR_ROAM_PMK_NOTIFY:
+           if (eCSR_AUTH_TYPE_RSN == pHddStaCtx->conn_info.authType) 
+           {
+               /* Notify the supplicant of a new candidate */
+               halStatus = wlan_hdd_cfg80211_pmksa_candidate_notify(pAdapter, pRoamInfo, 1, false);
+           }
+           break;
 #endif
 
 #ifdef WLAN_FEATURE_P2P
@@ -2774,3 +2835,62 @@ int iw_get_ap_address(struct net_device *dev,
     EXIT();
     return 0;
 }
+
+
+/**---------------------------------------------------------------------------
+
+  \brief hdd_ResetCountryCodeAfterDisAssoc -
+  This function reset the country code to default
+  \param  - pAdapter - Pointer to HDD adaptor
+  \return - nothing
+
+  --------------------------------------------------------------------------*/
+void hdd_ResetCountryCodeAfterDisAssoc(hdd_adapter_t *pAdapter)
+{
+    hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
+    tSmeConfigParams smeConfig;
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tANI_U8 defaultCountryCode[3] = SME_INVALID_COUNTRY_CODE;
+    tANI_U8 currentCountryCode[3] = SME_INVALID_COUNTRY_CODE;
+
+    sme_GetConfigParam(pHddCtx->hHal, &smeConfig);
+
+    VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+            "%s: 11d is %s\n",__func__,
+            smeConfig.csrConfig.Is11dSupportEnabled ? "Enabled" : "Disabled");
+    /* Reset country code only when 11d is enabled
+    */
+    if (smeConfig.csrConfig.Is11dSupportEnabled)
+    {
+        sme_GetDefaultCountryCodeFrmNv(pHddCtx->hHal, &defaultCountryCode[0]);
+        sme_GetCurrentCountryCode(pHddCtx->hHal, &currentCountryCode[0]);
+
+        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                "%s: Default country code: %c%c%c, Current Country code: %c%c%c \n",
+                __func__,
+                defaultCountryCode[0], defaultCountryCode[1], defaultCountryCode[2],
+                currentCountryCode[0], currentCountryCode[1], currentCountryCode[2]);
+        /* Reset country code only when there is a mismatch
+         * between current country code and default country code
+         */
+        if ((defaultCountryCode[0] != currentCountryCode[0]) ||
+                (defaultCountryCode[1] != currentCountryCode[1]) ||
+                (defaultCountryCode[2] != currentCountryCode[2]))
+        {
+            VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                    "%s: Disconnected from the AP/Assoc failed and "
+                    "resetting the country code to default\n",__func__);
+            /*reset the country code of previous connection*/
+            status = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL,
+                    &defaultCountryCode[0], pAdapter,
+                    pHddCtx->pvosContext
+                    );
+            if( 0 != status )
+            {
+                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                        "%s: failed to Reset the Country Code\n",__func__);
+            }
+        }
+    }
+}
+

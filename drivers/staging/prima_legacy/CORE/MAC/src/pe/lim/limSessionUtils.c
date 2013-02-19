@@ -179,7 +179,7 @@ isLimSessionOffChannel(tpAniSirGlobal pMac, tANI_U8 sessionId)
           //Skip the sessionId that is to be joined.
           continue;
         }
-        //if snother ession is valid and it is on different channel
+        //if another ession is valid and it is on different channel
         //it is an off channel operation.
         if( (pMac->lim.gpSession[i].valid) && 
             (pMac->lim.gpSession[i].currentOperChannel != 
@@ -211,4 +211,41 @@ peGetActiveSessionChannel (tpAniSirGlobal pMac)
     return 0;
 
 }
+
+/*--------------------------------------------------------------------------
+  \brief limIsInMCC() - Check if Device is in MCC.
+
+  \param pMac                   - pointer to global adapter context
+  
+  \return tANI_U8               - TRUE - if in MCC.
+                                  FALSE - NOT in MCC. 
+  
+  \sa
+  --------------------------------------------------------------------------*/
+tANI_U8
+limIsInMCC (tpAniSirGlobal pMac)
+{
+    tANI_U8 i;
+    tANI_U8 chan = 0;
+
+    for(i = 0; i < pMac->lim.maxBssId; i++)
+    {
+        //if another session is valid and it is on different channel
+        //it is an off channel operation.
+        if( (pMac->lim.gpSession[i].valid) )
+        { 
+            if( chan == 0 )
+            {
+                chan = pMac->lim.gpSession[i].currentOperChannel;
+            } 
+            else if( chan != pMac->lim.gpSession[i].currentOperChannel)
+            {
+                return TRUE; 
+            }        
+        }
+    }
+    return FALSE;
+}
+
+
 

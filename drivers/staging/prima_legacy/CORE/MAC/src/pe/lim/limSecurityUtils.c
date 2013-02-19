@@ -557,10 +557,10 @@ limPreAuthClnupHandler(tpAniSirGlobal pMac)
                  * Send advisory Deauthentication frame
                  * to STA being deleted
                  */
-                limSendDeauthMgmtFrame(
-                               pMac,
-                               eSIR_MAC_PREV_AUTH_NOT_VALID_REASON, //=2
-                               pCurrNode->peerMacAddr,sessionEntry);
+                limSendDeauthMgmtFrame(pMac,
+                                       eSIR_MAC_PREV_AUTH_NOT_VALID_REASON, //=2
+                                       pCurrNode->peerMacAddr, sessionEntry,
+                                       FALSE);
             }
 
             limLog(pMac,
@@ -1081,7 +1081,7 @@ tANI_U32 val = 0;
   // Update the WDA_SET_BSSKEY_REQ parameters
   pSetBssKeyParams->bssIdx = psessionEntry->bssIdx;
   pSetBssKeyParams->encType = pMlmSetKeysReq->edType;
-  pSetBssKeyParams->numKeys = pMlmSetKeysReq->numKeys;
+
 
   if(eSIR_SUCCESS != wlan_cfgGetInt(pMac, WNI_CFG_SINGLE_TID_RC, &val))
   {
@@ -1093,10 +1093,27 @@ tANI_U32 val = 0;
   /* Update PE session Id*/
   pSetBssKeyParams->sessionId = psessionEntry ->peSessionId;
 
-  palCopyMemory( pMac->hHdd,
+  if(pMlmSetKeysReq->key[0].keyId && 
+     ((pMlmSetKeysReq->edType == eSIR_ED_WEP40) || 
+      (pMlmSetKeysReq->edType == eSIR_ED_WEP104))
+    )
+  {
+    /* IF the key id is non-zero and encryption type is WEP, Send all the 4 
+     * keys to HAL with filling the key at right index in pSetBssKeyParams->key. */
+    pSetBssKeyParams->numKeys = SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS;
+    palCopyMemory( pMac->hHdd,
+      (tANI_U8 *) &pSetBssKeyParams->key[pMlmSetKeysReq->key[0].keyId],
+      (tANI_U8 *) &pMlmSetKeysReq->key[0], sizeof(pMlmSetKeysReq->key[0]));
+
+  }
+  else
+  {
+    pSetBssKeyParams->numKeys = pMlmSetKeysReq->numKeys;
+    palCopyMemory( pMac->hHdd,
       (tANI_U8 *) &pSetBssKeyParams->key,
       (tANI_U8 *) &pMlmSetKeysReq->key,
       sizeof( tSirKeys ) * pMlmSetKeysReq->numKeys );
+  }
 
   SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
   msgQ.type = WDA_SET_BSSKEY_REQ;
@@ -1234,10 +1251,12 @@ tANI_U32 val = 0;
           sessionEntry->limMlmState = eLIM_MLM_WT_SET_STA_KEY_STATE;
           MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
       }else {
-          pSetStaKeyParams->wepType = eSIR_WEP_DYNAMIC;
+          /*This case the keys are coming from upper layer so need to fill the 
+          * key at the default wep key index and send to the HAL */
           palCopyMemory( pMac->hHdd,
-                         (tANI_U8 *) &pSetStaKeyParams->key,
-                         (tANI_U8 *) &pMlmSetKeysReq->key[0], sizeof( tSirKeys ));
+                             (tANI_U8 *) &pSetStaKeyParams->key[defWEPIdx],
+                             (tANI_U8 *) &pMlmSetKeysReq->key[0], sizeof( pMlmSetKeysReq->key[0] ));
+          pMlmSetKeysReq->numKeys = SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS;
       }
       break;
   case eSIR_ED_TKIP:

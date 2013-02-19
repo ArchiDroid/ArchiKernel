@@ -225,7 +225,7 @@ limDeleteStaContext(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
                 PELOGE(limLog(pMac, LOGE, FL(" Deleting Unknown station \n"));)
                 limPrintMacAddr(pMac, pMsg->addr2, LOGE);
                
-                limSendDeauthMgmtFrame( pMac, eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON, pMsg->addr2, psessionEntry);
+                limSendDeauthMgmtFrame( pMac, eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON, pMsg->addr2, psessionEntry, FALSE);
                 break;
 
             default:
@@ -298,12 +298,12 @@ limTriggerSTAdeletion(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession pse
     pLen = pBuf;
     pBuf += sizeof(tANI_U16);
     msgLength += sizeof(tANI_U16);
-    
+
     //sessionId
-    *pBuf = psessionEntry->peSessionId;
+    *pBuf = psessionEntry->smeSessionId;
     pBuf++;
     msgLength++;
-  
+
     //transactionId
     limCopyU16((tANI_U8*)pBuf, psessionEntry->transactionId);
     pBuf += sizeof(tANI_U16);

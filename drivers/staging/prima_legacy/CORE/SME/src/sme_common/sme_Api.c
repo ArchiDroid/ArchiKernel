@@ -1903,7 +1903,7 @@ eHalStatus sme_ScanRequest(tHalHandle hHal, tANI_U8 sessionId, tCsrScanRequest *
                     status = csrScanRequest( hHal, sessionId, pscanReq,
                                      pScanRequestID, callback, pContext );
                 }
-                  
+
                 sme_ReleaseGlobalLock( &pMac->sme );
             } //sme_AcquireGlobalLock success
         } //if(pMac->scan.fScanEnable)
@@ -1962,6 +1962,20 @@ eHalStatus sme_ScanFlushResult(tHalHandle hHal, tANI_U8 sessionId)
    return (status);
 }
 
+eHalStatus sme_ScanFlushP2PResult(tHalHandle hHal, tANI_U8 sessionId)
+{
+        eHalStatus status = eHAL_STATUS_FAILURE;
+        tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+        status = sme_AcquireGlobalLock( &pMac->sme );
+        if ( HAL_STATUS_SUCCESS( status ) )
+        {
+                status = csrScanFlushP2PResult( hHal );
+                sme_ReleaseGlobalLock( &pMac->sme );
+        }
+
+        return (status);
+}
 
 /* ---------------------------------------------------------------------------
     \fn sme_ScanResultGetFirst
@@ -3571,6 +3585,12 @@ eHalStatus sme_RoamSetKey(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamSetKey *pS
       smsLog(pMac, LOG2, "\n sessionId=%d roamId=%d\n", sessionId, roamId);       
 
       pSession = CSR_GET_SESSION(pMac, sessionId);
+
+      if(!pSession)
+      {
+         smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+         return eHAL_STATUS_FAILURE;
+      }
 
       if(CSR_IS_INFRA_AP(&pSession->connectedProfile))
       {
@@ -5257,6 +5277,12 @@ eHalStatus sme_RegisterMgmtFrame(tHalHandle hHal, tANI_U8 sessionId,
         tSirRegisterMgmtFrame *pMsg;
         tANI_U16 len;
         tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+
+        if(!pSession)
+        {
+            smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+            return eHAL_STATUS_FAILURE;
+        }
         
         if( !pSession->sessionActive )
         {
@@ -5308,6 +5334,12 @@ eHalStatus sme_DeregisterMgmtFrame(tHalHandle hHal, tANI_U8 sessionId,
         tSirRegisterMgmtFrame *pMsg;
         tANI_U16 len;
         tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+
+        if(!pSession)
+        {
+            smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+            return eHAL_STATUS_FAILURE;
+        }
         
         if( !pSession->sessionActive ) 
         {
@@ -6026,9 +6058,8 @@ eHalStatus sme_ReceiveFilterSetFilter(tHalHandle hHal, tpSirRcvPktFilterCfgType 
                "filterId = %d", __FUNCTION__,
                pRcvPktFilterCfg->filterType, pRcvPktFilterCfg->filterId);
   
-    allocSize = sizeof(tSirRcvPktFilterCfgType) + 
-                      ((pRcvPktFilterCfg->numFieldParams - 1) * 
-                      sizeof(tSirRcvPktFilterFieldParams));
+    allocSize = sizeof(tSirRcvPktFilterCfgType);
+    
     pRequestBuf = vos_mem_malloc(allocSize);
     if (NULL == pRequestBuf)
     {
@@ -6401,6 +6432,12 @@ eHalStatus sme_HideSSID(tHalHandle hHal, v_U8_t sessionId, v_U8_t ssidHidden)
     {
         tpSirUpdateParams pMsg;
         tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+
+        if(!pSession)
+        {
+            smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+            return eHAL_STATUS_FAILURE;
+        }
         
         if( !pSession->sessionActive ) 
             VOS_ASSERT(0);
@@ -6484,4 +6521,58 @@ void sme_featureCapsExchange( tHalHandle hHal)
 {
     v_CONTEXT_t vosContext = vos_get_global_context(VOS_MODULE_ID_SME, NULL);
     WDA_featureCapsExchange(vosContext);
+}
+
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_GetDefaultCountryCode
+
+    \brief Get the default country code from NV
+
+    \param  hHal
+    \param  pCountry
+    \- return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_GetDefaultCountryCodeFrmNv(tHalHandle hHal, tANI_U8 *pCountry)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    return csrGetDefaultCountryCodeFrmNv(pMac, pCountry);
+}
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_GetCurrentCountryCode
+
+    \brief Get the current country code
+
+    \param  hHal
+    \param  pCountry
+    \- return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_GetCurrentCountryCode(tHalHandle hHal, tANI_U8 *pCountry)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    return csrGetCurrentCountryCode(pMac, pCountry);
+}
+
+/* ---------------------------------------------------------------------------
+    \fn sme_transportDebug
+    \brief  Dynamically monitoring Transport channels
+            Private IOCTL will querry transport channel status if driver loaded
+    \param  displaySnapshot Dispaly transport cahnnel snapshot option
+    \param  toggleStallDetect Enable stall detect feature
+                              This feature will take effect to data performance
+                              Not integrate till fully verification
+    \- return NONE
+    -------------------------------------------------------------------------*/
+void sme_transportDebug
+(
+   v_BOOL_t  displaySnapshot,
+   v_BOOL_t  toggleStallDetect
+)
+{
+   WDA_TransportChannelDebug(displaySnapshot, toggleStallDetect);
 }

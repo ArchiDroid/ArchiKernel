@@ -58,6 +58,7 @@
 #endif
 
 static void limHandleSmeJoinResult(tpAniSirGlobal, tSirResultCodes, tANI_U16,tpPESession);
+static void limHandleSmeReaasocResult(tpAniSirGlobal, tSirResultCodes, tANI_U16, tpPESession);
 void limProcessMlmScanCnf(tpAniSirGlobal, tANI_U32 *);
 #ifdef FEATURE_OEM_DATA_SUPPORT
 void limProcessMlmOemDataReqCnf(tpAniSirGlobal, tANI_U32 *);
@@ -460,9 +461,8 @@ limProcessMlmJoinCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     /// Process Join confirm from MLM
     if (resultCode ==  eSIR_SME_SUCCESS)
     {
-            PELOG1(limLog(pMac, LOG1, FL("*** Joined ESS ***\n"));)
+            PELOG1(limLog(pMac, LOG1, FL("*** Joined ESS ***"));)
             //Setup hardware upfront
-           PELOGE(limLog(pMac, LOGE, FL("*** Starting to add BSS***\n"));)  //remove me
            //Done: 7-27-2009. JIM_FIX_ME   sessionize the following function
             if(limStaSendAddBssPreAssoc( pMac, false, psessionEntry) == eSIR_SUCCESS)
                 return;
@@ -613,6 +613,7 @@ limProcessMlmAuthCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                 if(limSetLinkState(pMac, eSIR_LINK_IDLE_STATE,psessionEntry->bssId,
                     psessionEntry->selfMacAddr, NULL, NULL) != eSIR_SUCCESS)
                    PELOGE(limLog(pMac, LOGE,  FL("Failed to set the LinkState.\n"));)
+
 #if defined(ANI_AP_CLIENT_SDK)
                 if (psessionEntry->limSystemRole == eLIM_STA_ROLE)
                 {
@@ -945,15 +946,12 @@ limProcessMlmReassocCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     }else {
         // Reassociation failure
         psessionEntry->limSmeState = eLIM_SME_JOIN_FAILURE_STATE;
-        MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, 0, pMac->lim.gLimSmeState));
+        MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, psessionEntry->peSessionId, psessionEntry->limSmeState));
         /**
          * Need to send Reassoc response with
          * Association failure to Host.
          */
-        limSendSmeJoinReassocRsp(
-                           pMac, eWNI_SME_REASSOC_RSP,
-                           pLimMlmReassocCnf->resultCode, pLimMlmReassocCnf->protStatusCode,psessionEntry,
-                           psessionEntry->smeSessionId,psessionEntry->transactionId);
+        limHandleSmeReaasocResult(pMac, pLimMlmReassocCnf->resultCode, pLimMlmReassocCnf->protStatusCode, psessionEntry);
     }
 } /*** end limProcessMlmReassocCnf() ***/
 
@@ -1714,13 +1712,13 @@ void
 limProcessMlmSetKeysCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 {
     // Prepare and send SME_SETCONTEXT_RSP message
-    tLimMlmSetKeysCnf  *pMlmSetKeysCnf;
+    tLimMlmSetKeysCnf   *pMlmSetKeysCnf;
     tpPESession        psessionEntry;
 
     if(pMsgBuf == NULL)
     {
-           PELOGE(limLog(pMac, LOGE,FL("Buffer is Pointing to NULL\n"));)
-           return;
+        PELOGE(limLog(pMac, LOGE,FL("Buffer is Pointing to NULL\n"));)
+        return;
     }
     pMlmSetKeysCnf = (tLimMlmSetKeysCnf *) pMsgBuf;
     if ((psessionEntry = peFindSessionBySessionId(pMac, pMlmSetKeysCnf->sessionId))== NULL)
@@ -1763,13 +1761,13 @@ void
 limProcessMlmRemoveKeyCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 {
     // Prepare and send SME_REMOVECONTEXT_RSP message
-    tLimMlmRemoveKeyCnf  *pMlmRemoveKeyCnf;
+    tLimMlmRemoveKeyCnf *pMlmRemoveKeyCnf;
     tpPESession          psessionEntry;
 
     if(pMsgBuf == NULL)
     {
-           PELOGE(limLog(pMac, LOGE,FL("Buffer is Pointing to NULL\n"));)
-           return;
+        PELOGE(limLog(pMac, LOGE,FL("Buffer is Pointing to NULL\n"));)
+        return;
     }
     pMlmRemoveKeyCnf = (tLimMlmRemoveKeyCnf *) pMsgBuf;
     if((psessionEntry = peFindSessionBySessionId(pMac,pMlmRemoveKeyCnf->sessionId))== NULL)
@@ -1781,7 +1779,7 @@ limProcessMlmRemoveKeyCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         FL("Received MLM_REMOVEKEYS_CNF with resultCode = %d\n"),
         pMlmRemoveKeyCnf->resultCode );
     limSendSmeRemoveKeyRsp(pMac,
-                            pMlmRemoveKeyCnf->peerMacAddr,
+                           pMlmRemoveKeyCnf->peerMacAddr,
                             (tSirResultCodes) pMlmRemoveKeyCnf->resultCode,psessionEntry,
                             psessionEntry->smeSessionId,psessionEntry->transactionId);
 } /*** end limProcessMlmRemoveKeyCnf() ***/
@@ -1835,6 +1833,8 @@ limHandleSmeJoinResult(tpAniSirGlobal pMac, tSirResultCodes resultCode, tANI_U16
             pStaDs->mlmStaContext.protStatusCode = protStatusCode;
             //Done: 7-27-2009. JIM_FIX_ME: at the end of limCleanupRxPath, make sure PE is sending eWNI_SME_JOIN_RSP to SME
             limCleanupRxPath(pMac, pStaDs, psessionEntry);
+            palFreeMemory( pMac->hHdd, psessionEntry->pLimJoinReq);
+            psessionEntry->pLimJoinReq = NULL;
             return;
         }
     }
@@ -1856,6 +1856,68 @@ limHandleSmeJoinResult(tpAniSirGlobal pMac, tSirResultCodes resultCode, tANI_U16
     limSendSmeJoinReassocRsp(pMac, eWNI_SME_JOIN_RSP, resultCode, protStatusCode,psessionEntry,
                                                 smesessionId,  smetransactionId);
 } /*** end limHandleSmeJoinResult() ***/
+
+/**
+ * limHandleSmeReaasocResult()
+ *
+ *FUNCTION:
+ * This function is called to process reassoc failures
+ * upon receiving REASSOC_CNF with a failure code or
+ * MLM_REASSOC_CNF with a success code in case of STA role 
+ *
+ *LOGIC:
+ *
+ *ASSUMPTIONS:
+ *
+ *NOTE:
+ *
+ * @param  pMac         Pointer to Global MAC structure
+ * @param  resultCode   Failure code to be sent
+ *
+ *
+ * @return None
+ */
+static void
+limHandleSmeReaasocResult(tpAniSirGlobal pMac, tSirResultCodes resultCode, tANI_U16 protStatusCode, tpPESession psessionEntry)
+{
+    tpDphHashNode pStaDs = NULL;
+    tANI_U8         smesessionId;
+    tANI_U16        smetransactionId;
+
+    if(psessionEntry == NULL)
+    {
+        PELOGE(limLog(pMac, LOGE,FL("psessionEntry is NULL \n"));)
+        return;
+    }
+    smesessionId = psessionEntry->smeSessionId;
+    smetransactionId = psessionEntry->transactionId;
+    /* When associations is failed , delete the session created  and pass NULL  to  limsendsmeJoinReassocRsp() */
+    if(resultCode != eSIR_SME_SUCCESS)
+    {
+          pStaDs = dphGetHashEntry(pMac, DPH_STA_HASH_INDEX_PEER, &psessionEntry->dph.dphHashTable);
+          if (pStaDs != NULL)
+          {
+            pStaDs->mlmStaContext.disassocReason = eSIR_MAC_UNSPEC_FAILURE_REASON;
+            pStaDs->mlmStaContext.cleanupTrigger = eLIM_JOIN_FAILURE;
+            pStaDs->mlmStaContext.resultCode = resultCode;
+            pStaDs->mlmStaContext.protStatusCode = protStatusCode;
+            limCleanupRxPath(pMac, pStaDs, psessionEntry);
+            return;
+        }
+    }
+
+    //Delete teh session if REASSOC failure occurred.
+    if(resultCode != eSIR_SME_SUCCESS)
+    {
+        if(NULL != psessionEntry)
+        {
+            peDeleteSession(pMac,psessionEntry);
+            psessionEntry = NULL;
+        }
+    }
+    limSendSmeJoinReassocRsp(pMac, eWNI_SME_REASSOC_RSP, resultCode, protStatusCode,psessionEntry,
+                                                smesessionId,  smetransactionId);
+} /*** end limHandleSmeReassocResult() ***/
 
 /**
   * limProcessMlmAddStaRsp()
@@ -2051,6 +2113,10 @@ void limProcessStaMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESessi
     else
     {
         limLog( pMac, LOGP, FL( "DEL BSS failed!\n" ) );
+        if( NULL != pDelBssParams )
+        {
+            palFreeMemory( pMac->hHdd, (void *) pDelBssParams );
+    	}
         return;
     }
    end:
@@ -2138,6 +2204,8 @@ void limProcessBtAmpApMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPES
     if(psessionEntry == NULL)
     {
         limLog(pMac, LOGE,FL("Session entry passed is NULL\n"));
+        if(pDelBss != NULL)
+            palFreeMemory( pMac->hHdd, (void *) pDelBss );
         return;
     }
 
@@ -2150,11 +2218,11 @@ void limProcessBtAmpApMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPES
     pMac->lim.gLimMlmState = eLIM_MLM_IDLE_STATE;
     if( eLIM_MLM_WT_DEL_BSS_RSP_STATE != psessionEntry->limMlmState)
     {
-        limLog(pMac, LOGE,
+            limLog( pMac, LOGE,
                FL( "Received unexpected WDA_DEL_BSS_RSP in state %X" ),
                psessionEntry->limMlmState);
-        rc = eSIR_SME_REFUSED;
-        goto end;
+            rc = eSIR_SME_REFUSED;
+           goto end;
     }
     if (pDelBss->status != eHAL_STATUS_SUCCESS)
     {
@@ -2206,6 +2274,8 @@ void limProcessMlmDelStaRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac,pDeleteStaParams->sessionId))==NULL)
     {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
+        if(pDeleteStaParams != NULL)
+            palFreeMemory( pMac->hHdd, (void *) pDeleteStaParams );
         return;
     }
 
@@ -2650,6 +2720,8 @@ limProcessApMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ)
     if((psessionEntry = peFindSessionBySessionId(pMac,pAddBssParams->sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId\n"));)
+        if( NULL != pAddBssParams )
+            palFreeMemory( pMac->hHdd, (void *) pAddBssParams );
         return;
     }
     /* Update PE session Id*/
@@ -2697,6 +2769,13 @@ limProcessApMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ)
         // Create timers used by LIM
         if (!pMac->lim.gLimTimersCreated)
             limCreateTimers(pMac);
+
+        // Start OLBC timer
+        if (tx_timer_activate(&pMac->lim.limTimers.gLimUpdateOlbcCacheTimer) != TX_SUCCESS)
+        {
+            limLog(pMac, LOGE, FL("tx_timer_activate failed\n"));
+        }
+
         /* Update the lim global gLimTriggerBackgroundScanDuringQuietBss */
         if( eSIR_SUCCESS != wlan_cfgGetInt( pMac, WNI_CFG_TRIG_STA_BK_SCAN, &val ))
             limLog( pMac, LOGP, FL("Failed to get WNI_CFG_TRIG_STA_BK_SCAN!\n"));
@@ -3175,7 +3254,7 @@ limProcessStaMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESession ps
     }
     if( eHAL_STATUS_SUCCESS == pAddBssParams->status )
     {
-#if defined(WLAN_FEATURE_VOWIFI_11R) || defined(FEATURE_WLAN_CCX)
+#if defined(WLAN_FEATURE_VOWIFI_11R) || defined(FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
         if( eLIM_MLM_WT_ADD_BSS_RSP_FT_REASSOC_STATE == psessionEntry->limMlmState )
         {
 #ifdef WLAN_FEATURE_VOWIFI_11R_DEBUG
@@ -3302,6 +3381,8 @@ void limProcessMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac,pAddBssParams->sessionId))== NULL)
     {
         limLog( pMac, LOGE, FL( "Session Does not exist for given sessionId\n" ));
+            if( NULL != pAddBssParams )
+                palFreeMemory( pMac->hHdd, (void *) pAddBssParams );
         return;
     }
     /* update PE session Id*/
@@ -3372,14 +3453,14 @@ void limProcessMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
  */
 void limProcessMlmSetStaKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
 {
-    tANI_U8 respReqd = 1;
+    tANI_U8           respReqd = 1;
     tLimMlmSetKeysCnf mlmSetKeysCnf;
     tANI_U8  sessionId = 0;
     tpPESession  psessionEntry;
     SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
     palZeroMemory( pMac->hHdd, (void *)&mlmSetKeysCnf, sizeof( tLimMlmSetKeysCnf ));
    //BTAMP
-    if(NULL == limMsgQ->bodyptr)
+    if( NULL == limMsgQ->bodyptr )
     {
         PELOGE(limLog(pMac, LOGE,FL("limMsgQ bodyptr is NULL\n"));)
         return;
@@ -3388,6 +3469,7 @@ void limProcessMlmSetStaKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac, sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (void *) limMsgQ->bodyptr );
         return;
     }
     if( eLIM_MLM_WT_SET_STA_KEY_STATE != psessionEntry->limMlmState )
@@ -3413,27 +3495,27 @@ void limProcessMlmSetStaKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
         {
             palCopyMemory( pMac->hHdd, (tANI_U8 *) &mlmSetKeysCnf.peerMacAddr, (tANI_U8 *) lpLimMlmSetKeysReq->peerMacAddr, sizeof(tSirMacAddr) );
 #ifdef ANI_PRODUCT_TYPE_AP
-      mlmSetKeysCnf.aid = lpLimMlmSetKeysReq->aid;
+            mlmSetKeysCnf.aid = lpLimMlmSetKeysReq->aid;
 #endif
             // Free the buffer cached for the global pMac->lim.gpLimMlmSetKeysReq
-            palFreeMemory( pMac->hHdd, (tANI_U8 *) pMac->lim.gpLimMlmSetKeysReq);
+            palFreeMemory(pMac->hHdd, (tANI_U8 *) pMac->lim.gpLimMlmSetKeysReq);
             pMac->lim.gpLimMlmSetKeysReq = NULL;
         }
         mlmSetKeysCnf.sessionId = sessionId;
-        limPostSmeMessage( pMac, LIM_MLM_SETKEYS_CNF, (tANI_U32 *) &mlmSetKeysCnf );
+        limPostSmeMessage(pMac, LIM_MLM_SETKEYS_CNF, (tANI_U32 *) &mlmSetKeysCnf);
     }
 }
 void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
 {
     tANI_U8 respReqd = 1;
     tLimMlmSetKeysCnf mlmSetKeysCnf;
-    tANI_U16 resultCode;
-    tANI_U8  sessionId =0;
+    tANI_U16          resultCode;
+    tANI_U8           sessionId = 0;
     tpPESession  psessionEntry;
     SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
     palZeroMemory( pMac->hHdd, (void *)&mlmSetKeysCnf, sizeof( tLimMlmSetKeysCnf ));
    //BTAMP
-    if(NULL == limMsgQ->bodyptr)
+    if( NULL == limMsgQ->bodyptr )
     {
         PELOGE(limLog(pMac, LOGE,FL("limMsgQ bodyptr is null\n"));)
         return;
@@ -3442,6 +3524,7 @@ void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac, sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (void *) limMsgQ->bodyptr );
         return;
     }
     if( eLIM_MLM_WT_SET_BSS_KEY_STATE == psessionEntry->limMlmState )
@@ -3449,10 +3532,10 @@ void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     else
         resultCode = (tANI_U16) (((tpSetStaKeyParams) limMsgQ->bodyptr)->status); //BCAST key also uses tpSetStaKeyParams. Done this way for readabilty.
 
-  //
-  // TODO & FIXME_GEN4
-  // Need to inspect tSirMsgQ.reserved for a valid Dialog token!
-  //
+    //
+    // TODO & FIXME_GEN4
+    // Need to inspect tSirMsgQ.reserved for a valid Dialog token!
+    //
   // Validate SME/LIM state - Read the above "ASSUMPTIONS"
   //if( eLIM_SME_LINK_EST_STATE == pMac->lim.gLimSmeState )
   //{
@@ -3484,13 +3567,13 @@ void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
         {
             palCopyMemory( pMac->hHdd, (tANI_U8 *) &mlmSetKeysCnf.peerMacAddr, (tANI_U8 *) lpLimMlmSetKeysReq->peerMacAddr, sizeof(tSirMacAddr) );
 #ifdef ANI_PRODUCT_TYPE_AP
-      mlmSetKeysCnf.aid = lpLimMlmSetKeysReq->aid;
+            mlmSetKeysCnf.aid = lpLimMlmSetKeysReq->aid;
 #endif
             // Free the buffer cached for the global pMac->lim.gpLimMlmSetKeysReq
-            palFreeMemory( pMac->hHdd, (tANI_U8 *) pMac->lim.gpLimMlmSetKeysReq);
+            palFreeMemory(pMac->hHdd, (tANI_U8 *) pMac->lim.gpLimMlmSetKeysReq);
             pMac->lim.gpLimMlmSetKeysReq = NULL;
         }
-        limPostSmeMessage( pMac, LIM_MLM_SETKEYS_CNF, (tANI_U32 *) &mlmSetKeysCnf );
+        limPostSmeMessage(pMac, LIM_MLM_SETKEYS_CNF, (tANI_U32 *) &mlmSetKeysCnf);
     }
 }
 /**
@@ -3511,54 +3594,77 @@ void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
  */
 void limProcessMlmRemoveKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
 {
-tLimMlmRemoveKeyCnf mlmRemoveCnf;
-tANI_U16 resultCode;
-tpLimMlmRemoveKeyReq lpLimMlmRemoveKeyReq = (tpLimMlmRemoveKeyReq) pMac->lim.gpLimMlmRemoveKeyReq;
-  SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
-  palZeroMemory( pMac->hHdd,
-      (void *) &mlmRemoveCnf,
-      sizeof( tLimMlmRemoveKeyCnf ));
-  // Validate MLME state
-    if( eLIM_MLM_WT_REMOVE_BSS_KEY_STATE != pMac->lim.gLimMlmState &&
-        eLIM_MLM_WT_REMOVE_STA_KEY_STATE != pMac->lim.gLimMlmState )
+    tANI_U8 respReqd = 1;
+    tLimMlmRemoveKeyCnf mlmRemoveCnf;
+    tANI_U16             resultCode;
+    tANI_U8              sessionId = 0;
+    tpPESession  psessionEntry;
+    SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
+    palZeroMemory( pMac->hHdd, (void *) &mlmRemoveCnf, sizeof( tLimMlmRemoveKeyCnf ));
+
+    if( NULL == limMsgQ->bodyptr )
     {
-      // Mesg received from HAL in Invalid state!
-      limLog( pMac, LOGW,
-          FL( "Received unexpected [Mesg Id - %d] in state %X\n" ),
-          limMsgQ->type,
-          pMac->lim.gLimMlmState );
-          return; //ignore the response.
+        PELOGE(limLog(pMac, LOGE,FL("limMsgQ bodyptr is NULL\n"));)
+        return;
     }
 
-  if( eLIM_MLM_WT_REMOVE_BSS_KEY_STATE == pMac->lim.gLimMlmState )
-    resultCode = (tANI_U16) (((tpRemoveBssKeyParams) limMsgQ->bodyptr)->status);
-  else
-    resultCode = (tANI_U16) (((tpRemoveStaKeyParams) limMsgQ->bodyptr)->status);
-  //
-  // TODO & FIXME_GEN4
-  // Need to inspect tSirMsgQ.reserved for a valid Dialog token!
-  //
+    if (limMsgQ->type == WDA_REMOVE_STAKEY_RSP)
+        sessionId = ((tpRemoveStaKeyParams) limMsgQ->bodyptr)->sessionId;
+    else if (limMsgQ->type == WDA_REMOVE_BSSKEY_RSP)
+        sessionId = ((tpRemoveBssKeyParams) limMsgQ->bodyptr)->sessionId;
 
-  if( 0 != limMsgQ->bodyptr )
-    palFreeMemory( pMac->hHdd, (void *) limMsgQ->bodyptr );
-  // Restore MLME state
-  pMac->lim.gLimMlmState = pMac->lim.gLimPrevMlmState;
-  MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
-    // Prepare and Send LIM_MLM_REMOVEKEY_CNF
-    if( NULL != lpLimMlmRemoveKeyReq )
+    if((psessionEntry = peFindSessionBySessionId(pMac, sessionId))== NULL)
     {
-      palCopyMemory( pMac->hHdd,
-          (tANI_U8 *) &mlmRemoveCnf.peerMacAddr,
-          (tANI_U8 *) lpLimMlmRemoveKeyReq->peerMacAddr,
-          sizeof( tSirMacAddr ));
-      mlmRemoveCnf.resultCode = resultCode;
-      // Free the buffer cached for the global pMac->lim.gpLimMlmRemoveKeyReq
-      palFreeMemory( pMac->hHdd, (tANI_U8 *) pMac->lim.gpLimMlmRemoveKeyReq);
-      pMac->lim.gpLimMlmRemoveKeyReq = NULL;
-     }
-     limPostSmeMessage( pMac,
-        LIM_MLM_REMOVEKEY_CNF,
-        (tANI_U32 *) &mlmRemoveCnf );
+        PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId\n"));)
+        return;
+    }
+
+    if( eLIM_MLM_WT_REMOVE_BSS_KEY_STATE == psessionEntry->limMlmState )
+      resultCode = (tANI_U16) (((tpRemoveBssKeyParams) limMsgQ->bodyptr)->status);
+    else
+      resultCode = (tANI_U16) (((tpRemoveStaKeyParams) limMsgQ->bodyptr)->status);
+
+    // Validate MLME state
+    if( eLIM_MLM_WT_REMOVE_BSS_KEY_STATE != psessionEntry->limMlmState &&
+        eLIM_MLM_WT_REMOVE_STA_KEY_STATE != psessionEntry->limMlmState )
+    {
+        // Mesg received from HAL in Invalid state!
+        limLog(pMac, LOGW,
+            FL("Received unexpected [Mesg Id - %d] in state %X\n"),
+          limMsgQ->type,
+          psessionEntry->limMlmState );
+          respReqd = 0;
+    }
+    else
+        mlmRemoveCnf.resultCode = resultCode;
+
+    //
+    // TODO & FIXME_GEN4
+    // Need to inspect tSirMsgQ.reserved for a valid Dialog token!
+    //
+
+    palFreeMemory( pMac->hHdd, (void *) limMsgQ->bodyptr );
+
+    // Restore MLME state
+    psessionEntry->limMlmState = psessionEntry->limPrevMlmState;
+    MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
+
+    if( respReqd )
+    {
+        tpLimMlmRemoveKeyReq lpLimMlmRemoveKeyReq = (tpLimMlmRemoveKeyReq) pMac->lim.gpLimMlmRemoveKeyReq;
+        mlmRemoveCnf.sessionId = sessionId;
+
+    // Prepare and Send LIM_MLM_REMOVEKEY_CNF
+        if( NULL != lpLimMlmRemoveKeyReq )
+    {
+            palCopyMemory( pMac->hHdd, (tANI_U8 *) &mlmRemoveCnf.peerMacAddr, (tANI_U8 *) lpLimMlmRemoveKeyReq->peerMacAddr,
+                      sizeof( tSirMacAddr ));
+        // Free the buffer cached for the global pMac->lim.gpLimMlmRemoveKeyReq
+        palFreeMemory(pMac->hHdd, (tANI_U8 *) pMac->lim.gpLimMlmRemoveKeyReq);
+        pMac->lim.gpLimMlmRemoveKeyReq = NULL;
+    }
+        limPostSmeMessage( pMac, LIM_MLM_REMOVEKEY_CNF, (tANI_U32 *) &mlmRemoveCnf );
+    }
 }
 
 #if (defined(ANI_PRODUCT_TYPE_AP) || defined(ANI_PRODUCT_TYPE_AP_SDK))
@@ -4126,7 +4232,29 @@ void limProcessEndScanRsp(tpAniSirGlobal pMac,  void *body)
             }
             else
             {
-               pMac->lim.gLimCurrentScanChannelId++;
+               //Skip Dfs Channel in case of P2P Search
+               //If skipDfsChnlInP2pSearch is set in ini
+               if( ( pMac->lim.gpLimMlmScanReq != NULL ) &&
+                   pMac->lim.gpLimMlmScanReq->p2pSearch &&
+                   pMac->lim.gpLimMlmScanReq->skipDfsChnlInP2pSearch )
+               {
+                  int flag = 0;
+                  while(!flag)
+                  {
+                     pMac->lim.gLimCurrentScanChannelId++;
+                     if( (pMac->lim.gLimCurrentScanChannelId >
+                   (tANI_U32) (pMac->lim.gpLimMlmScanReq->channelList.numChannels - 1))||
+                        (limActiveScanAllowed(pMac, limGetCurrentScanChannel(pMac))))
+                     {
+                       flag=1; //Bail out from here
+                     }
+                  }
+               }
+               else
+               {
+                  pMac->lim.gLimCurrentScanChannelId++;
+               }
+
                limContinueChannelScan(pMac);
             }
             break;
@@ -4334,6 +4462,7 @@ pMlmAddBACnf = (tpLimMlmAddBACnf) pMsgBuf;
   if((psessionEntry = peFindSessionBySessionId(pMac,pMlmAddBACnf->sessionId))== NULL)
   {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given BSSId\n"));)
+        palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
         return;
   }
   // First, extract the DPH entry
@@ -4352,7 +4481,7 @@ pMlmAddBACnf = (tpLimMlmAddBACnf) pMsgBuf;
     PELOGE(limLog( pMac, LOGE,
         FL( "Received unexpected ADDBA CNF when STA BA state is %d\n" ),
         curBaState );)
-    palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
+      palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
     return;
   }
   // Restore STA BA state
@@ -4431,6 +4560,7 @@ void limProcessMlmDelBACnf( tpAniSirGlobal pMac,
     if((psessionEntry = peFindSessionBySessionId(pMac, pMlmDelBACnf->sessionId))== NULL)
    {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
+        palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
         return;
    }
     // First, extract the DPH entry
@@ -4439,6 +4569,7 @@ void limProcessMlmDelBACnf( tpAniSirGlobal pMac,
     {
         limLog( pMac, LOGE,
             FL( "STA context not found - ignoring DELBA CNF from HAL\n" ));
+        palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
         return;
     }
     if(NULL == pMlmDelBACnf)
@@ -4454,6 +4585,7 @@ void limProcessMlmDelBACnf( tpAniSirGlobal pMac,
         limLog( pMac, LOGE,
         FL( "Received unexpected DELBA CNF when STA BA state is %d\n" ),
         curBaState );
+        palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
         return;
     }
     // Restore STA BA state
@@ -4488,6 +4620,7 @@ void limProcessMlmHalBADeleteInd( tpAniSirGlobal pMac,
     if((psessionEntry = peFindSessionByBssid(pMac,pBADeleteParams->bssId,&sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given BSSId\n"));)
+        palFreeMemory( pMac->hHdd, (void *) limMsgQ->bodyptr );
         return;
     }
     // First, extract the DPH entry
@@ -4745,7 +4878,7 @@ limHandleDelBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESe
             mlmReassocCnf.protStatusCode = eSIR_SME_UNEXPECTED_REQ_RESULT_CODE;
             goto Error;
     }
-return;
+    return;
 Error:
     limPostSmeMessage(pMac, LIM_MLM_REASSOC_CNF, (tANI_U32 *) &mlmReassocCnf);
 }

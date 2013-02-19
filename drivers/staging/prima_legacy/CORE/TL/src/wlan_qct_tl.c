@@ -416,10 +416,13 @@ WLANTL_Open
   pTLCb = VOS_GET_TL_CB(pvosGCtx);
   if (( NULL == pTLCb ) || ( NULL == pTLConfig ) )
   {
-    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_FATAL,
                "WLAN TL: Invalid input pointer on WLANTL_Open TL %x Config %x", pTLCb, pTLConfig ));
     return VOS_STATUS_E_FAULT;
   }
+
+  /* Set the default log level to VOS_TRACE_LEVEL_ERROR */
+  vos_trace_setLevel(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR);
 
   smeContext = vos_get_context(VOS_MODULE_ID_SME, pvosGCtx);
   if ( NULL == smeContext )
@@ -1605,6 +1608,13 @@ WLANTL_STAPktPending
     --------------------------------------------------------------------*/
   pTLCb->ucRegisteredStaId = ucSTAId;
 
+  if( WLANTL_STA_AUTHENTICATED != pTLCb->atlSTAClients[ucSTAId].tlState )
+  {
+    VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+      "WLAN TL:Packet pending indication for STA: %d AC: %d State: %d", 
+               ucSTAId, ucAc, pTLCb->atlSTAClients[ucSTAId].tlState);
+  }
+
   /*-----------------------------------------------------------------------
     Enable this AC in the AC mask in order for TL to start servicing it
     Set packet pending flag 
@@ -1637,9 +1647,9 @@ WLANTL_STAPktPending
           No error code is sent because TL will resume tx autonomously if
           resources become available or tx gets resumed
           ---------------------------------------------------------------------*/
-        TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
+        VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
               "WLAN TL:Request to send but condition not met. Res: %d,Suspend: %d",
-              pTLCb->uResCount, pTLCb->ucTxSuspended ));
+              pTLCb->uResCount, pTLCb->ucTxSuspended );
       }
 #ifdef WLAN_SOFTAP_FEATURE
     }
@@ -2138,8 +2148,6 @@ WLANTL_GetRssi
     {
       *pRssi = pTLCb->atlSTAClients[ucSTAId].rssiAvg;
     }
-    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-                                 "WLAN TL:bmpsRssi %d \n",*pRssi));
   }
   else
   {
@@ -2147,7 +2155,9 @@ WLANTL_GetRssi
   }
 
   TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
-            "WLAN TL:WLANTL_GetRssi for STA: %d RSSI: %d", ucSTAId, *puRssi));
+                    "WLAN TL:WLANTL_GetRssi for STA: %d RSSI: %d%s",
+                    ucSTAId, *pRssi,
+                    pTLCb->isBMPS ? " in BMPS" : ""));
 
   return VOS_STATUS_SUCCESS;
 }/* WLANTL_GetRssi */
@@ -3777,7 +3787,7 @@ WLANTL_GetFrames
           ( uFlowMask & ( 1 << WDA_TXFLOW_AC_VI ) ) || 
           ( uFlowMask & ( 1 << WDA_TXFLOW_AC_VO ) )))
       {
-         TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+         TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
              "WLAN TL:Returning from GetFrame: resources = %d",
                  pTLCb->uResCount));
          ucResult = WDA_TLI_MIN_RES_DATA;
@@ -5100,12 +5110,15 @@ WLANTL_RxFrames
           continue;
         }
 
+/* This will be handled within statistics module */
+#ifndef FEATURE_WLAN_INTEGRATED_SOC
 #ifdef WLAN_SOFTAP_FEATURE
     /* RX Statistics Data */
       /* This is RX UC data frame */
       pTLCb->atlSTAClients[ucSTAId].trafficStatistics.rxUCFcnt++;
       pTLCb->atlSTAClients[ucSTAId].trafficStatistics.rxUCBcnt += usPktLen;
 #endif
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
 
     }/* else data frame*/
 
@@ -5490,6 +5503,7 @@ WLANTL_STATxConn
    v_U8_t               ucTid;
    v_U8_t               extraHeadSpace = 0;
    v_U8_t               ucWDSEnabled = 0;
+   v_U8_t               ucAC, ucACMask, i; 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
   /*------------------------------------------------------------------------
@@ -5499,8 +5513,8 @@ WLANTL_STATxConn
   pTLCb = VOS_GET_TL_CB(pvosGCtx);
   if ( NULL == pTLCb )
   {
-   TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-             "WLAN TL:Invalid TL pointer from pvosGCtx on WLANTL_STATxConn"));
+   VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+             "WLAN TL:Invalid TL pointer from pvosGCtx on WLANTL_STATxConn");
    *pvosDataBuff = NULL;
     return VOS_STATUS_E_FAULT;
   }
@@ -5519,19 +5533,74 @@ WLANTL_STATxConn
        is successfull it will be re-enabled
   -------------------------------------------------------------------*/
 
-  pTLCb->atlSTAClients[ucSTAId].
-     aucACMask[pTLCb->atlSTAClients[ucSTAId].ucCurrentAC] = 0; 
+
+  //LTI:pTLCb->atlSTAClients[ucSTAId].
+  //LTI:   aucACMask[pTLCb->atlSTAClients[ucSTAId].ucCurrentAC] = 0; 
+
+  /*------------------------------------------------------------------------
+    Fetch packet from HDD
+   ------------------------------------------------------------------------*/
+  if ((WLAN_STA_SOFTAP != pTLCb->atlSTAClients[ucSTAId].wSTADesc.wSTAType) &&
+      (!vos_concurrent_sessions_running()))
+  {
+      ucAC = pTLCb->atlSTAClients[ucSTAId].ucCurrentAC;
+
+  /*-------------------------------------------------------------------
+      Disable AC temporary - if successfull retrieve re-enable
+      The order is justified because of the possible scenario
+       - TL tryes to fetch packet for AC and it returns NULL
+       - TL analyzes the data it has received to see if there are
+       any more pkts available for AC -> if not TL will disable AC
+       - however it is possible that while analyzing results TL got
+       preempted by a pending indication where the mask was again set
+       TL will not check again and as a result when it resumes
+       execution it will disable AC
+       To prevent this the AC will be disabled here and if retrieve
+       is successfull it will be re-enabled
+  -------------------------------------------------------------------*/
+     pTLCb->atlSTAClients[ucSTAId].aucACMask[ucAC] = 0; 
+  }
+  else
+  {
+    //softap case
+    ucAC = pTLCb->uCurServedAC;
+    pTLCb->atlSTAClients[ucSTAId].aucACMask[ucAC] = 0; 
+
+  }
 
     /*You make an initial assumption that HDD has no more data and if the 
       assumption was wrong you reset the flags to their original state
      This will prevent from exposing a race condition between checking with HDD 
      for packets and setting the flags to false*/
+ //LTI: vos_atomic_set_U8( &pTLCb->atlSTAClients[ucSTAId].ucPktPending, 0);
+ //LTI: pTLCb->atlSTAClients[ucSTAId].ucNoMoreData = 1;
   vos_atomic_set_U8( &pTLCb->atlSTAClients[ucSTAId].ucPktPending, 0);
+    WLAN_TL_AC_ARRAY_2_MASK( &pTLCb->atlSTAClients[ucSTAId], ucACMask, i); 
+#ifdef WLAN_SOFTAP_FEATURE
+    /*You make an initial assumption that HDD has no more data and if the 
+      assumption was wrong you reset the flags to their original state
+     This will prevent from exposing a race condition between checking with HDD 
+     for packets and setting the flags to false*/
+  if ( 0 == ucACMask )
+  {
   pTLCb->atlSTAClients[ucSTAId].ucNoMoreData = 1;
+  }
+  else
+  {
+    vos_atomic_set_U8( &pTLCb->atlSTAClients[ucSTAId].ucPktPending, 1);
+  }
+
+#endif
+
+  VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            "WLAN TL: WLANTL_STATxConn fetching packet from HDD for AC: %d AC Mask: %d Pkt Pending: %d", 
+             ucAC, ucACMask, pTLCb->atlSTAClients[ucSTAId].ucPktPending);
 
   /*------------------------------------------------------------------------
     Fetch tx packet from HDD
    ------------------------------------------------------------------------*/
+//LTI
+#if 0 
 #ifdef WLAN_SOFTAP_FEATURE
   if (WLAN_STA_SOFTAP != pTLCb->atlSTAClients[ucSTAId].wSTADesc.wSTAType && 
      (!vos_concurrent_sessions_running()))
@@ -5555,10 +5624,16 @@ WLANTL_STATxConn
                                                 &vosDataBuff, &tlMetaInfo );
   }
 #endif
+#endif
+
+  vosStatus = pTLCb->atlSTAClients[ucSTAId].pfnSTAFetchPkt( pvosGCtx, 
+                               &ucSTAId,
+                               ucAC,
+                               &vosDataBuff, &tlMetaInfo );
 
   if (( VOS_STATUS_SUCCESS != vosStatus ) || ( NULL == vosDataBuff ))
   {
-    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+    TLLOG1(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
                "WLAN TL:No more data at HDD status %d", vosStatus));
     *pvosDataBuff = NULL;
 
@@ -5571,6 +5646,10 @@ WLANTL_STATxConn
     pTLCb->atlSTAClients[ucSTAId].ucCurrentAC     = WLANTL_AC_VO;
     pTLCb->atlSTAClients[ucSTAId].ucCurrentWeight = 0;
 
+    VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+              "WLAN TL: WLANTL_STATxConn no more packets in HDD for AC: %d AC Mask: %d", 
+               ucAC, ucACMask);
+
     return vosStatus;
   }
 
@@ -5578,9 +5657,8 @@ WLANTL_STATxConn
    the no more data assumption*/
   vos_atomic_set_U8( &pTLCb->atlSTAClients[ucSTAId].ucPktPending, 1);
   pTLCb->atlSTAClients[ucSTAId].ucNoMoreData = 0;
+  pTLCb->atlSTAClients[ucSTAId].aucACMask[ucAC] = 1; 
 
-   pTLCb->atlSTAClients[ucSTAId].
-     aucACMask[pTLCb->atlSTAClients[ucSTAId].ucCurrentAC] = 1; 
 #ifdef WLAN_PERF 
   vos_pkt_set_user_data_ptr( vosDataBuff, VOS_PKT_USER_DATA_ID_BAL, 
                              (v_PVOID_t)0);
@@ -5879,6 +5957,10 @@ WLANTL_STATxAuth
 
     return vosStatus;
   }
+
+#ifdef FEATURE_WLAN_INTEGRATED_SOC
+  WLANTL_StatHandleTXFrame(pvosGCtx, ucSTAId, vosDataBuff, NULL, &tlMetaInfo);
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
 
 #ifdef WLAN_SOFTAP_FEATURE
   /*There are still packets in HDD - set back the pending packets and 
@@ -6339,22 +6421,26 @@ WLANTL_STARxConn
     /* that we get an EAPOL packet in WAPI mode or vice versa? */
     if ( WLANTL_LLC_8021X_TYPE  != usEtherType && WLANTL_LLC_WAI_TYPE  != usEtherType )
     {
-      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-                 "WLAN TL:Frame not EAPOL or WAI - dropping"));
+      VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+                 "WLAN TL:RX Frame not EAPOL or WAI EtherType %d - dropping", usEtherType );
       /* Drop packet */
       vos_pkt_return_packet(vosDataBuff);
     }
 #else
     if ( WLANTL_LLC_8021X_TYPE  != usEtherType )
     {
-      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-                 "WLAN TL:Frame not EAPOL - dropping"));
+      VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+                 "WLAN TL:RX Frame not EAPOL EtherType %d - dropping", usEtherType);
       /* Drop packet */
       vos_pkt_return_packet(vosDataBuff);
     }
 #endif /* FEATURE_WLAN_WAPI */
     else /* Frame is an EAPOL frame or a WAI frame*/  
     {
+
+      VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+                 "WLAN TL:RX Frame  EAPOL EtherType %d - processing", usEtherType);
+
       if (( 0 == WDA_GET_RX_FT_DONE(aucBDHeader) ) &&
          ( 0 != pTLCb->atlSTAClients[ucSTAId].wSTADesc.ucSwFrameRXXlation))
       {
@@ -6378,7 +6464,16 @@ WLANTL_STARxConn
       /*-------------------------------------------------------------------
       Increment receive counter
       -------------------------------------------------------------------*/
-      pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+      if ( !WLANTL_TID_INVALID( ucTid) ) 
+      {
+        pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+      }
+      else
+      {
+        TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+               "WLAN TL:Invalid tid  %d (Station ID %d) on %s",
+               ucTid, ucSTAId, __func__));
+      }
 
       TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
                "WLAN TL:Sending EAPoL frame to station %d AC %d", ucSTAId, ucTid));
@@ -6519,7 +6614,7 @@ WLANTL_FwdPktToHDD
             TLLOG4(VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO_LOW,
                      "%s: packet to AP itself, id %d\n", __FUNCTION__, WLAN_RX_SAP_SELF_STA_ID));
          }
-         else if ( WLAN_MAX_STA_COUNT <= ucDesSTAId )
+         else if (( WLAN_MAX_STA_COUNT <= ucDesSTAId ) || (pTLCb->atlSTAClients[ucDesSTAId].ucExists == 0))
          {
             // destination station is something else
             TLLOG4(VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO_LOW,
@@ -6739,7 +6834,16 @@ WLANTL_STARxAuth
     dropped below or delayed in TL's queues
     - will leave it here for now
    ------------------------------------------------------------------------*/
-  pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+  if ( !WLANTL_TID_INVALID( ucTid) ) 
+  {
+    pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+  }
+  else
+  {
+    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+           "WLAN TL:Invalid tid  %d (Station ID %d) on %s",
+           ucTid, ucSTAId, __func__));
+  }
 
   /*------------------------------------------------------------------------
     Check if AMSDU and send for processing if so
@@ -8690,7 +8794,6 @@ WLAN_TLAPGetNextTxIds
   pTLCb->ucCurrentSTA = WLAN_MAX_STA_COUNT; 
 
   *pucSTAId = pTLCb->ucCurrentSTA;
-  pTLCb->atlSTAClients[*pucSTAId].ucCurrentAC = pTLCb->uCurServedAC;
   return VOS_STATUS_E_FAULT;
 }
 
@@ -9418,7 +9521,10 @@ WLANTL_CleanSTA
   if ( ( 0 != ucEmpty ) &&
        ( NULL != ptlSTAClient->vosAMSDUChainRoot ))
   {
-    vos_pkt_return_packet(ptlSTAClient->vosAMSDUChainRoot);
+    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_FATAL,
+               "WLAN TL:Non NULL vosAMSDUChainRoot (=%x) on WLANTL_CleanSTA," 
+               "suspecting a memory corruption"));
+
   }
 
   ptlSTAClient->vosAMSDUChain     = NULL;

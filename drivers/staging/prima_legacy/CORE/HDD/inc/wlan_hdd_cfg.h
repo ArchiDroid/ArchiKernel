@@ -651,7 +651,14 @@ typedef enum
 #define CFG_CCX_FEATURE_ENABLED_DEFAULT                     (0) //disabled
 #endif // FEATURE_WLAN_CCX
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#ifdef FEATURE_WLAN_LFR
+#define CFG_LFR_FEATURE_ENABLED_NAME                       "FastRoamEnabled"
+#define CFG_LFR_FEATURE_ENABLED_MIN                         (0)
+#define CFG_LFR_FEATURE_ENABLED_MAX                         (1)
+#define CFG_LFR_FEATURE_ENABLED_DEFAULT                     (0) //disabled
+#endif // FEATURE_WLAN_LFR
+
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
 #define CFG_FT_RSSI_FILTER_PERIOD_NAME                     "FTRssiFilterPeriod"
 #define CFG_FT_RSSI_FILTER_PERIOD_MIN                      WNI_CFG_FT_RSSI_FILTER_PERIOD_STAMIN
 #define CFG_FT_RSSI_FILTER_PERIOD_MAX                      WNI_CFG_FT_RSSI_FILTER_PERIOD_STAMAX
@@ -667,7 +674,18 @@ typedef enum
 #define CFG_FAST_TRANSITION_ENABLED_NAME_MIN                (0)
 #define CFG_FAST_TRANSITION_ENABLED_NAME_MAX                (1)
 #define CFG_FAST_TRANSITION_ENABLED_NAME_DEFAULT            (0) //disabled
-#endif
+
+/* This parameter is used to decide whether to Roam or not.
+ * AP1 is the currently associated AP and AP2 is chosen for roaming.
+ * The Roaming will happen only if AP2 has better Signal Quality and it has a RSSI better than AP1
+ * in terms of RoamRssiDiff,and RoamRssiDiff is the number of units (typically measured in dB) AP2
+ * is better than AP1. 
+ * This check is not done if the value is Zero */
+#define CFG_ROAM_RSSI_DIFF_NAME				    "RoamRssiDiff"
+#define CFG_ROAM_RSSI_DIFF_MIN				    0
+#define CFG_ROAM_RSSI_DIFF_MAX				    125
+#define CFG_ROAM_RSSI_DIFF_DEFAULT			    0
+#endif /* (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR) */
 
 #define CFG_QOS_WMM_PKT_CLASSIFY_BASIS_NAME                "PktClassificationBasis" // DSCP or 802.1Q
 #define CFG_QOS_WMM_PKT_CLASSIFY_BASIS_MIN                  (0)
@@ -910,7 +928,7 @@ typedef enum
 #define CFG_NEIGHBOR_LOOKUP_RSSI_THRESHOLD_DEFAULT   (120)
 
 #define CFG_NEIGHBOR_SCAN_CHAN_LIST_NAME                      "gNeighborScanChannelList"
-#define CFG_NEIGHBOR_SCAN_CHAN_LIST_DEFAULT                   "1,6"
+#define CFG_NEIGHBOR_SCAN_CHAN_LIST_DEFAULT                   ""
 
 #define CFG_NEIGHBOR_SCAN_MIN_CHAN_TIME_NAME                  "gNeighborScanChannelMinTime"
 #define CFG_NEIGHBOR_SCAN_MIN_CHAN_TIME_MIN                   (10)   
@@ -1128,6 +1146,40 @@ typedef enum
 #define CFG_ENABLE_DYNAMIC_DTIM_MAX        ( 5 )
 #define CFG_ENABLE_DYNAMIC_DTIM_DEFAULT    ( 0 )
 
+/*
+ * Enable First Scan 2G Only
+ * Options
+ * 0 - Disable First Scan 2G Option
+ * 1 - Enable First Scan 2G Option
+ */
+#define CFG_ENABLE_FIRST_SCAN_2G_ONLY_NAME            "gEnableFirstScan2GOnly"
+#define CFG_ENABLE_FIRST_SCAN_2G_ONLY_MIN        ( 0 )
+#define CFG_ENABLE_FIRST_SCAN_2G_ONLY_MAX        ( 1 )
+#define CFG_ENABLE_FIRST_SCAN_2G_ONLY_DEFAULT    ( 0 )
+
+/*
+ * Skip DFS Channel in case of P2P Search
+ * Options
+ * 0 - Don't Skip DFS Channel in case of P2P Search
+ * 1 - Skip DFS Channel in case of P2P Search
+ */
+#define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_NAME       "gSkipDfsChannelInP2pSearch"
+#define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_MIN        ( 0 )
+#define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_MAX        ( 1 )
+#define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_DEFAULT    ( 0 )
+
+/*
+ * Ignore Dynamic Dtim in case of P2P
+ * Options
+ * 0 - Consider Dynamic Dtim incase of P2P
+ * 1 - Ignore Dynamic Dtim incase of P2P
+ */
+#define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_NAME       "gIgnoreDynamicDtimInP2pMode"
+#define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_MIN        ( 0 )
+#define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_MAX        ( 1 )
+#define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_DEFAULT    ( 0 )
+
+
 #define CFG_ENABLE_AUTOMATIC_TX_POWER_CONTROL_NAME  "gEnableAutomaticTxPowerControl"
 #define CFG_ENABLE_AUTOMATIC_TX_POWER_CONTROL_MIN        ( 0 )
 #define CFG_ENABLE_AUTOMATIC_TX_POWER_CONTROL_MAX        ( 1 )
@@ -1164,6 +1216,15 @@ typedef enum
 #define CFG_ENABLE_MODULATED_DTIM_MIN        ( 0 )
 #define CFG_ENABLE_MODULATED_DTIM_MAX        ( 5 )
 #define CFG_ENABLE_MODULATED_DTIM_DEFAULT    ( 0 )
+
+/*
+ * Enable/Disable Multicast MAC Address List feature
+ * Default: Disable
+ */
+#define CFG_MC_ADDR_LIST_ENABLE_NAME          "gMCAddrListEnable"
+#define CFG_MC_ADDR_LIST_ENABLE_MIN           ( 0 )
+#define CFG_MC_ADDR_LIST_ENABLE_MAX           ( 1 )
+#define CFG_MC_ADDR_LIST_ENABLE_DEFAULT       ( 0 )
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -1323,13 +1384,17 @@ typedef struct
    v_U32_t                      InfraUapsdBeSuspIntv;
    v_U32_t                      InfraUapsdBkSrvIntv;
    v_U32_t                      InfraUapsdBkSuspIntv;
+#ifdef FEATURE_WLAN_LFR
+   v_BOOL_t                     isFastRoamIniFeatureEnabled;
+#endif
 #ifdef FEATURE_WLAN_CCX
    v_U32_t                      InfraInactivityInterval;
    v_BOOL_t                     isCcxIniFeatureEnabled;
 #endif
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
    v_U8_t                       FTRssiFilterPeriod;
    v_BOOL_t                     isFastTransitionEnabled;
+   v_U8_t			RoamRssiDiff;	
 #endif
 
    hdd_wmm_classification_t     PktClassificationBasis; // DSCP or 802.1Q
@@ -1431,6 +1496,10 @@ typedef struct
    v_BOOL_t                    isMcAddrListFilter;
 #endif
    v_U8_t                      enableModulatedDTIM;
+   v_BOOL_t                    enableFirstScan2GOnly;
+   v_BOOL_t                    skipDfsChnlInP2pSearch;
+   v_BOOL_t                    ignoreDynamicDtimInP2pMode;
+   v_U32_t                     fEnableMCAddrList;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

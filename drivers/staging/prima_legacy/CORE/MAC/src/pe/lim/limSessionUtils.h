@@ -132,5 +132,19 @@ isLimSessionOffChannel(tpAniSirGlobal pMac, tANI_U8 sessionId);
 
 tANI_U8
 peGetActiveSessionChannel( tpAniSirGlobal pMac );
+
+/*--------------------------------------------------------------------------
+  \brief limIsInMCC() - Check if Device is in MCC.
+
+  \param pMac                   - pointer to global adapter context
+  
+  \return tANI_U8               - TRUE - if in MCC.
+                                  FALSE - NOT in MCC. 
+  
+  \sa
+  --------------------------------------------------------------------------*/
+tANI_U8
+limIsInMCC (tpAniSirGlobal pMac);
+
 #endif //#if !defined( __LIM_SESSION_UTILS_H )
 

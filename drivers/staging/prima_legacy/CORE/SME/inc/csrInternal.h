@@ -76,6 +76,11 @@
      NULL \
 )
 
+//Support for "Fast roaming" (i.e., CCX, LFR, or 802.11r.)
+#define CSR_BG_SCAN_OCCUPIED_CHANNEL_LIST_LEN 15
+#define CSR_BG_SCAN_VALID_CHANNEL_LIST_CHUNK_SIZE 3
+#define CSR_BG_SCAN_CHANNEL_LIST_LEN (CSR_BG_SCAN_OCCUPIED_CHANNEL_LIST_LEN + CSR_BG_SCAN_VALID_CHANNEL_LIST_CHUNK_SIZE)
+
 
 
 typedef enum
@@ -157,6 +162,7 @@ typedef enum
     eCsrSmeIssuedFTReassoc,
     eCsrForcedDisassocSta,
     eCsrForcedDeauthSta,
+    eCsrPerformPreauth,
     
 }eCsrRoamReason;
 
@@ -540,12 +546,17 @@ typedef struct tagCsrConfig
     tCsr11rConfig csr11rConfig;
 #endif
 
+#ifdef FEATURE_WLAN_LFR
+    tANI_U8   isFastRoamIniFeatureEnabled;
+#endif
+
 #ifdef FEATURE_WLAN_CCX
     tANI_U8   isCcxIniFeatureEnabled;
 #endif
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
     tANI_U8   isFastTransitionEnabled;
+    tANI_U8   RoamRssiDiff;
 #endif
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
@@ -659,11 +670,17 @@ typedef struct tagCsrScanStruct
     * (apprx 1.3 sec) */
     tANI_BOOLEAN fEnableDFSChnlScan;
 
+    /*
+    * To enable/disable scanning only 2.4Ghz channels on first scan
+    */
+    tANI_BOOLEAN fFirstScanOnly2GChnl;
+
     tANI_BOOLEAN fDropScanCmd; //true means we don't accept scan commands
 
 #ifdef WLAN_AP_STA_CONCURRENCY
     tDblLinkList scanCmdPendingList;
 #endif    
+    tCsrChannel occupiedChannels;   //This includes all channels on which candidate APs are found
 }tCsrScanStruct;
 
 
@@ -855,8 +872,14 @@ typedef struct tagCsrRoamStruct
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING    
     tCsrNeighborRoamControlInfo neighborRoamInfo;
 #endif
+#ifdef FEATURE_WLAN_LFR
+    tANI_U8   isFastRoamIniFeatureEnabled;
+#endif
 #ifdef FEATURE_WLAN_CCX
     tANI_U8   isCcxIniFeatureEnabled;
+#endif
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+    tANI_U8   RoamRssiDiff;
 #endif
 }tCsrRoamStruct;
 
@@ -940,7 +963,7 @@ typedef struct tagCsrRoamStruct
         (CSR_IS_OPEARTING_DUAL_BAND((pMac)) || CSR_IS_RADIO_BG_ONLY((pMac)) || CSR_IS_24_BAND_ONLY((pMac)))
 
 #define CSR_IS_CHANNEL_5GHZ(chnNum) \
-        ((chnNum) > CSR_MAX_24GHz_CHANNEL_NUMBER)
+        (((chnNum) >= CSR_MIN_5GHz_CHANNEL_NUMBER) && ((chnNum) <= CSR_MAX_5GHz_CHANNEL_NUMBER))
 
 #define CSR_IS_CHANNEL_24GHZ(chnNum) \
         (((chnNum) > 0) && ((chnNum) <= CSR_MAX_24GHz_CHANNEL_NUMBER))
@@ -1183,5 +1206,13 @@ tANI_BOOLEAN csrRoamIsCCXAssoc(tpAniSirGlobal pMac);
 
 #ifndef BMPS_WORKAROUND_NOT_NEEDED
 void csrDisconnectAllActiveSessions(tpAniSirGlobal pMac);
+#endif
+
+#ifdef FEATURE_WLAN_LFR
+//Returns whether "Legacy Fast Roaming" is enabled...or not
+tANI_BOOLEAN csrRoamIsFastRoamEnabled(tpAniSirGlobal pMac);
+tANI_BOOLEAN csrIsChannelPresentInList( tANI_U8 *pChannelList, int  numChannels, tANI_U8   channel );
+VOS_STATUS csrAddToChannelListFront( tANI_U8 *pChannelList, int  numChannels, tANI_U8   channel );
+tANI_BOOLEAN csrNeighborRoamIsSsidCandidateMatch( tpAniSirGlobal pMac, tDot11fBeaconIEs *pIes);
 #endif
 

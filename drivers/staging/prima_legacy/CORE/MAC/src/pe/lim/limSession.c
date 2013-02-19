@@ -144,8 +144,11 @@ tpPESession peCreateSession(tpAniSirGlobal pMac, tANI_U8 *bssid , tANI_U8* sessi
             pMac->lim.gpSession[i].isCCXconnection = FALSE;
 #endif
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
             pMac->lim.gpSession[i].isFastTransitionEnabled = FALSE;
+#endif
+#ifdef FEATURE_WLAN_LFR
+            pMac->lim.gpSession[i].isFastRoamIniFeatureEnabled = FALSE;
 #endif
             *sessionId = i;
 
@@ -277,9 +280,24 @@ tpPESession peFindSessionByStaId(tpAniSirGlobal pMac,  tANI_U8  staid,    tANI_U
 void peDeleteSession(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
     tANI_U16 i = 0;
+    tANI_U16 n;
+    TX_TIMER *timer_ptr;
 
     limLog(pMac, LOGW, FL("Trying to delete a session %d.\n "), psessionEntry->peSessionId);
 
+    for (n = 0; n < pMac->lim.maxStation; n++)
+    {
+        timer_ptr = &pMac->lim.limTimers.gpLimCnfWaitTimer[n];
+
+        if(psessionEntry->peSessionId == timer_ptr->sessionId)
+        {
+            if(VOS_TRUE == tx_timer_running(timer_ptr))
+            {
+                tx_timer_deactivate(timer_ptr);
+            }
+        }
+    }
+    
     if(psessionEntry->pLimStartBssReq != NULL)
     {
         palFreeMemory( pMac->hHdd, psessionEntry->pLimStartBssReq );

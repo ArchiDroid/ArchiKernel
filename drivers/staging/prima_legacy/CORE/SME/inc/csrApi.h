@@ -244,6 +244,7 @@ typedef struct tagCsrScanRequest
     eCsrRequestType requestType;    //11d scan or full scan
 #ifdef WLAN_FEATURE_P2P
     tANI_BOOLEAN p2pSearch;
+    tANI_BOOLEAN skipDfsChnlInP2pSearch;
 #endif
 }tCsrScanRequest;
 
@@ -410,6 +411,9 @@ typedef enum
     //this mean error happens before association_start or roaming_start is called.
     eCSR_ROAM_SESSION_OPENED,
     eCSR_ROAM_FT_REASSOC_FAILED,
+#ifdef FEATURE_WLAN_LFR
+    eCSR_ROAM_PMK_NOTIFY,
+#endif
 }eRoamCmdStatus;
 
 
@@ -625,6 +629,8 @@ typedef enum
 #define CSR_CB_CHANNEL_GAP 4
 #define CSR_CB_CENTER_CHANNEL_OFFSET    2
 #define CSR_MAX_24GHz_CHANNEL_NUMBER ( SIR_11B_CHANNEL_END )
+#define CSR_MIN_5GHz_CHANNEL_NUMBER  ( SIR_11A_CHANNEL_BEGIN )
+#define CSR_MAX_5GHz_CHANNEL_NUMBER  ( SIR_11A_CHANNEL_END )
 
 // WEP keysize (in bits)...
 typedef enum  
@@ -951,9 +957,13 @@ typedef struct tagCsrConfigParam
 #ifdef FEATURE_WLAN_CCX
     tANI_U8   isCcxIniFeatureEnabled;
 #endif
+#ifdef FEATURE_WLAN_LFR
+    tANI_U8   isFastRoamIniFeatureEnabled;
+#endif
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
     tANI_U8   isFastTransitionEnabled;
+    tANI_U8   RoamRssiDiff;	
 #endif
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
@@ -983,6 +993,11 @@ typedef struct tagCsrConfigParam
 
     //To enable/disable scanning 2.4Ghz channels twice on a single scan request from HDD
     tANI_BOOLEAN fScanTwice;
+
+    /*
+    * To enable/disable scanning only 2.4Ghz channels on first scan
+    */
+    tANI_BOOLEAN fFirstScanOnly2GChnl;
 
 }tCsrConfigParam;   
 

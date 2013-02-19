@@ -75,6 +75,8 @@ when           who        what, where, why
  * If official msmreg.h integrated, this part will be eliminated */
 /* Start with base address */
 
+#define WLANDXE_BMU_AVAILABLE_BD_PDU     0x03080084
+
 #define WLANDXE_CCU_DXE_INT_SELECT       0x03200b10
 #define WLANDXE_CCU_DXE_INT_SELECT_STAT  0x03200b14
 #define WLANDXE_CCU_ASIC_INT_ENABLE      0x03200b18
@@ -605,6 +607,7 @@ typedef struct
    wpt_uint32                      dxeCookie;
    wpt_packet                     *freeRXPacket;
    wpt_boolean                     rxPalPacketUnavailable;
+   wpt_boolean                     driverReloadInProcessing;
 } WLANDXE_CtrlBlkType;
 
 /*==========================================================================

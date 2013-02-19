@@ -59,6 +59,13 @@ eHalStatus p2pProcessRemainOnChannelCmd(tpAniSirGlobal pMac, tSmeCmd *p2pRemaino
     tSirRemainOnChnReq* pMsg;
     tANI_U16 len;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, p2pRemainonChn->sessionId );
+
+    if(!pSession)
+    {
+       smsLog(pMac, LOGE, FL("  session %d not found "), p2pRemainonChn->sessionId);
+       return eHAL_STATUS_FAILURE;
+    }
+
 #ifdef WLAN_FEATURE_P2P_INTERNAL
     tANI_U8 P2PsessionId = getP2PSessionIdFromSMESessionId(pMac, p2pRemainonChn->sessionId);
     tp2pContext *p2pContext = &pMac->p2pContext[P2PsessionId];

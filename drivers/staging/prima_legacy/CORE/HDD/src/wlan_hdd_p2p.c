@@ -44,6 +44,27 @@
 #include <linux/etherdevice.h>
 #include <net/ieee80211_radiotap.h>
 
+#ifdef WLAN_FEATURE_P2P_DEBUG
+#define MAX_P2P_ACTION_FRAME_TYPE 9
+const char *p2p_action_frame_type[]={"GO Negotiation Request",
+                                     "GO Negotiation Response",
+                                     "GO Negotiation Confirmation",
+                                     "P2P Invitation Request",
+                                     "P2P Invitation Response",
+                                     "Device Discoverability Request",
+                                     "Device Discoverability Response",
+                                     "Provision Discovery Request",
+                                     "Provision Discovery Response"};
+
+/* We no need to protect this variable since
+ * there is no chance of race to condition
+ * and also not make any complicating the code
+ * just for debugging log
+ */
+tP2PConnectionStatus globalP2PConnectionStatus = P2P_NOT_ACTIVE;
+
+#endif
+
 extern struct net_device_ops net_ops_struct;
 
 static int hdd_wlan_add_rx_radiotap_hdr( struct sk_buff *skb,
@@ -118,29 +139,18 @@ eHalStatus wlan_hdd_remain_on_channel_callback( tHalHandle hHal, void* pCtx,
     return eHAL_STATUS_SUCCESS;
 }
 
-static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
-                                   struct net_device *dev,
-                                   struct ieee80211_channel *chan,
-                                   enum nl80211_channel_type channel_type,
-                                   unsigned int duration, u64 *cookie,
-                                   rem_on_channel_request_type_t request_type )
+static void wlan_hdd_cancel_existing_remain_on_channel(hdd_adapter_t *pAdapter)
 {
-    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-    hdd_remain_on_chan_ctx_t *pRemainChanCtx;
     hdd_cfg80211_state_t *cfgState = WLAN_HDD_GET_CFG_STATE_PTR( pAdapter );
     int status = 0;
-    hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d",
-                                 __func__,pAdapter->device_mode);
 
-    hddLog( LOG1,
-        "chan(hw_val)0x%x chan(centerfreq) %d chan type 0x%x, duration %d",
-        chan->hw_value, chan->center_freq, channel_type, duration );
-
-    if( cfgState->remain_on_chan_ctx != NULL)
+    if(cfgState->remain_on_chan_ctx != NULL)
     {
-        /* Wait till remain on channel ready indication before issuing cancel
-         * remain on channel request, otherwise if remain on channel not
-         * received and if the driver issues cancel remain on channel then lim
+        hddLog( LOG1, "Cancel Existing Remain on Channel");
+
+        /* Wait till remain on channel ready indication before issuing cancel 
+         * remain on channel request, otherwise if remain on channel not 
+         * received and if the driver issues cancel remain on channel then lim 
          * will be in unknown state.
          */
         status = wait_for_completion_interruptible_timeout(&pAdapter->rem_on_chan_ready_event,
@@ -153,7 +163,7 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
         }
 
         INIT_COMPLETION(pAdapter->cancel_rem_on_chan_var);
-
+        
         /* Issue abort remain on chan request to sme.
          * The remain on channel callback will make sure the remain_on_chan
          * expired event is sent.
@@ -174,9 +184,63 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
                                      (WLAN_HDD_GET_CTX(pAdapter))->pvosContext);
         }
 
-        wait_for_completion_interruptible_timeout(&pAdapter->cancel_rem_on_chan_var,
+        status = wait_for_completion_interruptible_timeout(&pAdapter->cancel_rem_on_chan_var,
                msecs_to_jiffies(WAIT_CANCEL_REM_CHAN));
+
+        if (!status)
+        {
+            hddLog( LOGE, 
+                    "%s: timeout waiting for cancel remain on channel ready indication",
+                    __func__);
+        }
     }
+}
+
+int wlan_hdd_check_remain_on_channel(hdd_adapter_t *pAdapter)
+{
+   int status = 0;
+   hdd_cfg80211_state_t *cfgState = WLAN_HDD_GET_CFG_STATE_PTR( pAdapter );
+
+   if(WLAN_HDD_P2P_GO != pAdapter->device_mode)
+   {
+     //Cancel Existing Remain On Channel
+     //If no action frame is pending
+     if( cfgState->remain_on_chan_ctx != NULL)
+     {
+        //Check whether Action Frame is pending or not
+        if( cfgState->buf == NULL)
+        {
+           wlan_hdd_cancel_existing_remain_on_channel(pAdapter);
+        }
+        else
+        {
+           hddLog( LOG1, "Cannot Cancel Existing Remain on Channel");
+           status = -EBUSY;
+        }
+     }
+   }
+   return status;
+}
+
+static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
+                                   struct net_device *dev,
+                                   struct ieee80211_channel *chan,
+                                   enum nl80211_channel_type channel_type,
+                                   unsigned int duration, u64 *cookie,
+                                   rem_on_channel_request_type_t request_type )
+{
+    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
+    hdd_remain_on_chan_ctx_t *pRemainChanCtx;
+    hdd_cfg80211_state_t *cfgState = WLAN_HDD_GET_CFG_STATE_PTR( pAdapter );
+    hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d",
+                                 __func__,pAdapter->device_mode);
+
+    hddLog( LOG1,
+        "chan(hw_val)0x%x chan(centerfreq) %d chan type 0x%x, duration %d",
+        chan->hw_value, chan->center_freq, channel_type, duration );
+
+    //Cancel existing remain On Channel if any
+    wlan_hdd_cancel_existing_remain_on_channel(pAdapter);
 
     /* When P2P-GO and if we are trying to unload the driver then
      * wlan driver is keep on receiving the remain on channel command
@@ -189,6 +253,12 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
         return -EBUSY;
     }
 
+    if (((hdd_context_t*)pAdapter->pHddCtx)->isLogpInProgress)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s:LOGP in Progress. Ignore!!!", __func__);
+        return -EAGAIN;
+    }
     pRemainChanCtx = vos_mem_malloc( sizeof(hdd_remain_on_chan_ctx_t) );
     if( NULL == pRemainChanCtx )
     {
@@ -316,6 +386,12 @@ int wlan_hdd_cfg80211_cancel_remain_on_channel( struct wiphy *wiphy,
 
     hddLog( LOG1, "Cancel remain on channel req");
 
+    if (((hdd_context_t*)pAdapter->pHddCtx)->isLogpInProgress)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s:LOGP in Progress. Ignore!!!", __func__);
+        return -EAGAIN;
+    }
     /* FIXME cancel currently running remain on chan.
      * Need to check cookie and cancel accordingly
      */
@@ -403,9 +479,47 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
     hdd_adapter_t *goAdapter;
 #endif
 
+#ifdef WLAN_FEATURE_P2P_DEBUG
+    if ((type == SIR_MAC_MGMT_FRAME) &&
+            (subType == SIR_MAC_MGMT_ACTION) &&
+            (buf[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] == WLAN_HDD_PUBLIC_ACTION_FRAME))
+    {
+        actionFrmType = buf[WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET];
+        if(actionFrmType > MAX_P2P_ACTION_FRAME_TYPE)
+        {
+            hddLog(VOS_TRACE_LEVEL_ERROR,"[P2P] unknown[%d] ---> OTA",
+                                   actionFrmType);
+        }
+        else
+        {
+            hddLog(VOS_TRACE_LEVEL_ERROR,"[P2P] %s ---> OTA",
+            p2p_action_frame_type[actionFrmType]);
+            if( (actionFrmType == WLAN_HDD_PROV_DIS_REQ) &&
+                (globalP2PConnectionStatus == P2P_NOT_ACTIVE) )
+            {
+                 globalP2PConnectionStatus = P2P_GO_NEG_PROCESS;
+                 hddLog(LOGE,"[P2P State]Inactive state to "
+                            "GO negotation progress state");
+            }
+            else if( (actionFrmType == WLAN_HDD_GO_NEG_CNF) &&
+                (globalP2PConnectionStatus == P2P_GO_NEG_PROCESS) )
+            {
+                 globalP2PConnectionStatus = P2P_GO_NEG_COMPLETED;
+                 hddLog(LOGE,"[P2P State]GO nego progress to GO nego"
+                             " completed state");
+            }
+        }
+    }
+#endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
     noack = dont_wait_for_ack;
 #endif
+
+    //If the wait is coming as 0 with off channel set
+    //then set the wait to 200 ms
+    if (offchan && !wait)
+        wait = ACTION_FRAME_DEFAULT_WAIT;
 
     hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d",
                             __func__,pAdapter->device_mode);
@@ -429,23 +543,21 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
             else if ((subType == SIR_MAC_MGMT_DISASSOC) ||
                     (subType == SIR_MAC_MGMT_DEAUTH))
             {
-                /* Deauth/Disassoc received from supplicant, If we simply 
-                 * transmit the frame over air, driver doesn't come to know 
-                 * about the deauth/disassoc. Because of this reason the 
-                 * supplicant and driver will be out of sync.
-                 * Drop the frame here and initiate the disassoc procedure 
-                 * from driver, the core stack will take care of sending
-                 * disassoc frame and indicating corresponding events to supplicant.
+                /* During EAP failure or P2P Group Remove supplicant
+                 * is sending del_station command to driver. From
+                 * del_station function, Driver will send deauth frame to
+                 * p2p client. No need to send disassoc frame from here.
+                 * so Drop the frame here and send tx indication back to
+                 * supplicant.
                  */
                 tANI_U8 dstMac[ETH_ALEN] = {0};
                 memcpy(&dstMac, &buf[WLAN_HDD_80211_FRM_DA_OFFSET], ETH_ALEN);
-                hddLog(VOS_TRACE_LEVEL_INFO, 
+                hddLog(VOS_TRACE_LEVEL_INFO,
                         "%s: Deauth/Disassoc received for STA:"
-                        "%02x:%02x:%02x:%02x:%02x:%02x", 
-                        __func__, 
-                        dstMac[0], dstMac[1], dstMac[2], 
+                        "%02x:%02x:%02x:%02x:%02x:%02x",
+                        __func__,
+                        dstMac[0], dstMac[1], dstMac[2],
                         dstMac[3], dstMac[4], dstMac[5]);
-                hdd_softap_sta_disassoc(pAdapter, (v_U8_t *)&dstMac);
                 goto err_rem_channel;
             }
         }
@@ -933,6 +1045,16 @@ int wlan_hdd_add_virtual_intf( struct wiphy *wiphy, char *name,
 	  return NULL;
     }
 
+    if (pHddCtx->isLogpInProgress)
+    {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s:LOGP in Progress. Ignore!!!", __func__);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+       return NULL;
+#else
+       return -EAGAIN;
+#endif
+    }
     if ( pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated )
     {
         if( (NL80211_IFTYPE_P2P_GO == type) || 
@@ -980,6 +1102,12 @@ int wlan_hdd_del_virtual_intf( struct wiphy *wiphy, struct net_device *dev )
 
      hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d",
             __func__,pVirtAdapter->device_mode);
+     if (pHddCtx->isLogpInProgress)
+     {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s:LOGP in Progress. Ignore!!!", __func__);
+         return -EAGAIN;
+     }
 
      wlan_hdd_release_intf_addr( pHddCtx,
                                  pVirtAdapter->macAddressCurrent.bytes );
@@ -1000,7 +1128,9 @@ void hdd_sendMgmtFrameOverMonitorIface( hdd_adapter_t *pMonAdapter,
     int needed_headroom = 0;
     int flag = HDD_RX_FLAG_IV_STRIPPED | HDD_RX_FLAG_DECRYPTED |
                HDD_RX_FLAG_MMIC_STRIPPED;
-
+#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+    hdd_context_t* pHddCtx = (hdd_context_t*)(pMonAdapter->pHddCtx);
+#endif
     hddLog( LOG1, FL("Indicate Frame over Monitor Intf"));
 
     VOS_ASSERT( (pbFrames != NULL) );
@@ -1042,7 +1172,10 @@ void hdd_sendMgmtFrameOverMonitorIface( hdd_adapter_t *pMonAdapter,
      skb_reset_mac_header( skb );
      skb->dev = pMonAdapter->dev;
      skb->protocol = eth_type_trans( skb, skb->dev );
-     skb->ip_summed = CHECKSUM_UNNECESSARY;
+     skb->ip_summed = CHECKSUM_NONE;
+#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+     wake_lock_timeout(&pHddCtx->rx_wake_lock, HDD_WAKE_LOCK_DURATION);
+#endif
      rxstat = netif_rx_ni(skb);
      if( NET_RX_SUCCESS == rxstat )
      {
@@ -1093,6 +1226,12 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
         return;
     }
 
+    if (NULL == pbFrames) {
+        hddLog( LOGE, FL("pbFrames is NULL"));
+        return;
+    }
+
+
     if( ( WLAN_HDD_SOFTAP == pAdapter->device_mode ) 
             || ( WLAN_HDD_P2P_GO == pAdapter->device_mode )
       )
@@ -1132,6 +1271,40 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
     {
         actionFrmType = pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET];
         hddLog(LOG1, "Rx Action Frame %u \n", actionFrmType);
+#ifdef WLAN_FEATURE_P2P_DEBUG
+        if(actionFrmType > MAX_P2P_ACTION_FRAME_TYPE)
+        {
+            hddLog(VOS_TRACE_LEVEL_ERROR,"[P2P] unknown[%d] <--- OTA",
+                                                        actionFrmType);
+        }
+        else
+        {
+            hddLog(VOS_TRACE_LEVEL_ERROR,"[P2P] %s <--- OTA",
+            p2p_action_frame_type[actionFrmType]);
+            if( (actionFrmType == WLAN_HDD_PROV_DIS_REQ) &&
+                (globalP2PConnectionStatus == P2P_NOT_ACTIVE) )
+            {
+                 globalP2PConnectionStatus = P2P_GO_NEG_PROCESS;
+                 hddLog(LOGE,"[P2P State]Inactive state to "
+                           "GO negotation progress state");
+            }
+            else if( (actionFrmType == WLAN_HDD_GO_NEG_CNF) &&
+                (globalP2PConnectionStatus == P2P_GO_NEG_PROCESS) )
+            {
+                 globalP2PConnectionStatus = P2P_GO_NEG_COMPLETED;
+                 hddLog(LOGE,"[P2P State]GO nego progress to GO nego"
+                             " completed state");
+            }
+            else if( (actionFrmType == WLAN_HDD_INVITATION_REQ) &&
+                (globalP2PConnectionStatus == P2P_NOT_ACTIVE) )
+            {
+                 globalP2PConnectionStatus = P2P_GO_NEG_COMPLETED;
+                 hddLog(LOGE,"[P2P State]Inactive state to GO nego"
+                             " completed state Autonomus GO fromation");
+            }
+        }
+#endif
+
         if (((actionFrmType == WLAN_HDD_PROV_DIS_RESP) &&
                     (cfgState->actionFrmState == HDD_PD_REQ_ACK_PENDING)) ||
                 ((actionFrmType == WLAN_HDD_GO_NEG_RESP) &&
@@ -1203,6 +1376,9 @@ static void hdd_wlan_tx_complete( hdd_adapter_t* pAdapter,
     struct ieee80211_radiotap_header *rthdr;
     unsigned char *pos;
     struct sk_buff *skb = cfgState->skb;
+#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+    hdd_context_t *pHddCtx = (hdd_context_t*)(pAdapter->pHddCtx);
+#endif
 
     /* 2 Byte for TX flags and 1 Byte for Retry count */
     u32 rtHdrLen = sizeof(*rthdr) + 3;
@@ -1258,10 +1434,13 @@ static void hdd_wlan_tx_complete( hdd_adapter_t* pAdapter,
     pos++;
 
     skb_set_mac_header( skb, 0 );
-    skb->ip_summed = CHECKSUM_UNNECESSARY;
+    skb->ip_summed = CHECKSUM_NONE;
     skb->pkt_type  = PACKET_OTHERHOST;
     skb->protocol  = htons(ETH_P_802_2);
     memset( skb->cb, 0, sizeof( skb->cb ) );
+#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+    wake_lock_timeout(&pHddCtx->rx_wake_lock, HDD_WAKE_LOCK_DURATION);
+#endif
     if (in_interrupt())
         netif_rx( skb );
     else
