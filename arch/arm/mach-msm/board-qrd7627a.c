@@ -887,7 +887,7 @@ static void __init msm7627a_reserve(void)
 			&ion_cma_device.dev,
 			msm_ion_camera_size,
 			CAMERA_HEAP_BASE,
-			0x30000000);
+			0x26000000);
 #endif
 }
 
