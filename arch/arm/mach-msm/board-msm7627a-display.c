@@ -794,6 +794,8 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = 97,
 	.mdp_rev = MDP_REV_303,
 	.cont_splash_enabled = 0x1,
+	.splash_screen_addr = 0x00,
+	.splash_screen_size = 0x00,
 };
 
 static char lcdc_splash_is_enabled()

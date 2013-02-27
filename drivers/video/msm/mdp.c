@@ -3697,6 +3697,10 @@ static int mdp_probe(struct platform_device *pdev)
 	struct mipi_panel_info *mipi;
 #endif
 	static int contSplash_update_done;
+	void *splash_virt_addr;
+	int cur_page;
+	unsigned long cur_addr;
+	struct splash_pages page_data;
 
 	if ((pdev->id == 0) && (pdev->num_resources > 0)) {
 		mdp_init_pdev = pdev;
@@ -3771,6 +3775,70 @@ static int mdp_probe(struct platform_device *pdev)
 
 	if (mdp_pdata) {
 		if (mdp_pdata->cont_splash_enabled) {
+			uint32 bpp = 3;
+			mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+			/*read panel wxh and calculate splash screen
+			size*/
+			mdp_pdata->splash_screen_size =
+			inpdw(MDP_BASE + 0x90004);
+			mdp_pdata->splash_screen_size =
+				(((mdp_pdata->splash_screen_size >> 16) &
+				0x00000FFF) * (
+				mdp_pdata->splash_screen_size &
+				0x00000FFF)) * bpp;
+
+			mdp_pdata->splash_screen_addr =
+				inpdw(MDP_BASE + 0x90008);
+
+			mfd->copy_splash_buf = dma_alloc_coherent(NULL,
+				mdp_pdata->splash_screen_size,
+				(dma_addr_t *) &(mfd->copy_splash_phys),
+				GFP_KERNEL);
+
+			if (!mfd->copy_splash_buf) {
+				pr_err("DMA ALLOC FAILED for SPLASH\n");
+				return -ENOMEM;
+			}
+
+			page_data.size = PFN_ALIGN(mdp_pdata->splash_screen_size);
+			page_data.nrpages = (page_data.size) >> PAGE_SHIFT;
+			page_data.pages = kzalloc(sizeof(struct page *)*page_data.nrpages,
+						GFP_KERNEL);
+			if (!page_data.pages) {
+				pr_err("KZALLOC FAILED for PAGES\n");
+				return -ENOMEM;
+			}
+
+			/* Following code for obtaining the virtual address for splash
+			screen address relies on the fact that, splash screen buffer is
+			part of the kernel's memory map and this code need to be changed
+			if the memory comes from outside the kernel. */
+			cur_addr = mdp_pdata->splash_screen_addr;
+			for(cur_page = 0; cur_page < page_data.nrpages; cur_page++) {
+				page_data.pages[cur_page] = phys_to_page(cur_addr);
+				if (!page_data.pages[cur_page]) {
+					pr_err("PHYS_TO_PAGE FAILED for SPLASH\n");
+					kfree(page_data.pages);
+					return -ENOMEM;
+	                        }
+				cur_addr += (1 << PAGE_SHIFT);
+			}
+			splash_virt_addr = vmap(page_data.pages, page_data.nrpages,
+					VM_IOREMAP, pgprot_kernel);
+			if (!splash_virt_addr) {
+				pr_err("VMAP FAILED for SPLASH\n");
+				kfree(page_data.pages);
+				return -ENOMEM;
+                        }
+			memcpy(mfd->copy_splash_buf, splash_virt_addr,
+				mdp_pdata->splash_screen_size);
+			vunmap(splash_virt_addr);
+			kfree(page_data.pages);
+
+			MDP_OUTP(MDP_BASE + 0x90008,
+				mfd->copy_splash_phys);
+			mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+
 			mfd->cont_splash_done = 0;
 			if (!contSplash_update_done) {
 				if (mfd->panel.type == MIPI_VIDEO_PANEL)
@@ -4218,6 +4286,17 @@ void mdp_footswitch_ctrl(boolean on)
 	}
 
 	mutex_unlock(&mdp_suspend_mutex);
+}
+
+void mdp_free_splash_buffer(struct msm_fb_data_type *mfd)
+{
+	if (mfd->copy_splash_buf) {
+		dma_free_coherent(NULL, mdp_pdata->splash_screen_size,
+				mfd->copy_splash_buf,
+				(dma_addr_t) mfd->copy_splash_phys);
+
+		mfd->copy_splash_buf = NULL;
+	}
 }
 
 #ifdef CONFIG_PM

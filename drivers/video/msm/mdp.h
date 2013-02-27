@@ -75,6 +75,12 @@ extern uint32 mdp_intr_mask;
 #define MDPOP_LAYER_IS_FG       BIT(14)
 #define MDP_ALLOC(x)  kmalloc(x, GFP_KERNEL)
 
+struct splash_pages {
+	struct page **pages;
+	int nrpages;
+	unsigned long size;
+};
+
 struct mdp_buf_type {
 	struct ion_handle *ihdl;
 	u32 write_addr;
@@ -786,6 +792,8 @@ void mdp_dma3_update(struct msm_fb_data_type *mfd);
 int mdp_lcdc_on(struct platform_device *pdev);
 int mdp_lcdc_off(struct platform_device *pdev);
 void mdp_lcdc_update(struct msm_fb_data_type *mfd);
+
+void mdp_free_splash_buffer(struct msm_fb_data_type *mfd);
 
 #ifdef CONFIG_FB_MSM_MDP303
 int mdp_dsi_video_on(struct platform_device *pdev);
