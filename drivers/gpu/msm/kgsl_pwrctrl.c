@@ -11,21 +11,21 @@
  *
  */
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_bus.h>
-#include <mach/socinfo.h>
 
 #include "kgsl.h"
 #include "kgsl_pwrscale.h"
 #include "kgsl_device.h"
 #include "kgsl_trace.h"
-#include "adreno.h"					// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 
 #define KGSL_PWRFLAGS_POWER_ON 0
 #define KGSL_PWRFLAGS_CLK_ON   1
 #define KGSL_PWRFLAGS_AXI_ON   2
 #define KGSL_PWRFLAGS_IRQ_ON   3
 
+#define GPU_SWFI_LATENCY	3
 #define UPDATE_BUSY_VAL		1000000
 #define UPDATE_BUSY		50
 
@@ -65,10 +65,29 @@ void kgsl_pwrctrl_pwrlevel_change(struct kgsl_device *device,
 		new_level >= pwr->thermal_pwrlevel &&
 		new_level != pwr->active_pwrlevel) {
 		struct kgsl_pwrlevel *pwrlevel = &pwr->pwrlevels[new_level];
+		int diff = new_level - pwr->active_pwrlevel;
+		int d = (diff > 0) ? 1 : -1;
+		int level = pwr->active_pwrlevel;
 		pwr->active_pwrlevel = new_level;
 		if ((test_bit(KGSL_PWRFLAGS_CLK_ON, &pwr->power_flags)) ||
-			(device->state == KGSL_STATE_NAP))
-			clk_set_rate(pwr->grp_clks[0], pwrlevel->gpu_freq);
+			(device->state == KGSL_STATE_NAP)) {
+			/*
+			 * On some platforms, instability is caused on
+			 * changing clock freq when the core is busy.
+			 * Idle the gpu core before changing the clock freq.
+			 */
+			if (pwr->idle_needed == true)
+				device->ftbl->idle(device,
+						KGSL_TIMEOUT_DEFAULT);
+			/* Don't shift by more than one level at a time to
+			 * avoid glitches.
+			 */
+			while (level != new_level) {
+				level += d;
+				clk_set_rate(pwr->grp_clks[0],
+						pwr->pwrlevels[level].gpu_freq);
+			}
+		}
 		if (test_bit(KGSL_PWRFLAGS_AXI_ON, &pwr->power_flags)) {
 			if (pwr->pcl)
 				msm_bus_scale_client_update_request(pwr->pcl,
@@ -326,7 +345,8 @@ static void kgsl_pwrctrl_busy_time(struct kgsl_device *device, bool on_time)
 	do_gettimeofday(&(b->start));
 }
 
-void kgsl_pwrctrl_clk(struct kgsl_device *device, int state)
+void kgsl_pwrctrl_clk(struct kgsl_device *device, int state,
+					  int requested_state)
 {
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 	int i = 0;
@@ -337,23 +357,32 @@ void kgsl_pwrctrl_clk(struct kgsl_device *device, int state)
 			for (i = KGSL_MAX_CLKS - 1; i > 0; i--)
 				if (pwr->grp_clks[i])
 					clk_disable(pwr->grp_clks[i]);
+			/* High latency clock maintenance. */
 			if ((pwr->pwrlevels[0].gpu_freq > 0) &&
-				(device->requested_state != KGSL_STATE_NAP))
+				(requested_state != KGSL_STATE_NAP)) {
 				clk_set_rate(pwr->grp_clks[0],
 					pwr->pwrlevels[pwr->num_pwrlevels - 1].
 					gpu_freq);
+				for (i = KGSL_MAX_CLKS - 1; i > 0; i--)
+					if (pwr->grp_clks[i])
+						clk_unprepare(pwr->grp_clks[i]);
+			}
 			kgsl_pwrctrl_busy_time(device, true);
-			KGSL_PWR_INFO(device, "GRP CLK off\n");		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 		}
 	} else if (state == KGSL_PWRFLAGS_ON) {
 		if (!test_and_set_bit(KGSL_PWRFLAGS_CLK_ON,
 			&pwr->power_flags)) {
 			trace_kgsl_clk(device, state);
+			/* High latency clock maintenance. */
 			if ((pwr->pwrlevels[0].gpu_freq > 0) &&
-				(device->state != KGSL_STATE_NAP))
+				(device->state != KGSL_STATE_NAP)) {
+				for (i = KGSL_MAX_CLKS - 1; i > 0; i--)
+					if (pwr->grp_clks[i])
+						clk_prepare(pwr->grp_clks[i]);
 				clk_set_rate(pwr->grp_clks[0],
 					pwr->pwrlevels[pwr->active_pwrlevel].
 						gpu_freq);
+			}
 
 			/* as last step, enable grp_clk
 			   this is to let GPU interrupt to come */
@@ -361,11 +390,9 @@ void kgsl_pwrctrl_clk(struct kgsl_device *device, int state)
 				if (pwr->grp_clks[i])
 					clk_enable(pwr->grp_clks[i]);
 			kgsl_pwrctrl_busy_time(device, false);
-			KGSL_PWR_INFO(device, "GRP CLK on\n");		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 		}
 	}
 }
-EXPORT_SYMBOL(kgsl_pwrctrl_clk);
 
 void kgsl_pwrctrl_axi(struct kgsl_device *device, int state)
 {
@@ -377,29 +404,26 @@ void kgsl_pwrctrl_axi(struct kgsl_device *device, int state)
 			trace_kgsl_bus(device, state);
 			if (pwr->ebi1_clk) {
 				clk_set_rate(pwr->ebi1_clk, 0);
-				clk_disable(pwr->ebi1_clk);
+				clk_disable_unprepare(pwr->ebi1_clk);
 			}
 			if (pwr->pcl)
 				msm_bus_scale_client_update_request(pwr->pcl,
 								    0);
-			KGSL_PWR_INFO(device, "AXI off\n");			// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 		}
 	} else if (state == KGSL_PWRFLAGS_ON) {
 		if (!test_and_set_bit(KGSL_PWRFLAGS_AXI_ON,
 			&pwr->power_flags)) {
 			trace_kgsl_bus(device, state);
 			if (pwr->ebi1_clk) {
-				//clk_enable(pwr->ebi1_clk);			// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
+				clk_prepare_enable(pwr->ebi1_clk);
 				clk_set_rate(pwr->ebi1_clk,
 					pwr->pwrlevels[pwr->active_pwrlevel].
 					bus_freq);
-				clk_enable(pwr->ebi1_clk);				// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 			}
 			if (pwr->pcl)
 				msm_bus_scale_client_update_request(pwr->pcl,
 					pwr->pwrlevels[pwr->active_pwrlevel].
 						bus_freq);
-			KGSL_PWR_INFO(device, "AXI on\n");			// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 		}
 	}
 }
@@ -414,15 +438,17 @@ void kgsl_pwrctrl_pwrrail(struct kgsl_device *device, int state)
 			trace_kgsl_rail(device, state);
 			if (pwr->gpu_reg)
 				regulator_disable(pwr->gpu_reg);
-			KGSL_PWR_INFO(device, "PWRRAIL off\n");		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.	
 		}
 	} else if (state == KGSL_PWRFLAGS_ON) {
 		if (!test_and_set_bit(KGSL_PWRFLAGS_POWER_ON,
 			&pwr->power_flags)) {
 			trace_kgsl_rail(device, state);
-			if (pwr->gpu_reg)
-				regulator_enable(pwr->gpu_reg);
-			KGSL_PWR_INFO(device, "PWRRAIL on\n");		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
+			if (pwr->gpu_reg) {
+				int status = regulator_enable(pwr->gpu_reg);
+				if (status)
+					KGSL_DRV_ERR(device, "regulator_enable "
+							"failed: %d\n", status);
+			}
 		}
 	}
 }
@@ -484,6 +510,7 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	}
 	pwr->num_pwrlevels = pdata->num_levels;
 	pwr->active_pwrlevel = pdata->init_level;
+	pwr->default_pwrlevel = pdata->init_level;
 	for (i = 0; i < pdata->num_levels; i++) {
 		pwr->pwrlevels[i].gpu_freq =
 		(pdata->pwrlevel[i].gpu_freq > 0) ?
@@ -507,7 +534,9 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	pwr->power_flags = 0;
 
 	pwr->nap_allowed = pdata->nap_allowed;
+	pwr->idle_needed = pdata->idle_needed;
 	pwr->interval_timeout = pdata->idle_timeout;
+	pwr->strtstp_sleepwake = pdata->strtstp_sleepwake;
 	pwr->ebi1_clk = clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(pwr->ebi1_clk))
 		pwr->ebi1_clk = NULL;
@@ -528,17 +557,8 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 		}
 	}
 
-	/*acquire interrupt */
-	pwr->interrupt_num =
-		platform_get_irq_byname(pdev, pwr->irq_name);
 
-	if (pwr->interrupt_num <= 0) {
-		KGSL_PWR_ERR(device, "platform_get_irq_byname failed: %d\n",
-					 pwr->interrupt_num);
-		result = -EINVAL;
-		goto done;
-	}
-
+	pm_runtime_enable(device->parentdev);
 	register_early_suspend(&device->display_off);
 	return result;
 
@@ -558,15 +578,8 @@ void kgsl_pwrctrl_close(struct kgsl_device *device)
 
 	KGSL_PWR_INFO(device, "close device %d\n", device->id);
 
+	pm_runtime_disable(device->parentdev);
 	unregister_early_suspend(&device->display_off);
-
-	if (pwr->interrupt_num > 0) {
-		if (pwr->have_irq) {
-			free_irq(pwr->interrupt_num, NULL);
-			pwr->have_irq = 0;
-		}
-		pwr->interrupt_num = 0;
-	}
 
 	clk_put(pwr->ebi1_clk);
 
@@ -600,9 +613,7 @@ void kgsl_idle_check(struct work_struct *work)
 
 	mutex_lock(&device->mutex);
 	if (device->state & (KGSL_STATE_ACTIVE | KGSL_STATE_NAP)) {
-		if ((device->requested_state != KGSL_STATE_SLEEP) &&
-			(device->requested_state != KGSL_STATE_SLUMBER))
-			kgsl_pwrscale_idle(device);
+		kgsl_pwrscale_idle(device);
 
 		if (kgsl_pwrctrl_sleep(device) != 0) {
 			mod_timer(&device->idle_timer,
@@ -630,10 +641,11 @@ void kgsl_timer(unsigned long data)
 
 	KGSL_PWR_INFO(device, "idle timer expired device %d\n", device->id);
 	if (device->requested_state != KGSL_STATE_SUSPEND) {
-		if (device->pwrctrl.restore_slumber)
+		if (device->pwrctrl.restore_slumber ||
+					device->pwrctrl.strtstp_sleepwake)
 			kgsl_pwrctrl_request_state(device, KGSL_STATE_SLUMBER);
 		else
-		kgsl_pwrctrl_request_state(device, KGSL_STATE_SLEEP);
+			kgsl_pwrctrl_request_state(device, KGSL_STATE_SLEEP);
 		/* Have work run in a non-interrupt context. */
 		queue_work(device->work_queue, &device->idle_check_ws);
 	}
@@ -683,8 +695,7 @@ void kgsl_check_suspended(struct kgsl_device *device)
 		mutex_unlock(&device->mutex);
 		wait_for_completion(&device->recovery_gate);
 		mutex_lock(&device->mutex);
-	//} else if (device->state == KGSL_STATE_SLUMBER)
-	} else if (device->state & (KGSL_STATE_SLUMBER | KGSL_STATE_SLEEP))		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
+	} else if (device->state == KGSL_STATE_SLUMBER)
 		kgsl_pwrctrl_wake(device);
 }
 
@@ -698,7 +709,7 @@ _nap(struct kgsl_device *device)
 			return -EBUSY;
 		}
 		kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_OFF);
-		kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_OFF);
+		kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_OFF, KGSL_STATE_NAP);
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_NAP);
 		if (device->idle_wakelock.name)
 			wake_unlock(&device->idle_wakelock);
@@ -720,7 +731,7 @@ _sleep_accounting(struct kgsl_device *device)
 	device->pwrctrl.busy.start.tv_sec = 0;
 	device->pwrctrl.time = 0;
 	kgsl_pwrscale_sleep(device);
-	}
+}
 
 static int
 _sleep(struct kgsl_device *device)
@@ -734,8 +745,6 @@ _sleep(struct kgsl_device *device)
 		}
 		/* fall through */
 	case KGSL_STATE_NAP:
-	device->ftbl->suspend_context(device);			// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
-	device->ftbl->stop(device);						// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 		kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_OFF);
 		kgsl_pwrctrl_axi(device, KGSL_PWRFLAGS_OFF);
 		if (pwr->pwrlevels[0].gpu_freq > 0)
@@ -743,10 +752,11 @@ _sleep(struct kgsl_device *device)
 				pwr->pwrlevels[pwr->num_pwrlevels - 1].
 				gpu_freq);
 		_sleep_accounting(device);
-		kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_OFF);
+		kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_OFF, KGSL_STATE_SLEEP);
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_SLEEP);
-		if (device->idle_wakelock.name)
-			wake_unlock(&device->idle_wakelock);
+		wake_unlock(&device->idle_wakelock);
+		pm_qos_update_request(&device->pm_qos_req_dma,
+					PM_QOS_DEFAULT_VALUE);
 		break;
 	case KGSL_STATE_SLEEP:
 	case KGSL_STATE_SLUMBER:
@@ -766,27 +776,20 @@ _slumber(struct kgsl_device *device)
 	case KGSL_STATE_ACTIVE:
 		if (!device->ftbl->isidle(device)) {
 			kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
-			device->pwrctrl.restore_slumber = true;
 			return -EBUSY;
 		}
 		/* fall through */
 	case KGSL_STATE_NAP:
 	case KGSL_STATE_SLEEP:
 		del_timer_sync(&device->idle_timer);
-		kgsl_pwrctrl_pwrlevel_change(device, KGSL_PWRLEVEL_NOMINAL);
-		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.	[START]
-//		device->ftbl->suspend_context(device);
-//		device->ftbl->stop(device);
-		if (device->state != KGSL_STATE_SLEEP) {
 		device->ftbl->suspend_context(device);
 		device->ftbl->stop(device);
-		}
-		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.	[END]
-		device->pwrctrl.restore_slumber = true;
 		_sleep_accounting(device);
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_SLUMBER);
 		if (device->idle_wakelock.name)
 			wake_unlock(&device->idle_wakelock);
+		pm_qos_update_request(&device->pm_qos_req_dma,
+						PM_QOS_DEFAULT_VALUE);
 		break;
 	case KGSL_STATE_SLUMBER:
 		break;
@@ -803,7 +806,6 @@ _slumber(struct kgsl_device *device)
 int kgsl_pwrctrl_sleep(struct kgsl_device *device)
 {
 	int status = 0;
-	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 	KGSL_PWR_INFO(device, "sleep device %d\n", device->id);
 
 	/* Work through the legal state transitions */
@@ -812,7 +814,7 @@ int kgsl_pwrctrl_sleep(struct kgsl_device *device)
 		status = _nap(device);
 		break;
 	case KGSL_STATE_SLEEP:
-			status = _sleep(device);
+		status = _sleep(device);
 		break;
 	case KGSL_STATE_SLUMBER:
 		status = _slumber(device);
@@ -824,7 +826,6 @@ int kgsl_pwrctrl_sleep(struct kgsl_device *device)
 		status = -EINVAL;
 		break;
 	}
-	KGSL_PWR_INFO(device, "sleep device %d done ts %x\n", device->id, adreno_dev->ringbuffer.timestamp);	// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 	return status;
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_sleep);
@@ -834,35 +835,33 @@ EXPORT_SYMBOL(kgsl_pwrctrl_sleep);
 void kgsl_pwrctrl_wake(struct kgsl_device *device)
 {
 	int status;
-	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 	kgsl_pwrctrl_request_state(device, KGSL_STATE_ACTIVE);
 	switch (device->state) {
 	case KGSL_STATE_SLUMBER:
-		/* fall through */
-	case KGSL_STATE_SLEEP:											// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 		status = device->ftbl->start(device, 0);
 		if (status) {
 			kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
 			KGSL_DRV_ERR(device, "start failed %d\n", status);
 			break;
 		}
-//		/* fall through */
-//	case KGSL_STATE_SLEEP:											// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
+		/* fall through */
+	case KGSL_STATE_SLEEP:
 		kgsl_pwrctrl_axi(device, KGSL_PWRFLAGS_ON);
 		kgsl_pwrscale_wake(device);
 		/* fall through */
 	case KGSL_STATE_NAP:
 		/* Turn on the core clocks */
-		kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_ON);
+		kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_ON, KGSL_STATE_ACTIVE);
 		/* Enable state before turning on irq */
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_ACTIVE);
 		kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_ON);
 		/* Re-enable HW access */
 		mod_timer(&device->idle_timer,
 				jiffies + device->pwrctrl.interval_timeout);
-
-		if (device->idle_wakelock.name)
-			wake_lock(&device->idle_wakelock);
+		wake_lock(&device->idle_wakelock);
+		if (device->pwrctrl.restore_slumber == false)
+			pm_qos_update_request(&device->pm_qos_req_dma,
+						GPU_SWFI_LATENCY);
 	case KGSL_STATE_ACTIVE:
 		break;
 	default:
@@ -871,7 +870,6 @@ void kgsl_pwrctrl_wake(struct kgsl_device *device)
 		kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
 		break;
 	}
-	KGSL_PWR_INFO(device, "wake done ts %x\n", adreno_dev->ringbuffer.timestamp);		// bohyun.jung@lge.com	- Adreno GPU Hang test patch.
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_wake);
 
@@ -879,7 +877,7 @@ void kgsl_pwrctrl_enable(struct kgsl_device *device)
 {
 	/* Order pwrrail/clk sequence based upon platform */
 	kgsl_pwrctrl_pwrrail(device, KGSL_PWRFLAGS_ON);
-	kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_ON);
+	kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_ON, KGSL_STATE_ACTIVE);
 	kgsl_pwrctrl_axi(device, KGSL_PWRFLAGS_ON);
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_enable);
@@ -888,7 +886,7 @@ void kgsl_pwrctrl_disable(struct kgsl_device *device)
 {
 	/* Order pwrrail/clk sequence based upon platform */
 	kgsl_pwrctrl_axi(device, KGSL_PWRFLAGS_OFF);
-	kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_OFF);
+	kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_OFF, KGSL_STATE_SLEEP);
 	kgsl_pwrctrl_pwrrail(device, KGSL_PWRFLAGS_OFF);
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_disable);
