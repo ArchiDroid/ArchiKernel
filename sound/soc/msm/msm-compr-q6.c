@@ -28,7 +28,7 @@
 #include <sound/q6asm.h>
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
-#include <linux/android_pmem.h>
+
 #include <sound/timer.h>
 
 #include "msm-compr-q6.h"
