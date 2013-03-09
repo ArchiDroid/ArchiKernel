@@ -15,10 +15,7 @@
  * this needs to be before <linux/kernel.h> is loaded,
  * and <linux/sched.h> loads <linux/kernel.h>
  */
-#define DEBUG  0
-
-
-#define USE_PULSE_CHARGING_IN_VIDEOS 0
+#define DEBUG  1
 
 #include <linux/slab.h>
 #include <linux/earlysuspend.h>
@@ -30,14 +27,14 @@
 #include <linux/signal.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
+#include <linux/workqueue.h>
+#include <linux/delay.h>
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
  * When user enter the streaming service, change the charging current
  */
-#include <linux/delay.h>
 #include <linux/timer.h>
-/* LGE_CHANGE_E : U0 Heating and DoU Issue*/
-#include <linux/workqueue.h>
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/
 
 #include <asm/atomic.h>
 
@@ -46,12 +43,12 @@
 //LGE_CHANGE_S, [hyo.park@lge.com] , 2011-07-28
 #include <mach/board_lge.h>
 //LGE_CHANGE_E, [hyo.park@lge.com] , 2011-07-28
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
  * When user enter the streaming service, change the charging current
  */
 #include <mach/pmic.h>
-/* LGE_CHANGE_E : U0 Heating and DoU Issue*/
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/
 #define BATTERY_RPC_PROG	0x30000089
 #define BATTERY_RPC_VER_1_1	0x00010001
 #define BATTERY_RPC_VER_2_1	0x00020001
@@ -269,22 +266,6 @@ struct msm_battery_info {
 	struct early_suspend early_suspend;
 };
 
-#if USE_PULSE_CHARGING_IN_VIDEOS
-
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
- * When user enter the streaming service, change the charging current
- */
-#define CHG_I_100_CHANGE_DELAY msecs_to_jiffies(30*1000) /*400mA Charging Timer */
-#define CHG_I_400_CHANGE_DELAY msecs_to_jiffies(30*1000) /*100mA Charging Timer*/
-
-static struct delayed_work wQ_100mA_chg_i;
-static struct delayed_work wQ_400mA_chg_i;
-/* LGE_CHANGE_E : U0 Heating and DoU Issue*/
-
-#endif
-
-
 static struct msm_battery_info msm_batt_info = {
 	.batt_handle = INVALID_BATT_HANDLE,
 	.charger_status = CHARGER_STATUS_BAD,
@@ -307,13 +288,13 @@ static enum power_supply_property msm_power_props[] = {
 static char *msm_power_supplied_to[] = {
 	"battery",
 };
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
  * When user enter the streaming service, change the charging current
  */
 static unsigned int i_chg_current_change;
 static unsigned int i_chg_current_change_back_up;
-/* LGE_CHANGE_E : U0 Heating and DoU Issue*/
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/
 static int msm_power_get_property(struct power_supply *psy,
 				  enum power_supply_property psp,
 				  union power_supply_propval *val)
@@ -620,11 +601,11 @@ static void msm_batt_update_psy_status(void)
 			msm_batt_info.current_chg_source = USB_CHG;
 			supp = &msm_psy_usb;
 		} else if (charger_type == CHARGER_TYPE_WALL) {
-			DBG_LIMIT("BATT: AC Wall changer plugged in\n");
+			DBG_LIMIT("BATT: AC Wall charger plugged in\n");
 			msm_batt_info.current_chg_source = AC_CHG;
 			supp = &msm_psy_ac;
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
  * When user enter the streaming service, change the charging current
  */			
 		if( (1 == i_chg_current_change_back_up) && ( 0 == i_chg_current_change ) )
@@ -633,37 +614,26 @@ static void msm_batt_update_psy_status(void)
 			i_chg_current_change = 1;
 			pmic_miniabb_charging_current_change(1);
 			i_chg_current_change_back_up = 0;
-#if USE_PULSE_CHARGING_IN_VIDEOS
-			schedule_delayed_work(&wQ_100mA_chg_i,CHG_I_100_CHANGE_DELAY);
-#endif
-			printk("Changing Chg I to 400mA. Youtube ON !! \n");
+			printk("Changing Chg I to 500mA. Youtube ON !! \n");
 		}
-/* LGE_CHANGE_E : U0 Heating and DoU Issue*/			
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/			
 		} else {
 			if (msm_batt_info.current_chg_source & AC_CHG)
 			{
 				DBG_LIMIT("BATT: AC Wall charger removed\n");
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
  * When user enter the streaming service, change the charging current
  */				
 				if( 1 == i_chg_current_change )
 				{
 					/*Entered Youtube with TA & removed TA*/
- /*Keep BackUp & Use it to change chg I to 400mA if TA connected again*/
+ /*Keep BackUp & Use it to change chg I to 500mA if TA connected again*/
 					printk("AC Chg removed in youtube \n");
 					i_chg_current_change = 0;
 					i_chg_current_change_back_up = 1;
-#if USE_PULSE_CHARGING_IN_VIDEOS					
-/*LGE_CHANGE_S : U0 Heating and DoU Issue
-*2012-02-18,kiran.kanneganti@lge.com 
-*Cancel work queues if TA remove in between youtube*/
-					cancel_delayed_work_sync(&wQ_100mA_chg_i);
-					cancel_delayed_work_sync(&wQ_400mA_chg_i);
-/* LGE_CHANGE_E : 2012-02-18, U0 Heating and DoU Issue*/
-#endif
 				}
-/* LGE_CHANGE_E : U0 Heating and DoU Issue*/				
+/* LGE_CHANGE_E : Heating and DoU Issue from U0*/				
 			}
 			else if (msm_batt_info.current_chg_source & USB_CHG)
 				DBG_LIMIT("BATT: USB charger removed\n");
@@ -895,19 +865,6 @@ static void msm_batt_update_psy_status(void)
 
 		if (!supp)
 			supp = msm_batt_info.current_ps;
-		/* LGE_CHANGE_S [yoonsoo.kim@lge.com] 20120406 : Heating DoU*/
-		if (msm_batt_info.current_chg_source)
-		{
-			if  ( (msm_batt_info.current_chg_source & AC_CHG) && (1 == i_chg_current_change))
-			{
-				if ( msm_batt_info.batt_capacity >= 50 )
-					pmic_miniabb_charging_current_change(1);
-				else
-					pmic_miniabb_charging_current_change(2);
-				
-			}
-		}
-		/* LGE_CHANGE_E [yoonsoo.kim@lge.com] 20120406 : Heating DoU*/
 	}
 #else
 	if (msm_batt_info.battery_voltage != battery_voltage) {
@@ -936,7 +893,6 @@ static void msm_batt_update_psy_status(void)
 #endif
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
 struct batt_modify_client_req {
 
 	u32 client_handle;
@@ -1036,7 +992,7 @@ static int msm_batt_modify_client(u32 client_handle, u32 desired_batt_voltage,
 
 	return 0;
 }
-#endif /*LGE_CHANGE : seven.kim@lge.com kernel3.0 porting CONFIG_HAS_EARLYSUSPEND */
+
 #ifdef CONFIG_MACH_LGE
 /* 2011-02-17 by baborobo@lge.com
  * it is notthing at early-suspend / msm_batt_late_resume
@@ -1667,36 +1623,10 @@ static int msm_batt_cb_func(struct msm_rpc_client *client,
 }
 #endif  /* CONFIG_BATTERY_MSM_FAKE */
 
-#if USE_PULSE_CHARGING_IN_VIDEOS
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
  * When user enter the streaming service, change the charging current
  */	
-static void wQ_handler_100mA_chg_I(struct work_struct *w)
-{
-	if (0 == i_chg_current_change)
-	{
-		printk("Not in VR or you tube\n");
-		return;
-	}
-	printk("Changing Chg I to 100mA \n");
-	pmic_miniabb_charging_current_change(2);
-	schedule_delayed_work(&wQ_400mA_chg_i,CHG_I_400_CHANGE_DELAY);
-}
-
-static void wQ_handler_400mA_chg_I(struct work_struct *w)
-{
-	if (0 == i_chg_current_change)
-	{
-		printk("Not in VR or you tube\n");
-		return;
-	}
-	printk("Changing Chg I to 400mA \n");
-	pmic_miniabb_charging_current_change(1);	
-	schedule_delayed_work(&wQ_100mA_chg_i,CHG_I_100_CHANGE_DELAY);
-}
-#endif
-
 ssize_t msm_chg_current_change_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf,"%s\n", (i_chg_current_change == 1) ? "1":"0");
@@ -1719,47 +1649,21 @@ ssize_t msm_chg_current_change_store(struct device *dev, struct device_attribute
 	sscanf(buf, "%d", &i_chg_current_change);
 	if( 1 == i_chg_current_change)
 	{ /* If CHG source is TA , Directly change CHH I to 500mA*/
-		printk("Changing Chg I to 400mA \n");
+		printk("Changing Chg I to 500mA \n");
 		pmic_miniabb_charging_current_change(1);
-#if USE_PULSE_CHARGING_IN_VIDEOS		
-		schedule_delayed_work(&wQ_100mA_chg_i,CHG_I_100_CHANGE_DELAY);
-#endif
 	}
 	else if ( 0 == i_chg_current_change )
 	{  /* While exiting intialize back up & change it back to 700mA */
 		printk("Changing Chg I to 700mA \n");
-#if USE_PULSE_CHARGING_IN_VIDEOS		
-		cancel_delayed_work_sync(&wQ_100mA_chg_i);
-		cancel_delayed_work_sync(&wQ_400mA_chg_i);
-#endif		
 		i_chg_current_change_back_up = 0;
 		pmic_miniabb_charging_current_change(0);
 
 	}
 	return count;
 }
-DEVICE_ATTR(chg_current_change,S_IRUGO | S_IWUSR, msm_chg_current_change_show,msm_chg_current_change_store);
-/*LGE_CHANGE_E : U0 Heating and DoU Issue*/	
+static DEVICE_ATTR(chg_current_change,S_IRUGO | S_IWUSR, msm_chg_current_change_show,msm_chg_current_change_store);
+/*LGE_CHANGE_E : Heating and DoU Issue from U0*/	
 
-/* LGE_CHANGE_S: [murali.ramaiah@lge.com] 2012-01-19
-   sysfs interface is added to check the type of usb cable is connected to Handset.
-   0 - Unknown or No cable
-   1 - Normal Charger cable(180k)
-   2 - Factory USB cable (56k)
-   3 - Factory UART cable(130k)
-*/
-#ifdef CONFIG_LGE_DETECT_USB_CABLE_TYPE
-static unsigned char cable_type;
-static ssize_t msm_batt_cable_type_show(struct device* dev, struct device_attribute* attr, char* buf)
-{
-	cable_type = lge_get_cable_info();
-	return sprintf(buf,"%d\n", cable_type);
-}
-
-static DEVICE_ATTR(usb_cable, S_IRUGO, msm_batt_cable_type_show, NULL);
-
-#endif /* CONFIG_LGE_DETECT_USB_CABLE_TYPE */
-/* LGE_CHANGE_E: [murali.ramaiah@lge.com] 2012-01-19 */
 
 //LGE_CHANGE_S, [hyo.park@lge.com] , 2011-07-28
 static unsigned pif_value;
@@ -1777,15 +1681,12 @@ static DEVICE_ATTR(pif, S_IRUGO, msm_batt_pif_show, NULL);
 
 static struct attribute* dev_attrs[] = {
 	&dev_attr_pif.attr,
-#ifdef CONFIG_LGE_DETECT_USB_CABLE_TYPE
-	&dev_attr_usb_cable.attr,
-#endif
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
+/* LGE_CHANGE_S : Heating and DoU Issue from U0
+ * 2012-03-14, hyo.park@lge.com, 
  * When user enter the streaming service, change the charging current
  */	
 	&dev_attr_chg_current_change.attr,
-/*LGE_CHANGE_E : U0 Heating and DoU Issue*/	
+/*LGE_CHANGE_E : Heating and DoU Issue from U0*/	
 	NULL,
 };
 
@@ -1873,12 +1774,6 @@ static ssize_t msm_batt_batt_id_show(struct device* dev, struct device_attribute
 static DEVICE_ATTR(batt_id, S_IRUGO, msm_batt_batt_id_show, NULL);
 //LGE_CHANGE_E, [hyo.park@lge.com] , 2011-10-10
 
-extern char* get_frst_mode(void);
-static ssize_t msm_batt_frst_show(struct device* dev, struct device_attribute* attr, char* buf)
-{
-	return sprintf(buf,"%s\n", get_frst_mode());
-}
-static DEVICE_ATTR(frst, S_IRUGO, msm_batt_frst_show, NULL);
 static struct attribute* dev_attrs_lge_batt_info[] = {
 	&dev_attr_batt_volt.attr,
 	&dev_attr_chg_therm.attr,
@@ -1891,7 +1786,6 @@ static struct attribute* dev_attrs_lge_batt_info[] = {
 	//LGE_CHANGE_S, [hyo.park@lge.com] , 2011-10-10
 	&dev_attr_batt_id.attr,
 	//LGE_CHANGE_E, [hyo.park@lge.com] , 2011-10-10
-	&dev_attr_frst.attr,
 	NULL,
 };
 
@@ -2033,15 +1927,6 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 #endif
 //LGE_CHANGE_E, [hyo.park@lge.com] , 2011-07-28
 
-#if USE_PULSE_CHARGING_IN_VIDEOS
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
- * When user enter the streaming service, change the charging current
- */	
-	INIT_DELAYED_WORK(&wQ_100mA_chg_i,wQ_handler_100mA_chg_I);
-	INIT_DELAYED_WORK(&wQ_400mA_chg_i,wQ_handler_400mA_chg_I);
- /* LGE_CHANGE_E : U0 Heating and DoU Issue*/
-#endif	
 	return 0;
 }
 

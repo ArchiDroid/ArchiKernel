@@ -325,6 +325,7 @@ static irqreturn_t msm_io_csi_irq(int irq_num, void *data)
 	irq = msm_io_r(csibase + MIPI_INTERRUPT_STATUS);
 //	printk("%s MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq);
 
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	if (irq & MIPI_IMASK_ERROR_OCCUR) {
 			pr_info("%s MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq);
 			if (irq & MIPI_IMASK_ERR_SOT)
@@ -370,6 +371,7 @@ static irqreturn_t msm_io_csi_irq(int irq_num, void *data)
 			if (irq & MIPI_IMASK_DL3_FIFO_OVERFLOW)
 					pr_err("[CAM]msm_io_csi_irq: Data lane 3 FIFO overflow\n");
 	}
+#endif
 	msm_io_w(irq, csibase + MIPI_INTERRUPT_STATUS);
 
 	/* TODO: Needs to send this info to upper layers */
@@ -398,16 +400,12 @@ int msm_camio_enable(struct platform_device *pdev)
 	csibase = ioremap(camio_ext.csiphy, camio_ext.csisz);
 	if (!csibase) {
 		rc = -ENOMEM;
-		printk("###### csi busy ######\n");
 		goto csi_busy;
 	}
 	rc = request_irq(camio_ext.csiirq, msm_io_csi_irq,
 				IRQF_TRIGGER_HIGH, "csi", 0);
-
-	if (rc < 0) {
-		printk("###### request irq failed ######\n");
+	if (rc < 0)
 		goto csi_irq_fail;
-	}
 
 	appbase = ioremap(camio_ext.appphy,
 		camio_ext.appsz);
@@ -418,10 +416,10 @@ int msm_camio_enable(struct platform_device *pdev)
 	return 0;
 
 csi_irq_fail:
-	printk("######[camera] csi_irq_fail\n");
+	printk("###### [camera] csi_irq_fail\n");
 	iounmap(csibase);
 csi_busy:
-	printk("######[camera] csi_busy\n");
+	printk("###### [camera] csi_busy\n");
 	msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
 	msm_camio_clk_disable(CAMIO_VFE_CLK);
 	msm_camio_clk_disable(CAMIO_CSI0_VFE_CLK);
@@ -496,7 +494,7 @@ int msm_camio_sensor_clk_off(struct platform_device *pdev)
 
 #ifdef CONFIG_HI542
 	int rc=0;
-	printk("######[camera] msm_camio_sensor_clk_off\n");
+	printk("###### [camera] msm_camio_sensor_clk_off\n");
 	rc = msm_camio_clk_disable(CAMIO_CAM_MCLK_CLK);
 	msleep(20);
 	camdev->camera_gpio_off();
@@ -562,7 +560,7 @@ int msm_camio_probe_off(struct platform_device *pdev)
 {
 	const struct msm_camera_sensor_info *sinfo = pdev->dev.platform_data;
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
-	printk("######[camera] msm_camio_probe_off\n");
+	printk("###### [camera] msm_camio_probe_off\n");
 	camdev->camera_gpio_off();
 
 	csibase = ioremap(camdev->ioext.csiphy, camdev->ioext.csisz);
@@ -582,6 +580,7 @@ int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 {
 	int rc = 0;
 	uint32_t val = 0;
+//	int i;
 
 	CDBG("msm_camio_csi_config\n");
 
@@ -607,6 +606,10 @@ int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 		(0x1 << MIPI_PHY_D0_CONTROL2_LP_REC_EN_SHFT) |
 		(0x1 << MIPI_PHY_D0_CONTROL2_ERR_SOT_HS_EN_SHFT);
 	CDBG("%s MIPI_PHY_D0_CONTROL2 val=0x%x\n", __func__, val);
+
+//	for (i = 0; i < csi_params->lane_cnt; i++)
+//		msm_io_w(val, csibase + MIPI_PHY_D0_CONTROL2 + i * 4);
+
 	msm_io_w(val, csibase + MIPI_PHY_D0_CONTROL2);
 	msm_io_w(val, csibase + MIPI_PHY_D1_CONTROL2);
 	msm_io_w(0x0, csibase + MIPI_PHY_D2_CONTROL2);

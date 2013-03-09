@@ -41,8 +41,13 @@ int lge_bd_rev;
 
 static int __init board_revno_setup(char *rev_info)
 {
+/* LGE_CHANGE_S : PCB_Revision
+ * 2012-04-04, jikhwan.jeong@lge.com
+ * [M4][PCB_Revision][Common] Modify PCB Revision.
+ */
 	char *rev_str[] = { "evb", "rev_a", "rev_b", "rev_c", "rev_d", "rev_e",
-		"rev_f", "rev_g", "rev_10", "rev_11", "rev_12" };
+		"rev_f", "rev_g", "rev_10", "rev_11", "rev_12", "rev_13" };
+/* LGE_CHANGE_E : PCB_Revision */
 	int i;
 
 	lge_bd_rev = LGE_REV_TOT_NUM;
@@ -152,12 +157,16 @@ static int msm_fb_detect_panel(const char *name)
 {
 	int ret = -EPERM;
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-05
 	if (machine_is_msm7x27a_surf() || machine_is_msm7x27a_u0()) {	
 		if (!strncmp(name, "lcdc_toshiba_fwvga_pt", 21))
 			ret = 0;
-	} else {
+	} else if(machine_is_msm7x25a_m4()){
+			ret = 0;
+	} else{
 		ret = -ENODEV;
 	}
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-05
 
 	return ret;
 }
@@ -238,7 +247,15 @@ void __init msm_msm7x2x_allocate_memory_regions(void)
 	void *addr;
 	unsigned long size;
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-05
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+	fb_size = MSM_FB_SIZE;
+	size = fb_size;
+#else
 	size = fb_size ? : MSM_FB_SIZE;
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-05
+	
 	addr = alloc_bootmem_align(size, 0x1000);
 	msm_fb_resources[0].start = __pa(addr);
 	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
@@ -320,9 +337,8 @@ static struct memtype_reserve msm7x27a_reserve_table[] __initdata = {
 
 static void __init size_pmem_devices(void)
 {
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
- * newly added code in kernel3.0.8
- */
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-01-05
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
  	if (machine_is_msm7625a_surf() || machine_is_msm7625a_ffa()) {
 		pmem_mdp_size = MSM7x25A_MSM_PMEM_MDP_SIZE;
 		pmem_adsp_size = MSM7x25A_MSM_PMEM_ADSP_SIZE;
@@ -330,7 +346,11 @@ static void __init size_pmem_devices(void)
 		pmem_mdp_size = MSM_PMEM_MDP_SIZE;
 		pmem_adsp_size = MSM_PMEM_ADSP_SIZE;
 	}
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting*/
+#else
+		pmem_mdp_size = MSM_PMEM_MDP_SIZE;
+		pmem_adsp_size = MSM_PMEM_ADSP_SIZE;
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-01-05
 
 #ifdef CONFIG_ANDROID_PMEM
 #ifndef CONFIG_MSM_MULTIMEDIA_USE_ION

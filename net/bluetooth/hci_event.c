@@ -1965,6 +1965,11 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 		hci_send_cmd(hdev, HCI_OP_READ_REMOTE_EXT_FEATURES,
 							sizeof(cp), &cp);
 		goto unlock;
+// +s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+	} else  if (!(lmp_ssp_capable(conn)) && conn->auth_initiator &&
+		(conn->pending_sec_level == BT_SECURITY_HIGH)) {
+		conn->pending_sec_level = BT_SECURITY_MEDIUM;
+// +e LGBT_COMMON_PATCH_SR00818097
 	}
 
 	if (!ev->status) {
@@ -2739,9 +2744,22 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 		conn->ssp_mode = (ev->features[0] & 0x01);
 		/*In case if remote device ssp supported/2.0 device
 		reduce the security level to MEDIUM if it is HIGH*/
+// *s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+		/* QCT Original
 		if (!conn->ssp_mode &&
+		*/
+		if (!conn->ssp_mode && conn->auth_initiator &&
+// *e LGBT_COMMON_PATCH_SR00818097
 			(conn->pending_sec_level == BT_SECURITY_HIGH))
 			conn->pending_sec_level = BT_SECURITY_MEDIUM;
+
+// +s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+		if (conn->ssp_mode && conn->auth_initiator &&
+			conn->io_capability != 0x03) {
+			conn->pending_sec_level = BT_SECURITY_HIGH;
+			conn->auth_type = HCI_AT_DEDICATED_BONDING_MITM;
+		}
+// +e LGBT_COMMON_PATCH_SR00818097
 	}
 
 	if (conn->state != BT_CONFIG)

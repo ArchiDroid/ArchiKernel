@@ -35,7 +35,7 @@
 #define MELFAS_2CHIP_DOWNLOAD_ENABLE                0       // 0 : 1Chip Download, 1: 2Chip Download
 // ISC download mode
 //#define MELFAS_ISC_2CHIP_DOWNLOAD_ENABLE            0       // 0 : 1Chip Download, 1: 2Chip Download
-#define MELFAS_CORE_FIRWMARE_UPDATE_ENABLE          0       // 0 : disable, 1: enable
+#define MELFAS_CORE_FIRWMARE_UPDATE_ENABLE          1       // 0 : disable, 1: enable
 #define MELFAS_PRIVATE_CONFIGURATION_UPDATE_ENABLE   0       // 0 : disable, 1: enable
 #define MELFAS_PUBLIC_CONFIGURATION_UPDATE_ENABLE    1       // 0 : disable, 1: enable
 
@@ -63,8 +63,17 @@
 #define ISC_READ_DOWNLOAD_POSITION              1          //0 : USE ISC_PRIVATE_CONFIG_FLASH_START 1: READ FROM RMI MAP(0x61,0x62)
 #define ISC_PRIVATE_CONFIG_FLASH_START          25
 #define ISC_PUBLIC_CONFIG_FLASH_START           28
+#define ISC_DEFAULT_SLAVE_ADDR                  0x48
+// mode
+#define ISC_CORE_FIRMWARE_DL_MODE               0x01
+#define ISC_PRIVATE_CONFIGURATION_DL_MODE       0x02
+#define ISC_PUBLIC_CONFIGURATION_DL_MODE        0x03
+#define ISC_SLAVE_DOWNLOAD_START                0x04
 
 //address for ISC MODE
+#define MELFAS_FIRMWARE_VER_REG_CORE  			0xF3 //CORE F/W Version
+#define MELFAS_FIRMWARE_VER_REG_PRIVATE_CUSTOM  0xF4 //PRIVATE_CUSTOM F/W Version
+#define MELFAS_FIRMWARE_VER_REG_PUBLIC_CUSTOM	0xF5 //PUBLIC CUSTOM F/W version	
 #define ISC_DOWNLOAD_MODE_ENTER                 0x5F
 #define ISC_DOWNLOAD_MODE                       0x60
 #define ISC_PRIVATE_CONFIGURATION_START_ADDR     0x61
@@ -73,11 +82,6 @@
 #define ISC_READ_SLAVE_CRC_OK                   0x63        // return value from slave
 #define ISC_CORE_FIRMWARE_VERSION_ADDR          0x64
 
-// mode
-#define ISC_CORE_FIRMWARE_DL_MODE               0x01
-#define ISC_PRIVATE_CONFIGURATION_DL_MODE        0x02
-#define ISC_PUBLIC_CONFIGURATION_DL_MODE         0x03
-#define ISC_SLAVE_DOWNLOAD_START                0x04
 
 //----------------------------------------------------
 //   Return values of download function
@@ -118,6 +122,11 @@
 //============================================================
 
 // If want to set Enable : Set to 1
+enum
+{
+	MANUAL_DOWNLOAD_DISABLE = 0,
+	MANUAL_DOWNLOAD_ENABLE,
+};
 
 #define MCSDL_USE_CE_CONTROL						0
 #define MCSDL_USE_VDD_CONTROL						1
@@ -152,6 +161,18 @@ void mcsdl_vdd_off(void);
 //============================================================
 
 #include "mcs8000_download_porting.h"
+extern const UINT16 MELFAS_binary_nLength1;			
+extern const  UINT8 MELFAS_binary1[];
+extern const UINT16 MELFAS_binary_nLength2;			
+extern const  UINT8 MELFAS_binary2[];
+extern const UINT16 MELFAS_binary_nLength3;			
+extern const  UINT8 MELFAS_binary3[];
+extern const UINT16 MELFAS_binary_nLength4;			
+extern const  UINT8 MELFAS_binary4[];
+extern const UINT16 MELFAS_binary_nLength5;			
+extern const  UINT8 MELFAS_binary5[];
+extern const UINT16 MELFAS_binary_nLength6;			
+extern const  UINT8 MELFAS_binary6[];
 
 
 //----------------------------------------------------
@@ -161,7 +182,7 @@ void mcsdl_vdd_off(void);
 int mcsdl_download_binary_data(UINT8 master_dl_retry, int val,unsigned char fw_ver, unsigned char comp_ver);	// with binary type .c   file.
 int mcsdl_download_binary_file(void);			// with binary type .bin file.
 
-int mms100_ISC_download_binary_data(void);
+int mms100_ISC_download_binary_data(unsigned char hw_ver, unsigned char fw_ver,unsigned int country);
 int mms100_ISC_download_binary_file(void);
 
 //---------------------------------

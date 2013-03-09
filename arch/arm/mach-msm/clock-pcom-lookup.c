@@ -32,7 +32,9 @@ static struct pcom_clk dsi_byte_clk = {
 	.id = P_DSI_BYTE_CLK,
 	.c = {
 		.ops = &clk_ops_pcom_ext_config,
+#ifdef CONFIG_MACH_MSM7X27A_U0
 		.flags = CLKFLAG_SKIP_AUTO_OFF, /*LGE_CHANGE : boot logo 2011-11-28 johny.lee@lge.com*/
+#endif
 		.dbg_name = "dsi_byte_clk",
 		CLK_INIT(dsi_byte_clk.c),
 	},
@@ -42,7 +44,9 @@ static struct pcom_clk dsi_clk = {
 	.id = P_DSI_CLK,
 	.c = {
 		.ops = &clk_ops_pcom_ext_config,
+#ifdef CONFIG_MACH_MSM7X27A_U0
 		.flags = CLKFLAG_SKIP_AUTO_OFF, /*LGE_CHANGE : boot logo 2011-11-28 johny.lee@lge.com*/
+#endif
 		.dbg_name = "dsi_clk",
 		CLK_INIT(dsi_clk.c),
 	},
@@ -52,7 +56,9 @@ static struct pcom_clk dsi_esc_clk = {
 	.id = P_DSI_ESC_CLK,
 	.c = {
 		.ops = &clk_ops_pcom_ext_config,
+#ifdef CONFIG_MACH_MSM7X27A_U0
 		.flags = CLKFLAG_SKIP_AUTO_OFF, /*LGE_CHANGE : boot logo 2011-11-28 johny.lee@lge.com*/
+#endif
 		.dbg_name = "dsi_esc_clk",
 		CLK_INIT(dsi_esc_clk.c),
 	},
@@ -62,13 +68,19 @@ static struct pcom_clk dsi_pixel_clk = {
 	.id = P_DSI_PIXEL_CLK,
 	.c = {
 		.ops = &clk_ops_pcom_ext_config,
+#ifdef CONFIG_MACH_MSM7X27A_U0
 		.flags = CLKFLAG_SKIP_AUTO_OFF, /*LGE_CHANGE : boot logo 2011-11-28 johny.lee@lge.com*/
+#endif
 		.dbg_name = "dsi_pixel_clk",
 		CLK_INIT(dsi_pixel_clk.c),
 	},
 };
 
+#ifdef CONFIG_MACH_MSM7X27A_U0
 static DEFINE_CLK_PCOM(dsi_ref_clk,	DSI_REF_CLK,	CLKFLAG_SKIP_AUTO_OFF); /*LGE_CHANGE : boot logo 2011-11-28 johny.lee@lge.com*/
+#else
+static DEFINE_CLK_PCOM(dsi_ref_clk,	DSI_REF_CLK,	0);
+#endif
 static DEFINE_CLK_PCOM(ebi1_clk,	EBI1_CLK,
 		CLKFLAG_SKIP_AUTO_OFF | CLKFLAG_MIN);
 static DEFINE_CLK_PCOM(ebi2_clk,	EBI2_CLK,	CLKFLAG_SKIP_AUTO_OFF);
@@ -91,13 +103,22 @@ static DEFINE_CLK_PCOM(icodec_rx_clk,	ICODEC_RX_CLK,	CLKFLAG_SKIP_AUTO_OFF);
 static DEFINE_CLK_PCOM(icodec_tx_clk,	ICODEC_TX_CLK,	CLKFLAG_SKIP_AUTO_OFF);
 static DEFINE_CLK_PCOM(imem_clk,	IMEM_CLK,	0);
 static DEFINE_CLK_PCOM(mdc_clk,		MDC_CLK,	CLKFLAG_SKIP_AUTO_OFF);
+#ifdef CONFIG_MACH_MSM7X27A_U0
 static DEFINE_CLK_PCOM(mdp_clk,		MDP_CLK,	0/*CLKFLAG_SKIP_AUTO_OFF*/); /*LGE_CHANGE : boot logo 2011-11-28 johny.lee@lge.com*/
+
+#else
+static DEFINE_CLK_PCOM(mdp_clk,		MDP_CLK,	CLKFLAG_MIN);
+#endif
 static DEFINE_CLK_PCOM(mdp_lcdc_pad_pclk_clk, MDP_LCDC_PAD_PCLK_CLK,
 		CLKFLAG_SKIP_AUTO_OFF);
 static DEFINE_CLK_PCOM(mdp_lcdc_pclk_clk, MDP_LCDC_PCLK_CLK,
 		CLKFLAG_SKIP_AUTO_OFF);
-static DEFINE_CLK_PCOM(mdp_vsync_clk,	MDP_VSYNC_CLK,	0/*CLKFLAG_SKIP_AUTO_OFF*/); /*LGE_CHANGE : boot logo 2011-11-28 johny.lee@lge.com*/
+static DEFINE_CLK_PCOM(mdp_vsync_clk,	MDP_VSYNC_CLK,	0);
+#ifdef CONFIG_MACH_MSM7X27A_U0
 static DEFINE_CLK_PCOM(mdp_dsi_p_clk,	MDP_DSI_P_CLK,	CLKFLAG_SKIP_AUTO_OFF); /*LGE_CHANGE : boot logo 2011-11-28 johny.lee@lge.com*/
+#else
+static DEFINE_CLK_PCOM(mdp_dsi_p_clk,	MDP_DSI_P_CLK,	0);
+#endif
 static DEFINE_CLK_PCOM(pbus_clk,	PBUS_CLK,
 		CLKFLAG_SKIP_AUTO_OFF | CLKFLAG_MIN);
 static DEFINE_CLK_PCOM(pcm_clk,		PCM_CLK,	CLKFLAG_SKIP_AUTO_OFF);
@@ -268,14 +289,23 @@ static struct clk_lookup msm_clocks_7x27a[] = {
 	CLK_LOOKUP("master_iface_clk",		ahb_m_clk.c,	"mipi_dsi.1"),
 	CLK_LOOKUP("slave_iface_clk",		ahb_s_clk.c,	"mipi_dsi.1"),
 	CLK_LOOKUP("cam_m_clk",		cam_m_clk.c,	NULL),
+#ifdef CONFIG_MACH_MSM7X25A_M4
+	CLK_LOOKUP("csi_clk",		csi0_clk.c,	"msm_camera_ov9726.0"),
+	CLK_LOOKUP("csi_pclk",		csi0_p_clk.c,	"msm_camera_ov9726.0"),
+	CLK_LOOKUP("csi_vfe_clk",	csi0_vfe_clk.c,	"msm_camera_ov9726.0"),
+	CLK_LOOKUP("csi_clk",		csi0_clk.c,	"msm_camera_ov7692.0"),
+	CLK_LOOKUP("csi_pclk",		csi0_p_clk.c,	"msm_camera_ov7692.0"),
+	CLK_LOOKUP("csi_vfe_clk",	csi0_vfe_clk.c,	"msm_camera_ov7692.0"),
+#else
 /* LGE_CHANGE_S : VGA Camera config
  * 2011-10-27, donghyun.kwon@lge.com, 
  * Camera sensor configuration has been changed for VGA
  */
-	CLK_LOOKUP("csi_clk",		csi0_clk.c,	"msm_camera_mt9v113.0"),
-	CLK_LOOKUP("csi_pclk",		csi0_p_clk.c,	"msm_camera_mt9v113.0"),
-	CLK_LOOKUP("csi_vfe_clk",	csi0_vfe_clk.c,	"msm_camera_mt9v113.0"),
+       CLK_LOOKUP("csi_clk",           csi0_clk.c,     "msm_camera_mt9v113.0"),
+       CLK_LOOKUP("csi_pclk",          csi0_p_clk.c,   "msm_camera_mt9v113.0"),
+       CLK_LOOKUP("csi_vfe_clk",       csi0_vfe_clk.c, "msm_camera_mt9v113.0"),
 /* LGE_CHANGE_E : VGA Camera config */
+#endif
 	CLK_LOOKUP("csi_clk",		csi1_clk.c,	NULL),
 	CLK_LOOKUP("csi_pclk",		csi1_p_clk.c,	NULL),
 	CLK_LOOKUP("csi_vfe_clk",	csi1_vfe_clk.c,	NULL),

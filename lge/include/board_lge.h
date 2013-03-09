@@ -16,10 +16,13 @@ platform.team@lge.com	2011.01
 #ifndef __ASM_ARCH_MSM_BOARD_LGE_H
 #define __ASM_ARCH_MSM_BOARD_LGE_H
 
+/* LGE_CHANGE_S : PCB_Revision
+ * 2012-04-04, jikhwan.jeong@lge.com
+ * [M4][PCB_Revision][Common] Modify PCB Revision.
+ */
 /* neo.kang@lge.com 2011-03-15, to get board revision */
 enum {
-  EVB1         = 0,
-  EVB2,
+  EVB = 0,
   LGE_REV_A,
   LGE_REV_B,
   LGE_REV_C,
@@ -30,8 +33,10 @@ enum {
   LGE_REV_10,
   LGE_REV_11,
   LGE_REV_12,
+  LGE_REV_13,
   LGE_REV_TOT_NUM,
 };
+/* LGE_CHANGE_E : PCB_Revision */
 
 extern int lge_bd_rev;
 

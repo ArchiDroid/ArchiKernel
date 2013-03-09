@@ -4639,6 +4639,20 @@ msmsdcc_runtime_suspend(struct device *dev)
 		pm_runtime_put_noidle(dev);
 
 		if (!rc) {
+/* LGE_CHANGE_S : sdcard
+ * 2012-04-12, kh.tak@lge.com
+ * Support SD card always on
+*/
+			if (!strncmp(mmc_hostname(mmc),"mmc1",4) ){
+				/*
+				 * If MMC core level suspend is not supported,
+				 * turn off clocks to allow deep sleep (TCXO
+				 * shutdown).
+				 */
+				mmc->ios.clock = 0;
+				mmc->ops->set_ios(host->mmc, &host->mmc->ios);
+			}
+/* LGE_CHANGE_E : sdcard */
 			if (mmc->card && (mmc->card->type == MMC_TYPE_SDIO) &&
 				(mmc->pm_flags & MMC_PM_WAKE_SDIO_IRQ)) {
 				disable_irq(host->core_irqres->start);
@@ -4707,6 +4721,23 @@ msmsdcc_runtime_resume(struct device *dev)
 
 			spin_unlock_irqrestore(&host->lock, flags);
 		}
+
+/* LGE_CHANGE_S : sdcard
+ * 2012-04-12, kh.tak@lge.com
+ * Support SD card always on
+*/
+		else if (mmc->card && !strncmp(mmc_hostname(mmc),"mmc1",4)) {
+			mmc->ios.clock = host->clk_rate;
+			mmc->ops->set_ios(host->mmc, &host->mmc->ios);
+
+			spin_lock_irqsave(&host->lock, flags);
+			writel_relaxed(host->mci_irqenable,
+					host->base + MMCIMASK0);
+			mb();
+			
+			spin_unlock_irqrestore(&host->lock, flags);
+		}
+/* LGE_CHANGE_E : sdcard */
 
 		mmc_resume_host(mmc);
 

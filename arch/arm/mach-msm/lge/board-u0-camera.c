@@ -21,6 +21,8 @@
 /*  LGE_CHANGE_E :   U0 led flash driver */
 #include <mach/pmic.h>
 
+#define LEDS_CAMERA_FLASH_NAME "as3647"
+
 
 //====================================================================================
 //                             MAIN CAM GPIO SETTING

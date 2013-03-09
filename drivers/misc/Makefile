@@ -67,11 +67,17 @@ obj-$(CONFIG_TZCOM) += tzcom.o
 obj-$(CONFIG_QFP_FUSE) += qfp_fuse.o
 
 #LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
-obj-$(CONFIG_LGE_ATCMD_TTY) += lge_tty_atcmd.o
-obj-y += eve_at_class.o
-obj-y += eve_at.o
+obj-$(CONFIG_MACH_MSM7X27A_U0) += eve_at_class.o
+obj-$(CONFIG_MACH_MSM7X27A_U0) += eve_at.o
 #LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
 #LGE_CHANGE_S : jongyoung.koo@lge.com 20120116 at%kcal
-obj-y += lge_kcal.o
+obj-$(CONFIG_MACH_MSM7X27A_U0) += lge_kcal.o
 #LGE_CHANGE_E : jongyoung.koo@lge.com 20120116 at%kcal
 
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_ANDROID_VIBRATOR) += android_vibrator.o
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+
+# LGE AT-CMD Bypass interface porting, myunghwan.kim@lge.com [START]
+obj-$(CONFIG_LGE_ATCMD_TTY) += lge_tty_atcmd.o
+# LGE AT-CMD Bypass interface porting, myunghwan.kim@lge.com [END]

@@ -8,7 +8,7 @@
 #define HS_RELEASE_K 0xFFFF
 #define KEY_TRANS_MAP_SIZE 77
 
-//#define DEBUG_DIAG_KEYPRESS
+#define DEBUG_DIAG_KEYPRESS 1
 
 /* Virtual Key */
 #define V_KEY_DIAL					0x60
@@ -127,6 +127,7 @@ void LGF_SendKey(word keycode)
 	
 	input_report_key(idev,(unsigned int)keycode, 1);
 	input_report_key(idev,(unsigned int)keycode, 0);
+	input_sync(idev);
 
 }
 

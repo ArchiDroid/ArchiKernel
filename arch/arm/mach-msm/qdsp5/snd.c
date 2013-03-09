@@ -30,14 +30,17 @@
 #include <mach/msm_rpcrouter.h>
 #include <mach/debug_mm.h>
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
-#if defined (CONFIG_MACH_MSM7X27A_U0)
+/*LGE_CHANBE_S : hoseong.kang@lge.com 2012.01.19 */
+#if defined (CONFIG_MACH_MSM7X25A_M4)
+#include "../lge/board-m4eu.h"
+#elif defined (CONFIG_MACH_MSM7X27A_U0)
 #include "../lge/board-u0.h"
+#endif
 
+#if defined (CONFIG_MACH_LGE)
 static int fm_enable;
 #endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
-
+/*LGE_CHANBE_E : hoseong.kang@lge.com 2012.01.19 */
 struct snd_ctxt {
 	struct mutex lock;
 	int opened;
@@ -65,7 +68,7 @@ static struct snd_ctxt the_snd;
 #define SND_AVC_CTL_PROC 29
 #define SND_AGC_CTL_PROC 30
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
 #if defined (CONFIG_MACH_LGE)
 #define SND_SET_LOOPBACK_MODE_PROC 61
 #define SND_SET_VOCCAL_PARAM_PROC 62
@@ -78,8 +81,6 @@ static struct snd_ctxt the_snd;
 #define SND_SET_MICAMP_GAIN_PROC 69
 #define SND_SET_AMP_GAIN_PROC 70
 #define SND_WRITE_MEM_PROC 71
-#endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 /* LGE_CHANGE_S :  2011-12-30, gt.kim@lge.com, Description: Bluetooth NERC Cmd Support */
 #define SND_SET_NREC_PROC 77
 /* LGE_CHANGE_E :  Bluetooth NERC Cmd Support*/
@@ -87,6 +88,8 @@ static struct snd_ctxt the_snd;
 /* LGE_CHANGE_S :  2012-01-26, gt.kim@lge.com, Description:  Display Service Type */
 #define SND_GET_SERVICE_TYPE_PROC	78
 /* LGE_CHANGE_E :   Display Service Type*/
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 struct rpc_snd_set_device_args {
 	uint32_t device;
@@ -138,7 +141,7 @@ struct snd_agc_ctl_msg {
 	struct rpc_snd_agc_ctl_args args;
 };
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
 #if defined (CONFIG_MACH_LGE)
 struct snd_set_loopback_param_rep {
 	struct rpc_reply_hdr hdr;
@@ -395,7 +398,7 @@ union snd_set_union_param_msg{
 };
 
 #endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 struct snd_endpoint *get_snd_endpoints(int *size);
 
@@ -445,7 +448,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct msm_snd_volume_config vol;
 	struct snd_ctxt *snd = file->private_data;
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
 #if defined (CONFIG_MACH_LGE)
 	struct msm_snd_set_loopback_mode_param loopback;
 	struct msm_snd_set_voccal_param voccal;
@@ -461,7 +464,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 /* LGE_CHANGE_E :Bluetooth NERC Cmd Support*/	
 	union snd_set_union_param_msg umsg;
 #endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 	int rc = 0;
 
@@ -491,14 +494,14 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		MM_INFO("snd_set_device %d %d %d\n", dev.device,
 				dev.ear_mute, dev.mic_mute);
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
-#if defined (CONFIG_MACH_MSM7X27A_U0)
+/*LGE_CHANBE_S : hoseong.kang@lge.com 2012.01.19 */
+#if defined (CONFIG_MACH_MSM7X27A_U0) ||  defined (CONFIG_MACH_MSM7X25A_M4)
 		if (dev.device == 10 || dev.device == 11)
 			fm_enable = 1;
 		else
 			fm_enable = 0;
 #endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+/*LGE_CHANBE_E : hoseong.kang@lge.com 2012.01.19 */
 
 		rc = msm_rpc_call(snd->ept,
 			SND_SET_DEVICE_PROC,
@@ -583,7 +586,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = get_endpoint(snd, arg);
 		break;
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
 #if defined (CONFIG_MACH_LGE)
 	case SND_SET_LOOPBACK_MODE:
 		if (copy_from_user(&loopback, (void __user *) arg, sizeof(loopback))) {
@@ -960,7 +963,7 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 #endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 
 /* LGE_CHANGE_S :  2011-12-30, gt.kim@lge.com, Description: Bluetooth NERC Cmd Support */
 case SND_SET_NREC:
@@ -1276,14 +1279,14 @@ static long snd_dev_enable(const char *arg)
 	MM_INFO("snd_set_device %d %d %d\n", dev.device, dev.ear_mute,
 			dev.mic_mute);
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
-#if defined (CONFIG_MACH_MSM7X27A_U0)
+/*LGE_CHANBE_S : hoseong.kang@lge.com 2012.01.19 */
+#if defined (CONFIG_MACH_MSM7X27A_U0) || defined (CONFIG_MACH_MSM7X25A_M)
 	if (dev.device == 10 || dev.device == 11)
 		fm_enable = 1;
 	else
 		fm_enable = 0;
 #endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+/*LGE_CHANBE_E : hoseong.kang@lge.com 2012.01.19 */
 
 	rc = msm_rpc_call(snd_sys->ept,
 		SND_SET_DEVICE_PROC,
@@ -1291,8 +1294,8 @@ static long snd_dev_enable(const char *arg)
 	return rc;
 }
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
-#if defined (CONFIG_MACH_MSM7X27A_U0)
+/*LGE_CHANBE_S : hoseong.kang@lge.com 2012.01.19 */
+#if defined (CONFIG_MACH_MSM7X27A_U0) || defined (CONFIG_MACH_MSM7X25A_M4)
 void snd_fm_vol_mute()
 {
 	struct snd_sys_ctxt *snd_sys = &the_snd_sys;
@@ -1309,13 +1312,14 @@ void snd_fm_vol_mute()
 		return;
 	}
 
+	/* 32 means CURRENT device */
 	snd_vol_enable("32 0 0");
 	mutex_unlock(&snd_sys->lock);
 
 	snd_sys_release();
 }
 #endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+/*LGE_CHANBE_E : hoseong.kang@lge.com 2012.01.19 */
 
 static ssize_t snd_dev_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
@@ -1379,11 +1383,11 @@ static int snd_probe(struct platform_device *pdev)
 	struct snd_sys_ctxt *snd_sys = &the_snd_sys;
 	int rc = 0;
 
-/*LGE_CHANBE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
-#if defined (CONFIG_MACH_MSM7X27A_U0)
+/*LGE_CHANBE_S : hoseong.kang@lge.com 2012.01.19 */
+#if defined (CONFIG_MACH_MSM7X25A_M4)
 	fm_enable = 0;
 #endif
-/*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+/*LGE_CHANBE_E : hoseong.kang@lge.com 2012.01.19 */
 	mutex_init(&snd->lock);
 	mutex_init(&snd_sys->lock);
 	snd_sys->ept = NULL;

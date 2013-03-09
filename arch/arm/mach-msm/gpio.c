@@ -581,6 +581,9 @@ int msm_gpios_disable(const struct msm_gpio *table, int size)
 		g = table + i;
 		tmp = gpio_tlmm_config(g->gpio_cfg, GPIO_CFG_DISABLE);
 		if (tmp) {
+#if 1	// kh.tak do not print sdc3(EMMC) log when entering sleep mode, because the log is always printed due to emmc-sleep is last
+			if(strncmp(g->label,"sdc3",4)){
+#endif  // kh.tak do not print sdc3(EMMC) log when entering sleep mode, because the log is always printed due to emmc-sleep is last
 			pr_err("gpio_tlmm_config(0x%08x, GPIO_CFG_DISABLE)"
 			       " <%s> failed: %d\n",
 			       g->gpio_cfg, g->label ?: "?", rc);
@@ -588,6 +591,9 @@ int msm_gpios_disable(const struct msm_gpio *table, int size)
 			       GPIO_PIN(g->gpio_cfg), GPIO_FUNC(g->gpio_cfg),
 			       GPIO_DIR(g->gpio_cfg), GPIO_PULL(g->gpio_cfg),
 			       GPIO_DRVSTR(g->gpio_cfg));
+#if 1 // kh.tak do not print sdc3(EMMC) log when entering sleep mode, because the log is always printed due to emmc-sleep is last
+			}
+#endif  // kh.tak do not print sdc3(EMMC) log when entering sleep mode, because the log is always printed due to emmc-sleep is last			
 			if (!rc)
 				rc = tmp;
 		}

@@ -272,6 +272,7 @@ static unsigned int bma222_poll(struct file *file, poll_table *wait)
 #endif
     return mask;
 }
+extern int accel_power(unsigned char onoff);
 
 /* LGE_CHANGE,
  * enable state check and run suspend/resume.
@@ -283,8 +284,16 @@ static void run_suspend_resume(int mode)
 	if (mode) {
 		 /* if already mode normal, pass this routine.*/
 		if (atomic_read(&bma222_report_enabled) == 0) {
+			/* for debugging */
+			printk(KERN_INFO"%s: accel_pdata %p\n", __func__, accel_pdata);
+			printk(KERN_INFO"%s: accel_pdata->power %p\n", __func__, accel_pdata->power);
+				
 			/* turn on vreg power */
+#if 0
 			accel_pdata->power(1);
+#else
+			accel_power(1);
+#endif
 			mdelay(2);
 			bma222_set_mode(bma222_MODE_NORMAL);
 			bma222_set_bandwidth(bandwidth);/* bandwidth set */
@@ -301,8 +310,16 @@ static void run_suspend_resume(int mode)
 #ifdef LGE_DEBUG
 		printk(KERN_INFO "ACCEL_Power Off\n");
 #endif
+		/* for debugging */
+		printk(KERN_INFO"%s: accel_pdata %p\n", __func__, accel_pdata);
+		printk(KERN_INFO"%s: accel_pdata->power %p\n", __func__, accel_pdata);
+
 		/* turn off vreg power */
+#if 0
 		accel_pdata->power(0);
+#else
+		accel_power(0);
+#endif
     }
 	return;
 }

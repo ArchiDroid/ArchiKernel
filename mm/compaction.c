@@ -320,6 +320,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 		} else if (!locked)
 			spin_lock_irq(&zone->lru_lock);
 
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-05-10 :: memory compaction patch
+#if 0 /*original*/
 		/*
 		 * migrate_pfn does not necessarily start aligned to a
 		 * pageblock. Ensure that pfn_valid is called when moving
@@ -350,6 +352,17 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 		/* Skip if free */
 		if (PageBuddy(page))
 			continue;
+#else
+		if (!pfn_valid_within(low_pfn))
+			continue;
+		nr_scanned++;
+
+		/* Get the page and skip if free */
+		page = pfn_to_page(low_pfn);
+		if (PageBuddy(page))
+			continue;
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-05-10 :: memory compaction patch
 
 		/*
 		 * For async migration, also only scan in MOVABLE blocks. Async

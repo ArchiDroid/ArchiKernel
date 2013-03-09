@@ -39,8 +39,10 @@ struct hi542_i2c_reg_conf hi542_prev_settings[] = {
 	{0x0632, 0x03},
 	{0x0633, 0xC8},
 //	{0x0674, 0x03},   /* LGE_CHANGE : donghyun.kwon@lge.com, skip frame patch by qct */
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	{0x03d3, 0x0a}, //mipi clk divider
 	{0x0616, 0x00},//mipi reset
+#endif
 };
 
 struct hi542_i2c_reg_conf hi542_snap_settings[] = {
@@ -67,8 +69,10 @@ struct hi542_i2c_reg_conf hi542_snap_settings[] = {
 	{0x0632, 0x07},
 	{0x0633, 0x90},//A8},
 //	{0x0674, 0x03},  /* LGE_CHANGE : donghyun.kwon@lge.com, skip frame patch by qct */
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	{0x03d3, 0x0a}, //mipi clk divider
 	{0x0616, 0x00},//mipi reset
+#endif
 
 };
 
@@ -434,9 +438,17 @@ struct hi542_i2c_reg_conf hi542_recommend_settings[] = {
 	{0x0226, 0x36}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 	{0x023E, 0x80}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 	{0x05B0, 0x00}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+	{0x03D2, 0xAD}, //PLL reset 20120418 ryu add
+	{0x0616, 0x00}, //D-PHY reset 20120418 ryu add
+	{0x0616, 0x01}, //D-PHY reset disable 20120418 ryu add
+	{0x03D2, 0xAC}, //PLL reset disable 20120418 ryu add
+#endif
 	{0x03D0, 0xe9}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 	{0x03D1, 0x75}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	{0x03D2, 0xAC}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#endif
 	{0x0800, 0x07}, //0F}, EMI disable
 	{0x0801, 0x08}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 //	{0x0802, 0x04}, //00}, apb clock speed down
@@ -513,18 +525,38 @@ struct hi542_i2c_reg_conf hi542_recommend_settings[] = {
 	{0x02c7, 0xdb}, //24}, //dark2 NCP voltage
 	
 	{0x061A, 0x01}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	{0x061B, 0x03}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#else
+	{0x061B, 0x02}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#endif
 	{0x061C, 0x00}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 	{0x061D, 0x00}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	{0x061E, 0x00}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 	{0x061F, 0x04}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#else
+	{0x061E, 0x01}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+	{0x061F, 0x03}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#endif
 	{0x0613, 0x01}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 	{0x0615, 0x01}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
-//	{0x0616, 0x01}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	{0x03D3, 0x0A}, //mipi clk divider
 	{0x0616, 0x00}, //D-PHY reset
+#else
+	{0x0616, 0x01}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#endif
 	{0x0617, 0x00}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	{0x0619, 0x01}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
+#else
+	{0x0619, 0x00}, //gated clk mode 20120418 ryu add
+	{0x0651, 0x02},
+	{0x0652, 0x10},
+	{0x0654, 0x0a},
+	{0x0655, 0x05},
+#endif
 	{0x0008, 0x0F}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 	{0x0630, 0x05}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */
 	{0x0631, 0x08}, /* man_spec_edof_ctrl_edof_fw_spare_0 Gain x7 */

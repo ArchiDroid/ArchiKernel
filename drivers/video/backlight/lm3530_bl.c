@@ -66,14 +66,13 @@
 #define LCD_LED_MAX 0x7F
 #define LCD_LED_MIN 0
 
-//#define DEFAULT_BRIGHTNESS 0x6B //for 26mA
-#define DEFAULT_BRIGHTNESS 0x73 //for 20mA
+#define MAX_VALUE 255
+#define DEFAULT_VALUE 100
+#define MIN_VALUE 20
 
-#define LM3530_MIN_BRIGHTNESS	0x57//0x4F
-#define LM3530_DEFAULT_BRIGHTNESS	0x73//for 20mA
-
-#define LM3530_MIN_VALUE_SETTINGS 30 /* value for LM3530_MIN_BRIGHTNESS in leds_brightness_set*/
-#define LM3530_DEFAULT_VALUE_SETTINGS 102 /* value for LM3530_DEFAULT_BRIGHTNESS in leds_brightness_set*/
+#define LM3530_MIN_BRIGHTNESS	0x57 
+#define LM3530_DEFAULT_BRIGHTNESS 0x72 //for 20mA for m4
+#define LM3530_MAX_BRIGHTNESS 0x7f
 
 #define AAT2862BL_REG_BLS   0x04  /* Register address for Main BL brightness */
 #define AAT2862BL_REG_FADE	0x07  /* Register address for Backlight Fade control */
@@ -195,9 +194,9 @@ module_param(debug, uint, 0644);
 
 /* Set to Normal mode */
 static struct aat28xx_ctrl_tbl lm3530_normal_tbl[] = {
-//	{ LM3530BL_REG_GENERAL_CONFIGURATION, 0x15 },   // Full Scale Current Select 22.5mA, exponential
+	//	{ LM3530BL_REG_GENERAL_CONFIGURATION, 0x15 },   // Full Scale Current Select 22.5mA, exponential
     { LM3530BL_REG_GENERAL_CONFIGURATION, 0x11 },   // Full Scale Current Select 20mA, exponential
-//	{ LM3530BL_REG_GENERAL_CONFIGURATION, 0x1D },   // Full Scale Current Select 29.5mA, exponential
+	//	{ LM3530BL_REG_GENERAL_CONFIGURATION, 0x1D },   // Full Scale Current Select 29.5mA, exponential
 	{ 0xFF, 0xFE }	 /* end of command */
 };
 
@@ -213,6 +212,9 @@ static struct aat28xx_ctrl_tbl lm3530_sleep_tbl[] = {
 	{ LM3530BL_REG_GENERAL_CONFIGURATION, 0x00 },
 	{ 0xFF, 0xFE },  /* end of command */	
 };
+
+int lm3530_current_state = NORMAL_STATE;
+static int bl_chargerlogo = 0;
 
 /********************************************
  * Functions
@@ -258,7 +260,7 @@ static int lm3530_write(struct i2c_client *client, u8 reg, u8 val)
 	int status = 0;
 
     // test dr.ryu
-//  	dprintk("---------------> write(reg=0x%x,val=0x%x)\n", reg, val);
+	//  	dprintk("---------------> write(reg=0x%x,val=0x%x)\n", reg, val);
 	if (client == NULL) {	/* No global client pointer? */
 		eprintk("client is null\n");
 		return -1;
@@ -339,7 +341,7 @@ static void lm3530_go_opmode(struct lm3530_driver_data *drvdata)
 
 static void lm3530_device_init(struct lm3530_driver_data *drvdata)
 {
-/* LGE_CHANGE.
+	/* LGE_CHANGE.
   * Do not initialize aat28xx when system booting. The aat28xx is already initialized in oemsbl or LK !!
   * 2010-08-16, minjong.gong@lge.com
   */
@@ -354,7 +356,7 @@ static void lm3530_device_init(struct lm3530_driver_data *drvdata)
 #ifdef CONFIG_PM
 static void lm3530_poweron(struct lm3530_driver_data *drvdata)
 {
-//	unsigned int lm3530_intensity;
+	//	unsigned int lm3530_intensity;
 	if (!drvdata || drvdata->state != POWEROFF_STATE)
 		return;
 	
@@ -425,11 +427,20 @@ static void lm3530_sleep(struct lm3530_driver_data *drvdata)
 	//#define LCD_BL_EN 124
 	gpio_tlmm_config(GPIO_CFG(124, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
     	gpio_set_value(124, 0);    
+	lm3530_current_state = SLEEP_STATE;
 }
+
+/* LGE_CHANGE_S : flight test mode
+ * 2012-02-14, hyo.park@lge.com, 
+ * modification for flight test mode
+*/
+typedef unsigned short word;
+typedef unsigned char boolean;
+
 
 static void lm3530_wakeup(struct lm3530_driver_data *drvdata)
 {
-//	unsigned int lm3530_intensity;
+	//	unsigned int lm3530_intensity;
 
 	if (!drvdata || drvdata->state == NORMAL_STATE)
 		return;
@@ -438,6 +449,16 @@ static void lm3530_wakeup(struct lm3530_driver_data *drvdata)
 	//#define LCD_BL_EN 124
     	gpio_tlmm_config(GPIO_CFG(124, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
     	gpio_set_value(124, 1); 
+
+	//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-28
+	//For backlight timing
+	if(bl_chargerlogo == 1)
+		msleep(150);
+	else
+		msleep(10);
+	//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-28
+	
+	lm3530_current_state = NORMAL_STATE;
 
 	dprintk("operation mode is %s\n", (drvdata->mode == NORMAL_MODE) ? "normal_mode" : "alc_mode");
 
@@ -452,20 +473,7 @@ static void lm3530_wakeup(struct lm3530_driver_data *drvdata)
 	} else if (drvdata->state == SLEEP_STATE) {
 		if (drvdata->mode == NORMAL_MODE) {
 				lm3530_set_table(drvdata, drvdata->cmds.normal);
-
-				/* LGE_CHANGE_S : seven.kim@lge.com work around code in case miss the brightness level value from android
-				 *  if brightness value be a zero, then set to default value.
-				 *  Atherwise the change is not zero, then set the brightness value received from android
-				 */
-				if(drvdata->intensity > 0)
-				{
-					printk("%s : brightness : SET VALUE : %d\n",__func__, drvdata->intensity);
 				lm3530_write(drvdata->client, drvdata->reg_addrs.bl_m, drvdata->intensity);
-				}
-				else
-					printk("%s : brightness : SET DEFAULT \n",__func__);
-				/*LGE_CHANGE_E : seven.kim@lge.com work around code in case miss the brightness level value from android */
-				
 			drvdata->state = NORMAL_STATE;
 		} else if (drvdata->mode == ALC_MODE) {
 			/* LGE_CHANGE
@@ -479,9 +487,15 @@ static void lm3530_wakeup(struct lm3530_driver_data *drvdata)
 }
 #endif /* CONFIG_PM */
 
+// daewon.seo@lge.com
+int lm3530_get_state(void)
+{
+	return lm3530_current_state;
+}
+
 static int lm3530_send_intensity(struct lm3530_driver_data *drvdata, int next)
 {
-//	int aat2862_bl_next;
+	//	int aat2862_bl_next;
 
 	if (drvdata->mode == NORMAL_MODE) {
 		if (next > drvdata->max_intensity)
@@ -554,7 +568,7 @@ static int lm3530_resume(struct i2c_client *i2c_dev)
 void aat28xx_switch_mode(struct device *dev, int next_mode)
 {
 	struct lm3530_driver_data *drvdata = dev_get_drvdata(dev);
-//	unsigned int lm3530_intensity;
+	//	unsigned int lm3530_intensity;
 
 	if (!drvdata || drvdata->mode == next_mode)
 		return;
@@ -647,9 +661,23 @@ ssize_t lm3530_show_drvstat(struct device *dev, struct device_attribute *attr, c
 	return len;
 }
 
+ssize_t lm3530_store_chargerlogo(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int chargerlogo;	
+
+	if (!count)
+		return -EINVAL;
+
+	sscanf(buf, "%d", &chargerlogo);	
+	bl_chargerlogo = chargerlogo;	
+
+	return count;
+}
+
 DEVICE_ATTR(alc, 0664, lm3530_show_alc, lm3530_store_alc);
 DEVICE_ATTR(reg, 0444, lm3530_show_reg, NULL);
 DEVICE_ATTR(drvstat, 0444, lm3530_show_drvstat, NULL);
+DEVICE_ATTR(chargerlogo, 0664, NULL, lm3530_store_chargerlogo);
 
 static int lm3530_set_brightness(struct backlight_device *bd)
 {
@@ -682,36 +710,33 @@ static void leds_brightness_set(struct led_classdev *led_cdev, enum led_brightne
 	}
 
 	brightness = lm3530_get_intensity(drvdata);
-	
-//	printk("input brightness before tuning value=%d]\n", value);
-//	next = value * drvdata->max_intensity / LED_FULL;
-
-/* The range of value from brightness bar settings is LM3530_MIN_VALUE_SETTINGS ~ 255 
-   and the range of next in this function is LM3530_MIN_BRIGHTNESS ~ drvdata->max_intensity.
-   If you want to arrange the range of brightness bar in settings, you can set the value about LM3530_MIN_BRIGHTNESS.*/
-
-	if (value <= LM3530_MIN_VALUE_SETTINGS)
+	if(value <= MIN_VALUE)
         {
-                next = value * LM3530_MIN_BRIGHTNESS / LM3530_MIN_VALUE_SETTINGS;
-            	//printk("input brightness in tuning value<=30 next=%d, value=%d]\n", next, value);
-                               
+		if(value<0)
+		{
+			//printk("%s, old value: %d\n", __func__,value );
+			value=0;
+		}
+		next = value*LM3530_MIN_BRIGHTNESS/MIN_VALUE;
         }
-        else if(value > LM3530_MIN_VALUE_SETTINGS && value <= LM3530_DEFAULT_VALUE_SETTINGS)
+	else if(value > MIN_VALUE && value <= DEFAULT_VALUE)
+
         {
-                next = (value - LM3530_MIN_VALUE_SETTINGS) * (LM3530_DEFAULT_BRIGHTNESS - LM3530_MIN_BRIGHTNESS) / (LM3530_DEFAULT_VALUE_SETTINGS - LM3530_MIN_VALUE_SETTINGS) + LM3530_MIN_BRIGHTNESS;
-                //printk("input brightness in tuning 30~102 next=%d, value=%d]\n", next, value);
+		next = LM3530_MIN_BRIGHTNESS + (LM3530_DEFAULT_BRIGHTNESS - LM3530_MIN_BRIGHTNESS)
+			*(value-MIN_VALUE)/( DEFAULT_VALUE - MIN_VALUE);
         }
-	else if(value >LM3530_DEFAULT_VALUE_SETTINGS)
+	else if(value >DEFAULT_VALUE)
 	{
-		next = (value - LM3530_DEFAULT_VALUE_SETTINGS) * (drvdata->max_intensity - LM3530_DEFAULT_BRIGHTNESS) / (LED_FULL - LM3530_DEFAULT_VALUE_SETTINGS) + LM3530_DEFAULT_BRIGHTNESS;
-		//printk("input brightness in tuning value>102 next=%d, value=%d]\n", next, value);
+		if(value>MAX_VALUE)
+	{
+			//printk("%s, old value: %d\n", __func__,value );
+			value=MAX_VALUE;
+		}
+		next = LM3530_DEFAULT_BRIGHTNESS + (LM3530_MAX_BRIGHTNESS  - LM3530_DEFAULT_BRIGHTNESS)
+			*(value-DEFAULT_VALUE)/(MAX_VALUE - DEFAULT_VALUE);
 	}
-	dprintk("input brightness value=%d]\n", next);
-		//printk("input brightness after tuning next=%d]\n", next);
-
 	if (brightness != next) {
-		dprintk("brightness[current=%d, next=%d]\n", brightness, next);
-		//printk("brightness[current=%d, next=%d]\n", brightness, next);
+		//printk("%s,brightness[value=%d],[next=%d]\n", __func__,value,next);
 		lm3530_send_intensity(drvdata, next);
 	}
 }
@@ -785,6 +810,7 @@ static int __init lm3530_probe(struct i2c_client *i2c_dev, const struct i2c_devi
 		err = device_create_file(drvdata->led->dev, &dev_attr_alc);
 		err = device_create_file(drvdata->led->dev, &dev_attr_reg);
 		err = device_create_file(drvdata->led->dev, &dev_attr_drvstat);
+		err = device_create_file(drvdata->led->dev, &dev_attr_chargerlogo);
 	}
 #endif
 
@@ -792,7 +818,7 @@ static int __init lm3530_probe(struct i2c_client *i2c_dev, const struct i2c_devi
 	i2c_set_adapdata(i2c_dev->adapter, i2c_dev);
 
 	lm3530_device_init(drvdata);
-	lm3530_send_intensity(drvdata, DEFAULT_BRIGHTNESS);
+	lm3530_send_intensity(drvdata, LM3530_DEFAULT_BRIGHTNESS);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	drvdata->early_suspend.suspend = lm3530_early_suspend;

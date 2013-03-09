@@ -55,8 +55,8 @@ static int flgM = 0, flgA = 0;
 static int delay = 200;
 static int poll_stop_cnt = 0;
 
-static char calibration;
-
+static char calibration=0;
+static char debug_enable=0;
 /*****************************************************************************/
 /* for I/O Control */
 
@@ -215,7 +215,7 @@ static ssize_t accsns_position_show(struct device *dev,
 		y = 0;
 		z = 0;
 	}
-	return snprintf(buf, PAGE_SIZE, "accel (%d %d %d)\n", x, y, z);
+	return snprintf(buf, PAGE_SIZE, "accel (%d %d %d)  ", x, y, z);
 }
 
 static ssize_t hscd_position_show(struct device *dev,
@@ -246,6 +246,62 @@ static ssize_t alps_position_show(struct device *dev,
 	mutex_unlock(&alps_lock);
 	return cnt;
 }
+/*LGE_CHANGE attribute add: x,y,z, cablibration, debug*/	
+static ssize_t alps_x_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	int x, y, z;
+	int xyz[3];
+
+	if (hscd_get_magnetic_field_data(xyz) == 0) {
+		x = xyz[0];
+		y = xyz[1];
+		z = xyz[2];
+	} else {
+		x = 0;
+		y = 0;
+		z = 0;
+	}
+	return snprintf(buf, PAGE_SIZE, "%d\n", x);
+}
+
+
+static ssize_t alps_y_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	int x, y, z;
+	int xyz[3];
+
+	if (hscd_get_magnetic_field_data(xyz) == 0) {
+		x = xyz[0];
+		y = xyz[1];
+		z = xyz[2];
+	} else {
+		x = 0;
+		y = 0;
+		z = 0;
+	}
+	return snprintf(buf, PAGE_SIZE, "%d\n", y);
+}
+
+
+static ssize_t alps_z_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	int x, y, z;
+	int xyz[3];
+
+	if (hscd_get_magnetic_field_data(xyz) == 0) {
+		x = xyz[0];
+		y = xyz[1];
+		z = xyz[2];
+	} else {
+		x = 0;
+		y = 0;
+		z = 0;
+	}
+	return snprintf(buf, PAGE_SIZE, "%d\n", z);
+}
 static ssize_t alps_calibration_show(struct device *dev, \
 struct device_attribute *attr, char *buf)
 {
@@ -258,12 +314,32 @@ struct device_attribute *attr, const char *buf, size_t count)
     sscanf(buf, "%c", &calibration);
     return 0;
 }
+static ssize_t alps_debug_show(struct device *dev, \
+struct device_attribute *attr, char *buf)
+{
+    return snprintf(buf, PAGE_SIZE, "%c\n", debug_enable);
+}
+static ssize_t alps_debug_store(struct device *dev,\
+struct device_attribute *attr, const char *buf, size_t count)
+{
+
+    sscanf(buf, "%c", &debug_enable);
+    return 0;
+}
 static DEVICE_ATTR(position, 0444, alps_position_show, NULL);
-static DEVICE_ATTR(calibration, S_IRUGO | S_IWUGO, alps_calibration_show, alps_calibration_store);
+static DEVICE_ATTR(x, 0444, alps_x_show, NULL);
+static DEVICE_ATTR(y, 0444, alps_y_show, NULL);
+static DEVICE_ATTR(z, 0444, alps_z_show, NULL);
+static DEVICE_ATTR(calibration,  S_IRUSR|S_IRGRP|S_IWUSR|S_IWGRP, alps_calibration_show, alps_calibration_store);
+static DEVICE_ATTR(debug, S_IRUSR|S_IRGRP|S_IWUSR|S_IWGRP, alps_debug_show, alps_debug_store);
 
 static struct attribute *alps_attributes[] = {
 	&dev_attr_position.attr,
+	&dev_attr_x.attr,
+	&dev_attr_y.attr,
+	&dev_attr_z.attr,
 	&dev_attr_calibration.attr,
+	&dev_attr_debug.attr,
 	NULL,
 };
 

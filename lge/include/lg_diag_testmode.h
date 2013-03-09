@@ -110,8 +110,9 @@ typedef enum{
 typedef enum
 {
     SLEEP_MODE_ON,
-    AIR_PLAIN_MODE_ON,
-    FTM_BOOT_ON
+    FLIGHT_MODE_ON,
+    FLIGHT_KERNEL_MODE_ON,
+    FLIGHT_MODE_OFF,
 } test_mode_sleep_mode_type;
 
 typedef enum
@@ -354,11 +355,22 @@ typedef enum
 typedef enum
 {
   LCD_INITIAL=0,
-  LCD_TILT=2,
-  LCD_COLOR,
-  LCD_ON,
-  LCD_OFF
+  LCD_GET_INFO=1,
+  LCD_ON=2,
+  LCD_OFF=3,
+  LCD_DISPLAY_CHART=4,
+  LCD_DISLPAY_PATTERN_CHART=5,
+  LCD_GET=6
 }test_mode_req_lcd_type;
+
+typedef enum
+{
+  LCD_CAL_WHITE=1,
+  LCD_CAL_SAVE,
+  LCD_CHANGE_MAXRGB,
+  LCD_WHITE_MAXBRIGHTNESS,
+  LCD_MAXRGB
+}test_mode_req_lcd_cal_type;
 
 typedef enum
 {
@@ -378,26 +390,26 @@ typedef enum
 
 typedef enum
 {
-	CAM_TEST_MODE_OFF = 0,
-	CAM_TEST_MODE_ON,
-	CAM_TEST_SHOT,
-	CAM_TEST_SAVE_IMAGE,
-	CAM_TEST_CALL_IMAGE,
-	CAM_TEST_ERASE_IMAGE,
-	CAM_TEST_FLASH_ON,
-	CAM_TEST_FLASH_OFF = 9,
-	CAM_TEST_CAMCORDER_MODE_OFF,
-	CAM_TEST_CAMCORDER_MODE_ON,
-	CAM_TEST_CAMCORDER_SHOT,
-	CAM_TEST_CAMCORDER_SAVE_MOVING_FILE,
-	CAM_TEST_CAMCORDER_PLAY_MOVING_FILE,
-	CAM_TEST_CAMCORDER_ERASE_MOVING_FILE,
-	CAM_TEST_CAMCORDER_FLASH_ON,
-	CAM_TEST_CAMCORDER_FLASH_OFF,
-	CAM_TEST_STROBE_LIGHT_ON,
-	CAM_TEST_STROBE_LIGHT_OFF,
-	CAM_TEST_CAMERA_SELECT = 22,
-}test_mode_req_cam_type;
+	CAM_TEST_MFT_BACK_INIT = 0,
+	CAM_TEST_MFT_BACK_EXIT,
+	CAM_TEST_MFT_BACK_SHOT,
+	CAM_TEST_MFT_GET,
+	CAM_TEST_MFT_FLASH_OFF,
+	CAM_TEST_MFT_AUTOFOCUS_OFF,
+	CAM_TEST_MFT_MACROFOCUS_OFF = 6,
+}test_mode_req_mftcamera_type;
+
+typedef enum
+{
+	VID_TEST_MFT_INIT = 0,
+	VID_TEST_MFT_EXIT,
+	VID_TEST_MFT_START_RECORD,
+	VID_TEST_MFT_STOP_RECORD,
+	VID_TEST_MFT_PLAY,
+	VID_TEST_MFT_PLAY_STATUS,
+	VID_TEST_MFT_GET,
+	VID_TEST_MFT_FLASH = 7,
+}test_mode_req_mftcamcorder_type;
 
 typedef enum
 {
@@ -429,6 +441,138 @@ typedef enum
 }test_mode_req_volume_level_type;
 /* LGE_CHANGE_E [myunghwan.kim@lge.com] 2011-09-27 support test mode */
 
+// [LGE_UPDATE_S]  minwoo.jung 20120207
+typedef enum
+{
+    MLT_DISABLE,
+    MLT_ENABLE,
+}test_mode_req_mlt_enable_type;
+// LGE_UPDATE_E  minwoo.jung 20120207
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+typedef enum 
+{
+  ACCEL_SENSOR_OFF= 0,
+  ACCEL_SENSOR_ON,
+  ACCEL_SENSOR_SENSORDATA,
+} test_mode_req_acceleration_sensor_type;
+
+typedef enum 
+{
+  ORIENTATION_SENSOR_PITCH = 0,
+  ORIENTATION_SENSOR_ROLL,
+} test_mode_req_orientation_sensor_type;
+
+typedef enum 
+{
+  COMPS_SENSOR_OFF = 0,
+  COMPS_SENSOR_ON,
+  COMPS_SENSOR_SENSORDATA,
+} test_mode_req_compass_sensor_type;
+
+typedef enum 
+{
+  PROXI_SENSOR_START = 0,
+  PROXI_SENSOR_STOP,
+} test_mode_req_proximity_sensor_type;
+/* LGE_CHANGE_S [sohyun.nam@lge.com] 2012-02-06 support test mode 8.9*/
+typedef struct
+{
+    byte type_subcmd;
+
+	union {
+		byte			data_chart;
+		byte			data_pattern[3];
+		unsigned int	data_lcd_get[4];
+	};
+} PACKED test_mode_req_mft_lcd_type;
+/* LGE_CHANGE_E [sohyun.nam@lge.com] 2012-02-06 support test mode 8.9*/ 	
+
+typedef enum 
+{
+  PROXI_SENSOR_ON = 0,
+  PROXI_SENSOR_OFF,
+  PROXI_SENSOR_SENSORDATA,
+} test_mode_req_proximityMFT_sensor_type;
+typedef enum 
+{
+  SENSOR_CALIBRATION_START = 0,
+  SENSOR_CALIBRATION_RESULT,
+}test_mode_req_calibration_sensor_type;
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+typedef struct {
+	byte type_subcmd;
+	union {
+		unsigned int    flag;
+		unsigned char	payload[0];
+	};
+} PACKED test_mode_req_fmtransceiver_test_type;
+
+// LGE_CHANGE_S, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]	
+typedef enum
+{
+  GNSS_ON = 0,
+  GNSS_MEASURE = 1,   
+}test_mode_req_gnss_cmd_type;
+// LGE_CHANGE_E, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]
+
+//[[ NFCDiag wongab.jeon@lge.com
+typedef enum
+{
+	NFC_TEST_MODE_ON=0,
+	NFC_TEST_MODE_OFF,
+	NFC_TEST_MODE_SWP,
+	NFC_TEST_MODE_ANT,
+	NFC_TEST_MODE_READER,
+	NFC_TEST_MODE_FIRMWARE_FILE_VERSION,
+	NFC_TEST_MODE_FIMEWARE_UPDATE,
+	NFC_TEST_MODE_FIRMWARE_CHIP_VERSION
+}test_mode_req_nfc_type;
+
+//]] NFCDiag
+typedef enum 
+{
+  LED_OFF_ALL = 0,
+  LED_ON_MODEM,
+  LED_ON_PHONE,
+} test_mode_req_led_type;
+typedef enum 
+{
+  TOUCH_DRAW_INIT = 0,
+  TOUCH_DRAW_EXIT,
+  TOUCH_DRAW_START,
+} test_mode_req_touch_draw_type;
+
+typedef enum 
+{
+  KEY_LOCK = 0,
+  KEY_UNLOCK,
+} test_mode_req_key_lock_unlock_type;
+
+// LGE_CHANGE_S, hoseong.kang@lge.com
+typedef enum
+{
+	VOLUME_READ = 0,
+	VOLUME_CHANGE,
+} test_mode_req_volume_test_type;
+
+typedef struct
+{
+	byte type_subcmd;
+
+	union {
+		unsigned int	data_volume;
+	};
+} PACKED test_mode_req_mft_volume_test_type;
+// LGE_CHANGE_E, hoseong.kang@lge.com
+typedef struct
+{
+    byte type_subcmd;
+
+	union{
+		unsigned int	data_key_num;
+	};
+} PACKED test_mode_req_keytest_mft;
+
 #define MAX_NTCODE_SIZE (512-3)
 
 typedef union
@@ -447,6 +591,9 @@ typedef union
     test_mode_req_vco_self_tunning_type vco_self_tunning;
     test_mode_req_factory_reset_mode_type test_factory_mode;
     byte CGPSTest;
+// LGE_CHANGE_S, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]	
+    test_mode_req_gnss_cmd_type  GNSSTest;
+// LGE_CHANGE_E, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]
     test_mode_req_batter_bar_type batt;
     test_mode_req_manual_test_mode_type test_manual_mode; 
     test_mode_req_sw_version_type sw_version;
@@ -475,19 +622,48 @@ typedef union
     test_mode_req_fota_id_check_type fota_id_check;
 // LGE_UPDATE_FOTA_E M3 bryan.oh@lge.com 2011/10/18
 
-
-
 	/* LGE_CHANGE_S [myunghwan.kim@lge.com] 2011-09-27 support test mode */
     test_mode_req_lcd_type lcd;
+    test_mode_req_lcd_cal_type lcd_cal;
     test_mode_req_motor_type motor;
     test_mode_req_acoustic_type acoustic;
-    test_mode_req_cam_type camera;
+    test_mode_req_mftcamera_type mft_camera;
+    test_mode_req_mftcamcorder_type mft_camcorder;
     test_mode_req_mp3_test_type mp3_play;
     test_mode_req_speaker_phone_type speaker_phone;
     test_mode_req_volume_level_type volume_level;
     /* LGE_CHANGE_E [myunghwan.kim@lge.com] 2011-09-27 support test mode */
-
+    test_mode_req_fmtransceiver_test_type fm_transceiver;
+	//[[ NFCDiag wongab.jeon@lge.com
+	test_mode_req_nfc_type 					nfc;
+	//]] NFCDiag
+	test_mode_req_led_type	led;
 	byte NTCode[MAX_NTCODE_SIZE];
+// [LGE_UPDATE_S]  minwoo.jung 20120207
+    test_mode_req_mlt_enable_type mlt_enable;
+// [LGE_UPDATE_E]  minwoo.jung 20120207
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+    test_mode_req_proximity_sensor_type proximity;
+    test_mode_req_compass_sensor_type compass;
+    test_mode_req_acceleration_sensor_type accel;
+    test_mode_req_orientation_sensor_type orientation;
+    test_mode_req_calibration_sensor_type sensor_calibration;
+    test_mode_req_proximityMFT_sensor_type proximityMFT;
+    char sensor_data[256];
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+
+
+/* LGE_CHANGE_S [sohyun.nam@lge.com] 2012-02-06 support test mode 8.9*/
+	byte MaxRGB[10];
+ 	test_mode_req_mft_lcd_type mft_lcd; //250-116-6
+/* LGE_CHANGE_E [sohyun.nam@lge.com] 2012-02-06 support test mode 8.9*/ 	
+
+// LGE_CHANGE_S, hoseong.kang@lge.com
+	test_mode_req_mft_volume_test_type mft_volume;
+// LGE_CHANGE_E, hoseong.kang@lge.com
+	test_mode_req_touch_draw_type mft_touch_draw;
+	test_mode_req_key_lock_unlock_type key_lock_unlock;
+	test_mode_req_keytest_mft key_test_mft;
 } test_mode_req_type;
 
 typedef struct diagpkt_header
@@ -515,6 +691,14 @@ typedef struct
     uint16 MeasuredCNo;
 } PACKED CGPSResultType;
 
+// LGE_CHANGE_S, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]	
+typedef struct
+{
+    uint16 GPS;
+	uint16 GLONASS;
+} PACKED GNSSResultType;
+// LGE_CHANGE_E, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]	
+
 // LGE_CHANGE_S, real-wifi@lge.com, 20110928, [WLAN TEST MODE]
 typedef struct
 {
@@ -523,13 +707,55 @@ typedef struct
 } PACKED WlRxResults;
 // LGE_CHANGE_E, real-wifi@lge.com, 20110928, [WLAN TEST MODE]
 
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+typedef struct 
+{
+	unsigned int  count;
+	float              x_data;			//xÁÂÇ¥°ª
+	float              y_data;			//yÁÂÇ¥°ª
+	float              z_data;			//zÁÂÇ¥°ª	
+} PACKED test_mode_accel_rsp_type;
+
+typedef struct 
+{
+	unsigned int  count;
+	float              x_data;			//xÁÂÇ¥°ª
+	float              y_data;			//yÁÂÇ¥°ª
+	float              z_data;			//zÁÂÇ¥°ª	
+} PACKED test_mode_compass_rsp_type;
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+//[[ NFCDiag wongab.jeon@lge.com
+typedef struct
+{
+	boolean  swio_result;			//zÁÂÇ¥°ª	
+	boolean  pmuvcc_result;
+}PACKED test_mode_nfc_swp_rsp_type;
+
+typedef struct
+{
+	int      loop1;			//xÁÂÇ¥°ª
+	int      loop2;			//yÁÂÇ¥°ª
+	int      loop3;		//zÁÂÇ¥°ª	
+}PACKED test_mode_nfc_ant_rsp_type;
+//]] NFCDiag
+
+// LGE_CHANGE_S hoseong.kang@lge.com
+typedef struct 
+{
+	unsigned int  data_volume;
+} PACKED test_mode_mft_volume_rsp_type;
+// LGE_CHANGE_E hoseong.kang@lge.com
+
 /* BEGIN: 0014654 jihoon.lee@lge.com 20110124 */
 /* MOD 0014654: [TESTMODE] SYNC UP TESTMODE PACKET STRUCTURE TO KERNEL */
 typedef union
 {
     test_mode_req_version_type version;
-    byte str_buf[17];
+    byte str_buf[64];
     CGPSResultType TestResult[16];
+// LGE_CHANGE_S, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]	
+	GNSSResultType GNSSTestResult;
+// LGE_CHANGE_E, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE] 
     char key_pressed_buf[MAX_KEY_BUFF_SIZE];
     char memory_check;
     uint32 socket_memory_size;
@@ -564,11 +790,36 @@ typedef union
     test_mode_req_lcd_type lcd;
     test_mode_req_motor_type motor;
     test_mode_req_acoustic_type acoustic;
-    test_mode_req_cam_type camera;
+	test_mode_req_mftcamera_type mft_camera;
+	test_mode_req_mftcamcorder_type mft_camcorder;
     test_mode_req_mp3_test_type mp3_play;
     test_mode_req_speaker_phone_type speaker_phone;
     test_mode_req_volume_level_type volume_level;
     /* LGE_CHANGE_E [myunghwan.kim@lge.com] 2011-09-27 support test mode */
+// [LGE_UPDATE_S]  minwoo.jung 20120207
+    byte mlt_enable;
+// [LGE_UPDATE_E]  minwoo.jung 20120207
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+    int orientation;
+    int proximity;
+    int accel_calibration;
+    test_mode_accel_rsp_type accel;
+    test_mode_compass_rsp_type compass;
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+
+	//[[ NFCDiag wongab.jeon@lge.com
+	test_mode_nfc_swp_rsp_type nfc_swp;
+	test_mode_nfc_ant_rsp_type nfc_ant;
+	//]] NFCDiag
+
+/* LGE_CHANGE_S, sohyun.nam@lge.com, 20120204, [LCD for MFT, TEST MODE]*/
+	byte lcd_getinfo[20]; //250-116-1
+	unsigned int lcd_get; //250-116-6	
+/* LGE_CHANGE_S, sohyun.nam@lge.com, 20120204, [LCD for MFT, TEST MODE]*/
+
+	// LGE_CHANGE_S, hoseong.kang@lge.com
+	test_mode_mft_volume_rsp_type mft_volume;
+	// LGE_CHANGE_E, hoseong.kang@lge.com
 
 } PACKED test_mode_rsp_type;
 /* END: 0014654 jihoon.lee@lge.com 2011024 */
@@ -578,18 +829,15 @@ typedef struct DIAG_TEST_MODE_F_rsp_tag {
     word					sub_cmd_code;
     test_mode_ret_stat_type	ret_stat_code;
     test_mode_rsp_type		test_mode_rsp;
-// [110919 kkh8318@lge.com M3_ALL]Added Factory Reset Test [START]
-    byte					factory_flag;
-// [110919 kkh8318@lge.com M3_ALL] [END]
+	char lcd_info[15];
 } PACKED DIAG_TEST_MODE_F_rsp_type;
 
 typedef enum
 {
     TEST_MODE_VERSION=0,
-    TEST_MODE_LCD=1,
+    TEST_MODE_LCD_CAL=2,
     TEST_MODE_MOTOR=3,
     TEST_MODE_ACOUSTIC,
-    TEST_MODE_CAM=7,
     TEST_MODE_EFS_INTEGRITY=11,
     TEST_MODE_IRDA_FMRT_FINGER_UIM_TEST=13,
     TEST_MODE_BREW_CNT=20,
@@ -600,12 +848,17 @@ typedef enum
     TEST_MODE_BLUETOOTH_TEST,
     TEST_MODE_BATT_LEVEL_TEST,
     TEST_MODE_MP3_TEST=27,
-    TEST_MODE_FM_TRANCEIVER_TEST,
+    TEST_MODE_FMRADIO_TEST,
     TEST_MODE_ISP_DOWNLOAD_TEST,
-    TEST_MODE_COMPASS_SENSOR_TEST=30,
 
-    TEST_MODE_ACCEL_SENSOR_TEST=31,
-    TEST_MODE_ALCOHOL_SENSOR_TEST=32,
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+
+    TEST_MODE_ORIENTATION_SENSOR=31,		//pitch,roll
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
+    //[[ NFCDiag wongab.jeon@lge.com
+    //TEST_MODE_ALCOHOL_SENSOR_TEST=32,
+    TEST_MODE_NFC_TEST=32,
+    //]] NFCDiag
     TEST_MODE_TDMB_TEST=33,
     TEST_MODE_WIFI_TEST=33,
     TEST_MODE_TV_OUT_TEST=33,
@@ -650,22 +903,44 @@ typedef enum
     TEST_MODE_UNLOCK_CODE_TEST,
     TEST_MODE_IDDE_TEST,
     TEST_MODE_FULL_SIGNATURE_TEST,
-    TEST_MODE_NT_CODE_TEST,
-    TEST_MODE_SIM_ID_TEST = 79,
+    TEST_MODE_NT_CODE_TEST = 79,
+    TEST_MODE_SIM_ID_TEST = 81,
 
     TEST_MODE_CAL_CHECK= 82,
     TEST_MODE_BLUETOOTH_RW=83,
     TEST_MODE_SKIP_WELCOM_TEST = 87,
     TEST_MODE_WIFI_MAC_RW = 88,
-
+	TEST_MODE_BCPL_TEST = 89,
     TEST_MODE_DB_INTEGRITY_CHECK=91,
     TEST_MODE_NVCRC_CHECK = 92,
+    TEST_MODE_SENSOR_CALIBRATION_TEST = 93,
     TEST_MODE_RESET_PRODUCTION = 96,
+
+	TEST_MODE_VSLT_TEST = 97,
 
 // LGE_UPDATE_FOTA_S M3 bryan.oh@lge.com 2011/10/18
     TEST_MODE_FOTA_ID_CHECK = 98,
 // LGE_UPDATE_FOTA_E M3 bryan.oh@lge.com 2011/10/18
-
+	TEST_MODE_KEY_LOCK_UNLOCK = 99,
+    TEST_MODE_ACCEL_SENSOR_TEST=100,		//on,off, sensor data
+    TEST_MODE_COMPASS_SENSOR_TEST=102,     //on,off, sensor data 2
+// LGE_CHANGE_S, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]
+  TEST_MODE_GNSS_TEST = 103,
+// LGE_CHANGE_E, soolim.you@lge.com, 20120113, [GPS DIAG TEST MODE]
+// [LGE_UPDATE_S] minwoo.jung 20120207
+    TEST_MODE_MLT_ENABLE=106,
+// [LGE_UPDATE_E] minwoo.jung 20120207
+// LGE_CHANGE_S, sohyun.nam@lge.com, 20120204, [LCD for MFT, TEST MODE]
+	TEST_MODE_LCD=116, 
+// LGE_CHANGE_E, sohyun.nam@lge.com, 20120204, [LCD for MFT, TEST MODE]
+    TEST_MODE_MFT_CAMERA = 118,
+    TEST_MODE_MFT_CAMCORDER = 119,
+	TEST_MODE_KEY_TEST_FOR_MFT = 120,
+    TEST_MODE_PROXIMITY_MFT_SENSOR_TEST = 121,
+// LGE_CHANGE_S, hoseong.kang@lge.com
+	TEST_MODE_VOLUME_TEST_FOR_MFT = 123,
+// LGE_CHANGE_E, hoseong.kang@lge.com
+	TEST_MODE_TOUCH_DRAW_FOR_MFT = 124,
     TEST_MODE_XO_CAL_DATA_COPY=250,
 
     MAX_TEST_MODE_SUBCMD = 0xFFFF

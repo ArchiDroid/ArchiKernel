@@ -30,15 +30,13 @@
 //
 //============================================================
 
-//#include "MTH_M3_R10_V11_C01_bin.c"
-#include "MTH_M3_R10_V24(0x18)_C01_MIP_bin.c"
-#include "MTH_M3_R12_V30(0x1E)_C03_MIP_bin.c"
-#include "MTH_M3C_R00_V03_bin.c"
-#if 0
-#include "Master_bin_test.c"
-#include "Slave_bin_test.c"
-#endif
+#include "MTH_M3C_R00_V03_bin.c" //for M3C EVB 사용 안함.
 
+#include "LGE610_R00_V12_bin.c"//for M4 EU suntel,Telus suntel
+#include "LGE610_R01_V18_bin.c" //for M4 EU Inotek,Telus inotek
+#include "LGE615_R02_V12_bin.c" //for M4 dual 최신, Bell 초기 버전
+#include "LGE615_R04_V01_bin.c" //for M4 dual 초기 버전. 펌웨어 업데이트 진행 안함
+#include "LGE617_R03_V03_bin.c" // E617(Bell 최신 버전)  
 UINT8  ucVerifyBuffer[MELFAS_TRANSFER_LENGTH];		//	You may melloc *ucVerifyBuffer instead of this
 
 
@@ -200,13 +198,19 @@ int mcsdl_download_binary_data(UINT8 master_dl_retry, int val,unsigned char fw_v
 
     if (MELFAS_ISP_DOWNLOAD || master_dl_retry) {
 	if (val == 1) {
-		if(comp_ver==0x01){
+		if(comp_ver==0){ //for M3C EVB 사용안함
 			nRet = mcsdl_download( (const UINT8*) MELFAS_binary1, (const UINT16)MELFAS_binary_nLength1, 0);
 		}
-		else if(comp_ver==0x03)
+		else if(comp_ver==1) //for M4 EU suntel,Telus suntel
 			nRet = mcsdl_download( (const UINT8*) MELFAS_binary2, (const UINT16)MELFAS_binary_nLength2, 0);
-		else
+		else if(comp_ver==2) //for M4 EU Inotek,Telus inotek
 			nRet = mcsdl_download( (const UINT8*) MELFAS_binary3, (const UINT16)MELFAS_binary_nLength3, 0);
+		else if(comp_ver==3) // for M4 dual, Bell 초기 버전
+			nRet = mcsdl_download( (const UINT8*) MELFAS_binary4, (const UINT16)MELFAS_binary_nLength4, 0);
+		else if(comp_ver==4)//E617(Bell 최신 버전) 
+			nRet = mcsdl_download( (const UINT8*) MELFAS_binary5, (const UINT16)MELFAS_binary_nLength5, 0);
+		else //for M4 dual 초기 버전 펌웨어 업데이트 진행 안함
+			nRet = mcsdl_download( (const UINT8*) MELFAS_binary6, (const UINT16)MELFAS_binary_nLength6, 0);
 		if (nRet)
 			goto fw_error;
 	}
@@ -220,7 +224,9 @@ int mcsdl_download_binary_data(UINT8 master_dl_retry, int val,unsigned char fw_v
 #endif
 	MELFAS_ROLLBACK_BASEBAND_ISR();					// Roll-back Baseband touch interrupt ISR.
 	MELFAS_ROLLBACK_WATCHDOG_TIMER_RESET();			// Roll-back Baseband watchdog timer
-	return 0;
+	//return 0;
+	
+	return nRet;
 fw_error:
 	mcsdl_erase_flash(0);
 	mcsdl_erase_flash(1);

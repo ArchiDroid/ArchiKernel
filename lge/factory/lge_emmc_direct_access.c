@@ -127,8 +127,12 @@ typedef struct {
 // END: 0009484 sehyuny.kim@lge.com 2010-09-24
 #define MMC_DEVICENAME "/dev/block/mmcblk0"
 
-// chinsu.ko@lge.com
-//static unsigned char global_buf[FACTORY_RESET_STR_SIZE+2];
+// LGE_CHANGE_S, sohyun.nam@lge.com 
+#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE
+#define LCD_K_CAL_SIZE 13
+static unsigned char lcd_buf[LCD_K_CAL_SIZE]={0,};
+#endif /* CONFIG_FB_MSM_MDP_LUT_ENABLE */
+// LGE_CHANGE_S, sohyun.nam@lge.com 
 
 /* BEGIN: 0013860 jihoon.lee@lge.com 20110111 */
 /* ADD 0013860: [FACTORY RESET] ERI file save */
@@ -195,25 +199,36 @@ static int boot_info_write(const char *val, struct kernel_param *kp)
 //
 	return 0;
 }
-
-//module_param(boot_info, int, S_IWUSR | S_IRUGO);
 module_param_call(boot_info, boot_info_write, param_get_int, &boot_info, S_IWUSR | S_IRUGO);
 //[END] LGE_BOOTCOMPLETE_INFO
 
-int lg_manual_test_mode = 0;
-int manual_test_mode =0;
-extern int msm_get_manual_test_mode(void);
-
-static int android_get_manual_test_mode(char *buffer, struct kernel_param *kp)
+// LGE_CHANGE_S, myunghwan.kim@lge.com
+int is_factory=0;
+int android_lge_is_factory_cable(int *type);
+static int get_is_factory(char *buffer, struct kernel_param *kp)
 {
-	int ret;
-    lg_manual_test_mode = msm_get_manual_test_mode();
-    printk(KERN_ERR "[%s] get manual test mode - %d\n", __func__, lg_manual_test_mode);
-	ret = sprintf(buffer, "%d", lg_manual_test_mode);
-	return ret;
+	is_factory = android_lge_is_factory_cable(NULL);
+	return sprintf(buffer, "%s", is_factory ? "yes" : "no");
 }
+module_param_call(is_factory, NULL, get_is_factory, &is_factory, 0444);
+// LGE_CHANGE_E, myunghwan.kim@lge.com
 
-module_param_call(manual_test_mode, NULL, android_get_manual_test_mode, &manual_test_mode, 0444);
+// LGE_CHANGE_S, myunghwan.kim@lge.com, miniOS controller
+static int is_miniOS = -1;
+unsigned lge_get_is_miniOS(void);
+static int update_is_miniOS(const char *val, struct kernel_param *kp)
+{
+	if (is_miniOS == -1)
+		is_miniOS = lge_get_is_miniOS();
+	return 1;
+}
+static int get_is_miniOS(char *buffer, struct kernel_param *kp)
+{
+
+	return sprintf(buffer, "%s", (is_miniOS==1) ? "yes" : "no");
+}
+module_param_call(is_miniOS, update_is_miniOS, get_is_miniOS, &is_miniOS, 0644);
+// LGE_CHANGE_E, myunghwan.kim@lge.com
 
 int db_integrity_ready = 0;
 module_param(db_integrity_ready, int, S_IWUSR | S_IRUGO);
@@ -671,149 +686,105 @@ int lge_mmc_scan_partitions(void) {
 		lge_mmc_partition_initialied = 1;
     return g_mmc_state.partition_count;
 }
-
 EXPORT_SYMBOL(lge_mmc_scan_partitions);
 
+// LGE_CHANGE_S, sohyun.nam@lge.com
+#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE
+int lge_emmc_misc_write(unsigned int blockNo, const char* buffer, int size);
+int lge_emmc_misc_read(unsigned int blockNo, char* buffer, int size);
 
-/* BEGIN: 0013861 jihoon.lee@lge.com 20110111 */
-/* MOD 0013861: [FACTORY RESET] emmc_direct_access factory reset flag access */
-/* add carriage return and change flag size in each functions for the platform access */
-/* END: 0013861 jihoon.lee@lge.com 20110111 */
-
-static int test_write_block(const char *val, struct kernel_param *kp)
+static int write_lcd_k_cal(const char *val, struct kernel_param *kp)
 {
+	int size;
 
-	int i = 0;
-	int err;
-	//int normal_block_seq = 0;
-	int mtd_op_result = 0;
-	const MmcPartition *pMisc_part;
-	unsigned long factoryreset_bytes_pos_in_emmc = 0;
-	unsigned long flag=0;
+	memcpy(lcd_buf, val, LCD_K_CAL_SIZE);
+	memcpy(lcd_buf+9, "cal", 4);
+	lcd_buf[LCD_K_CAL_SIZE-1] = '\0';
+	printk("write_lcd_k_cal :[%s] - [%s]:\n", val, lcd_buf);
 
-	unsigned char *test_string;
+	size = lge_emmc_misc_write(44, lcd_buf, LCD_K_CAL_SIZE);
+	if (size == LCD_K_CAL_SIZE)
+		printk("<6>" "write %d block\n", size);
+	else
+		printk("<6>" "write fail (%d)\n", size);
 
-	test_string = kmalloc(FACTORY_RESET_STR_SIZE+2, GFP_KERNEL);
-	// allocation exception handling
-	if(!test_string)
-	{
-		printk(KERN_ERR "allocation failed, return\n");
-		return 0;
-	}
-
-	printk(KERN_INFO"write block1\n");
-
-	flag = simple_strtoul(val,NULL,10);
-//	if (flag == 5 || flag == 6 )
-//	{
-/* BEGIN: 0014076 jihoon.lee@lge.com 20110114 */
-/* MOD 0014076: [FACTORY RESET] Android factory reset flag bug fix */
-/* make sure to store only 13 bytes, string 11, flag 1, carriage 1 */
-		//sprintf(test_string,"FACT_RESET_%d\n", flag);
-		sprintf(test_string,"FACT_RESET_%d\n", (char)flag);
-/* END: 0014076 jihoon.lee@lge.com 20110114 */
-//	} else {
-//		kfree(test_string);
-//		return -1;
-//	}
-
-	lge_mmc_scan_partitions();
-	pMisc_part = lge_mmc_find_partition_by_name("misc");
-	if ( pMisc_part == NULL )
-	{
-		printk(KERN_INFO"NO MISC\n");
-		return 0;
-	}
-
-	factoryreset_bytes_pos_in_emmc = (pMisc_part->dfirstsec*512)+PTN_FRST_PERSIST_POSITION_IN_MISC_PARTITION;
-
-
-	printk(KERN_INFO"writing block\n");
-
-
-	mtd_op_result = lge_write_block(factoryreset_bytes_pos_in_emmc, test_string, FACTORY_RESET_STR_SIZE+2);
-	if ( mtd_op_result != (FACTORY_RESET_STR_SIZE+2) ) {
-		printk(KERN_INFO"%s: write %u block fail\n", __func__, i);
-		kfree(test_string);
-		return err;
-	}
-
-/* BEGIN: 0013860 jihoon.lee@lge.com 20110111 */
-/* ADD 0013860: [FACTORY RESET] ERI file save */
-/* request rpc for eri file when the factory reset completes */
-#ifdef CONFIG_LGE_ERI_DOWNLOAD
-	if (flag == 5)
-	{
-		printk(KERN_INFO "%s, received flag : %ld, activate work queue\n", __func__, flag);
-		eri_dload_data.flag = flag;
-		queue_work(eri_dload_wq, &eri_dload_data.work);
-	}
-#endif
-/* END: 0013860 jihoon.lee@lge.com 20110111 */
-
-	printk(KERN_INFO"write %d block\n", i);
-	kfree(test_string);
-	return 0;
+	return size;
 }
-module_param_call(write_block, test_write_block, param_get_bool, &dummy_arg, S_IWUSR | S_IRUGO);
 
-// chinsu.ko@lge.com
-/*
-static int test_read_block( char *buf, struct kernel_param *kp)
+static int read_lcd_k_cal(char *buf, struct kernel_param *kp)
 {
-	//int i;
-	int err=0;
-	int mtd_op_result = 0;
-
-	const MmcPartition *pMisc_part;
-	unsigned long factoryreset_bytes_pos_in_emmc = 0;
-
-	printk(KERN_INFO"read block1\n");
-
-	lge_mmc_scan_partitions();
-//	lge_mmc_partition_initialied = 4;
-
-	pMisc_part = lge_mmc_find_partition_by_name("misc");
-	if ( pMisc_part == NULL )
-	{
-		printk(KERN_INFO"NO MISC\n");
-		return 0;
-	}
-//	lge_mmc_partition_initialied = 5;
-	factoryreset_bytes_pos_in_emmc = (pMisc_part->dfirstsec*512)+PTN_FRST_PERSIST_POSITION_IN_MISC_PARTITION;
-
-	printk(KERN_INFO"read block\n");
-//	lge_mmc_partition_initialied = 6;
-	memset(global_buf, 0 , FACTORY_RESET_STR_SIZE+2);
-
-	mtd_op_result = lge_read_block(factoryreset_bytes_pos_in_emmc, global_buf, FACTORY_RESET_STR_SIZE+2);
-//	lge_mmc_partition_initialied = 7;
-
-	if (mtd_op_result != (FACTORY_RESET_STR_SIZE+2) ) {
-		printk(KERN_INFO" read %ld block fail\n", factoryreset_bytes_pos_in_emmc);
-		return err;
-	}
-//	lge_mmc_partition_initialied = 8;
-
-	printk(KERN_INFO"read %ld block\n", factoryreset_bytes_pos_in_emmc);
-//	printk(KERN_INFO"%s\n", __func__, global_buf);
-
-// BEGIN: 0009484 sehyuny.kim@lge.com 2010-09-24
-// MOD 0009484: [FactoryReset] Enable FactoryReset
-	if(memcmp(global_buf, FACTORY_RESET_STR, FACTORY_RESET_STR_SIZE)==0){
-		err = sprintf(buf,"%s",global_buf+FACTORY_RESET_STR_SIZE);
-//		err = sprintf(buf,"123456789");
-		return err;
-	}
-	else{
-//error:
-		err = sprintf(buf,"1");
-		return err;
-	}
-// END: 0009484 sehyuny.kim@lge.com 2010-09-24
+	int size = lge_emmc_misc_read(44, buf, LCD_K_CAL_SIZE);
+	buf[LCD_K_CAL_SIZE-1] = '\0';
+	return size;
 }
-module_param_call(read_block, param_set_bool, test_read_block, &dummy_arg, S_IWUSR | S_IRUGO);
-*/
+module_param_call(lcd_k_cal, write_lcd_k_cal, read_lcd_k_cal, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);  
+#endif /* CONFIG_FB_MSM_MDP_LUT_ENABLE */
+// LGE_CHANGE_E, sohyun.nam@lge.com
+
+int lge_get_frst_flag(void);
+int lge_set_frst_flag(int flag);
+
+int frst_write_block(const char *buf, struct kernel_param *kp)
+{
+	int expected = -1;
+	int changeto = -1;
+
+	// skip null
+	if (buf == NULL)
+		return -1;
+
+	// skip invalid format
+	if (buf[0] < '0' || buf[0] > '7')
+		return -1;
+
+	changeto = buf[0]-'0';
+
+	// check expected value format
+	if (buf[1] == '-') {
+		if (buf[2] < '0' || buf[2] > '7')
+			return -1;
+
+		expected = changeto;
+		changeto = buf[2]-'0';
+
+		// compare expected flag and current flag
+		if (lge_get_frst_flag() != expected)
+			return -1;
+	}
+
+	// set frst flag
+	lge_set_frst_flag(changeto);
+	return 1;
+}
+
+int frst_read_block(char *buf, struct kernel_param *kp)
+{
+	int flag;
+
+	if (buf == NULL)
+		return -1;
+
+	flag = lge_get_frst_flag();
+	if (flag == -1)
+		return -1;
+
+	buf[0] = '0' + flag;
+	buf[1] = '\0';
+	return 2;
+}
+module_param_call(frst_flag, frst_write_block, frst_read_block, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IROTH);
+
+//[LGE_UPDATE_S] 20120215 minwoo.jung
+int HiddenMenu_FactoryReset(void);
+
+int do_hiddenmenu_frst(char *buf, struct kernel_param *kp)
+{
+	buf[0] = '1'+HiddenMenu_FactoryReset();	
+	buf[1] = '\0';
+	return 2;
+}
+module_param_call(hiddenmenu_factory_reset, NULL, do_hiddenmenu_frst, NULL, S_IRUSR | S_IRGRP );
+//[LGE_UPDATE_E] 20120215 minwoo.jung
 
 // Begin: hyechan.lee 2011-04-06
 // 0018768: [fota]Fix an issue that when VZW logo is displayed, remove battery it won¡¯t enter recovery mode 
@@ -905,6 +876,121 @@ eri_dload_func(struct work_struct *work)
 }
 #endif
 /* END: 0013860 jihoon.lee@lge.com 20110111 */
+
+int lge_emmc_misc_write(unsigned int blockNo, const char* buffer, int size)
+{
+	struct file *fp_misc = NULL;
+	mm_segment_t old_fs;
+	int write_bytes = -1;
+
+	// exception handling
+	if ((buffer == NULL) || size <= 0) {
+		printk(KERN_ERR "%s, NULL buffer or NULL size : %d\n", __func__, size);
+		return -1;
+	}
+
+	old_fs=get_fs();
+	set_fs(get_ds());
+
+	// try to open
+	fp_misc = filp_open("/dev/block/mmcblk0p8", O_WRONLY | O_SYNC, 0);
+	if (IS_ERR(fp_misc)) {
+		printk(KERN_ERR "%s, Can not access MISC\n", __func__);
+		goto misc_write_fail;
+	}
+
+	fp_misc->f_pos = (loff_t) (512 * blockNo);
+	write_bytes = fp_misc->f_op->write(fp_misc, buffer, size, &fp_misc->f_pos);
+
+	if (write_bytes <= 0) {
+		printk(KERN_ERR "%s, Can not write (MISC) \n", __func__);
+		goto misc_write_fail;
+	}
+
+misc_write_fail:
+	if (!IS_ERR(fp_misc))
+		filp_close(fp_misc, NULL);
+
+	set_fs(old_fs);	
+	return write_bytes;
+}
+EXPORT_SYMBOL(lge_emmc_misc_write);
+
+int lge_emmc_misc_read(unsigned int blockNo, char* buffer, int size)
+{
+	struct file *fp_misc = NULL;
+	mm_segment_t old_fs;
+	int read_bytes = -1;
+
+	// exception handling
+	if ((buffer == NULL) || size <= 0) {
+		printk(KERN_ERR "%s, NULL buffer or NULL size : %d\n", __func__, size);
+		return 0;
+	}
+
+	old_fs=get_fs();
+	set_fs(get_ds());
+
+	// try to open
+	fp_misc = filp_open("/dev/block/mmcblk0p8", O_RDONLY | O_SYNC, 0);
+	if(IS_ERR(fp_misc)) {
+		printk(KERN_ERR "%s, Can not access MISC\n", __func__);
+		goto misc_read_fail;
+	}
+
+	fp_misc->f_pos = (loff_t) (512 * blockNo);
+	read_bytes = fp_misc->f_op->read(fp_misc, buffer, size, &fp_misc->f_pos);
+
+	if (read_bytes <= 0) {
+		printk(KERN_ERR "%s, Can not read (MISC) \n", __func__);
+		goto misc_read_fail;
+	}
+
+misc_read_fail:
+	if (!IS_ERR(fp_misc))
+		filp_close(fp_misc, NULL);
+
+	set_fs(old_fs);	
+	return read_bytes;
+}
+EXPORT_SYMBOL(lge_emmc_misc_read);
+
+int lge_get_frst_flag(void)
+{
+	unsigned char buffer[16]={0,};
+
+	if (lge_emmc_misc_read(8, buffer, sizeof(buffer)) <= 0) {
+		pr_info(" *** (MISC) FRST Flag read fail\n");
+		return -1;
+	}
+
+	if (buffer[0] == 0xff || buffer[0] == 0)
+		buffer[0] = '0';
+
+	pr_info(" *** (MISC) FRST Flag read: %d\n", buffer[0]-'0');
+
+	if (buffer[0] < '0' || buffer[0] > '6')
+		return -1;
+
+	return buffer[0] - '0';
+}
+EXPORT_SYMBOL(lge_get_frst_flag);
+
+int lge_set_frst_flag(int flag)
+{
+	char buffer[4]={0,};
+	if (flag < 0 || flag > 6)
+		return -1;
+
+	buffer[0] = '0' + flag;
+
+	if (lge_emmc_misc_write(8, buffer, sizeof(buffer)) <= 0)
+		return -1;
+
+	pr_info(" *** (MISC) FRST Flag write: %c\n", buffer[0]);
+	return 0;
+}
+EXPORT_SYMBOL(lge_set_frst_flag);
 
 static int __init lge_emmc_direct_access_init(void)
 {

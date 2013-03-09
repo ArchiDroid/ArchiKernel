@@ -715,11 +715,9 @@ config_done:
 
 config_failure:
 	kfree(scfg);
+	kfree(sfcfg);//lge add
 	kfree(axio);
 	kfree(vfecmd);
-/* LGE_CHANGE_S :  Heap leck in ATS test  so Add for sfcfg free  2012.2.03, samjinjang@lge.com  */
-	kfree(sfcfg);
-/* LGE_CHANGE_E :   */
 	return rc;
 }
 

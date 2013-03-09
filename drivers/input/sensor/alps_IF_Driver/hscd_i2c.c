@@ -7,6 +7,8 @@
 /* LGE_CHANGE_S */
 #include <mach/board_lge.h> /* platform data */
 static struct ecom_platform_data *ecom_pdata;
+static atomic_t hscd_report_enabled = ATOMIC_INIT(0);
+static void hscd_suspend_resume(int mode);
 /* LGE_CHANGE_E */
 
 #define I2C_RETRY_DELAY		5
@@ -90,7 +92,7 @@ static int hscd_i2c_writem(char *txData, int length)
 #ifdef ALPS_DEBUG
 	int i;
 #endif
-
+#if 0
 	struct i2c_msg msg[] = {
 		{
 		 .addr = client_hscd->addr,
@@ -99,9 +101,27 @@ static int hscd_i2c_writem(char *txData, int length)
 		 .buf = txData,
 		 },
 	};
-
+#else
+/* for debugging */
+	struct i2c_msg msg[1];
+	if(client_hscd != NULL){
+		if(txData!=NULL){
+			printk("[HSCD] i2c_writem param check(addr %x, length %d, txData %x %x ", client_hscd->addr,length,txData[0],txData[1]);
+		}else{
+			printk("[HSCD] i2c_writem txData is NULL");
+			return -EIO;
+		}
+	}else{
+		printk("[HSCD] i2c_writem client_hscd is NULL");
+		return -EIO;
+	}
+	msg[0].addr = client_hscd->addr;
+	msg[0].flags = 0;
+	msg[0].len = length;
+	msg[0].buf = txData;
+#endif
 #ifdef ALPS_DEBUG
-	printk("[HSCD] i2c_writem : ");
+	printk("[HSCD] i2c_writem(0x%x): ",client_hscd->addr);
 
 	for (i = 0; i < length; i++)
 		printk("0X%02X, ", txData[i]);
@@ -308,11 +328,13 @@ int hscd_get_magnetic_field_data(int *xyz)
 
 void hscd_activate(int flgatm, int flg, int dtime)
 {
-	u8 buf[2];
-
+	static u8 buf[2];
+	int ret ;
 	if (flg != 0)
 		flg = 1;
 
+	memset(buf,0,sizeof(buf));
+	
 	if (dtime <= 10)
 		buf[1] = (0x60 | 3<<2);		/* 100Hz- 10msec */
 
@@ -328,13 +350,23 @@ void hscd_activate(int flgatm, int flg, int dtime)
 	buf[0]  = HSCD_CTRL1;
 	buf[1] |= (flg<<7);
 	buf[1] |= 0x60;	/* RS1:1(Reverse Input Substraction drive), RS2:1(13bit) */
-	hscd_i2c_writem(buf, 2);
+	printk("hscd_activate (flg : %d, flgatm : %d)\n",flg,flgatm);
+	ret = hscd_i2c_writem(buf, 2);
+	if(ret != 0)
+	{
+		printk("hscd_activate  fail 1(%d, %d   / %d)\n",flg,dtime,flgatm);
+	}
 	mdelay(1);
 
 	if (flg) {
 		buf[0] = HSCD_CTRL3;
 		buf[1] = 0x02;
-		hscd_i2c_writem(buf, 2);
+		ret = hscd_i2c_writem(buf, 2);
+		if(ret != 0)
+		{
+			printk("hscd_activate  fail 2  (%d, %d   / %d)\n",flg,dtime,flgatm);
+
+		}
 	}
 
 	if (flgatm) {
@@ -349,11 +381,66 @@ static void hscd_register_init(void)
 	printk("[HSCD] register_init\n");
 #endif
 }
+/* LGE_CHANGE_S, compass power on/off add for diag test mode 8.7 and debug option add. */
+static void hscd_suspend_resume(int mode)
+{
+	printk(KERN_INFO "[HSCD] hscd_suspend_resume(%s)\n",mode==1?"resume":"suspend");
+	if (mode) {
+		 /* if already mode normal, pass this routine.*/
+		if (atomic_read(&hscd_report_enabled) == 0) {
+			/* turn on vreg power */
+			ecom_pdata->power(1);
+			mdelay(5);
+			hscd_activate(0, 1, atomic_read(&delay));
+			atomic_set(&hscd_report_enabled, 1);
+#ifdef LGE_DEBUG
+			printk(KERN_INFO "HSCD ECOM_Power On\n");
+#endif
+		} else { /* already power on state */
+			hscd_activate(0, 1, atomic_read(&delay));
+		}
+	} else {
+		atomic_set(&hscd_report_enabled, 0);
+#ifdef LGE_DEBUG
+		printk(KERN_INFO "HSCD ECOM_Power Off\n");
+#endif
+		/* turn off vreg power */
+		ecom_pdata->power(0);
+    }
+	return;
+}
+static ssize_t show_hscd_enable(struct device *dev, \
+struct device_attribute *attr, char *buf)
+{
+    char strbuf[256];
+    snprintf(strbuf, PAGE_SIZE, "%d", atomic_read(&hscd_report_enabled));
+    return snprintf(buf, PAGE_SIZE, "%s\n", strbuf);
+}
 
+static ssize_t store_hscd_enable(struct device *dev,\
+struct device_attribute *attr, const char *buf, size_t count)
+{
+    int mode = 0;
+
+    sscanf(buf, "%d", &mode);
+	/* actual routine */
+	hscd_suspend_resume(mode);
+
+    return 0;
+}
+static DEVICE_ATTR(enable,  S_IRUSR|S_IRGRP|S_IWUSR|S_IWGRP, show_hscd_enable, store_hscd_enable);
+static struct attribute *hscd_attributes[] = {
+    &dev_attr_enable.attr,
+    NULL,
+};
+
+static struct attribute_group hscd_attribute_group = {
+    .attrs = hscd_attributes
+};
 static int hscd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int d[3];
-
+	int err = 0;
 	printk("[HSCD] probe\n");
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->adapter->dev, "client not i2c capable\n");
@@ -375,6 +462,13 @@ static int hscd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ecom_pdata->power(1);
 
 	mdelay(5);
+	atomic_set(&hscd_report_enabled, 1);
+	
+	err = sysfs_create_group(&client->dev.kobj, &hscd_attribute_group);
+	if (err) {
+		printk(KERN_ERR "hscd sysfs register failed\n");
+		goto exit_sysfs_create_group_failed;
+	}
 /* LGE_CHANGE_E */
 
 	hscd_register_init();
@@ -382,10 +476,15 @@ static int hscd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev_info(&client->adapter->dev, "detected HSCD magnetic field sensor\n");
 
 	hscd_activate(0, 1, atomic_read(&delay));
+	mdelay(5);
 	hscd_get_magnetic_field_data(d);
 	printk("[HSCD] x:%d y:%d z:%d\n",d[0],d[1],d[2]);
 	hscd_activate(0, 0, atomic_read(&delay));
-
+	return 0;
+/* LGE_CHANGE_S*/
+exit_sysfs_create_group_failed:
+    sysfs_remove_group(&client->dev.kobj, &hscd_attribute_group);
+/* LGE_CHANGE_E*/
 	return 0;
 }
 

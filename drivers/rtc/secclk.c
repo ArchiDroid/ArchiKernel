@@ -68,6 +68,16 @@ int secclk_rtc_changed(int (*fp_read_rtc)(struct device *, struct rtc_time *), s
   }
   spin_unlock(&secclk_lock);
 
+  if (!secclk_diff_time) {
+    /*
+      No need to update any of them.
+      If a user selected auto time sync, it'll try time sync with network.
+      But the probability of setting the same time with current time is over 95%.
+      So simply skip that case.
+    */
+    return 0;
+  }
+
   if (1) {
     struct rtc_time tm_prev;
     rtc_time_to_tm(prev_time, &tm_prev);

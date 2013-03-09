@@ -17,9 +17,9 @@ if NFC_DEVICES
 #LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
 config LGE_NFC_NXP_PN544PN65N
 	bool "PN544 NFC driver"
-	#depends on I2C
+	depends on MACH_MSM7X27A_U0
 	#select CRC_CCITT
-	default y
+	default y if MACH_MSM7X27A_U0
 	---help---
 	  Say yes if you want PN544 Near Field Communication driver.
 	  This is for i2c connected version. If unsure, say N here.
@@ -46,5 +46,18 @@ config LGE_NFC_PRESTANBY
 	---help---
 	  Say yes if you want to change a power state of pn544 to stanby mode in Kernel.
 	  If unsure, say N here.
+
+config LGE_NFC_PN544
+	tristate "PN544 NFC driver"
+	depends on I2C
+	select CRC_CCITT
+	default n
+	---help---
+	  Say yes if you want PN544 Near Field Communication driver.
+	  This is for i2c connected version. If unsure, say N here.
+
+	  To compile this driver as a module, choose m here. The module will
+	  be called pn544.
+
 
 endif # NFC_DEVICES

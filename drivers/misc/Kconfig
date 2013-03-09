@@ -65,6 +65,14 @@ config ANDROID_PMEM
 	bool "Android pmem allocator"
 	default y
 
+config ANDROID_VIBRATOR
+    bool "Android vibrator support"
+	depends on ANDROID_TIMED_OUTPUT
+	default y
+	help
+	  This option enalbes device driver support for Android Vibrator driver.
+	  Some functions should be given by platform data for enable PWM, Motor IC, etc.
+
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
@@ -232,6 +240,13 @@ config ENCLOSURE_SERVICES
 	  contain storage devices).  You also need either a host
 	  driver (SCSI/ATA) which supports enclosures
 	  or a SCSI enclosure device (SES) to use these services.
+
+config KERNEL_DEBUGGER_CORE
+	bool "Kernel Debugger Core"
+	default n
+	---help---
+	  Generic kernel debugging command processor used by low level
+	  (interrupt context) platform-specific debuggers.
 
 config SGI_XP
 	tristate "Support communication between SGI SSIs"
@@ -610,7 +625,6 @@ config PMIC8XXX_UPL
 	  simple truth table based logic via a set of control registers. I/O may
 	  be routed in and out of the UPL module via GPIO or DTEST pins.
 
-#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
 config LGE_ATCMD_TTY
 	bool "Support LGE atcmd bypassing tty"
 	default n
@@ -618,7 +632,6 @@ config LGE_ATCMD_TTY
 	  Support LGE atcmd bypassing tty. "/dev/atcmd-tty0" is back-end tty,
 	  and "dev/atcmd-tty1" is front-end tty. Back-end tty will be interfaced
 	  with portbridge and front-end tty will be interfaced with parser/filter.
-#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
 
 config PMIC8058_XOADC
 	tristate "Qualcomm PM8058 XOADC driver"

@@ -97,7 +97,7 @@ config MT9P017
 config HI542
 	bool "Hynix Sensor HI542 (BAYER 5M)"
 	depends on MSM_CAMERA && ARCH_MSM7X27A
-	default n
+	default y
 	---help---
 	  HYNIX 5M Bayer Sensor
 
@@ -106,7 +106,8 @@ config HI542
 config MT9V113
 	bool "Sensor mt9v113 (VGA)"
 	depends on MSM_CAMERA && ARCH_MSM7X27A
-	default y
+	default y if MACH_MSM7X27A_U0
+	default n if !MACH_MSM7X27A_U0
 	---help---
 	  APTINA VGA YUV Sensor
 # LGE_CHANGE_E : VGA Camera config
@@ -141,13 +142,6 @@ config MT9E013
 	default n
 	---help---
 	  Aptina 8M Bayer Sensor modules with Autofocus
-
-config MT9E013_LGIT
-	bool "Sensor MT9E013 LGIT module (BAYER 8M)"
-	depends on MSM_CAMERA && ARCH_MSM7X27A
-	default n
-	---help---   
-	APTINA 8M Bayer Sensor with Autofocus 
 
 config IMX074_ACT
 	bool "Actuator IMX074 (BAYER 13.5M)"
@@ -190,6 +184,23 @@ config MSM_CAMERA_FLASH_SC628A
 	  supports spotlight and flash light modes with
 	  differrent current levels.
 
+config MSM_CAMERA_FLASH_LM2759
+	bool "MSM camera LM2759 flash support"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  Enable support for LED flash for msm camera.
+	  It is a samtech charge pump flash driver and it
+	  supports spotlight and flash light modes with
+	  differrent current levels.
+
+config MSM_CAMERA_FLASH_LM3559
+	bool "MSM camera LM3559 flash support"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  Enable support for NSC LM3559 flash for msm camera.
+
 config IMX072
 	bool "Sensor imx072 (Sony 5M)"
 	default n
@@ -226,6 +237,7 @@ config MSM_CAMERA_FLASH
 config MSM_CAMERA_SENSOR
 	bool "Qualcomm MSM camera sensor support"
 	depends on MSM_CAMERA
+	default y
 
 config MSM_ACTUATOR
 	bool "Qualcomm MSM actuator support"

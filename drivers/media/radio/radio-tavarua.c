@@ -3655,28 +3655,50 @@ static int tavarua_vidioc_dqbuf(struct file *file, void *priv,
 {
 
 	struct tavarua_device  *radio = video_get_drvdata(video_devdata(file));
-	enum tavarua_buf_t buf_type = buffer->index;
+	enum tavarua_buf_t buf_type = -1;
+	unsigned char buf_fifo[128] ={0};
 	struct kfifo *data_fifo;
-	unsigned char *buf = (unsigned char *)buffer->m.userptr;
-	unsigned int len = buffer->length;
+	unsigned char *buf = NULL;
+	unsigned int len = 0;
+	if ((radio == NULL) || (buffer == NULL))
+		return -EINTR;
+	buf_type = buffer->index;
+	buf = (unsigned char *)buffer->m.userptr;
+	len = buffer->length;
+	FMDERR("Address of buf_fifo: %x\n",(unsigned int)&buf_fifo[0]);
+	FMDERR("Address of buf : %x\n",(unsigned int)buf);
+        FMDERR("Address of buffer : %x\n",(unsigned int)buffer);
 	FMDBG("%s: requesting buffer %d\n", __func__, buf_type);
-	/* check if we can access the user buffer */
-	if (!access_ok(VERIFY_WRITE, buf, len))
-		return -EFAULT;
+
 	if ((buf_type < TAVARUA_BUF_MAX) && (buf_type >= 0)) {
 		data_fifo = &radio->data_buf[buf_type];
+		FMDERR("Address of data_fifo : %x\n",(unsigned int)data_fifo);
 		if (buf_type == TAVARUA_BUF_EVENTS) {
+			FMDERR("%s: wait_event_interruptible +++\n", __func__);
 			if (wait_event_interruptible(radio->event_queue,
 				kfifo_len(data_fifo)) < 0) {
 				return -EINTR;
 			}
+			FMDERR("%s: wait_event_interruptible ---\n", __func__);
 		}
 	} else {
 		FMDERR("invalid buffer type\n");
 		return -EINVAL;
 	}
-	buffer->bytesused = kfifo_out_locked(data_fifo, buf, len,
-					&radio->buf_lock[buf_type]);
+	if ( len <= 128) {
+		FMDERR("%s: kfifo_out_locked +++\n", __func__);
+		buffer->bytesused = kfifo_out_locked(data_fifo, &buf_fifo[0],
+					len, &radio->buf_lock[buf_type]);
+		FMDERR("%s: kfifo_out_locked ---\n",__func__);
+	} else {
+		FMDERR("kfifo_out_locked can not use len more than 128\n");
+		return -EINVAL;
+	}
+	if (copy_to_user(buf, &buf_fifo[0], buffer->bytesused)) {
+		FMDERR("copy_to_user fails since userspace buffer is not available\n");
+		return -EFAULT;
+	}
+	FMDERR("%s: done\n", __func__);
 
 	return 0;
 }

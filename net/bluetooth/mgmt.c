@@ -1599,15 +1599,30 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 	hci_dev_lock_bh(hdev);
 
+// -s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+	/* QCT Original
 	BT_DBG("SSP Cap is %d", cp->ssp_cap);
+	*/
+// -e LGBT_COMMON_PATCH_SR00818097
 	io_cap = cp->io_cap;
-	if ((cp->ssp_cap == 0) || (io_cap == 0x03)) {
+// *s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+// QCT Original
+//// *s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+//	/* QCT Original
+//	if ((cp->ssp_cap == 0) || (io_cap == 0x03)) {
+//	*/
+//	if (io_cap == 0x03) {
+//// *e LGBT_COMMON_PATCH_SR00818097
+//		sec_level = BT_SECURITY_MEDIUM;
+//		auth_type = HCI_AT_DEDICATED_BONDING;
+//	} else {
+//		sec_level = BT_SECURITY_HIGH;
+//		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
+//	}
+
 		sec_level = BT_SECURITY_MEDIUM;
 		auth_type = HCI_AT_DEDICATED_BONDING;
-	} else {
-		sec_level = BT_SECURITY_HIGH;
-		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
-	}
+// *e LGBT_COMMON_PATCH_SR00818097
 
 	entry = hci_find_adv_entry(hdev, &cp->bdaddr);
 	if (entry && entry->flags & 0x04) {
@@ -1619,6 +1634,9 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 			io_cap = 0x01;
 		conn = hci_connect(hdev, ACL_LINK, 0, &cp->bdaddr, sec_level,
 								auth_type);
+// +s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
+		conn->auth_initiator = 1;
+// +e LGBT_COMMON_PATCH_SR00818097
 	}
 
 	if (IS_ERR(conn)) {
@@ -2097,7 +2115,12 @@ static int stop_discovery(struct sock *sk, u16 index)
 		}
 	}
 
+// *s QCT_BT_COMMON_PATCH_SR00829064 fix that error was occured when bt start discovery sunmee.choi@lge.com 2012-05-07 
+/* QCT Original
 	if (err < 0)
+*/
+	if (err < 0 && state == SCAN_BR)  
+// *e QCT_BT_COMMON_PATCH_SR00829064
 		err = hci_send_cmd(hdev, HCI_OP_INQUIRY_CANCEL, 0, NULL);
 
 	cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, index);

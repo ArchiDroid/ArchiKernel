@@ -56,6 +56,14 @@ static void early_suspend(struct work_struct *work);
 static void late_resume(struct work_struct *work);
 static DECLARE_WORK(early_suspend_work, early_suspend);
 static DECLARE_WORK(late_resume_work, late_resume);
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-03-03 : For LCD ESD
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+static void early_lcd_suspend(struct work_struct *work);
+static void late_lcd_resume(struct work_struct *work);
+static DECLARE_WORK(early_lcd_suspend_work, early_lcd_suspend);
+static DECLARE_WORK(late_lcd_resume_work, late_lcd_resume);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-03-03
 static DEFINE_SPINLOCK(state_lock);
 enum {
 	SUSPEND_REQUESTED = 0x1,
@@ -367,6 +375,67 @@ void request_suspend_state(suspend_state_t new_state)
 	requested_suspend_state = new_state;
 	spin_unlock_irqrestore(&state_lock, irqflags);
 }
+
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-03-03 : For LCD ESD
+#ifdef CONFIG_LGE_LCD_ESD_DETECTION
+static void early_lcd_suspend(struct work_struct *work)
+{
+	struct early_suspend *pos;
+	unsigned long irqflags;	
+		
+	mutex_lock(&early_suspend_lock);
+	if (debug_mask & DEBUG_SUSPEND)
+		pr_info("early_lcd_suspend: call handlers\n");
+	list_for_each_entry(pos, &early_suspend_handlers, link) {
+		if (pos->suspend != NULL) {	
+			if (debug_mask & DEBUG_VERBOSE)
+				pr_info("early_lcd_suspend: calling %pf\n", pos->suspend);
+			pos->suspend(pos);
+		}
+	}
+	mutex_unlock(&early_suspend_lock);
+	
+	suspend_sys_sync_queue();
+	spin_lock_irqsave(&state_lock, irqflags);	
+	wake_unlock(&main_wake_lock);
+	spin_unlock_irqrestore(&state_lock, irqflags);
+}
+
+static void late_lcd_resume(struct work_struct *work)
+{
+	struct early_suspend *pos;	
+	
+	mutex_lock(&early_suspend_lock);	
+	if (debug_mask & DEBUG_SUSPEND)
+		pr_info("late_lcd_resume: call handlers\n");
+	list_for_each_entry_reverse(pos, &early_suspend_handlers, link) {
+		if (pos->resume != NULL) {			
+			if (debug_mask & DEBUG_VERBOSE)
+				pr_info("late_lcd_resume: calling %pf\n", pos->resume);
+
+			pos->resume(pos);
+		}
+	}
+	if (debug_mask & DEBUG_SUSPEND)
+		pr_info("late_lcd_resume: done\n");
+
+	mutex_unlock(&early_suspend_lock);
+}
+
+void request_suspend_resume(void)
+{
+	unsigned long irqflags;	
+
+	printk("%s for Lcd esd\n",__func__);
+	spin_lock_irqsave(&state_lock, irqflags);
+	queue_work(suspend_work_queue, &early_lcd_suspend_work);
+	queue_work(suspend_work_queue, &late_lcd_resume_work);	
+	spin_unlock_irqrestore(&state_lock, irqflags);
+}
+
+EXPORT_SYMBOL(request_suspend_resume);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-03-03
 
 suspend_state_t get_suspend_state(void)
 {

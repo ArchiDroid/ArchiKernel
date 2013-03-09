@@ -22,11 +22,13 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 
+#ifdef CONFIG_MACH_MSM7X27A_U0
 /* LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
  * 0001734: [ARM9] Factory AT CMD feature added based on EVE.        
  * LGE_CHANGES LGE_FACTORY_AT_COMMANDS  */
 #define USE_REPLY_RETSTRING
 /* LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting,  LGE_FACTORY_AT_COMMANDS  */
+#endif
 
 /* RPC API version structure
  * Version bit 31 : 1->hashkey versioning,

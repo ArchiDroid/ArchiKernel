@@ -109,7 +109,7 @@
 #define HI542_STEPS_NEAR_TO_CLOSEST_INF  42	//37/* Total Steps */
 #define HI542_TOTAL_STEPS_NEAR_TO_FAR    42 //37
 
-#if 1  // donghyun.kwon (20120318) : change AF table to LGIT
+#if !defined(CONFIG_MACH_MSM7X25A_M4) // donghyun.kwon (20120318) : change AF table to LGIT
 uint16_t hi542_step_position_table[HI542_TOTAL_STEPS_NEAR_TO_FAR+1]= {
   0,
 216,
@@ -160,10 +160,18 @@ uint16_t hi542_step_position_table[HI542_TOTAL_STEPS_NEAR_TO_FAR+1];
 #endif
 
 uint16_t hi542_nl_region_boundary1 = 2;
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+uint16_t hi542_nl_region_boundary2 = 1;
+#else
 uint16_t hi542_nl_region_boundary2 = 0;
+#endif
 uint16_t hi542_nl_region_code_per_step1 = 90; //32;
 uint16_t hi542_nl_region_code_per_step2 = 0; // 0
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+uint16_t hi542_nl_region_code_per_step = 11; ///4;/* Num Gross Steps Between Stat Points */
+#else
 uint16_t hi542_nl_region_code_per_step = 9; ///4;/* Num Gross Steps Between Stat Points */
+#endif
 uint16_t hi542_damping_threshold = 10;
 uint16_t hi542_sw_damping_time_wait = 1;
 //End : shchang@qualcomm.com
@@ -299,7 +307,13 @@ static int32_t hi542_i2c_write_b_sensor(unsigned short waddr, uint8_t bdata)
 	for (loop = 0; loop < 3; loop++)
 	{
 	rc = hi542_i2c_txdata(hi542_client->addr, buf, 3);
-	if (rc < 0) {
+#ifdef CONFIG_MACH_MSM7X25A_M4
+		if((waddr == 0x0001) && (bdata == 0x02) && rc < 0) {
+			CDBG("hynix SW reset called message: addr = 0x%x, val = 0x%x\n", waddr, bdata);
+			continue;
+		}
+#endif
+		if (rc < 0) {
 			printk("i2c_write_b failed, addr = 0x%x, val = 0x%x!\n", waddr, bdata);
 			msleep(1);	// donghyun.kwon(20120414) : add for safty fail on i2c
 		}
@@ -368,9 +382,11 @@ static void hi542_start_stream(void)
 {
 	CDBG("%s: %d  Enter \n",__func__, __LINE__);
 	hi542_i2c_write_b_sensor(0x0001, 0x00);/* streaming on */
+#if !defined(CONFIG_MACH_MSM7X25A_M4)
 	hi542_i2c_write_b_sensor(0x0616, 0x01);/* mipi reset disable */
 	hi542_i2c_write_b_sensor(0x03d3, 0x08);/* mipi divider bypass */
      msleep(20);
+#endif
 	CDBG("%s: %d  Exit \n",__func__, __LINE__);
 }
 
@@ -568,6 +584,10 @@ static int32_t hi542_move_focus(int direction, int32_t num_steps)
 	 dest_lens_position = hi542_step_position_table[dest_step_position];
 
 
+#ifdef CONFIG_MACH_MSM7X25A_M4
+	 hw_damping = 0xF;       //0x5;//0xB;    /* LGE_CHANGED donghyun.kwon(20120317) : add workaround rutines for dampper */
+	 hi542_sw_damping_time_wait = 4500;// //4.5 msec
+#else
  	if (dest_step_position <= hi542_nl_region_boundary1) {
 		hw_damping = 0xF; // nodamping
 		hi542_sw_damping_time_wait = 4500;//10000; // 10 msec
@@ -617,6 +637,7 @@ static int32_t hi542_move_focus(int direction, int32_t num_steps)
 			hi542_sw_damping_time_wait = 4500;// //4.5 msec
 		}
 	}
+#endif
 
 	 if(hi542_ctrl->curr_lens_pos != dest_lens_position){
 		CDBG("hi542_move_focus writing i2c at line %d ...\n", __LINE__);
@@ -649,7 +670,7 @@ static int32_t hi542_move_focus(int direction, int32_t num_steps)
 //Start : shchang@qualcomm.com
 static void hi542_af_init(void)
 {
-#if 0  // donghyun.kwon (20120318) : change AF table to LGIT
+#if defined(CONFIG_MACH_MSM7X25A_M4) // donghyun.kwon (20120318) : change AF table to LGIT
 
     uint8_t i;
     hi542_step_position_table[0] = 0;
@@ -657,14 +678,11 @@ static void hi542_af_init(void)
         if ( i <= hi542_nl_region_boundary1){
 	        hi542_step_position_table[i] = hi542_step_position_table[i-1] + hi542_nl_region_code_per_step1;
         }
-        else if ( i <= hi542_nl_region_boundary2){
-	        hi542_step_position_table[i] = hi542_step_position_table[i-1] + hi542_nl_region_code_per_step2;
-        }
         else{
 	        hi542_step_position_table[i] = hi542_step_position_table[i-1] + hi542_nl_region_code_per_step;
         }
-        if (hi542_step_position_table[i] >1024)
-            hi542_step_position_table[i] = 1024;
+        if (hi542_step_position_table[i] >620)
+            hi542_step_position_table[i] = 620;
     }
 #endif
 }
@@ -736,7 +754,11 @@ static int32_t hi542_sensor_setting(int update_type, int rt)
 				hi542_csi_params.lane_cnt = 2;
 				hi542_csi_params.lane_assign = 0xe4;
 				hi542_csi_params.dpcm_scheme = 0;
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+				hi542_csi_params.settle_cnt = 0x21;
+#else
 				hi542_csi_params.settle_cnt = 0x14;
+#endif
 				rc = msm_camio_csi_config(&hi542_csi_params);
 				pr_info("########### %s E:CSI_CONFIG \n", __func__);
 				
@@ -850,6 +872,18 @@ static int32_t hi542_power_down(void)
 {
 	CDBG("%s: %d  Enter \n",__func__, __LINE__);
 	hi542_stop_stream();
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+	if (hi542_ctrl->curr_step_pos != 0) {
+		if(hi542_ctrl->curr_step_pos > hi542_nl_region_boundary2) {
+			hi542_move_focus(MOVE_FAR, (hi542_ctrl->curr_step_pos - hi542_nl_region_boundary2));
+			mdelay(10);
+			hi542_move_focus(MOVE_FAR, hi542_nl_region_boundary2);
+		}
+		else {
+			hi542_move_focus(MOVE_FAR, hi542_ctrl->curr_step_pos);
+		}
+	}
+#endif
 	CDBG("%s: %d  Exit \n",__func__, __LINE__);
 
 	return 0;
@@ -1258,6 +1292,14 @@ static int hi542_sensor_release(void)
 	return rc;
 }
 
+#ifdef CONFIG_MACH_MSM7X25A_M4
+static int hi542_sensor_stop(void)  
+{  
+	hi542_stop_stream();  
+	return 0;  
+}
+#endif  
+
 static int hi542_sensor_probe(const struct msm_camera_sensor_info *info,
 		struct msm_sensor_ctrl *s)
 {
@@ -1279,6 +1321,9 @@ static int hi542_sensor_probe(const struct msm_camera_sensor_info *info,
 
 	s->s_init = hi542_sensor_open_init;
 	s->s_release = hi542_sensor_release;
+#ifdef CONFIG_MACH_MSM7X25A_M4
+	s->s_stop = hi542_sensor_stop; // QCT patch sensor stop stream //patch 6
+#endif
 	s->s_config  = hi542_sensor_config;
 	s->s_camera_type = BACK_CAMERA_2D;
 	s->s_mount_angle = info->sensor_platform_info->mount_angle;

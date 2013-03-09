@@ -757,7 +757,7 @@ static int __init wakelocks_init(void)
 	 * 2012-01-24, yoonsoo@lge.com
 	 * Wakelock workqueue Change
 	 */
-	#if 0 //#ifdef CONFIG_MACH_LGE
+	#ifdef CONFIG_MACH_MSM7X27A_M4
 	suspend_work_queue = create_workqueue("suspend");
 	#else //QCT Original
 	suspend_work_queue = create_singlethread_workqueue("suspend");

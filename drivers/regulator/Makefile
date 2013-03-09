@@ -46,6 +46,9 @@ obj-$(CONFIG_REGULATOR_TPS65910) += tps65910-regulator.o
 obj-$(CONFIG_REGULATOR_PMIC8058) += pmic8058-regulator.o
 obj-$(CONFIG_REGULATOR_PMIC8901) += pmic8901-regulator.o
 obj-$(CONFIG_REGULATOR_GPIO) += gpio-regulator.o
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_REGULATOR_RT8053) += rt8053.o
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
 obj-$(CONFIG_REGULATOR_PM8058_XO) += pm8058-xo.o
 obj-$(CONFIG_REGULATOR_PM8XXX) += pm8xxx-regulator.o
 

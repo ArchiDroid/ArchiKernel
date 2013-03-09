@@ -259,7 +259,7 @@
 #define BMA250_COMP_TARGET_OFFSET_Z__REG        BMA250_OFFSET_PARAMS_REG
 
 //eee3114.lee@lge.com "sensor SURV shake detection" 			
-#define BMA250_SHAKING_DETECT_THRESHOLD	(5)	/* threshold of shaking detection under 2G */
+#define BMA250_SHAKING_DETECT_THRESHOLD	(50)	/* threshold of shaking detection under 2G */
 
 
 
@@ -309,8 +309,14 @@ struct bma250_data {
 	atomic_t fast_calib_y_rslt;
 	atomic_t fast_calib_z_rslt;
 //eee3114.lee@lge.com "sensor SURV shake detection" 			
-	
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+	atomic_t fast_calib_rslt;
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 };
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+static atomic_t bma250_diag = ATOMIC_INIT(0);
+static atomic_t bma250_cnt = ATOMIC_INIT(0);
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void bma250_early_suspend(struct early_suspend *h);
@@ -848,7 +854,10 @@ static int bma250_read_accel_x(struct i2c_client *client, short *a_x)
 {
 	int comres;
 	unsigned char data[2];
-
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+	if (atomic_read(&bma250_diag) == 1)
+		 atomic_inc(&bma250_cnt);
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 	comres = bma250_smbus_read_byte_block(client,
 			BMA250_ACC_X_LSB__REG, data, 2);
 	*a_x = BMA250_GET_BITSLICE(data[0], BMA250_ACC_X_LSB)
@@ -865,7 +874,10 @@ static int bma250_read_accel_y(struct i2c_client *client, short *a_y)
 {
 	int comres;
 	unsigned char data[2];
-
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+	if (atomic_read(&bma250_diag) == 1)
+		 atomic_inc(&bma250_cnt);
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 	comres = bma250_smbus_read_byte_block(client,
 			BMA250_ACC_Y_LSB__REG, data, 2);
 	*a_y = BMA250_GET_BITSLICE(data[0], BMA250_ACC_Y_LSB)
@@ -883,7 +895,10 @@ static int bma250_read_accel_z(struct i2c_client *client, short *a_z)
 {
 	int comres;
 	unsigned char data[2];
-
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+	if (atomic_read(&bma250_diag) == 1)
+		 atomic_inc(&bma250_cnt);
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 	comres = bma250_smbus_read_byte_block(client,
 			BMA250_ACC_Z_LSB__REG, data, 2);
 	*a_z = BMA250_GET_BITSLICE(data[0], BMA250_ACC_Z_LSB)
@@ -927,7 +942,7 @@ static ssize_t bma250_selftest_store(struct device *dev,
 	if (data != 1)
 		return -EINVAL;
 	/* set to 2 G range */
-	if (bma250_set_range(bma250->bma250_client, 0) < 0)
+	if (bma250_set_range(bma250->bma250_client, BMA250_RANGE_2G) < 0)
 		return -EINVAL;
 
 	bma250_smbus_write_byte(bma250->bma250_client, 0x32, &clear_value);
@@ -1197,6 +1212,15 @@ static int bma250_set_cal_trigger(struct i2c_client *client,
 	int comres = 0;
 	unsigned char data;
 
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09 sensor SURV shake detection*/
+	struct bma250_data *bma250 = i2c_get_clientdata(client);
+	if(atomic_read(&bma250->fast_calib_rslt) != 0)
+	{
+		atomic_set(&bma250->fast_calib_rslt, 0);
+		printk(KERN_INFO "[set] bma250->fast_calib_rslt:%d\n",atomic_read(&bma250->fast_calib_rslt));
+	}
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09 sensor SURV shake detection*/
+
 	comres = bma250_smbus_read_byte(client,
 			BMA250_EN_FAST_COMP__REG, &data);
 	data = BMA250_SET_BITSLICE(data,
@@ -1306,7 +1330,11 @@ static ssize_t bma250_fast_calibration_x_store(struct device *dev,
 				|| (abs((acc_cal.z - acc_cal_pre.z)) > BMA250_SHAKING_DETECT_THRESHOLD))
 		  )
 		{			
-			return count;
+
+			bma250_soft_reset(bma250->bma250_client);
+			printk(KERN_INFO "===============moved x===============\n");
+			printk(KERN_INFO "(%d, %d, %d) (%d, %d, %d)\n", acc_cal_pre.x,  acc_cal_pre.y,  acc_cal_pre.z, acc_cal.x,acc_cal.y,acc_cal.z );
+			return -EINVAL;
 		}
 		else
 		{
@@ -1317,7 +1345,7 @@ static ssize_t bma250_fast_calibration_x_store(struct device *dev,
 
 //eee3114.lee@lge.com "sensor SURV shake detection" 			
 
-		printk(KERN_INFO "wait 2ms and got cal ready flag is %d\n",
+		printk(KERN_INFO "[x] wait 2ms and got cal ready flag is %d\n",
 				tmp);
 		timeout++;
 		if (timeout == 1000) {
@@ -1406,7 +1434,11 @@ static ssize_t bma250_fast_calibration_y_store(struct device *dev,
 		  )
 		{
 			
-			return count;
+			bma250_soft_reset(bma250->bma250_client);
+			printk(KERN_INFO "===============moved y===============\n");
+			printk(KERN_INFO "(%d, %d, %d) (%d, %d, %d)\n", acc_cal_pre.x,  acc_cal_pre.y,  acc_cal_pre.z, acc_cal.x,acc_cal.y,acc_cal.z );
+			return -EINVAL;
+
 		}
 		else
 		{
@@ -1418,7 +1450,7 @@ static ssize_t bma250_fast_calibration_y_store(struct device *dev,
 //eee3114.lee@lge.com "sensor SURV shake detection" 			
 
 
-		printk(KERN_INFO "wait 2ms and got cal ready flag is %d\n",
+		printk(KERN_INFO "[y] wait 2ms and got cal ready flag is %d\n",
 				tmp);
 		timeout++;
 		if (timeout == 1000) {
@@ -1506,7 +1538,10 @@ static ssize_t bma250_fast_calibration_z_store(struct device *dev,
 				|| (abs((acc_cal.z - acc_cal_pre.z)) > BMA250_SHAKING_DETECT_THRESHOLD))
 		  )
 		{
-			return count;
+			bma250_soft_reset(bma250->bma250_client);
+			printk(KERN_INFO "===============moved z===============\n");
+			printk(KERN_INFO "(%d, %d, %d) (%d, %d, %d)\n", acc_cal_pre.x,  acc_cal_pre.y,  acc_cal_pre.z, acc_cal.x,acc_cal.y,acc_cal.z );
+			return -EINVAL;
 		}
 		else
 		{
@@ -1518,7 +1553,7 @@ static ssize_t bma250_fast_calibration_z_store(struct device *dev,
 //eee3114.lee@lge.com "sensor SURV shake detection" 			
 
 
-		printk(KERN_INFO "wait 2ms and got cal ready flag is %d\n",
+		printk(KERN_INFO "[z] wait 2ms and got cal ready flag is %d\n",
 				tmp);
 		timeout++;
 		if (timeout == 1000) {
@@ -1584,7 +1619,10 @@ static ssize_t bma250_eeprom_writing_store(struct device *dev,
 	/* unlock eeprom */
 	if (bma250_set_ee_w(bma250->bma250_client, 0) < 0)
 		return -EINVAL;
-
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09 sensor SURV shake detection*/
+	atomic_set(&bma250->fast_calib_rslt, 1);
+	printk(KERN_INFO "[set] bma250->fast_calib_rslt:%d\n", atomic_read(&bma250->fast_calib_rslt));
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09 sensor SURV shake detection*/
 	printk(KERN_INFO "lock eeprom successful\n");
 	return count;
 }
@@ -1706,8 +1744,91 @@ static ssize_t bma250_offset_filt_z_store(struct device *dev,
 
 	return count;
 }
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
 
+static ssize_t bma250_x_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	short data;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bma250_data *bma250 = i2c_get_clientdata(client);
+	if (bma250_read_accel_x(bma250->bma250_client, &data) < 0)
+		return sprintf(buf, "Read error\n");
+	
+	return sprintf(buf, "%d\n", data);
 
+}
+static ssize_t bma250_y_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	short data;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bma250_data *bma250 = i2c_get_clientdata(client);
+	if (bma250_read_accel_y(bma250->bma250_client, &data) < 0)
+		return sprintf(buf, "Read error\n");
+
+	return sprintf(buf, "%d\n", data);
+
+}
+static ssize_t bma250_z_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	short data;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bma250_data *bma250 = i2c_get_clientdata(client);
+	if (bma250_read_accel_z(bma250->bma250_client, &data) < 0)
+		return sprintf(buf, "Read error\n");
+
+	return sprintf(buf, "%d\n", data);
+
+}
+static ssize_t bma250_cal_result_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bma250_data *bma250 = i2c_get_clientdata(client);
+
+	return sprintf(buf, "%d\n", atomic_read(&bma250->fast_calib_rslt));
+}
+
+static ssize_t bma250_diag_cnt_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", atomic_read(&bma250_cnt));
+}
+
+static ssize_t bma250_diag_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", atomic_read(&bma250_diag));
+}
+static ssize_t bma250_diag_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int value;
+
+	sscanf(buf, "%d", &value);
+	if(value == 1){
+		atomic_set(&bma250_diag,1);
+	}else{
+		atomic_set(&bma250_diag,0);
+	}
+	return count;
+}
+static DEVICE_ATTR(x, S_IRUGO|S_IWUSR|S_IWGRP,
+		bma250_x_show, NULL);
+static DEVICE_ATTR(y, S_IRUGO|S_IWUSR|S_IWGRP,
+		bma250_y_show, NULL);
+static DEVICE_ATTR(z, S_IRUGO|S_IWUSR|S_IWGRP,
+		bma250_z_show, NULL);
+static DEVICE_ATTR(cal_result,S_IRUGO|S_IWUSR|S_IWGRP,
+		bma250_cal_result_show, NULL);
+static DEVICE_ATTR(cnt, S_IRUGO|S_IWUSR|S_IWGRP,
+		bma250_diag_cnt_show, NULL);
+static DEVICE_ATTR(diag, S_IRUGO|S_IWUSR|S_IWGRP,
+		bma250_diag_show, bma250_diag_store);
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 
 static DEVICE_ATTR(range, S_IRUGO|S_IWUSR|S_IWGRP,
 		bma250_range_show, bma250_range_store);
@@ -1758,6 +1879,14 @@ static DEVICE_ATTR(softreset, S_IWUSR|S_IWGRP,
 
 
 static struct attribute *bma250_attributes[] = {
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+	&dev_attr_x.attr,
+	&dev_attr_y.attr,
+	&dev_attr_z.attr,
+	&dev_attr_diag.attr,
+	&dev_attr_cnt.attr,
+	&dev_attr_cal_result.attr,
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 	&dev_attr_range.attr,
 	&dev_attr_bandwidth.attr,
 	&dev_attr_mode.attr,

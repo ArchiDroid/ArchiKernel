@@ -38,9 +38,18 @@ static void stop_drawing_early_suspend(struct early_suspend *h)
 	spin_unlock_irqrestore(&fb_state_lock, irq_flags);
 
 	wake_up_all(&fb_state_wq);
+
+//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-02-13
+#if 0 /*original*/
 	ret = wait_event_timeout(fb_state_wq,
 				 fb_state == FB_STATE_STOPPED_DRAWING,
 				 HZ);
+#else
+	ret = wait_event_timeout(fb_state_wq,
+				 fb_state == FB_STATE_STOPPED_DRAWING,
+				 HZ / 2);
+#endif
+//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-02-13
 	if (unlikely(fb_state != FB_STATE_STOPPED_DRAWING))
 		pr_warning("stop_drawing_early_suspend: timeout waiting for "
 			   "userspace to stop drawing\n");

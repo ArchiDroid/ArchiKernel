@@ -38,6 +38,7 @@
 
 typedef int (suspend_handler_t)(struct sdio_func *);
 typedef void (resume_handler_t)(struct sdio_func *);
+typedef void (notify_card_removal_t)(void);
 
 // 2012.03.13 real-wifi@lge.com[wo0gi] QCT patch : CMD52 timeout patch [START]
 int libra_enable_sdio_irq_in_chip(struct sdio_func *func, u8 enable);
@@ -83,4 +84,6 @@ int libra_disable_sdio_irq_capability(struct sdio_func *func, u8 disable);
 /* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [START] */
 void enable_mmchost_detect_change(const char *mmc_msm_dev, int enable);
 /* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [END] */
+int libra_sdio_notify_card_removal(
+		notify_card_removal_t *libra_sdio_notify_card_removal_hdlr);
 #endif /* __LIBRA_SDIOIF_H__ */

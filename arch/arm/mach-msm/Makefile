@@ -321,8 +321,7 @@ endif
 
 obj-$(CONFIG_ARCH_MSM8960) += mdm2.o mdm_common.o
 obj-$(CONFIG_MSM_RTB) += msm_rtb.o
-
 #LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
 obj-$(CONFIG_MACH_LGE) += lge/
-obj-y += rpc_server_misc.o
+obj-$(CONFIG_MACH_MSM7X27A_U0) += rpc_server_misc.o
 #LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting

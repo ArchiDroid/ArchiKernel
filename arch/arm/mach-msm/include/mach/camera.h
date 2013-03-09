@@ -315,6 +315,9 @@ struct msm_camvpe_fn {
 struct msm_sensor_ctrl {
 	int (*s_init)(const struct msm_camera_sensor_info *);
 	int (*s_release)(void);
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+	int (*s_stop)(void); // QCT patch sensor stop stream //patch 6
+#endif
 	int (*s_config)(void __user *);
 	enum msm_camera_type s_camera_type;
 	uint32_t s_mount_angle;

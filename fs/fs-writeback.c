@@ -891,6 +891,54 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 	return wrote;
 }
 
+#ifdef CONFIG_LGE_BDI_TIMER_BUG_PATCH
+#ifdef CONFIG_LGE_BDI_TIMER_BUG_PATCH_LOG
+/*
+ * dump a block of kernel memory from around the given address
+ */
+static void show_data(unsigned long addr, int nbytes, const char *name)
+{
+	int     i, j;
+	int     nlines;
+	u32     *p;
+	
+	/*
+	 * don't attempt to dump non-kernel addresses or
+	 * values that are probably just small negative numbers
+	 */
+	 if (addr < PAGE_OFFSET || addr > -256UL)
+	 	return;
+		
+	 printk("\n%s: %#lx:\n", name, addr);
+	 
+	 /*
+	  * round address down to a 32 bit boundary
+	  * and always dump a multiple of 32 bytes
+	  */
+	 p = (u32 *)(addr & ~(sizeof(u32) - 1));
+	 nbytes += (addr & (sizeof(u32) - 1));
+	 nlines = (nbytes + 31) / 32;
+	 
+	 for (i = 0; i < nlines; i++) {
+	 /*
+	  * just display low 16 bits of address to keep
+	  * each line of the dump < 80 characters
+	  */
+	    printk("%04lx ", (unsigned long)p & 0xffff);
+	 	for (j = 0; j < 8; j++) {
+			u32     data;
+			if (probe_kernel_address(p, data)) {
+				printk(" ********");
+			} else {
+				printk(" %08x", data);
+			}
+			++p;
+		}
+		printk("\n");
+	}
+}
+#endif
+#endif
 /*
  * Handle writeback of dirty data for the device backed by this bdi. Also
  * wakes up periodically and does kupdated style flushing.

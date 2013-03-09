@@ -17,7 +17,13 @@
 #ifndef _LINUX_MELFAS_TS_H
 #define _LINUX_MELFAS_TS_H
 
+/* LGE_CHANGE_S : RECENT_APPS_KEY (Bell Operator in Canada) */
+#if defined(CONFIG_MACH_MSM7X25A_M4CA_BELL_REV_B)
+#define MELFAS_TS_NAME "touch_mcs8000_bell"
+#else
 #define MELFAS_TS_NAME "touch_mcs8000"
+#endif
+/* LGE_CHANGE_E : RECENT_APPS_KEY */
 
 struct melfas_tsi_platform_data {
 	int x_size;

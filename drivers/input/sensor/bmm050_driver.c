@@ -62,6 +62,10 @@ struct op_mode_map {
 	char *op_mode_name;
 	long op_mode;
 };
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+static atomic_t bmm_diag = ATOMIC_INIT(0);
+static atomic_t bmm_cnt = ATOMIC_INIT(0);
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 
 static const u8 odr_map[] = {10, 2, 6, 8, 15, 20, 25, 30};
 static const struct op_mode_map op_mode_maps[] = {
@@ -912,8 +916,97 @@ static ssize_t bmm_store_test(struct device *dev,
 
 	return count;
 }
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+static ssize_t bmm_x_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct input_dev *input = to_input_dev(dev);
+	struct bmm_client_data *client_data = input_get_drvdata(input);
+	int count;
+	if (atomic_read(&bmm_diag) == 1)
+		 atomic_inc(&bmm_cnt);
+	BMM_CALL_API(read_mdataXYZ)(&client_data->value);
 
-static DEVICE_ATTR(chip_id, S_IRUGO,
+	count = sprintf(buf, "%hd %hd %hd\n",
+			client_data->value.datax,
+			client_data->value.datay,
+			client_data->value.dataz);
+
+	return sprintf(buf, "%d\n", client_data->value.datax);
+
+}
+static ssize_t bmm_y_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct input_dev *input = to_input_dev(dev);
+	struct bmm_client_data *client_data = input_get_drvdata(input);
+	int count;
+	if (atomic_read(&bmm_diag) == 1)
+		 atomic_inc(&bmm_cnt);
+
+	BMM_CALL_API(read_mdataXYZ)(&client_data->value);
+
+	count = sprintf(buf, "%hd %hd %hd\n",
+			client_data->value.datax,
+			client_data->value.datay,
+			client_data->value.dataz);
+
+	return sprintf(buf, "%d\n", client_data->value.datay);
+}
+static ssize_t bmm_z_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct input_dev *input = to_input_dev(dev);
+	struct bmm_client_data *client_data = input_get_drvdata(input);
+	int count;
+	if (atomic_read(&bmm_diag) == 1)
+		 atomic_inc(&bmm_cnt);
+	BMM_CALL_API(read_mdataXYZ)(&client_data->value);
+
+	count = sprintf(buf, "%hd %hd %hd\n",
+			client_data->value.datax,
+			client_data->value.datay,
+			client_data->value.dataz);
+
+	return sprintf(buf, "%d\n", client_data->value.dataz);
+}
+
+static ssize_t bmm_diag_cnt_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", atomic_read(&bmm_cnt));
+}
+
+static ssize_t bmm_diag_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", atomic_read(&bmm_diag));
+}
+static ssize_t bmm_diag_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int value;
+
+	sscanf(buf, "%d", &value);
+	if(value == 1){
+		atomic_set(&bmm_diag,1);
+	}else{
+		atomic_set(&bmm_diag,0);
+	}
+	return count;
+}
+static DEVICE_ATTR(x, S_IRUGO|S_IWUSR|S_IWGRP,
+		bmm_x_show, NULL);
+static DEVICE_ATTR(y, S_IRUGO|S_IWUSR|S_IWGRP,
+		bmm_y_show, NULL);
+static DEVICE_ATTR(z, S_IRUGO|S_IWUSR|S_IWGRP,
+		bmm_z_show, NULL);
+static DEVICE_ATTR(cnt, S_IRUGO|S_IWUSR|S_IWGRP,
+		bmm_diag_cnt_show, NULL);
+static DEVICE_ATTR(diag, S_IRUGO|S_IWUSR|S_IWGRP,
+		bmm_diag_show, bmm_diag_store);
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/static DEVICE_ATTR(chip_id, S_IRUGO,
 		bmm_show_chip_id, NULL);
 static DEVICE_ATTR(op_mode, S_IRUGO|S_IWUSR,
 		bmm_show_op_mode, bmm_store_op_mode);
@@ -935,6 +1028,13 @@ static DEVICE_ATTR(test, S_IRUGO|S_IWUSR,
 		bmm_show_test, bmm_store_test);
 
 static struct attribute *bmm_attributes[] = {
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+	&dev_attr_x.attr,
+	&dev_attr_y.attr,
+	&dev_attr_z.attr,
+	&dev_attr_diag.attr,
+	&dev_attr_cnt.attr,
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
 	&dev_attr_chip_id.attr,
 	&dev_attr_op_mode.attr,
 	&dev_attr_odr.attr,

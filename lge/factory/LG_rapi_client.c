@@ -1008,69 +1008,6 @@ void remote_did_rpc(void)
 EXPORT_SYMBOL(remote_did_rpc);
 
 
-/* [yk.kim@lge.com] 2011-01-25, get manual test mode NV */
-int msm_get_manual_test_mode(void)
-{
-	struct oem_rapi_client_streaming_func_arg arg;
-	struct oem_rapi_client_streaming_func_ret ret;
-	int rc= -1;
-	char temp;
-
-	char output[4];
-	memset(output,0,4);
-
-	Open_check();
-
-	if (IS_ERR(client)) {
-		pr_err("%s error \r\n", __func__);
-		return 0;
-	}
-
-	arg.event = LG_FW_MANUAL_TEST_MODE;
-	arg.cb_func = NULL;
-	arg.handle = (void*) 0;
-	arg.in_len = sizeof(temp);
-	arg.input = (char*)&temp;
-	arg.out_len_valid = 1;
-	arg.output_valid = 1;
-	arg.output_size = 4;
-
-	ret.output = NULL;
-	ret.out_len = NULL;
-
-	rc = oem_rapi_client_streaming_function(client, &arg, &ret);
-	
-/* BEGIN: 0015327 jihoon.lee@lge.com 20110204 */
-/* MOD 0015327: [KERNEL] LG RAPI validity check */
-	if (rc < 0)
-	{
-		pr_err("%s error \r\n", __func__);
-		memset(output,0,4);
-	}
-	else
-	{
-		rc = lg_rapi_check_validity_and_copy_result((void*)&ret, (char*)output, arg.output_size);
-		if(rc == LG_RAPI_INVALID_RESPONSE)
-			memset(output,0,4);
-		else
-			printk(KERN_INFO "MANUAL_TEST_MODE nv : %c\n", output[0]);
-	}
-/* END: 0015327 jihoon.lee@lge.com 20110204 */
-
-	if (ret.output)
-		kfree(ret.output);
-	if (ret.out_len)
-		kfree(ret.out_len);
-
-	if(output[0] == 0x31)
-		return 1;
-	else
-		return 0;
-}
-
-EXPORT_SYMBOL(msm_get_manual_test_mode);
-
-
 /* BEGIN: 0016311 jihoon.lee@lge.com 20110217 */
 /* ADD 0016311: [POWER OFF] CALL EFS_SYNC */
 #ifdef CONFIG_LGE_SUPPORT_RAPI

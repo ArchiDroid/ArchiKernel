@@ -13,6 +13,62 @@ config MACH_MSM7X27A_U0
     help
         Support for the LG Electronics MSM7x27A U0EU.
 
+config MACH_MSM7X25A_M4
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A M4EU"
+    help
+        Support for the LG Electronics MSM7x25A M4EU.
+
+config MACH_MSM7X25A_M4EU_EVB
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A M4EU"
+    help
+        Support for the LG Electronics MSM7x25A M4EU.
+        
+config MACH_MSM7X25A_M4EU_REV_A
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A M4EU"
+    help
+        Support for the LG Electronics MSM7x25A M4EU.
+        
+config MACH_MSM7X25A_M4EU_REV_B
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A M4EU"
+    help
+        Support for the LG Electronics MSM7x25A M4EU.
+        
+config MACH_MSM7X25A_M4BR_REV_B
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A M4EU"
+    help
+        Support for the LG Electronics MSM7x25A M4EU.
+        
+config MACH_MSM7X25A_M4CA_BELL_REV_B
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A M4EU"
+    help
+        Support for the LG Electronics MSM7x25A M4EU.
+        
+config MACH_MSM7X25A_M4CA_TLS_REV_B
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A M4EU"
+    help
+        Support for the LG Electronics MSM7x25A M4EU.
+
 
 endmenu
 
@@ -59,6 +115,13 @@ config LGE_SILENCE_RESET
 	depends on ANDROID_RAM_CONSOLE
 	help
 	 LGE crash handler
+
+config LGE_LCD_ESD_DETECTION
+	bool "Enable to reset LCD on ESD detection"
+	depends on MACH_LGE
+	default n
+	help
+	 This enables ESD detection of LCD & resets LCD if ESD shock occurs.
 
 config LGE_GRAM_REFRESH_PATCH
 	bool "LGE gram refresh patch"
@@ -108,7 +171,9 @@ config LGE_REPORT_RMT_STORAGE_CLIENT_READY
 config LGE_WAIT_FOR_EFS_SYNC_COMPLETE
 	bool "Wait in power off/reset until SYNC complete"
 	depends on MACH_LGE
-	default y
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-07 :: Let's set kernel's config
+	default n
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-04-07
 	help
 	 This patch waits in power down/ reset handler if any efs sync is going on.
 	 Turn Off phone only when currently active sync complete.This makes sure that
@@ -150,23 +215,18 @@ config LGE_MODEL_U0_EU_REV_F
 	default n
 	help
 	 Configuration U0 Board Revision information.
-	 
+        
 config FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
 	bool "Removes the glitch in lg booting logo"
 	default n
 	help
 	  Removes the glitch in lg booting logo
-	  
-config LGE_LCD_ESD_DETECTION
-	bool "Enable to reset LCD on ESD detection"
-	depends on MACH_LGE
-	default n
-	help
-	 This enables ESD detection of LCD & resets LCD if ESD shock occurs.
-
+         
 config LGE_SUSPEND_TIME
     tristate "Log time spent in suspend"
-    default y
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-07 :: Let's set kernel's config
+    default n
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-04-07
     depends on MACH_LGE
 	help
 	  Prints the time spent in suspend in the kernel log, and
@@ -177,7 +237,9 @@ config LGE_SUSPEND_TIME
 
 config LGE_EARLYSUSPEND_FUNC_TIME
     tristate "Log time spent in each earlysuspend call"
-    default y
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-07 :: Let's set kernel's config
+    default n
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-04-07
     depends on MACH_LGE
 	help
 	  Keeps the time statistics spent in each earlysuspend in 
@@ -187,12 +249,20 @@ config LGE_EARLYSUSPEND_FUNC_TIME
 	  
 config LGE_SUSPEND_AUTOTEST
     tristate "Test suspend/resume and earlysuspend/lateresume automatically"
-    default y
+#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-04-07 :: Let's set kernel's config
+    default n
+#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-04-07
     depends on MACH_LGE && SUSPEND && EARLYSUSPEND
 	help
       This option will let you suspend your machine, and make it wake up
 	  a few seconds later using an timer automatically.  
 	  Enable this with a kernel parameter by sysfs.	  
+
+config LGE_NXP_PN544
+    bool "NXP(PN544) NFC Driver"
+    default n
+    help
+      NXP(PN544) NFC Driver
 
 endmenu
  

@@ -3024,6 +3024,10 @@ static int __msm_release(struct msm_sync *sync)
 		/* need to clean up system resource */
 		pr_info("%s, release VFE\n", __func__);
 		if (sync->core_powered_on) {
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+			if (sync->sctrl.s_stop) // QCT patch sensor stop stream  //patch 6
+				sync->sctrl.s_stop();  
+#endif
 			if (sync->vfefn.vfe_release)
 				sync->vfefn.vfe_release(sync->pdev);
 			/*sensor release */

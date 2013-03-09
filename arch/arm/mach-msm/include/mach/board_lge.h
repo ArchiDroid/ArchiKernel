@@ -25,7 +25,7 @@
 #define MSM_PMEM_AUDIO_SIZE	0x5B000
 
 /*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting*/
-#if 1	/*kernel3.0.8 code*/
+#if 1  /*kernel3.0.8 code*/
 #ifdef CONFIG_ARCH_MSM7X27A
 #define MSM_PMEM_MDP_SIZE       			0x2300000
 #define MSM7x25A_MSM_PMEM_MDP_SIZE		0x1500000
@@ -70,8 +70,10 @@ enum {
 	LGE_REV_10,
 	LGE_REV_11,
 	LGE_REV_12,
+	LGE_REV_13,
 	LGE_REV_TOT_NUM,
 };
+/* LGE_CHANGE_E : PCB_Revision */
 
 extern int lge_bd_rev;
 
@@ -83,16 +85,8 @@ struct gpio_i2c_pin {
 	unsigned int irq_pin;
 };
 
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
- * camera flash device/driver naming match 
- */
- #if defined (CONFIG_LEDS_AS364X)
-#define LEDS_CAMERA_FLASH_NAME	"as3647"
-#endif
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting*/
-
 /* touch screen platform data */
-#if defined(CONFIG_TOUCHSCREEN_SYNAPTICS)
+#if defined(CONFIG_TOUCHSCREEN_SYNAPTICS) || defined(CONFIG_TOUCHSCREEN_MCS8000)
 struct touch_platform_data {
 	int ts_x_min;
 	int ts_x_max;
@@ -117,12 +111,12 @@ struct melfas_tsi_platform_data {
 	int gpio_scl;
 	int gpio_sda;
 	int i2c_int_gpio;
-	int (*power)(int on);	/* Only valid in first array entry */
+	int (*power)(int on);   /* Only valid in first array entry */
 	int (*power_enable)(int en, bool log_en);
 };
 #endif /*U0 Rev.b melfas touch*/
 
-#if defined(CONFIG_TOUCHSCREEN_MCS8000)
+#if defined(CONFIG_TOUCHSCREEN_MCS8000) || defined(CONFIG_TOUCHSCREEN_MCS8000_MMS128)
 struct touch_platform_data {
 	int ts_x_min;
 	int ts_x_max;
@@ -339,6 +333,7 @@ unsigned lge_get_batt_id(void);
 #endif
 //LGE_CHANGE_E, [hyo.park@lge.com] , 2011-07-28
 unsigned lge_get_cable_info(void);
+
 /* LGE_CHANGE_S: murali.ramaiah@lge.com [2011-09-22]  */
 #ifdef CONFIG_LGE_POWER_ON_STATUS_PATCH
 void __init lge_board_pwr_on_status(void);

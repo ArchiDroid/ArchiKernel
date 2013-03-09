@@ -108,13 +108,22 @@ typedef unsigned char		BOOLEAN;
 //
 //============================================================
 
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+/*Add extern function to enable FW Download by matthew.kim*/
+extern int ts_set_vreg(unsigned char onoff);
+#endif
 
 //----------------
 // VDD
 //----------------
 #if MCSDL_USE_VDD_CONTROL
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+#define MCSDL_VDD_SET_HIGH()             			ts_set_vreg(1)   //gpio_set_value(GPIO_TOUCH_EN, 1)
+#define MCSDL_VDD_SET_LOW()              			ts_set_vreg(0)   //gpio_set_value(GPIO_TOUCH_EN,0)
+#else
 #define MCSDL_VDD_SET_HIGH()             			// Nothing
 #define MCSDL_VDD_SET_LOW()              			// Nothing
+#endif
 #else
 #define MCSDL_VDD_SET_HIGH()             			// Nothing
 #define MCSDL_VDD_SET_LOW()              			// Nothing
@@ -192,9 +201,12 @@ typedef unsigned char		BOOLEAN;
 #define MCSDL_DELAY_10US 							   10
 #define MCSDL_DELAY_15US							   15
 #define MCSDL_DELAY_20US							   20
+#define MCSDL_DELAY_40US                 40
+#define MCSDL_DELAY_70US                 70
 
 #define MCSDL_DELAY_100US							  100
 #define MCSDL_DELAY_150US							  150
+#define MCSDL_DELAY_300US               300
 #define MCSDL_DELAY_500US             				  500
 #define MCSDL_DELAY_800US							  800
 
@@ -205,6 +217,7 @@ typedef unsigned char		BOOLEAN;
 #define MCSDL_DELAY_25MS							25000
 #define MCSDL_DELAY_30MS							30000
 #define MCSDL_DELAY_40MS							40000
+#define MCSDL_DELAY_50MS              50000
 #define MCSDL_DELAY_45MS							45000
 #define MCSDL_DELAY_100MS						   100000
 
@@ -213,6 +226,8 @@ typedef unsigned char		BOOLEAN;
 #define MCSDL_DELAY_50MS                            50000
 #define MCSDL_DELAY_60MS                            60000
 #define MCSDL_DELAY_80MS                            80000
+#define MCSDL_DELAY_500MS						 500000
+#define MCSDL_DELAY_100MS						 100000
 
 #define MCSDL_DELAY_40US                               40
 #define MCSDL_DELAY_70US                               70
@@ -241,6 +256,8 @@ typedef unsigned char		BOOLEAN;
 #define MELFAS_ROLLBACK_BASEBAND_ISR()				enable_irq(GPIO_TOUCH_INT)
 #define MELFAS_ROLLBACK_WATCHDOG_TIMER_RESET()		// Nothing
 
+#define MELFAS_DISABLE_TS_ISR()											disable_irq(GPIO_TOUCH_INT)
+#define MELFAS_ENABLE_TS_ISR()							  enable_irq(GPIO_TOUCH_INT)
 #endif
 
 

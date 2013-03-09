@@ -56,6 +56,20 @@ config SENSOR_BMA222_HAS_EARLYSUSPEND
 	  If you say yes here you get has early suspend and late resume for Bosch Sensortec's 
 	  acceleration sensors BMA222.
 
+config SENSOR_BMA222_ENABLE_INT1
+	tristate "BMA222 acceleration sensor interrupt INT1 support"
+	depends on SENSOR_BMA222=y
+	help
+	  If you say yes here you get INT1 support for Bosch Sensortec's 
+	  acceleration sensors BMA222.
+
+config SENSOR_BMA222_ENABLE_INT2
+	tristate "BMA222 acceleration sensor interrupt INT2 support"
+	depends on SENSOR_BMA222=y
+	help
+	  If you say yes here you get INT2 support for Bosch Sensortec's 
+	  acceleration sensors BMA222.
+
 config SENSOR_AMI304
         tristate "AMI304 based compass sensor"
         help

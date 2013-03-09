@@ -64,7 +64,6 @@ static unsigned int gp2ap_debug_mask =
 	GP2AP_DEBUG_DEV_DEBOUNCE |									\
 	GP2AP_DEBUG_FUNC_TRACE |									\*/
 	GP2AP_DEBUG_ERR_CHECK;
-	//GP2AP_DEBUG_DEV_STATUS | GP2AP_DEBUG_FUNC_TRACE;
 
 module_param_named(debug_mask, gp2ap_debug_mask, int,
 		S_IRUGO | S_IWUSR | S_IWGRP);
@@ -124,7 +123,6 @@ module_param_named(debug_mask, gp2ap_debug_mask, int,
 #define	PROX_OPMODE_B1	0x1
 #define	PROX_OPMODE_B2	0x2
 
-//
 #define PROX_I2C_INT_CLEAR  (1 << 7)
 #define PROX_I2C_INT_NO_CLEAR (0)
 
@@ -146,9 +144,8 @@ struct proximity_gp2ap_device {
 	spinlock_t			lock;			/* protect resources */
 	int op_mode;	/* operation mode - 0:A, 1:B1, 2:B2 */
 	u8	reg_backup[7];	/* for on/off */
-	/* LGE_CHANGE_S : yangwook.lim 20120216 DV issue wakelock when interrupt occurred. */
+	//eee3114.lee 20120214 PV issue wakelock when interrupt occurred.
 	struct wake_lock wakelock;	
-	/* LGE_CHANGE_E : yangwook.lim 20120216 DV issue wakelock when interrupt occurred. */
 };
 
 struct detection_cycle {
@@ -222,7 +219,7 @@ prox_i2c_write(u8 addr, u8 value, u8 intclr)
 	gp2ap_pdev->reg_backup[addr] = value;
 
 	if (GP2AP_DEBUG_GEN_INFO & gp2ap_debug_mask)
-		PROXD("addr(%u),val(%u),intclr(%u)\n", addr, value, intclr);
+		PROXD("addr(%u),val(0x%x),intclr(%u)\n", addr, value, intclr);
 
 	return ret;
 }
@@ -261,11 +258,13 @@ prox_i2c_read(u8 addr, u8 intclr)
 static int prox_power_onoff(unsigned char onoff)
 {
 	int rc = 0;
- 	printk(KERN_INFO "[Proximity] %s() : Power %s\n",
-		   __func__, onoff ? "On" : "Off");
-	//
+ 	printk(KERN_INFO "[Proximity2] %s() : Power %s (opmode: %d)\n",
+		   __func__, onoff ? "On" : "Off",gp2ap_pdev->op_mode);
+
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-03-07 soft shutdown process is changed by op_mode.*/
+	if (gp2ap_pdev->op_mode == PROX_OPMODE_A)
+	{
 	if (onoff) {
-		//
 		rc = prox_i2c_write(0x01, 0x08, PROX_I2C_INT_NO_CLEAR); /* address:1 data:0x08 LED driver's MOS pararelled */ 
  		rc = prox_i2c_write(0x02, 0xC2, PROX_I2C_INT_NO_CLEAR); /* address:2 data:0x40 HYSD:1 HYSC:b'10 HYSF:00010 */ 
  		rc = prox_i2c_write(0x03, 0x04, PROX_I2C_INT_NO_CLEAR); /* address:3 data:0x04 8ms cycle, no Freq.Hopping */
@@ -282,6 +281,34 @@ static int prox_power_onoff(unsigned char onoff)
     		return rc;
  		}
  	}
+	}
+	else	/* PROX_OPMODE_B */
+	{
+		if (onoff) {
+			rc = prox_i2c_write(GP2AP_REG_CON, 0x18, GP2AP_NO_INTCLEAR); /* address:1 data:0x08 LED driver's MOS pararelled */ 
+			if (gp2ap_pdev->op_mode == PROX_OPMODE_B1)
+			{
+				rc = prox_i2c_write(GP2AP_REG_HYS, 0x40, GP2AP_NO_INTCLEAR); /* address:1 data:0x08 LED driver's MOS pararelled */ 
+			}else{
+				rc = prox_i2c_write(GP2AP_REG_HYS, 0x20, GP2AP_NO_INTCLEAR); /* address:1 data:0x08 LED driver's MOS pararelled */ 
+			}
+	  		rc = prox_i2c_write(GP2AP_REG_OPMOD, 0x03, GP2AP_NO_INTCLEAR); /* address:4 data:0x01 SSD:b'1 VCON:b'0 */
+			rc = prox_i2c_write(GP2AP_REG_CON, 0x00, GP2AP_NO_INTCLEAR); /* address:1 data:0x08 LED driver's MOS pararelled */ 
+			if (rc < 0) {
+	  			pr_err("%s: operation_enable failed (%d)\n", __func__, rc);
+	    		return rc;
+	 		}
+	 	} else {
+	    		rc = prox_i2c_write(GP2AP_REG_OPMOD, 0x02, GP2AP_NO_INTCLEAR); /* address:4 data:0x00 SSD:0 VCON:b'0 */
+			if (rc < 0) {
+	      		pr_err("%s: shutdown_enable failed (%d)\n", __func__, rc);
+	    		//vreg_put(vreg_l12);
+	    		return rc;
+	 		}
+	 	}
+	}
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-03-07 soft shutdown process is changed by op_mode.*/
+	
  	return rc;
 }
 
@@ -416,9 +443,8 @@ gp2ap_report_event(int state)
 
 	gp2ap_pdev->last_vout = !input_state;
 
-	//if (GP2AP_DEBUG_DEV_STATUS & gp2ap_debug_mask)
-	//(gp2ap_pdev->last_vout) ? printk(KERN_INFO  "\nPROX:Near\n") : printk(KERN_INFO "\nPROX:Far\n");
-	(gp2ap_pdev->last_vout) ? printk(  "\nPROX:Near\n") : printk( "\nPROX:Far\n");
+	if (GP2AP_DEBUG_DEV_STATUS & gp2ap_debug_mask)
+		(gp2ap_pdev->last_vout) ? printk(KERN_INFO  "\nPROX:Near\n") : printk(KERN_INFO "\nPROX:Far\n");
 
 	if (GP2AP_DEBUG_FUNC_TRACE & gp2ap_debug_mask)
 		PROXD("exit\n");
@@ -433,12 +459,10 @@ gp2ap_work_func(struct work_struct *work)
 	int vo_data;
 
 
-	/* LGE_CHANGE_S : yangwook.lim 20120216 DV issue issue wakelock when interrupt occurred. */
+	//eee3114.lee 20120214 PV issue wakelock when interrupt occurred.
 	if(wake_lock_active(&dev->wakelock))
 		wake_unlock(&dev->wakelock);
 	wake_lock_timeout(&dev->wakelock, 2 * HZ);
-	/* LGE_CHANGE_E : yangwook.lim 20120216 DV issue issue wakelock when interrupt occurred. */
-
 
 	if (GP2AP_DEBUG_FUNC_TRACE & gp2ap_debug_mask)
 		PROXD("entry\n");
@@ -496,6 +520,30 @@ static int gp2ap_resume(struct i2c_client *i2c_dev);
 /*  ------------------------------------------------------------------------ */
 /*  --------------------    SYSFS DEVICE FIEL    --------------------------- */
 /*  ------------------------------------------------------------------------ */
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-03-07 for debugging */
+static ssize_t
+gp2ap_debug_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%u \n", gp2ap_debug_mask);
+}
+
+static ssize_t
+gp2ap_debug_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	sscanf(buf, "%u", &gp2ap_debug_mask);
+
+	return count;
+}
+
+static ssize_t
+gp2ap_opmode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct proximity_gp2ap_device *pdev = i2c_get_clientdata(client);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", pdev->op_mode);
+}
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-03-07 for debugging */
 
 static ssize_t
 gp2ap_status_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -705,6 +753,10 @@ gp2ap_asd_store(struct device *dev, struct device_attribute *attr, const char *b
 }
 
 static struct device_attribute gp2ap_device_attrs[] = {
+/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-03-07 for debugging */
+	__ATTR(debugOption, S_IRUGO | S_IWUSR, gp2ap_debug_show, gp2ap_debug_store),
+	__ATTR(opmod, S_IRUGO | S_IWUSR, gp2ap_opmode_show, NULL),
+/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-03-07 for debugging */
 	__ATTR(show, S_IRUGO | S_IWUSR, gp2ap_status_show, NULL),
 	__ATTR(method, S_IRUGO | S_IWUSR, gp2ap_method_show, gp2ap_method_store),
 	__ATTR(cycle, S_IRUGO | S_IWUSR, gp2ap_cycle_show, gp2ap_cycle_store),
@@ -742,6 +794,11 @@ gp2ap_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			return -ENOMEM;
 		}
 	}
+
+	//eee3114.lee 20120214 PV issue wakelock when interrupt occurred.
+	wake_lock_init(&gp2ap_pdev->wakelock, WAKE_LOCK_SUSPEND, "gp2ap");
+
+	INIT_DELAYED_WORK(&gp2ap_pdev->dwork, gp2ap_work_func);
 
 	gp2ap_pdev->client = client;
 
@@ -794,9 +851,9 @@ gp2ap_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	spin_lock_init(&gp2ap_pdev->lock);
 
 	/* turn on power supply for GP2AP00200F */
-	//pdata->power(1);
-	prox_power_onoff(1);
+	pdata->power(1);
 	udelay(120);
+	prox_power_onoff(1);
 
 	/* set up registers according to VOUT output mode */
 	ret = gp2ap_device_initialise();
@@ -807,11 +864,6 @@ gp2ap_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
-	/* LGE_CHANGE_S [yoonsoo.kim@lge.com] 20120305 : Proximity Init work function during booting */
-	wake_lock_init(&gp2ap_pdev->wakelock, WAKE_LOCK_SUSPEND, "gp2ap");
-	INIT_DELAYED_WORK(&gp2ap_pdev->dwork, gp2ap_work_func);
-	/* LGE_CHANGE_E  [yoonsoo.kim@lge.com] 20120305 : Proximity Init work function during booting */
-	
 	if (GP2AP_DEBUG_GEN_INFO & gp2ap_debug_mask)
 		PROXD("vout gpio(%d), irq(%d)\n", gp2ap_pdev->vout_gpio, gp2ap_pdev->irq);
 
@@ -861,6 +913,9 @@ err_irq_request:
 err_gp2ap_initialise:
 err_input_register_device:
 	input_free_device(gp2ap_pdev->input_dev);
+	//jiyeon.park 20120322 DV issue Kenel panic occured when proximity sensor removed.
+	wake_lock_destroy(&gp2ap_pdev->wakelock);
+
 err_input_allocate_device:
 	kfree(gp2ap_pdev);
 
@@ -896,7 +951,7 @@ static int
 gp2ap_suspend(struct i2c_client *i2c_dev, pm_message_t state)
 {
 	struct proximity_gp2ap_device *pdev = i2c_get_clientdata(i2c_dev);
-	//struct proximity_platform_data *pdata = pdev->client->dev.platform_data;
+	struct proximity_platform_data *pdata = pdev->client->dev.platform_data;
 	int ret;
 
 	if (GP2AP_DEBUG_FUNC_TRACE & gp2ap_debug_mask)
@@ -926,7 +981,7 @@ gp2ap_suspend(struct i2c_client *i2c_dev, pm_message_t state)
 	flush_workqueue(proximity_wq);
 
 	/* turn off power supply */
-	//pdata->power(0);
+	pdata->power(0);
 	prox_power_onoff(0);
 
 	irq_set_irq_wake(pdev->irq, 0);
@@ -952,7 +1007,7 @@ static int
 gp2ap_resume(struct i2c_client *i2c_dev)
 {
 	struct proximity_gp2ap_device *pdev = i2c_get_clientdata(i2c_dev);
-	//struct proximity_platform_data *pdata = pdev->client->dev.platform_data;
+	struct proximity_platform_data *pdata = pdev->client->dev.platform_data;
 	int ret;
 	int addr;
 
@@ -963,12 +1018,12 @@ gp2ap_resume(struct i2c_client *i2c_dev)
 		return 0;
 
 	/* turn on power supply */
-	//pdata->power(1);
+	pdata->power(1);
+	udelay(120);
 	prox_power_onoff(1);
 
 	pdev->last_vout = -1;
 
-	udelay(120);
 
 	/* disable shutdown value */
 	if (pdev->methods) 	/* Interrnupt mode */
@@ -982,7 +1037,7 @@ gp2ap_resume(struct i2c_client *i2c_dev)
 
 			if (ret < 0) {
 				PROXE("%s failed to write - addr:%d\n", __func__, addr);
-				//pdata->power(0);
+				pdata->power(0);
 				prox_power_onoff(0);
 				return -EIO;
 			}

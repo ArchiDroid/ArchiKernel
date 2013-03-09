@@ -32,6 +32,7 @@ static unsigned short  libra_sdio_card_id;
 
 static suspend_handler_t *libra_suspend_hldr;
 static resume_handler_t *libra_resume_hldr;
+static notify_card_removal_t *libra_notify_card_removal_hdlr;
 
 // 2012.03.13 real-wifi@lge.com[wo0gi] QCT patch : CMD52 timeout patch [START]
 int libra_enable_sdio_irq_in_chip(struct sdio_func *func, u8 enable)
@@ -483,6 +484,8 @@ static int libra_sdio_probe(struct sdio_func *func,
 
 static void libra_sdio_remove(struct sdio_func *func)
 {
+	if (libra_notify_card_removal_hdlr)
+		libra_notify_card_removal_hdlr();
 	libra_sdio_func = NULL;
 
 	printk(KERN_INFO "%s : Module removed.\n", __func__);
@@ -535,6 +538,14 @@ static int libra_sdio_resume(struct device *dev)
 #define libra_sdio_resume 0
 #endif
 
+int libra_sdio_notify_card_removal(
+		notify_card_removal_t *libra_sdio_notify_card_removal_hdlr)
+{
+	libra_notify_card_removal_hdlr = libra_sdio_notify_card_removal_hdlr;
+	return 0;
+}
+EXPORT_SYMBOL(libra_sdio_notify_card_removal);
+
 static struct sdio_device_id libra_sdioid[] = {
     {.class = 0, .vendor = LIBRA_MAN_ID,  .device = LIBRA_REV_1_0_CARD_ID},
     {.class = 0, .vendor = VOLANS_MAN_ID, .device = VOLANS_REV_2_0_CARD_ID},
@@ -561,6 +572,7 @@ static int __init libra_sdioif_init(void)
 	libra_mmc_host_index = -1;
 	libra_suspend_hldr = NULL;
 	libra_resume_hldr = NULL;
+	libra_notify_card_removal_hdlr = NULL;
 
 	sdio_register_driver(&libra_sdiofn_driver);
 

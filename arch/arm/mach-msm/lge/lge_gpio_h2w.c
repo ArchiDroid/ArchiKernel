@@ -1,11 +1,8 @@
 /*
  *  H2W device detection driver.
  *
- * Copyright (C) 2008 LGE Corporation.
+ * Copyright (C) 2008 -2011 LGE Corporation.
  * Copyright (C) 2008 Google, Inc.
- *
- * Authors: 
- *  kiwone seo <gentleseo@lge.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -38,6 +35,8 @@
 #include <mach/board.h>
 #include <mach/vreg.h>
 #include <mach/board_lge.h>
+#include <linux/slab.h>
+#include <linux/wakelock.h>
 
 #define DEBUG_H2W
 #ifdef DEBUG_H2W
@@ -51,60 +50,76 @@ static void detection_work(struct work_struct *work);
 static DECLARE_WORK(g_detection_work, detection_work);
 static int ip_dev_reg;
 
-#ifdef CONFIG_LGE_DIAGTEST
+#if 0 //def CONFIG_LGE_DIAGTEST
 extern uint8_t if_condition_is_on_key_buffering;
 extern uint8_t lgf_factor_key_test_rsp(char);
 #endif
-
-enum {
-	NO_DEVICE	= 0,
-	LGE_HEADSET	= 1,
-	LGE_NO_MIC_HEADSET = 2,
-};
+/*Unplug State*/
+#define BIT_NO_DEVICE				0
+/*4Pole Headset - headset with mic*/
+#define BIT_HEADSET					(1 << 0)
+/*3Pole Headset - headset without mic*/
+#define BIT_HEADSET_SPEAKER_ONLY	(1 << 1) 
 
 struct h2w_info {
 	struct switch_dev sdev;
 	struct input_dev *input;
 
+	/*GPIO Number - Headset Detect */
 	int gpio_detect;
+	/*GPIO Number - Headset Button Detect */	
 	int gpio_button_detect;
+	/*GPIO Number - Mic Mode*/	
 	int gpio_mic_mode;
 
+	/*Button Down State*/
 	atomic_t btn_state;
+	/*Button Check Skip*/
 	int ignore_btn;
 
+	/*Headset Detect*/
 	unsigned int irq;
+	/*Headset Button Detect*/	
 	unsigned int irq_btn;
 
+	/*Headset Detect Timer*/		
 	struct hrtimer timer;
 	ktime_t debounce_time;
+	ktime_t unplug_debounce_time;
 
+	/*Headset Button Detect Timer*/		
 	struct hrtimer btn_timer;
 	ktime_t btn_debounce_time;
+
+	/*Wake Lock/Unlock*/		
+	struct wake_lock wake_lock;
+
+	/*State*/
+	int enable_btn_irq;
 };
 static struct h2w_info *hi;
 
 static ssize_t gpio_h2w_print_name(struct switch_dev *sdev, char *buf)
 {
-	switch (switch_get_state(&hi->sdev)) {
-	case NO_DEVICE:
+	switch (switch_get_state(&hi->sdev)) 
+	{
+		case BIT_NO_DEVICE:
 		return sprintf(buf, "No Device\n");
-	case LGE_HEADSET:
+		case BIT_HEADSET:
+		case BIT_HEADSET_SPEAKER_ONLY:		
 		return sprintf(buf, "Headset\n");
-    case LGE_NO_MIC_HEADSET:
-    return sprintf(buf, "Headset_no_mic\n");
 	}
 	return -EINVAL;
 }
 
 static void button_pressed(void)
 {
-	H2W_DBG("button_pressed\n");
+	H2W_DBG(" ");
 	
 	atomic_set(&hi->btn_state, 1);
 	input_report_key(hi->input, KEY_MEDIA, 1);
 	input_sync(hi->input);
-#ifdef CONFIG_LGE_DIAGTEST
+#if 0 //def CONFIG_LGE_DIAGTEST
 	if(if_condition_is_on_key_buffering == 1)
 		lgf_factor_key_test_rsp((u8)KEY_MEDIA);
 #endif
@@ -112,7 +127,7 @@ static void button_pressed(void)
 
 static void button_released(void)
 {
-	H2W_DBG("button_released\n");
+	H2W_DBG(" ");
 	
 	atomic_set(&hi->btn_state, 0);
 	input_report_key(hi->input, KEY_MEDIA, 0);
@@ -122,38 +137,80 @@ static void button_released(void)
 static void insert_headset(void)
 {
 	unsigned long irq_flags;
+	int jpole;
+	int which_headset;
 
-	H2W_DBG("");
+	H2W_DBG(" ");
 
+//test		gpio_set_value(hi->gpio_mic_mode, 1);
+		msleep(100);
+
+#if 1
+	which_headset = gpio_get_value(hi->gpio_button_detect);
+	H2W_DBG("[karosung] which_headset = %d", which_headset);
+	//jpole = !gpio_get_value(hi->gpio_button_detect);
+#else
 	hi->ignore_btn = !gpio_get_value(hi->gpio_button_detect);
-	H2W_DBG("hi->ignore_btn = %d\n", hi->ignore_btn);
+#endif
 
-    if(hi->ignore_btn)
+#if 1
+	 /* 4pole */
+	if(which_headset)
    	{
-		H2W_DBG("insert_headset_no-mic-headset \n");
-		switch_set_state(&hi->sdev, LGE_NO_MIC_HEADSET);
-//kiwone, 2009.12.24 , to fix bug
-//no mic headset insert->no mic headset eject->4pole headset insert->button key do not work.		
+	   	
+		H2W_DBG("insert_headset 4pole(%d) \n",jpole);
+		hi->ignore_btn =0;
+		/*Report Headset State*/
+		switch_set_state(&hi->sdev, BIT_HEADSET);
+		
+//bc		gpio_set_value(hi->gpio_mic_mode, 1); //test
+		
 		/* Enable button irq */
 		local_irq_save(irq_flags);
 		enable_irq(hi->irq_btn);
-        set_irq_wake(hi->irq_btn, 1);
+		irq_set_irq_wake(hi->irq_btn, 1);
+		hi->enable_btn_irq = 1;
 		local_irq_restore(irq_flags);
-		hi->debounce_time = ktime_set(0, 20000000);  /* 20 ms */
+   	}
+	else
+	/* 3pole*/
+	{
+		H2W_DBG("insert_headset 3pole(%d) \n",jpole);
+		hi->ignore_btn = 1;
+		/*Report Headset State*/
+		switch_set_state(&hi->sdev, BIT_HEADSET_SPEAKER_ONLY);
+	}
+
+#else
+	 /* 3pole */
+	if(jpole)
+   	{
+		H2W_DBG("insert_headset 3pole(%d) \n",jpole);
+   		hi->ignore_btn = 1;
+		/*Report Headset State*/
+		switch_set_state(&hi->sdev, BIT_HEADSET_SPEAKER_ONLY);
+//test		gpio_set_value(hi->gpio_mic_mode, 0);
    	}
 	else
 	{
-		H2W_DBG("insert_headset_headset \n");
-		switch_set_state(&hi->sdev, LGE_HEADSET);
+	/* 4pole*/
+		H2W_DBG("insert_headset 4pole(%d) \n",jpole);
+		hi->ignore_btn =0;
+		/*Report Headset State*/
+		switch_set_state(&hi->sdev, BIT_HEADSET);
+
+		gpio_set_value(hi->gpio_mic_mode, 1); //test
 		
 		/* Enable button irq */
 		local_irq_save(irq_flags);
 		enable_irq(hi->irq_btn);
-        set_irq_wake(hi->irq_btn, 1);
+		irq_set_irq_wake(hi->irq_btn, 1);
+		hi->enable_btn_irq = 1;
 		local_irq_restore(irq_flags);
-		
-		hi->debounce_time = ktime_set(0, 20000000);  /* 20 ms */
 	}
+#endif	
+	hi->debounce_time = ktime_set(0, 20000000);  /* 20 ms */
+	hi->unplug_debounce_time = ktime_set(0, 100000000);  /* 100 ms */ 
 }
 
 static void remove_headset(void)
@@ -162,47 +219,45 @@ static void remove_headset(void)
 
 	H2W_DBG("");
 	
+	/*Report Headset State*/
 	input_report_switch(hi->input, SW_HEADPHONE_INSERT, 0);
-	gpio_set_value(hi->gpio_mic_mode, 0);
-	switch_set_state(&hi->sdev, NO_DEVICE);
+	switch_set_state(&hi->sdev, BIT_NO_DEVICE);
 	input_sync(hi->input);
 
 	/* Disable button */
+	if(hi->enable_btn_irq)
+	{
 	local_irq_save(irq_flags);
-	disable_irq(hi->irq_btn);
-	set_irq_wake(hi->irq_btn, 0);
+		disable_irq_nosync(hi->irq_btn);
+		irq_set_irq_wake(hi->irq_btn, 0);
+		hi->enable_btn_irq = 0;
 	local_irq_restore(irq_flags);
-
+	}
+	/*Check Button State*/
 	if (atomic_read(&hi->btn_state))
 		button_released();
 
-	hi->debounce_time = ktime_set(0, 100000000);  /* 100 ms */
+//bc	gpio_set_value(hi->gpio_mic_mode, 0);
+/* LGE_CHANGE_S: 2012-04-03, hoseong.kang@lge.com Description: 500ms -> 250ms */
+	hi->debounce_time = ktime_set(0, 250000000);  /* 500ms */
+/* LGE_CHANGE_E: 500ms -> 250ms */
 }
 
 static void detection_work(struct work_struct *work)
 {
-	int cable_in1;
-
+	/*Headset detach*/
 	H2W_DBG("");
 
-	if (gpio_get_value(hi->gpio_detect) == 0) {
-		/* Headset not plugged in */
-		if (switch_get_state(&hi->sdev) == LGE_HEADSET
- 			|| switch_get_state(&hi->sdev) == LGE_NO_MIC_HEADSET
-		)
+	if (gpio_get_value(hi->gpio_detect) == 1) {
+		if (switch_get_state(&hi->sdev) == BIT_HEADSET
+			|| switch_get_state(&hi->sdev) == BIT_HEADSET_SPEAKER_ONLY
+		){
 			remove_headset();
-
-		H2W_DBG("detection_work-remove_headset \n");
-
-		return;
 	}
-	msleep(100);
-	cable_in1 = gpio_get_value(hi->gpio_detect);
-
-	if (cable_in1 == 1) {
-		if (switch_get_state(&hi->sdev) == NO_DEVICE)
-			{
-				H2W_DBG("detection_work-insert_headset \n");
+	}
+	/*Headset attach*/
+	else{
+		if (switch_get_state(&hi->sdev) == BIT_NO_DEVICE){
 				insert_headset();
 			}
 	} 
@@ -210,26 +265,38 @@ static void detection_work(struct work_struct *work)
 
 static enum hrtimer_restart button_event_timer_func(struct hrtimer *data)
 {
+	int headset_in  =0;
+	int btn_down  =0;
+
 	H2W_DBG("");
 
-	if (switch_get_state(&hi->sdev) == LGE_HEADSET
-//kiwone, 2009.12.24, to fix bug
-// 4 pole headset eject->button key is detected
-      && (1 == gpio_get_value(hi->gpio_detect))
-	) {
-		H2W_DBG("button_event_timer_func\n");
-		if (gpio_get_value(hi->gpio_button_detect)) {
-		H2W_DBG("button_event_timer_func:1\n");
-			if (hi->ignore_btn)
-				hi->ignore_btn = 0;
-			else if (atomic_read(&hi->btn_state))
-				button_released();
-		} else {
-			 H2W_DBG("button_event_timer_func:2\n");
-			if (!hi->ignore_btn && !atomic_read(&hi->btn_state))
+	/* Low Detect, Fast Check*/
+	/* "button timer < headset detach timer" makes abnormal operation*/
+	headset_in	= gpio_get_value(hi->gpio_detect)?0: 1;
+	/*Headset button - High Detect*/
+	//btn_down	= gpio_get_value(hi->gpio_button_detect)?1 :0; 
+	/*Headset button - LOW Detect*/
+	btn_down	= gpio_get_value(hi->gpio_button_detect)?0 :1; 
+	if(hi->ignore_btn){
+		H2W_DBG("ignore_btn");
+		return HRTIMER_NORESTART;
+	}
+
+	
+	if ((switch_get_state(&hi->sdev) == BIT_HEADSET)  && headset_in){
+		
+		H2W_DBG(" headset in %d btn down %d",headset_in,btn_down);
+		if (btn_down){
+			if (!atomic_read(&hi->btn_state))
 				button_pressed();
+			
+		} else {
+			if (atomic_read(&hi->btn_state))
+				button_released();
 		}
 	}
+
+	H2W_DBG(" No button event");
 
 	return HRTIMER_NORESTART;
 }
@@ -248,35 +315,34 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
 	int retry_limit = 10;
 	
 	H2W_DBG("");
-	set_irq_type(hi->irq_btn, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(hi->irq_btn, IRQF_TRIGGER_LOW);
 	do {
 		value1 = gpio_get_value(hi->gpio_detect);
-		set_irq_type(hi->irq, value1 ?
-				IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
-
+		irq_set_irq_type(hi->irq, value1 ?IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
 		value2 = gpio_get_value(hi->gpio_detect);
+		H2W_DBG("value 1 [%d], value2 [%d]retry[%d]",value1,value2,retry_limit);
+
+		
 	} while (value1 != value2 && retry_limit-- > 0);
 
 	H2W_DBG("value2 = %d (%d retries)", value2, (10-retry_limit));
 
-	if (switch_get_state(&hi->sdev) == NO_DEVICE) {
-		if (switch_get_state(&hi->sdev) == LGE_HEADSET
-			|| switch_get_state(&hi->sdev) == LGE_NO_MIC_HEADSET
-		)
-			hi->ignore_btn = 1;
-		gpio_set_value(hi->gpio_mic_mode, 1);
-		/* Do the rest of the work in timer context */
+	wake_lock_timeout(&hi->wake_lock, 2*HZ); // 2 second
+		
+	/*Attached*/	
+	if (switch_get_state(&hi->sdev) == BIT_NO_DEVICE) {
 		hrtimer_start(&hi->timer, hi->debounce_time, HRTIMER_MODE_REL);
 		
-		H2W_DBG("detect_irq_handler-no_device \n");
+		H2W_DBG("Plug in timer set \n");
 	}
-	else if(switch_get_state(&hi->sdev) == LGE_HEADSET
-			|| switch_get_state(&hi->sdev) == LGE_NO_MIC_HEADSET
+	/*Detached*/		
+	else if(switch_get_state(&hi->sdev) == BIT_HEADSET
+			|| switch_get_state(&hi->sdev) == BIT_HEADSET_SPEAKER_ONLY
 	){
-		/* Do the rest of the work in timer context */
-		hrtimer_start(&hi->timer, hi->debounce_time, HRTIMER_MODE_REL);
+		//test gpio_set_value(hi->gpio_mic_mode, 0);
+		hrtimer_start(&hi->timer, hi->unplug_debounce_time, HRTIMER_MODE_REL);
 		
-		H2W_DBG("detect_irq_handler_headset_no_mic \n");
+		H2W_DBG("Unplug timer set \n");
 	}
 
 	return IRQ_HANDLED;
@@ -288,6 +354,7 @@ static irqreturn_t button_irq_handler(int irq, void *dev_id)
 	int retry_limit = 10;
 
 	H2W_DBG("button_irq_handler\n");
+#if 0 //inverted
 	do {
 		value1 = gpio_get_value(hi->gpio_button_detect);
 		H2W_DBG("button_irq_handler : value1 = %d\n", value1);
@@ -297,8 +364,16 @@ static irqreturn_t button_irq_handler(int irq, void *dev_id)
 		value2 = gpio_get_value(hi->gpio_button_detect);
 		H2W_DBG("button_irq_handler : value2 = %d\n", value2);
 	} while (value1 != value2 && retry_limit-- > 0);
-
-	H2W_DBG("value2 = %d (%d retries)", value2, (10-retry_limit));
+#else
+	do {
+		value1 = gpio_get_value(hi->gpio_button_detect);
+		H2W_DBG("button_irq_handler : value1 = %d\n", value1);
+		irq_set_irq_type(hi->irq_btn, value1 ?IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
+		value2 = gpio_get_value(hi->gpio_button_detect);
+		H2W_DBG("button_irq_handler : value2 = %d\n", value2);
+	} while (value1 != value2 && retry_limit-- > 0);
+#endif
+	H2W_DBG("value2 = %d (%d retries) setBTNtimer 10ms", value2, (10-retry_limit));
 
 	hrtimer_start(&hi->btn_timer, hi->btn_debounce_time, HRTIMER_MODE_REL);
 
@@ -317,16 +392,21 @@ static int gpio_h2w_probe(struct platform_device *pdev)
 
 	atomic_set(&hi->btn_state, 0);
 	hi->ignore_btn = 0;
+/* LGE_CHANGE_S: 2012-04-03, hoseong.kang@lge.com Description: 500ms -> 250ms */
+	hi->debounce_time = ktime_set(0, 250000000);   /* VS760 100 ms -> 300ms */
+/* LGE_CHANGE_E: 500ms -> 250ms */
+	//hi->btn_debounce_time = ktime_set(0, 10000000); /* 10 ms */
+	hi->btn_debounce_time = ktime_set(0, 70000000); /* MS695 ->100 ms */
 
-	hi->debounce_time = ktime_set(0, 100000000);  /* 100 ms */
-	hi->btn_debounce_time = ktime_set(0, 10000000); /* 10 ms */
+	hi->unplug_debounce_time = ktime_set(0, 100000000); //add eklee 100 ms 
 
 	hi->gpio_detect = pdata->gpio_detect;
 	hi->gpio_button_detect = pdata->gpio_button_detect;
-	hi->gpio_mic_mode = pdata->gpio_mic_mode;
-
-	hi->sdev.name = "h2w_headset";
+//bc 	hi->gpio_mic_mode = pdata->gpio_mic_mode;
+//	hi->gpio_mic_bias_en = pdata->gpio_mic_bias_en;
+	hi->sdev.name = "h2w";
 	hi->sdev.print_name = gpio_h2w_print_name;
+	wake_lock_init(&hi->wake_lock, WAKE_LOCK_SUSPEND, "h2w_detect_lock");
 
 	ret = switch_dev_register(&hi->sdev);
 	if (ret < 0)
@@ -347,11 +427,12 @@ static int gpio_h2w_probe(struct platform_device *pdev)
 	ret = gpio_request(hi->gpio_button_detect, "h2w_button");
 	if (ret < 0)
 		goto err_request_button_gpio;
+#if 0 //bc	
 	gpio_tlmm_config(GPIO_CFG(hi->gpio_mic_mode, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 	ret = gpio_request(hi->gpio_mic_mode, "h2w_mic_mode");
 	if (ret < 0)
 		goto err_request_mic_mode_gpio;
-
+#endif
 	ret = gpio_direction_input(hi->gpio_detect);
 	if (ret < 0)
 		goto err_set_detect_gpio;
@@ -372,20 +453,21 @@ static int gpio_h2w_probe(struct platform_device *pdev)
 		goto err_get_button_irq_num_failed;
 	}
 
+//bc 	gpio_set_value(hi->gpio_mic_mode, 0);
 	hrtimer_init(&hi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hi->timer.function = detect_event_timer_func;
 	hrtimer_init(&hi->btn_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hi->btn_timer.function = button_event_timer_func;
 
 	ret = request_irq(hi->irq, detect_irq_handler,
-			  IRQF_TRIGGER_HIGH, "h2w_detect", NULL); 
-
+			  IRQF_TRIGGER_LOW, "h2w_detect", NULL); 
 	
 
 	if (ret < 0)
 		goto err_request_detect_irq;
 
 	/* Disable button until plugged in */
+	hi->enable_btn_irq = 0;
 	set_irq_flags(hi->irq_btn, IRQF_VALID | IRQF_NOAUTOEN);
 	ret = request_irq(hi->irq_btn, button_irq_handler,
 			  IRQF_TRIGGER_LOW, "h2w_button", NULL);
@@ -395,7 +477,7 @@ static int gpio_h2w_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_request_h2w_headset_button_irq;
 
-	ret = set_irq_wake(hi->irq, 1);
+	ret = irq_set_irq_wake(hi->irq, 1);
 	if (ret < 0)
 		goto err_request_input_dev;
 
@@ -434,8 +516,8 @@ err_set_detect_gpio:
 	gpio_free(hi->gpio_button_detect);
 err_request_button_gpio:
 	gpio_free(hi->gpio_detect);
-err_request_mic_mode_gpio:
-	gpio_free(hi->gpio_mic_mode);
+//bc err_request_mic_mode_gpio:
+//bc 	gpio_free(hi->gpio_mic_mode);
 err_request_detect_gpio:
 	destroy_workqueue(g_detection_work_queue);
 err_create_work_queue:
@@ -443,6 +525,8 @@ err_create_work_queue:
 err_switch_dev_register:
 	printk(KERN_ERR "H2W: Failed to register driver\n");
 
+	wake_lock_destroy(&hi->wake_lock);
+	
 	return ret;
 }
 
@@ -459,7 +543,7 @@ static int gpio_h2w_remove(struct platform_device *pdev)
 	destroy_workqueue(g_detection_work_queue);
 	switch_dev_unregister(&hi->sdev);
 	ip_dev_reg = 0;
-
+	wake_lock_destroy(&hi->wake_lock);
 	return 0;
 }
 
@@ -467,7 +551,7 @@ static struct platform_driver gpio_h2w_driver = {
 	.probe		= gpio_h2w_probe,
 	.remove		= gpio_h2w_remove,
 	.driver		= {
-		.name		= "gpio-h2w",
+		.name		= "lge-switch-gpio",
 		.owner		= THIS_MODULE,
 	},
 };
@@ -486,6 +570,6 @@ static void __exit gpio_h2w_exit(void)
 module_init(gpio_h2w_init);
 module_exit(gpio_h2w_exit);
 
-MODULE_AUTHOR("Kiwone,Seo <gentleseo@lge.com>");
+MODULE_AUTHOR("LG Electronics");
 MODULE_DESCRIPTION("LGE 2 Wire detection driver");
 MODULE_LICENSE("GPL");
