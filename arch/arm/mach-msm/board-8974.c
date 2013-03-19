@@ -24,9 +24,6 @@
 #include <linux/ion.h>
 #endif
 #include <linux/memory.h>
-#ifdef CONFIG_ANDROID_PMEM
-#include <linux/android_pmem.h>
-#endif
 #include <linux/regulator/stub-regulator.h>
 #include <linux/regulator/machine.h>
 #include <asm/mach/map.h>
