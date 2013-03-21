@@ -95,6 +95,7 @@ enum {
 	MDP_Y_CRCB_H2V2,  /* Y and CrCb, pseudo planer w/ Cr is in MSB */
 	MDP_YCBYCR_H2V1,  /* YCbYCr interleave */
 	MDP_YCRYCB_H2V1,  /* YCrYCb interleave */
+	MDP_CBYCRY_H2V1,  /* CbYCrY interleave */
 	MDP_Y_CRCB_H2V1,  /* Y and CrCb, pseduo planer w/ Cr is in MSB */
 	MDP_Y_CBCR_H2V1,   /* Y and CrCb, pseduo planer w/ Cr is in MSB */
 	MDP_Y_CRCB_H1V2,
