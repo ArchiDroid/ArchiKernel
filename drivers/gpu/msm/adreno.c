@@ -2708,6 +2708,7 @@ unsigned int adreno_ft_detect(struct kgsl_device *device,
 	unsigned int curr_context_id = 0;
 	static struct adreno_context *curr_context;
 	static struct kgsl_context *context;
+        struct adreno_ringbuffer *rb = &adreno_dev->ringbuffer;
 
 	if (!adreno_dev->fast_hang_detect)
 		fast_hang_detected = 0;
@@ -2715,7 +2716,9 @@ unsigned int adreno_ft_detect(struct kgsl_device *device,
 	if (!adreno_dev->long_ib_detect)
 		long_ib_detected = 0;
 
-	if (is_adreno_rbbm_status_idle(device)) {
+	GSL_RB_GET_READPTR(rb, &rb->rptr);
+	if ((rb->rptr == adreno_dev->ringbuffer.wptr)
+			&& (is_adreno_rbbm_status_idle(device))) {
 
 		/*
 		 * On A20X if the RPTR != WPTR and the device is idle, then
