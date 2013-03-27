@@ -357,8 +357,7 @@ unsigned long msm_pmem_stats_vtop_lookup(
 	hlist_for_each_entry_safe(region, node, n,
 	&mctl->stats_info.pmem_stats_list, list) {
 		if (((unsigned long)(region->info.vaddr) == buffer) &&
-						(region->info.fd == fd) &&
-						region->info.active == 0) {
+						(region->info.fd == fd)) {
 			region->info.active = 1;
 			return region->paddr;
 		}
