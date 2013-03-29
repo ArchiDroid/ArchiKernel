@@ -1922,11 +1922,13 @@ static int msm_open(struct file *f)
 	/* if no instance is available, return error */
 	if (i == MSM_DEV_INST_MAX) {
 		mutex_unlock(&pcam->vid_lock);
+		pr_err("msm_open: no instance is available\n");
 		return rc;
 	}
 	pcam_inst = kzalloc(sizeof(struct msm_cam_v4l2_dev_inst), GFP_KERNEL);
 	if (!pcam_inst) {
 		mutex_unlock(&pcam->vid_lock);
+		pr_err("msm_open: allocation is failed\n");
 		return rc;
 	}
 	mutex_init(&pcam_inst->inst_lock);
@@ -1939,13 +1941,15 @@ static int msm_open(struct file *f)
 			pcam_inst->my_index,
 			pcam->vnode_id, pcam->use_count);
 	pcam->use_count++;
-	D("%s use_count %d\n", __func__, pcam->use_count);
+	pr_err("%s use_count %d\n", __func__, pcam->use_count);
 	if (pcam->use_count == 1) {
 		int ges_evt = MSM_V4L2_GES_CAM_OPEN;
 		struct msm_cam_server_queue *queue;
 		server_q_idx = msm_find_free_queue();
-		if (server_q_idx < 0)
+		if (server_q_idx < 0) {
+			pr_err("msm_open: wrong server_q_idx\n");
 			return server_q_idx;
+		}
 		pcam->server_queue_idx = server_q_idx;
 		queue = &g_server_dev.server_queue[server_q_idx];
 		queue->ctrl_data = kzalloc(sizeof(uint8_t) *
@@ -1974,13 +1978,13 @@ static int msm_open(struct file *f)
 
 		/* Should be set to sensor ops if any but right now its OK!! */
 		if (!pmctl->mctl_open) {
-			D("%s: media contoller is not inited\n", __func__);
+			pr_err("%s: media contoller is not inited\n", __func__);
 			rc = -ENODEV;
 			goto mctl_open_failed;
 		}
 
 		/* Now we really have to activate the camera */
-		D("%s: call mctl_open\n", __func__);
+		pr_err("%s: call mctl_open\n", __func__);
 		rc = pmctl->mctl_open(pmctl, MSM_APPS_ID_V4L2);
 		if (rc < 0) {
 			pr_err("%s: HW open failed rc = 0x%x\n",  __func__, rc);
@@ -2023,7 +2027,7 @@ mctl_open_failed:
 	if (pcam->use_count == 1) {
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 		if (ion_client_created) {
-			D("%s: destroy ion client", __func__);
+			pr_err("%s: destroy ion client", __func__);
 			kref_put(&pmctl->refcount, msm_release_ion_client);
 		}
 #endif
