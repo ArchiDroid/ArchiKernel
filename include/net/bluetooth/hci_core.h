@@ -26,7 +26,7 @@
 #define __HCI_CORE_H
 
 #include <net/bluetooth/hci.h>
-
+#include <linux/wakelock.h>
 /* HCI upper protocols */
 #define HCI_PROTO_L2CAP	0
 #define HCI_PROTO_SCO	1
@@ -304,11 +304,16 @@ struct hci_conn {
 	__u8		auth_initiator;
 	__u8		power_save;
 	__u16		disc_timeout;
+	__u16		conn_timeout;
 	unsigned long	pend;
 
 	__u8		remote_cap;
 	__u8		remote_oob;
 	__u8		remote_auth;
+
+	__s8	rssi_threshold;
+	__u16	rssi_update_interval;
+	__u8	rssi_update_thresh_exceed;
 
 	unsigned int	sent;
 
@@ -316,10 +321,12 @@ struct hci_conn {
 
 	struct timer_list disc_timer;
 	struct timer_list idle_timer;
+	struct delayed_work	rssi_update_work;
+	struct timer_list encrypt_pause_timer;
 
 	struct work_struct work_add;
 	struct work_struct work_del;
-
+	struct wake_lock idle_lock;
 	struct device	dev;
 	atomic_t	devref;
 
@@ -374,7 +381,11 @@ extern rwlock_t hci_cb_list_lock;
 
 /* ----- Inquiry cache ----- */
 #define INQUIRY_CACHE_AGE_MAX   (HZ*30)   /* 30 seconds */
-#define INQUIRY_ENTRY_AGE_MAX   (HZ*60)   /* 60 seconds */
+// *s LGBT_COMMON_PATCH_SR01017282 sunmee.choi@lge.com 2012-11-26 performance issue (opp request time)
+// Google Original
+//#define INQUIRY_ENTRY_AGE_MAX   (HZ*60)   /* 60 seconds */
+#define INQUIRY_ENTRY_AGE_MAX   (HZ*60*60)   /* 60 seconds */
+// *e LGBT_COMMON_PATCH_SR01017282
 
 #define inquiry_cache_lock(c)		spin_lock(&c->lock)
 #define inquiry_cache_unlock(c)		spin_unlock(&c->lock)
@@ -570,7 +581,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type,
 struct hci_conn *hci_le_conn_add(struct hci_dev *hdev, bdaddr_t *dst,
 							__u8 addr_type);
 int hci_conn_del(struct hci_conn *conn);
-void hci_conn_hash_flush(struct hci_dev *hdev);
+void hci_conn_hash_flush(struct hci_dev *hdev, u8 is_process);
 void hci_conn_check_pending(struct hci_dev *hdev);
 
 struct hci_chan *hci_chan_add(struct hci_dev *hdev);
@@ -581,10 +592,7 @@ static inline void hci_chan_hold(struct hci_chan *chan)
 }
 int hci_chan_put(struct hci_chan *chan);
 
-struct hci_chan *hci_chan_accept(struct hci_conn *hcon,
-				struct hci_ext_fs *tx_fs,
-				struct hci_ext_fs *rx_fs);
-struct hci_chan *hci_chan_create(struct hci_conn *hcon,
+struct hci_chan *hci_chan_create(struct hci_chan *chan,
 				struct hci_ext_fs *tx_fs,
 				struct hci_ext_fs *rx_fs);
 void hci_chan_modify(struct hci_chan *chan,
@@ -594,6 +602,10 @@ void hci_chan_modify(struct hci_chan *chan,
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type,
 					__u16 pkt_type, bdaddr_t *dst,
 					__u8 sec_level, __u8 auth_type);
+struct hci_conn *hci_le_connect(struct hci_dev *hdev, __u16 pkt_type,
+					bdaddr_t *dst, __u8 sec_level,
+					__u8 auth_type,
+					struct bt_le_params *le_params);
 int hci_conn_check_link_mode(struct hci_conn *conn);
 int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type);
 int hci_conn_change_link_key(struct hci_conn *conn);
@@ -602,10 +614,17 @@ void hci_disconnect(struct hci_conn *conn, __u8 reason);
 void hci_disconnect_amp(struct hci_conn *conn, __u8 reason);
 
 void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active);
+// +s LGBT_COMMON_FUNCTION_NO_SNIFF_WHEN_OPEN_SCO
+void hci_conn_enter_active_mode_no_timer(struct hci_conn *conn);
+// +e LGBT_COMMON_FUNCTION_NO_SNIFF_WHEN_OPEN_SCO
 void hci_conn_enter_sniff_mode(struct hci_conn *conn);
 
 void hci_conn_hold_device(struct hci_conn *conn);
 void hci_conn_put_device(struct hci_conn *conn);
+
+void hci_conn_set_rssi_reporter(struct hci_conn *conn,
+		s8 rssi_threshold, u16 interval, u8 updateOnThreshExceed);
+void hci_conn_unset_rssi_reporter(struct hci_conn *conn);
 
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
@@ -622,7 +641,7 @@ static inline void hci_conn_put(struct hci_conn *conn)
 			if (conn->state == BT_CONNECTED) {
 				timeo = msecs_to_jiffies(conn->disc_timeout);
 				if (!conn->out)
-					timeo *= 20;
+					timeo *= 4;
 			} else
 				timeo = msecs_to_jiffies(10);
 		} else
@@ -751,7 +770,8 @@ struct hci_proto {
 	int (*connect_ind)	(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type);
 	int (*connect_cfm)	(struct hci_conn *conn, __u8 status);
 	int (*disconn_ind)	(struct hci_conn *conn);
-	int (*disconn_cfm)	(struct hci_conn *conn, __u8 reason);
+	int (*disconn_cfm)	(struct hci_conn *conn, __u8 reason,
+							__u8 is_process);
 	int (*recv_acldata)	(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
 	int (*recv_scodata)	(struct hci_conn *conn, struct sk_buff *skb);
 	int (*security_cfm)	(struct hci_conn *conn, __u8 status, __u8 encrypt);
@@ -808,17 +828,18 @@ static inline int hci_proto_disconn_ind(struct hci_conn *conn)
 	return reason;
 }
 
-static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason)
+static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason,
+							__u8 is_process)
 {
 	register struct hci_proto *hp;
 
 	hp = hci_proto[HCI_PROTO_L2CAP];
 	if (hp && hp->disconn_cfm)
-		hp->disconn_cfm(conn, reason);
+		hp->disconn_cfm(conn, reason, is_process);
 
 	hp = hci_proto[HCI_PROTO_SCO];
 	if (hp && hp->disconn_cfm)
-		hp->disconn_cfm(conn, reason);
+		hp->disconn_cfm(conn, reason, is_process);
 
 	if (conn->disconn_cfm_cb)
 		conn->disconn_cfm_cb(conn, reason);
@@ -931,7 +952,7 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encr
 	if (conn->sec_level == BT_SECURITY_SDP)
 		conn->sec_level = BT_SECURITY_LOW;
 
-	if (conn->pending_sec_level > conn->sec_level)
+	if (!status && encrypt && conn->pending_sec_level > conn->sec_level)
 		conn->sec_level = conn->pending_sec_level;
 
 	hci_proto_encrypt_cfm(conn, status, encrypt);
@@ -1019,6 +1040,8 @@ int mgmt_discoverable(u16 index, u8 discoverable);
 int mgmt_connectable(u16 index, u8 connectable);
 int mgmt_new_key(u16 index, struct link_key *key, u8 bonded);
 int mgmt_connected(u16 index, bdaddr_t *bdaddr, u8 le);
+int mgmt_le_conn_params(u16 index, bdaddr_t *bdaddr, u16 interval,
+						u16 latency, u16 timeout);
 int mgmt_disconnected(u16 index, bdaddr_t *bdaddr);
 int mgmt_disconnect_failed(u16 index);
 int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status);
@@ -1037,6 +1060,8 @@ int mgmt_read_local_oob_data_reply_complete(u16 index, u8 *hash, u8 *randomizer,
 								u8 status);
 int mgmt_device_found(u16 index, bdaddr_t *bdaddr, u8 type, u8 le,
 				u8 *dev_class, s8 rssi, u8 eir_len, u8 *eir);
+void mgmt_read_rssi_complete(u16 index, s8 rssi, bdaddr_t *bdaddr,
+				u16 handle, u8 status);
 int mgmt_remote_name(u16 index, bdaddr_t *bdaddr, u8 status, u8 *name);
 void mgmt_inquiry_started(u16 index);
 void mgmt_inquiry_complete_evt(u16 index, u8 status);
@@ -1047,6 +1072,9 @@ int mgmt_encrypt_change(u16 index, bdaddr_t *bdaddr, u8 status);
 /* LE SMP Management interface */
 int le_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, void *cp);
 int mgmt_remote_class(u16 index, bdaddr_t *bdaddr, u8 dev_class[3]);
+int mgmt_remote_version(u16 index, bdaddr_t *bdaddr, u8 ver, u16 mnf,
+							u16 sub_ver);
+int mgmt_remote_features(u16 index, bdaddr_t *bdaddr, u8 features[8]);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
@@ -1084,5 +1112,7 @@ void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
 							__u8 ltk[16]);
 void hci_le_ltk_reply(struct hci_conn *conn, u8 ltk[16]);
 void hci_le_ltk_neg_reply(struct hci_conn *conn);
+
+void hci_read_rssi(struct hci_conn *conn);
 
 #endif /* __HCI_CORE_H */

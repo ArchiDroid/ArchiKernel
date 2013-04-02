@@ -28,8 +28,8 @@
 #include <asm/mach/mmc.h>
 
 #include <mach/vreg.h>
+#include <mach/proc_comm.h>
 
-#include "proc_comm.h"
 #include "devices.h"
 
 #define FPGA_BASE		0x70000000

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,15 +11,16 @@
  */
 
 #include <linux/module.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/clk.h>
 #include <mach/clk.h>
 #include <linux/io.h>
 #include <linux/android_pmem.h>
 #include <mach/camera.h>
-#include <mach/msm_subsystem_map.h>
+#include <mach/iommu_domains.h>
 
 #include "msm_gemini_platform.h"
+#include "msm_gemini_sync.h"
 #include "msm_gemini_common.h"
 #include "msm_gemini_hw.h"
 
@@ -28,14 +29,10 @@
 struct ion_client *gemini_client;
 
 void msm_gemini_platform_p2v(struct file  *file,
-				struct msm_mapped_buffer **msm_buffer,
 				struct ion_handle **ionhandle)
 {
-	if (msm_subsystem_unmap_buffer(
-		(struct msm_mapped_buffer *)*msm_buffer) < 0)
-		pr_err("%s: umapped stat memory\n",  __func__);
-	*msm_buffer = NULL;
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+	ion_unmap_iommu(gemini_client, *ionhandle, CAMERA_DOMAIN, GEN_POOL);
 	ion_free(gemini_client, *ionhandle);
 	*ionhandle = NULL;
 #elif CONFIG_ANDROID_PMEM
@@ -44,18 +41,18 @@ void msm_gemini_platform_p2v(struct file  *file,
 }
 
 uint32_t msm_gemini_platform_v2p(int fd, uint32_t len, struct file **file_p,
-				struct msm_mapped_buffer **msm_buffer,
-				int *subsys_id, struct ion_handle **ionhandle)
+				struct ion_handle **ionhandle)
 {
 	unsigned long paddr;
 	unsigned long size;
 	int rc;
-	int flags;
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	*ionhandle = ion_import_fd(gemini_client, fd);
+	*ionhandle = ion_import_dma_buf(gemini_client, fd);
 	if (IS_ERR_OR_NULL(*ionhandle))
 		return 0;
-	rc = ion_phys(gemini_client, *ionhandle, &paddr, (size_t *)&size);
+
+	rc = ion_map_iommu(gemini_client, *ionhandle, CAMERA_DOMAIN, GEN_POOL,
+			SZ_4K, 0, &paddr, (unsigned long *)&size, UNCACHED, 0);
 #elif CONFIG_ANDROID_PMEM
 	unsigned long kvstart;
 	rc = get_pmem_file(fd, &paddr, &kvstart, &size, file_p);
@@ -67,32 +64,36 @@ uint32_t msm_gemini_platform_v2p(int fd, uint32_t len, struct file **file_p,
 	if (rc < 0) {
 		GMN_PR_ERR("%s: get_pmem_file fd %d error %d\n", __func__, fd,
 			rc);
-		return 0;
+		goto error1;
 	}
 
 	/* validate user input */
 	if (len > size) {
 		GMN_PR_ERR("%s: invalid offset + len\n", __func__);
-		return 0;
+		goto error1;
 	}
 
-	flags = MSM_SUBSYSTEM_MAP_IOVA;
-	*subsys_id = MSM_SUBSYSTEM_CAMERA;
-	*msm_buffer = msm_subsystem_map_buffer(paddr, size,
-					flags, subsys_id, 1);
-	if (IS_ERR((void *)*msm_buffer)) {
-		pr_err("%s: msm_subsystem_map_buffer failed\n", __func__);
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-		ion_free(gemini_client, *ionhandle);
-		*ionhandle = NULL;
-#elif CONFIG_ANDROID_PMEM
-		put_pmem_file(*file_p);
-#endif
-		return 0;
-	}
-	paddr = ((struct msm_mapped_buffer *)*msm_buffer)->iova[0];
 	return paddr;
+error1:
+#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+	ion_free(gemini_client, *ionhandle);
+#endif
+	return 0;
 }
+
+static struct msm_cam_clk_info gemini_8x_clk_info[] = {
+	{"core_clk", 228571000},
+	{"iface_clk", -1},
+};
+
+static struct msm_cam_clk_info gemini_7x_clk_info[] = {
+	{"core_clk", 153600000},
+	{"iface_clk", -1},
+};
+
+static struct msm_cam_clk_info gemini_imem_clk_info[] = {
+	{"mem_clk", -1},
+};
 
 int msm_gemini_platform_init(struct platform_device *pdev,
 	struct resource **mem,
@@ -105,6 +106,8 @@ int msm_gemini_platform_init(struct platform_device *pdev,
 	int gemini_irq;
 	struct resource *gemini_mem, *gemini_io, *gemini_irq_res;
 	void *gemini_base;
+	struct msm_gemini_device *pgmn_dev =
+		(struct msm_gemini_device *) context;
 
 	gemini_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!gemini_mem) {
@@ -133,10 +136,43 @@ int msm_gemini_platform_init(struct platform_device *pdev,
 		goto fail1;
 	}
 
-	rc = msm_camio_jpeg_clk_enable();
-	if (rc) {
-		GMN_PR_ERR("%s: clk failed rc = %d\n", __func__, rc);
-		goto fail2;
+	pgmn_dev->hw_version = GEMINI_8X60;
+	rc = msm_cam_clk_enable(&pgmn_dev->pdev->dev, gemini_8x_clk_info,
+	 pgmn_dev->gemini_clk, ARRAY_SIZE(gemini_8x_clk_info), 1);
+	if (rc < 0) {
+		pgmn_dev->hw_version = GEMINI_7X;
+		rc = msm_cam_clk_enable(&pgmn_dev->pdev->dev,
+			gemini_7x_clk_info, pgmn_dev->gemini_clk,
+			ARRAY_SIZE(gemini_7x_clk_info), 1);
+		if (rc < 0) {
+			GMN_PR_ERR("%s: clk failed rc = %d\n", __func__, rc);
+			goto fail2;
+		}
+	} else {
+		rc = msm_cam_clk_enable(&pgmn_dev->pdev->dev,
+				gemini_imem_clk_info, &pgmn_dev->gemini_clk[2],
+				ARRAY_SIZE(gemini_imem_clk_info), 1);
+		if (!rc)
+			pgmn_dev->hw_version = GEMINI_8960;
+	}
+
+	if (pgmn_dev->hw_version != GEMINI_7X) {
+		if (pgmn_dev->gemini_fs == NULL) {
+			pgmn_dev->gemini_fs =
+				regulator_get(&pgmn_dev->pdev->dev, "vdd");
+			if (IS_ERR(pgmn_dev->gemini_fs)) {
+				pr_err("%s: Regulator FS_ijpeg get failed %ld\n",
+					__func__, PTR_ERR(pgmn_dev->gemini_fs));
+				pgmn_dev->gemini_fs = NULL;
+				goto gemini_fs_failed;
+			} else if (regulator_enable(pgmn_dev->gemini_fs)) {
+				pr_err("%s: Regulator FS_ijpeg enable failed\n",
+								__func__);
+				regulator_put(pgmn_dev->gemini_fs);
+				pgmn_dev->gemini_fs = NULL;
+				goto gemini_fs_failed;
+			}
+		}
 	}
 
 	msm_gemini_hw_init(gemini_base, resource_size(gemini_mem));
@@ -160,7 +196,21 @@ int msm_gemini_platform_init(struct platform_device *pdev,
 	return rc;
 
 fail3:
-	msm_camio_jpeg_clk_disable();
+	if (pgmn_dev->hw_version != GEMINI_7X) {
+		regulator_disable(pgmn_dev->gemini_fs);
+		regulator_put(pgmn_dev->gemini_fs);
+		pgmn_dev->gemini_fs = NULL;
+	}
+gemini_fs_failed:
+	if (pgmn_dev->hw_version == GEMINI_8960)
+		msm_cam_clk_enable(&pgmn_dev->pdev->dev, gemini_imem_clk_info,
+		 &pgmn_dev->gemini_clk[2], ARRAY_SIZE(gemini_imem_clk_info), 0);
+	if (pgmn_dev->hw_version != GEMINI_7X)
+		msm_cam_clk_enable(&pgmn_dev->pdev->dev, gemini_8x_clk_info,
+		pgmn_dev->gemini_clk, ARRAY_SIZE(gemini_8x_clk_info), 0);
+	else
+		msm_cam_clk_enable(&pgmn_dev->pdev->dev, gemini_7x_clk_info,
+		pgmn_dev->gemini_clk, ARRAY_SIZE(gemini_7x_clk_info), 0);
 fail2:
 	iounmap(gemini_base);
 fail1:
@@ -172,10 +222,28 @@ fail1:
 int msm_gemini_platform_release(struct resource *mem, void *base, int irq,
 	void *context)
 {
-	int result;
+	int result = 0;
+	struct msm_gemini_device *pgmn_dev =
+		(struct msm_gemini_device *) context;
 
 	free_irq(irq, context);
-	result = msm_camio_jpeg_clk_disable();
+
+	if (pgmn_dev->hw_version != GEMINI_7X) {
+		regulator_disable(pgmn_dev->gemini_fs);
+		regulator_put(pgmn_dev->gemini_fs);
+		pgmn_dev->gemini_fs = NULL;
+	}
+
+	if (pgmn_dev->hw_version == GEMINI_8960)
+		msm_cam_clk_enable(&pgmn_dev->pdev->dev, gemini_imem_clk_info,
+		 &pgmn_dev->gemini_clk[2], ARRAY_SIZE(gemini_imem_clk_info), 0);
+	if (pgmn_dev->hw_version != GEMINI_7X)
+		msm_cam_clk_enable(&pgmn_dev->pdev->dev, gemini_8x_clk_info,
+		pgmn_dev->gemini_clk, ARRAY_SIZE(gemini_8x_clk_info), 0);
+	else
+		msm_cam_clk_enable(&pgmn_dev->pdev->dev, gemini_7x_clk_info,
+		pgmn_dev->gemini_clk, ARRAY_SIZE(gemini_7x_clk_info), 0);
+
 	iounmap(base);
 	release_mem_region(mem->start, resource_size(mem));
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION

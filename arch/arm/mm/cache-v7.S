@@ -54,9 +54,15 @@ loop1:
 	and	r1, r1, #7			@ mask of the bits for current cache only
 	cmp	r1, #2				@ see what cache we have at this level
 	blt	skip				@ skip if no cache, or just i-cache
+#ifdef CONFIG_PREEMPT
+	save_and_disable_irqs_notrace r9	@ make cssr&csidr read atomic
+#endif
 	mcr	p15, 2, r10, c0, c0, 0		@ select current cache level in cssr
 	isb					@ isb to sych the new cssr&csidr
 	mrc	p15, 1, r1, c0, c0, 0		@ read the new csidr
+#ifdef CONFIG_PREEMPT
+	restore_irqs_notrace r9
+#endif
 	and	r2, r1, #7			@ extract the length of the cache lines
 	add	r2, r2, #4			@ add 4 (line length offset)
 	ldr	r4, =0x3ff
@@ -250,7 +256,7 @@ ENDPROC(v7_flush_kern_dcache_area)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(v7_dma_inv_range)
+v7_dma_inv_range:
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
 	tst	r0, r3
@@ -278,7 +284,7 @@ ENDPROC(v7_dma_inv_range)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(v7_dma_clean_range)
+v7_dma_clean_range:
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
 	bic	r0, r0, r3
@@ -345,18 +351,5 @@ ENDPROC(v7_dma_unmap_area)
 
 	__INITDATA
 
-	.type	v7_cache_fns, #object
-ENTRY(v7_cache_fns)
-	.long	v7_flush_icache_all
-	.long	v7_flush_kern_cache_all
-	.long	v7_flush_user_cache_all
-	.long	v7_flush_user_cache_range
-	.long	v7_coherent_kern_range
-	.long	v7_coherent_user_range
-	.long	v7_flush_kern_dcache_area
-	.long	v7_dma_map_area
-	.long	v7_dma_unmap_area
-	.long	v7_dma_inv_range
-	.long	v7_dma_clean_range
-	.long	v7_dma_flush_range
-	.size	v7_cache_fns, . - v7_cache_fns
+	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
+	define_cache_functions v7

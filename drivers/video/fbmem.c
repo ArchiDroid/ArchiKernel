@@ -967,6 +967,20 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 	    memcmp(&info->var, var, sizeof(struct fb_var_screeninfo))) {
 		u32 activate = var->activate;
 
+		/* When using FOURCC mode, make sure the red, green, blue and
+		 * transp fields are set to 0.
+		 */
+		if ((info->fix.capabilities & FB_CAP_FOURCC) &&
+		    var->grayscale > 1) {
+			if (var->red.offset     || var->green.offset    ||
+			    var->blue.offset    || var->transp.offset   ||
+			    var->red.length     || var->green.length    ||
+			    var->blue.length    || var->transp.length   ||
+			    var->red.msb_right  || var->green.msb_right ||
+			    var->blue.msb_right || var->transp.msb_right)
+				return -EINVAL;
+		}
+
 		if (!info->fbops->fb_check_var) {
 			*var = info->var;
 			goto done;
@@ -1029,6 +1043,8 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 	return ret;
 }
 
+
+
 int
 fb_blank(struct fb_info *info, int blank)
 {	
@@ -1045,24 +1061,23 @@ fb_blank(struct fb_info *info, int blank)
 
 		event.info = info;
 		event.data = &blank;
+#ifdef CONFIG_MACH_LGE
+		/* recovery mode backlight off problem fix */
+		/* fb_notifier_call_chain(FB_EVENT_BLANK, &event); */
+#else /*qct original*/
 		fb_notifier_call_chain(FB_EVENT_BLANK, &event);
+#endif /*CONFIG_MACH_LGE*/
 	}
 
  	return ret;
 }
 
-#ifdef CONFIG_LGE_LCD_ESD_DETECTION
-int
-fb_esdcheck(struct fb_info *info, int esdcheck)
-{	
- 	int ret = -EINVAL; 	
-
-	if (info->fbops->fb_esdcheck)
- 		ret = info->fbops->fb_esdcheck(esdcheck, info); 	
-
- 	return ret;
-}
+/* LGE_CHANGE_S, [20120615][youngbae.choi@lge.com]
+*  for testmode lcd kcal */
+#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
+extern int k_cal_flag;
 #endif
+/* LGE_CHANGE_E, [20120609][youngbae.choi@lge.com] */
 
 static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
@@ -1076,6 +1091,14 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	struct fb_event event;
 	void __user *argp = (void __user *)arg;
 	long ret = 0;
+
+/* LGE_CHANGE_S, [20120615][youngbae.choi@lge.com]
+*  for testmode lcd kcal */
+#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
+		if(k_cal_flag == 1)
+			return 0;
+#endif
+/* LGE_CHANGE_E, [20120609][youngbae.choi@lge.com] */
 
 	switch (cmd) {
 	case FBIOGET_VSCREENINFO:
@@ -1181,20 +1204,6 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		console_unlock();
 		unlock_fb_info(info);
 		break;
-
-#ifdef CONFIG_LGE_LCD_ESD_DETECTION
-	case FBIOGET_ESDCHECKLOOP:
-		if (!lock_fb_info(info))
-			return -ENODEV;
-		console_lock();
-		info->flags |= FBINFO_MISC_USEREVENT;
-		ret = fb_esdcheck(info, arg);
-		info->flags &= ~FBINFO_MISC_USEREVENT;
-		console_unlock();
-		unlock_fb_info(info);
-		break;
-#endif
-
 	default:
 		fb = info->fbops;
 		if (fb->fb_ioctl)
@@ -1675,6 +1684,7 @@ static int do_unregister_framebuffer(struct fb_info *fb_info)
 	if (ret)
 		return -EINVAL;
 
+	unlink_framebuffer(fb_info);
 	if (fb_info->pixmap.addr &&
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
 		kfree(fb_info->pixmap.addr);
@@ -1682,7 +1692,6 @@ static int do_unregister_framebuffer(struct fb_info *fb_info)
 	registered_fb[i] = NULL;
 	num_registered_fb--;
 	fb_cleanup_device(fb_info);
-	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 	event.info = fb_info;
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 
@@ -1690,6 +1699,22 @@ static int do_unregister_framebuffer(struct fb_info *fb_info)
 	put_fb_info(fb_info);
 	return 0;
 }
+
+int unlink_framebuffer(struct fb_info *fb_info)
+{
+	int i;
+
+	i = fb_info->node;
+	if (i < 0 || i >= FB_MAX || registered_fb[i] != fb_info)
+		return -EINVAL;
+
+	if (fb_info->dev) {
+		device_destroy(fb_class, MKDEV(FB_MAJOR, i));
+		fb_info->dev = NULL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(unlink_framebuffer);
 
 void remove_conflicting_framebuffers(struct apertures_struct *a,
 				     const char *name, bool primary)
@@ -1762,8 +1787,6 @@ void fb_set_suspend(struct fb_info *info, int state)
 {
 	struct fb_event event;
 
-	if (!lock_fb_info(info))
-		return;
 	event.info = info;
 	if (state) {
 		fb_notifier_call_chain(FB_EVENT_SUSPEND, &event);
@@ -1772,7 +1795,6 @@ void fb_set_suspend(struct fb_info *info, int state)
 		info->state = FBINFO_STATE_RUNNING;
 		fb_notifier_call_chain(FB_EVENT_RESUME, &event);
 	}
-	unlock_fb_info(info);
 }
 
 /**
@@ -1951,9 +1973,6 @@ EXPORT_SYMBOL(registered_fb);
 EXPORT_SYMBOL(fb_show_logo);
 EXPORT_SYMBOL(fb_set_var);
 EXPORT_SYMBOL(fb_blank);
-#ifdef CONFIG_LGE_LCD_ESD_DETECTION
-EXPORT_SYMBOL(fb_esdcheck);
-#endif
 EXPORT_SYMBOL(fb_pan_display);
 EXPORT_SYMBOL(fb_get_buffer_offset);
 EXPORT_SYMBOL(fb_set_suspend);

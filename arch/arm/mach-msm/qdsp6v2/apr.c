@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +27,7 @@
 #include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <asm/mach-types.h>
 #include <mach/peripheral-loader.h>
 #include <mach/msm_smd.h>
 #include <mach/qdsp6v2/apr.h>
@@ -254,9 +255,9 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 	if (!dest || !svc_name || !svc_fn)
 		return NULL;
 
-	if (!strcmp(dest, "ADSP"))
+	if (!strncmp(dest, "ADSP", 4))
 		dest_id = APR_DEST_QDSP6;
-	else if (!strcmp(dest, "MODEM")) {
+	else if (!strncmp(dest, "MODEM", 5)) {
 		dest_id = APR_DEST_MODEM;
 	} else {
 		pr_err("APR: wrong destination\n");
@@ -285,23 +286,23 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 		pr_info("%s: modem Up\n", __func__);
 	}
 
-	if (!strcmp(svc_name, "AFE")) {
+	if (!strncmp(svc_name, "AFE", 3)) {
 		client_id = APR_CLIENT_AUDIO;
 		svc_idx = 0;
 		svc_id = APR_SVC_AFE;
-	} else if (!strcmp(svc_name, "ASM")) {
+	} else if (!strncmp(svc_name, "ASM", 3)) {
 		client_id = APR_CLIENT_AUDIO;
 		svc_idx = 1;
 		svc_id = APR_SVC_ASM;
-	} else if (!strcmp(svc_name, "ADM")) {
+	} else if (!strncmp(svc_name, "ADM", 3)) {
 		client_id = APR_CLIENT_AUDIO;
 		svc_idx = 2;
 		svc_id = APR_SVC_ADM;
-	} else if (!strcmp(svc_name, "CORE")) {
+	} else if (!strncmp(svc_name, "CORE", 4)) {
 		client_id = APR_CLIENT_AUDIO;
 		svc_idx = 3;
 		svc_id = APR_SVC_ADSP_CORE;
-	} else if (!strcmp(svc_name, "TEST")) {
+	} else if (!strncmp(svc_name, "TEST", 4)) {
 		if (dest_id == APR_DEST_QDSP6) {
 			client_id = APR_CLIENT_AUDIO;
 			svc_idx = 4;
@@ -310,19 +311,19 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			svc_idx = 7;
 		}
 		svc_id = APR_SVC_TEST_CLIENT;
-	} else if (!strcmp(svc_name, "VSM")) {
+	} else if (!strncmp(svc_name, "VSM", 3)) {
 		client_id = APR_CLIENT_VOICE;
 		svc_idx = 0;
 		svc_id = APR_SVC_VSM;
-	} else if (!strcmp(svc_name, "VPM")) {
+	} else if (!strncmp(svc_name, "VPM", 3)) {
 		client_id = APR_CLIENT_VOICE;
 		svc_idx = 1;
 		svc_id = APR_SVC_VPM;
-	} else if (!strcmp(svc_name, "MVS")) {
+	} else if (!strncmp(svc_name, "MVS", 3)) {
 		client_id = APR_CLIENT_VOICE;
 		svc_idx = 2;
 		svc_id = APR_SVC_MVS;
-	} else if (!strcmp(svc_name, "MVM")) {
+	} else if (!strncmp(svc_name, "MVM", 3)) {
 		if (dest_id == APR_DEST_MODEM) {
 			client_id = APR_CLIENT_VOICE;
 			svc_idx = 3;
@@ -332,7 +333,7 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			svc_idx = 5;
 			svc_id = APR_SVC_ADSP_MVM;
 		}
-	} else if (!strcmp(svc_name, "CVS")) {
+	} else if (!strncmp(svc_name, "CVS", 3)) {
 		if (dest_id == APR_DEST_MODEM) {
 			client_id = APR_CLIENT_VOICE;
 			svc_idx = 4;
@@ -342,7 +343,7 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			svc_idx = 6;
 			svc_id = APR_SVC_ADSP_CVS;
 		}
-	} else if (!strcmp(svc_name, "CVP")) {
+	} else if (!strncmp(svc_name, "CVP", 3)) {
 		if (dest_id == APR_DEST_MODEM) {
 			client_id = APR_CLIENT_VOICE;
 			svc_idx = 5;
@@ -352,7 +353,7 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			svc_idx = 7;
 			svc_id = APR_SVC_ADSP_CVP;
 		}
-	} else if (!strcmp(svc_name, "SRD")) {
+	} else if (!strncmp(svc_name, "SRD", 3)) {
 		client_id = APR_CLIENT_VOICE;
 		svc_idx = 6;
 		svc_id = APR_SVC_SRD;
@@ -370,8 +371,9 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 	mutex_lock(&q6.lock);
 	if (q6.state == APR_Q6_NOIMG) {
 		q6.pil = pil_get("q6");
-		if (!q6.pil) {
-			pr_err("APR: Unable to load q6 image\n");
+		if (IS_ERR(q6.pil)) {
+			rc = PTR_ERR(q6.pil);
+			pr_err("APR: Unable to load q6 image, error:%d\n", rc);
 			mutex_unlock(&q6.lock);
 			return svc;
 		}
@@ -500,12 +502,19 @@ void apr_reset(void *handle)
 		return;
 	pr_debug("%s: handle[%p]\n", __func__, handle);
 
+	if (apr_reset_workqueue == NULL) {
+		pr_err("%s: apr_reset_workqueue is NULL\n", __func__);
+		return;
+	}
+
 	apr_reset_worker = kzalloc(sizeof(struct apr_reset_work),
-					GFP_ATOMIC);
-	if (apr_reset_worker == NULL || apr_reset_workqueue == NULL) {
+							GFP_ATOMIC);
+
+	if (apr_reset_worker == NULL) {
 		pr_err("%s: mem failure\n", __func__);
 		return;
 	}
+
 	apr_reset_worker->handle = handle;
 	INIT_WORK(&apr_reset_worker->work, apr_reset_deregister);
 	queue_work(apr_reset_workqueue, &apr_reset_worker->work);
@@ -667,16 +676,13 @@ device_initcall(apr_init);
 
 static int __init apr_late_init(void)
 {
-	void *ret;
+	int ret = 0;
 	init_waitqueue_head(&dsp_wait);
 	init_waitqueue_head(&modem_wait);
 	atomic_set(&dsp_state, 1);
 	atomic_set(&modem_state, 1);
-	ret = subsys_notif_register_notifier("modem", &mnb);
-	pr_debug("subsys_register_notifier: ret1 = %p\n", ret);
-	ret = subsys_notif_register_notifier("lpass", &lnb);
-	pr_debug("subsys_register_notifier: ret2 = %p\n", ret);
-
-	return 0;
+	subsys_notif_register_notifier("modem", &mnb);
+	subsys_notif_register_notifier("lpass", &lnb);
+	return ret;
 }
 late_initcall(apr_late_init);

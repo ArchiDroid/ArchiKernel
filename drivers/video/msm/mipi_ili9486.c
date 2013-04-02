@@ -15,13 +15,13 @@
 #include "mipi_ili9486.h"
 #include <asm/gpio.h>
 #include <mach/vreg.h>
-#include <mach/board_lge.h>
+#include CONFIG_LGE_BOARD_HEADER_FILE
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
 #include <linux/hrtimer.h>
 #endif
 
 #define ILI9486_CMD_DELAY 	0
-#define ILI9486_DEBUG 		0
+#define ILI9486_DEBUG 		1
 
 // sd card file end point must finalize necessory "$"
 #define ILI9486_TUNING_SET	0 // 0 : normal version, 1 : tuning version
@@ -37,7 +37,7 @@
 #define ILI9486_TUNING_FROM_SDCARD  1 // 0 : /data/ili9486  1: /sdcard/external_sd/ili9486 , /sdcard2/
 #endif
 
-#define ILI9486_ESD_COM_REGISTER 	0xA0
+#define ILI9486_ESD_COM_REGISTER 	0xB0
 
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
 enum {
@@ -57,11 +57,15 @@ enum {
 static int esd_start = 0;
 static int lcd_on_off = 0;
 static int esd_init = 0;
+static int esd_exception_case = 0;
+static int esd_exception_value = 0;
 static struct work_struct work_esd;
 static struct hrtimer esd_timer;
 
 extern void request_suspend_resume(void);
 extern int lm3530_get_state(void);
+extern int lge_get_esd_flag(void);
+extern int lge_set_esd_flag(int flag);
 #endif
 
 #if ILI9486_TUNING_SET
@@ -77,9 +81,15 @@ static int filesystem_read = 0;
 static int size_length = 0;
 #endif
 
-void mipi_ldp_lcd_panel_poweroff(void);
+static void mipi_ldp_lcd_panel_poweroff(void);
 static struct msm_panel_common_pdata *mipi_ili9486_pdata;
 static struct platform_device *platform_data;
+
+static int mipi_ili9486_status(struct platform_device *pdev);
+#define GPIO_LCD_MAKER_ID 126   //LCD maker_id pin number is 126
+static int maker_id_result = 0;
+
+
 
 static struct dsi_buf ili9486_tx_buf;
 static struct dsi_buf ili9486_rx_buf;
@@ -123,20 +133,28 @@ static char config_memory_access_control[2]={0x36, 0x08}; //DCS-1param
 static char config_display_inversion_cont[2]={0xB4,0x02}; //Gen-1param
 static char config_display_func[4]={0xB6,0x00,0x42,0x3B};  //Gen-long
 
+//old register since 2012-06- 19
 static char config_power_ctrl_1[3]={0xC0,0x14,0x14}; //Gen-2param
 static char config_power_ctrl_2[2]={0xC1,0x45}; //Gen-1param
 static char config_power_ctrl_3[2]={0xC2, 0x01}; //Gen-1param
 static char config_power_vcom_control[5]={0xC5, 0x00, 0x50, 0x80, 0x00}; //Gen-long
-
 static char config_positive_gamma_correc[16]={0xE0,0x0F,0x2b,0x23,0x04,0x08,0x06,0x56,0x62,0x45,0x08,0x11,0x04,0x0A,0x04,0x00}; //Gen-long
 static char config_negative_gamma_correc[16]={0xE1,0x0F,0x37,0x32,0x0B,0x0F,0x04,0x46,0x01,0x34,0x00,0x0A,0x00,0x21,0x1A,0x00}; //Gen-long
+//new
+static char config_power_ctrl_1_new[3]={0xC0,0x10,0x14}; //Gen-2param
+static char config_power_ctrl_2_new[2]={0xC1,0x47}; //Gen-1param
+static char config_power_ctrl_3_new[2]={0xC2, 0x02}; //Gen-1param
+static char config_power_vcom_control_new[5]={0xC5, 0x00, 0x3f, 0x80, 0x00}; //Gen-long
+static char config_positive_gamma_correc_new[16]={0xE0,0x0F,0x2b,0x21,0x06,0x08,0x07,0x53,0x65,0x40,0x06,0x0f,0x02,0x0A,0x04,0x00}; //Gen-long
+static char config_negative_gamma_correc_new[16]={0xE1,0x0F,0x37,0x32,0x0B,0x0F,0x04,0x46,0x31,0x34,0x00,0x0A,0x00,0x21,0x1A,0x00}; //Gen-long
+
 
 static char config_column_address_set[5]={0x2A, 0x00, 0x00, 0x01, 0x3F}; //DCS-Long
 static char config_page_address_set[5]={0x2B, 0x00, 0x00, 0x01, 0xDF}; //DCS-Long
 
 static char config_pixel_format[2]={0x3A,0x66}; //DCS-1param
 static char config_entry_mode_set[2]={0xB7,0x06}; //Gen-1param
-static char config_frame_rate[3]={0xB1,ILI9486_ESD_COM_REGISTER,0x12}; //Gen-2param
+static char config_frame_rate[3]={0xB1,ILI9486_ESD_COM_REGISTER,0x13}; //Gen-2param
 
 static char config_F7[6]={0xF7,0xA9,0x91,0x2D,0x8A,0x4C}; //Gen
 static char config_blacnking_porch_control[5]={0xB5,0x06,0x06,0x0A,0x04}; //Gen-long
@@ -206,6 +224,28 @@ static struct dsi_cmd_desc ili9486_init_on_cmds[] = {
     {DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F7), config_F7},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control}
 };
+
+static struct dsi_cmd_desc ili9486_init_on_new_cmds[] = {
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_F2),config_F2 },
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F8),config_F8 },
+	{DTYPE_DCS_WRITE1, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_memory_access_control), config_memory_access_control},
+	{DTYPE_GEN_WRITE2, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_display_inversion_cont),config_display_inversion_cont },
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_display_func),config_display_func },
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_power_ctrl_1_new), config_power_ctrl_1_new},
+	{DTYPE_GEN_WRITE2, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_power_ctrl_2_new),config_power_ctrl_2_new },
+	{DTYPE_GEN_WRITE2, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_power_ctrl_3_new),config_power_ctrl_3_new },
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_power_vcom_control_new),config_power_vcom_control_new},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_positive_gamma_correc_new),config_positive_gamma_correc_new },
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_negative_gamma_correc_new),config_negative_gamma_correc_new},	
+	{DTYPE_DCS_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_column_address_set),config_column_address_set},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_page_address_set),config_page_address_set},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_pixel_format),config_pixel_format},
+	{DTYPE_GEN_WRITE2, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_entry_mode_set),config_entry_mode_set},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_frame_rate),config_frame_rate},
+    {DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,      sizeof(config_F7), config_F7},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, ILI9486_CMD_DELAY,		sizeof(config_blacnking_porch_control),config_blacnking_porch_control}
+};
+
 static struct dsi_cmd_desc ili9486_sleep_out_cmds[] = {
 	{DTYPE_DCS_WRITE, 1, 0, 0, 120, 
 		sizeof(config_sleep_out), config_sleep_out}
@@ -395,11 +435,15 @@ static long ili9486_reg_init_ext(void)
 }
 #endif
 
+/*LGE_CHANGE_S,hyungjoon.jeon,13-02-06, for M4 lcd backlight timning code*/
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+extern int lcd_on_completed;
+#endif
 
 static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
-	
+		
 #if ILI9486_TUNING_SET
 	int loop_num = 0;	
 #endif
@@ -413,13 +457,24 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 		return -ENODEV;
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
+	
 
-	if(init_boot == 0){
+	if( 0){
+// when panic mode, lcd init no need.
+#if 0 //def CONFIG_LGE_HANDLE_PANIC
+		if(get_kernel_panicmode() == 2)
+			return 0;
+#endif
+		
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
 		value = ILI9486_ESD_FIRST_BOOTING_TIME;
 #endif
 		platform_data = pdev;		
-		printk("mipi_ili9486_lcd_on init booting\n");		
+		printk("mipi_ili9486_lcd_on init booting\n");	
+		
+		//check ili9485 old or new
+   		mipi_ili9486_status(pdev);
+   		printk("%s, maker_id_result:%d\n",__func__, maker_id_result );
 	}
     else{
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
@@ -442,8 +497,22 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 					break;
 			}
 #endif
-		mipi_dsi_cmds_tx(&ili9486_tx_buf, ili9486_init_on_cmds,
-				ARRAY_SIZE(ili9486_init_on_cmds));
+
+	if( maker_id_result == PANEL_ID_OLD_ILI9486 ) //old_panel
+	{
+		mipi_dsi_cmds_tx( &ili9486_tx_buf, ili9486_init_on_cmds,
+					ARRAY_SIZE(ili9486_init_on_cmds));
+		printk("%s,mipi_dsi_cmds_tx ili9486_init_on_cmds..\n",__func__ );
+		printk("%s,PANEL_ID_OLD_ILI9486\n",__func__ );
+	}
+	else//new_panel
+	{
+		mipi_dsi_cmds_tx( &ili9486_tx_buf, ili9486_init_on_new_cmds,
+						ARRAY_SIZE(ili9486_init_on_new_cmds));
+		printk("%s,mipi_dsi_cmds_tx ili9486_init_on_cmds..\n",__func__ );
+		printk("%s,PANEL_ID_NEW_ILI9486\n",__func__ );
+
+	}
 
 #if ILI9486_DEBUG
 		printk("mipi_ili9486_init_on_cmd ..\n");
@@ -455,7 +524,7 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 		printk("mipi_ili9486_init_on_cmd %s\n", ili9486_tmp);		
 #endif	
 
-		mipi_dsi_cmds_tx(&ili9486_tx_buf, ili9486_sleep_out_cmds,
+		mipi_dsi_cmds_tx( &ili9486_tx_buf, ili9486_sleep_out_cmds,
 				ARRAY_SIZE(ili9486_sleep_out_cmds));
 
 #if ILI9486_DEBUG
@@ -463,7 +532,7 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 		printk("mipi_ili9486_init_on_cmd %s\n", ili9486_tmp);
 #endif
 
-	   	mipi_dsi_cmds_tx(&ili9486_tx_buf, ili9486_memory_write_cmds,
+	   	mipi_dsi_cmds_tx( &ili9486_tx_buf, ili9486_memory_write_cmds,
 				ARRAY_SIZE(ili9486_memory_write_cmds));
 
 #if ILI9486_DEBUG
@@ -471,7 +540,7 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 		printk("mipi_ili9486_init_on_cmd %s\n", ili9486_tmp);
 #endif
 
-	   	mipi_dsi_cmds_tx(&ili9486_tx_buf, ili9486_disp_on_cmds,
+	   	mipi_dsi_cmds_tx( &ili9486_tx_buf, ili9486_disp_on_cmds,
 	                        ARRAY_SIZE(ili9486_disp_on_cmds));
 
 #if ILI9486_DEBUG
@@ -496,6 +565,12 @@ static int mipi_ili9486_lcd_on(struct platform_device *pdev)
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
 	lcd_on_off = 1;
 #endif
+
+/*LGE_CHANGE_S,hyungjoon.jeon,13-02-06, for M4 lcd backlight timning code*/
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+ lcd_on_completed = 1;
+#endif
+
 	return 0;
 }
 
@@ -518,7 +593,7 @@ static int mipi_ili9486_lcd_off(struct platform_device *pdev)
 	printk("mipi_ili9486_lcd_off START\n");
 
 	mipi_set_tx_power_mode(1);
-	mipi_dsi_cmds_tx(&ili9486_tx_buf, ili9486_disp_off_cmds,
+	mipi_dsi_cmds_tx( &ili9486_tx_buf, ili9486_disp_off_cmds,
 			ARRAY_SIZE(ili9486_disp_off_cmds));
 	mipi_set_tx_power_mode(0);
 
@@ -575,7 +650,7 @@ uint8 mipi_ili9486_esd_check_log(int nNum, int Count)
 		case 17:	cmd = &ili9486_esd_status_0A_read_cmds;		reg_type = 0x0A;	break;
 		default:	return 0;
 	}
-	mipi_dsi_cmds_rx(mfd, tp, rp, cmd, 16);
+	mipi_dsi_cmds_rx( tp, rp, cmd, 16);
 	
 	if(Count > 4){		
 		lp_64 = (uint64 *)rp->data;
@@ -649,7 +724,7 @@ int mipi_ili9486_esd_check(void)
 		return -EINVAL;
 
 	// [important] to read the correct read data, tearing effect must disable.
-	mipi_dsi_cmds_tx(&ili9486_tx_buf, &ili9486_tear_off_cmd, 1);
+	mipi_dsi_cmds_tx( &ili9486_tx_buf, &ili9486_tear_off_cmd, 1);
 #if CONFIG_LGE_LCD_ESD_ALL_REGISTER_READ    
 	mipi_ili9486_esd_check_log(1, 9);
 	mipi_ili9486_esd_check_log(2, 2);
@@ -674,7 +749,7 @@ int mipi_ili9486_esd_check(void)
 	
 	lp_8_1 = mipi_ili9486_esd_check_log(14, 2);
 	lp_8_2 = mipi_ili9486_esd_check_log(17, 1);
-	mipi_dsi_cmds_tx(&ili9486_tx_buf, &ili9486_tear_on_cmd, 1);	
+	mipi_dsi_cmds_tx( &ili9486_tx_buf, &ili9486_tear_on_cmd, 1);	
 
 	// sometimes not correct read the data at first time.
 	if(esd_init == 0){
@@ -742,7 +817,19 @@ static void mipi_ili9486_lcd_esd_start(struct work_struct *work)
 {	
 	if(lcd_on_off){
 		printk("%s\n",__func__);
-		esd_start = 1;
+
+	    //after phone is booting, only one time check need.
+		if(esd_exception_case == 0){
+			esd_exception_value = lge_get_esd_flag();
+			if(esd_exception_value != 8)
+				lge_set_esd_flag(0); //wrong value is resetting to zero.
+			esd_exception_case = 1;
+		}
+		
+		if(esd_exception_value != 8){ //abnormal case : value = 8			
+			esd_start = 1;
+			
+		}		
 
 #if ILI9486_TUNING_SET
 		esd_start = 0;
@@ -755,9 +842,14 @@ static void mipi_ili9486_lcd_esd_start(struct work_struct *work)
 	}
 }
 
-static enum hrtimer_restart esd_timer_func(struct hrtimer *timer)
+static void esd_timer_callfunction(void)
 {	
 	schedule_work(&work_esd);	
+}
+
+static enum hrtimer_restart esd_timer_func(struct hrtimer *timer)
+{	
+	esd_timer_callfunction();	
 	return HRTIMER_NORESTART;
 }
 #endif
@@ -765,7 +857,7 @@ static enum hrtimer_restart esd_timer_func(struct hrtimer *timer)
 static int __devinit mipi_ili9486_lcd_probe(struct platform_device *pdev)
 {
 	int rc = 0;
-
+	
 	init_boot = 0;
 #ifdef CONFIG_LGE_LCD_ESD_DETECTION
 	esd_start = 0;
@@ -785,6 +877,10 @@ static int __devinit mipi_ili9486_lcd_probe(struct platform_device *pdev)
 	msm_fb_add_device(pdev);
 	/*this for AT Command*/
 	rc = device_create_file(&pdev->dev, &dev_attr_lcd_onoff);
+
+    //check ili9485 old or new
+   mipi_ili9486_status(pdev);
+   printk("%s, maker_id_result:%d\n",__func__, maker_id_result );
 
 	return 0;
 }
@@ -839,6 +935,17 @@ err_device_put:
 	return ret;
 }
 
+static int mipi_ili9486_status(struct platform_device *pdev)
+{
+	maker_id_result = gpio_get_value(GPIO_LCD_MAKER_ID);
+	printk("%s, maker_id_result:%d\n",__func__,maker_id_result );
+
+	 return maker_id_result;
+
+}
+
+
+
 static int __init mipi_ili9486_lcd_init(void)
 {
 	mipi_dsi_buf_alloc(&ili9486_tx_buf, DSI_BUF_SIZE);
@@ -847,7 +954,7 @@ static int __init mipi_ili9486_lcd_init(void)
 	return platform_driver_register(&this_driver);
 }
 
-void mipi_ldp_lcd_panel_poweroff(void)
+static void mipi_ldp_lcd_panel_poweroff(void)
 {
 	gpio_set_value(GPIO_LCD_RESET, 0);
 	msleep(10);

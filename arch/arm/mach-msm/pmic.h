@@ -14,7 +14,7 @@
 #ifndef __ARCH_ARM_MACH_PMIC_H
 #define __ARCH_ARM_MACH_PMIC_H
 
-#include "proc_comm.h"
+#include <mach/proc_comm.h>
 
 enum spkr_left_right {
 	LEFT_SPKR,
@@ -291,17 +291,13 @@ int pmic_vib_mot_set_mode(enum pm_vib_mot_mode mode);
 int pmic_vib_mot_set_polarity(enum pm_vib_mot_pol pol);
 int pmic_vid_en(uint enable);
 int pmic_vid_load_detect_en(uint enable);
-/* LGE_CHANGE_S : kernel3.0 porting , Camera LDO Setting
- * 2011-11-09, yoonsoo.kim@lge.com, 
- * Camera LDO Setting API
- */
-int pmic_miniabb_ldo_control(uint16_t ldo_num, uint16_t enable);
-/* LGE_CHANGE_E : Camera LDO Setting */
 
+#if defined(CONFIG_MACH_MSM7X27A_U0)
 /* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
+ * 2012-01-26, yoonsoo.kim@lge.com,
  * When user enter the streaming service, change the charging current
  */
 int pmic_miniabb_charging_current_change(uint16_t charging_current);
 /* LGE_CHANGE_E : U0 Heating and DoU Issue*/
+#endif
 #endif

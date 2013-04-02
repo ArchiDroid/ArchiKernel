@@ -1,7 +1,6 @@
-/* arch/arm/mach-msm/include/mach/uncompress.h
- *
+/*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -20,9 +19,17 @@
 #include <linux/io.h>
 #include <asm/mach-types.h>
 #include <asm/processor.h>
-
 #include <mach/msm_iomap.h>
 #include <mach/msm_serial_hsl_regs.h>
+
+#define UART_CSR      (*(volatile uint32_t *)(MSM_DEBUG_UART_PHYS + 0x08))
+#define UART_TF       (*(volatile uint32_t *)(MSM_DEBUG_UART_PHYS + 0x0c))
+
+#define UART_DM_SR    (*((volatile uint32_t *)(MSM_DEBUG_UART_PHYS + 0x08)))
+#define UART_DM_CR    (*((volatile uint32_t *)(MSM_DEBUG_UART_PHYS + 0x10)))
+#define UART_DM_ISR   (*((volatile uint32_t *)(MSM_DEBUG_UART_PHYS + 0x14)))
+#define UART_DM_NCHAR (*((volatile uint32_t *)(MSM_DEBUG_UART_PHYS + 0x40)))
+#define UART_DM_TF    (*((volatile uint32_t *)(MSM_DEBUG_UART_PHYS + 0x70)))
 
 #ifndef CONFIG_DEBUG_ICEDCC
 static void putc(int c)

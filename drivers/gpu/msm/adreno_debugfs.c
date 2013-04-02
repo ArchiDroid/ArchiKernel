@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>

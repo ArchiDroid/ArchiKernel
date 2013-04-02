@@ -2,7 +2,7 @@
  * Diag Function Device - Route ARM9 and ARM11 DIAG messages
  * between HOST and DEVICE.
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -108,8 +108,6 @@ struct diag_context {
 	struct usb_function function;
 	struct usb_ep *out;
 	struct usb_ep *in;
-	struct usb_endpoint_descriptor  *in_desc;
-	struct usb_endpoint_descriptor  *out_desc;
 	struct list_head read_pool;
 	struct list_head write_pool;
 	struct work_struct config_work;
@@ -514,21 +512,22 @@ static int diag_function_set_alt(struct usb_function *f,
 	unsigned long flags;
 	int rc = 0;
 
-	dev->in_desc = ep_choose(cdev->gadget,
-			(struct usb_endpoint_descriptor *)f->hs_descriptors[1],
-			(struct usb_endpoint_descriptor *)f->descriptors[1]);
-	dev->out_desc = ep_choose(cdev->gadget,
-			(struct usb_endpoint_descriptor *)f->hs_descriptors[2],
-			(struct usb_endpoint_descriptor *)f->descriptors[2]);
+	if (config_ep_by_speed(cdev->gadget, f, dev->in) ||
+	    config_ep_by_speed(cdev->gadget, f, dev->out)) {
+		dev->in->desc = NULL;
+		dev->out->desc = NULL;
+		return -EINVAL;
+	}
+
 	dev->in->driver_data = dev;
-	rc = usb_ep_enable(dev->in, dev->in_desc);
+	rc = usb_ep_enable(dev->in);
 	if (rc) {
 		ERROR(dev->cdev, "can't enable %s, result %d\n",
 						dev->in->name, rc);
 		return rc;
 	}
 	dev->out->driver_data = dev;
-	rc = usb_ep_enable(dev->out, dev->out_desc);
+	rc = usb_ep_enable(dev->out);
 	if (rc) {
 		ERROR(dev->cdev, "can't enable %s, result %d\n",
 						dev->out->name, rc);
@@ -630,7 +629,7 @@ int diag_function_add(struct usb_configuration *c, const char *name,
 	/* claim the channel for this USB interface */
 	_ch->priv_usb = dev;
 
-	dev->update_pid_and_serial_num = update_pid; 
+	dev->update_pid_and_serial_num = update_pid;
 	dev->cdev = c->cdev;
 	dev->function.name = _ch->name;
 	dev->function.descriptors = fs_diag_desc;
@@ -665,21 +664,20 @@ static ssize_t debug_read_stats(struct file *file, char __user *ubuf,
 	struct usb_diag_ch *ch;
 
 	list_for_each_entry(ch, &usb_diag_ch_list, list) {
-		struct diag_context *ctxt;
+		struct diag_context *ctxt = ch->priv_usb;
 
-		ctxt = ch->priv_usb;
-
-		temp += scnprintf(buf + temp, PAGE_SIZE - temp,
-				"---Name: %s---\n"
-				"endpoints: %s, %s\n"
-				"dpkts_tolaptop: %lu\n"
-				"dpkts_tomodem:  %lu\n"
-				"pkts_tolaptop_pending: %u\n",
-				ch->name,
-				ctxt->in->name, ctxt->out->name,
-				ctxt->dpkts_tolaptop,
-				ctxt->dpkts_tomodem,
-				ctxt->dpkts_tolaptop_pending);
+		if (ctxt)
+			temp += scnprintf(buf + temp, PAGE_SIZE - temp,
+					"---Name: %s---\n"
+					"endpoints: %s, %s\n"
+					"dpkts_tolaptop: %lu\n"
+					"dpkts_tomodem:  %lu\n"
+					"pkts_tolaptop_pending: %u\n",
+					ch->name,
+					ctxt->in->name, ctxt->out->name,
+					ctxt->dpkts_tolaptop,
+					ctxt->dpkts_tomodem,
+					ctxt->dpkts_tolaptop_pending);
 	}
 
 	return simple_read_from_buffer(ubuf, count, ppos, buf, temp);
@@ -691,13 +689,13 @@ static ssize_t debug_reset_stats(struct file *file, const char __user *buf,
 	struct usb_diag_ch *ch;
 
 	list_for_each_entry(ch, &usb_diag_ch_list, list) {
-		struct diag_context *ctxt;
+		struct diag_context *ctxt = ch->priv_usb;
 
-		ctxt = ch->priv_usb;
-
-		ctxt->dpkts_tolaptop = 0;
-		ctxt->dpkts_tomodem = 0;
-		ctxt->dpkts_tolaptop_pending = 0;
+		if (ctxt) {
+			ctxt->dpkts_tolaptop = 0;
+			ctxt->dpkts_tomodem = 0;
+			ctxt->dpkts_tolaptop_pending = 0;
+		}
 	}
 
 	return count;

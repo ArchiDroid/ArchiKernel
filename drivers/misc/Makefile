@@ -6,7 +6,7 @@ obj-$(CONFIG_IBM_ASM)		+= ibmasm/
 obj-$(CONFIG_AD525X_DPOT)	+= ad525x_dpot.o
 obj-$(CONFIG_AD525X_DPOT_I2C)	+= ad525x_dpot-i2c.o
 obj-$(CONFIG_AD525X_DPOT_SPI)	+= ad525x_dpot-spi.o
-0bj-$(CONFIG_INTEL_MID_PTI)	+= pti.o
+obj-$(CONFIG_INTEL_MID_PTI)	+= pti.o
 obj-$(CONFIG_ATMEL_PWM)		+= atmel_pwm.o
 obj-$(CONFIG_ATMEL_SSC)		+= atmel-ssc.o
 obj-$(CONFIG_ATMEL_TCLIB)	+= atmel_tclib.o
@@ -30,6 +30,7 @@ obj-$(CONFIG_HP_ILO)		+= hpilo.o
 obj-$(CONFIG_APDS9802ALS)	+= apds9802als.o
 obj-$(CONFIG_ISL29003)		+= isl29003.o
 obj-$(CONFIG_ISL29020)		+= isl29020.o
+obj-$(CONFIG_USB_HSIC_SMSC_HUB) += smsc_hub.o
 obj-$(CONFIG_SENSORS_TSL2550)	+= tsl2550.o
 obj-$(CONFIG_EP93XX_PWM)	+= ep93xx_pwm.o
 obj-$(CONFIG_DS1682)		+= ds1682.o
@@ -48,6 +49,11 @@ obj-y				+= ti-st/
 obj-$(CONFIG_AB8500_PWM)	+= ab8500-pwm.o
 obj-y				+= lis3lv02d/
 obj-y				+= carma/
+obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
+obj-$(CONFIG_ALTERA_STAPL)	+=altera-stapl/
+obj-$(CONFIG_MAX8997_MUIC)	+= max8997-muic.o
+obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
+obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
 obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
 obj-$(CONFIG_APANIC)		+= apanic.o
 obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
@@ -60,24 +66,19 @@ obj-$(CONFIG_PMIC8058_PWM) += pmic8058-pwm.o
 obj-$(CONFIG_PMIC8XXX_VIBRATOR) += pm8xxx-vibrator.o
 obj-$(CONFIG_PMIC8XXX_NFC) += pm8xxx-nfc.o
 obj-$(CONFIG_PMIC8XXX_UPL) += pm8xxx-upl.o
+#[LGSI_SP4_BSP_BEGIN][kirankumar.vm@lge.com] Immersion Vibrator Porting
+obj-$(CONFIG_TSPDRV) += tspdrv/
+#[LGSI_SP4_BSP_END][kirankumar.vm@lge.com]
 obj-$(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN) \
 	+= msm_migrate_pages.o
 obj-$(CONFIG_PMIC8058_XOADC) += pmic8058-xoadc.o
-obj-$(CONFIG_TZCOM) += tzcom.o
+obj-$(CONFIG_QSEECOM) += qseecom.o
 obj-$(CONFIG_QFP_FUSE) += qfp_fuse.o
 
-#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
-obj-$(CONFIG_MACH_MSM7X27A_U0) += eve_at_class.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += eve_at.o
-#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
-#LGE_CHANGE_S : jongyoung.koo@lge.com 20120116 at%kcal
-obj-$(CONFIG_MACH_MSM7X27A_U0) += lge_kcal.o
-#LGE_CHANGE_E : jongyoung.koo@lge.com 20120116 at%kcal
-
-#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
-obj-$(CONFIG_ANDROID_VIBRATOR) += android_vibrator.o
-#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
-
 # LGE AT-CMD Bypass interface porting, myunghwan.kim@lge.com [START]
-obj-$(CONFIG_LGE_ATCMD_TTY) += lge_tty_atcmd.o
+obj-y += lge_tty_atcmd.o
 # LGE AT-CMD Bypass interface porting, myunghwan.kim@lge.com [END]
+
+#LGE_CHANGE_S jungrock.oh@lge.com 2013-01-05 add lge_kcal
+obj-y += lge_kcal.o
+#LGE_CHANGE_E jungrock.oh@lge.com 2013-01-05 add lge_kcal 

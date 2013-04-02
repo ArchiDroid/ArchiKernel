@@ -161,11 +161,6 @@ struct mgmt_cp_set_io_capability {
 struct mgmt_cp_pair_device {
 	bdaddr_t bdaddr;
 	__u8 io_cap;
-// -s LGBT_COMMON_PATCH_SR00818097 fix the issue that is from security level set by EIR but EIR is not mandatory feature for 2.1 device sunmee.choi@lge.com 2012-04-10
-	/* QCT Original
-	__u8 ssp_cap;
-	*/
-// -e LGBT_COMMON_PATCH_SR00818097
 } __packed;
 struct mgmt_rp_pair_device {
 	bdaddr_t bdaddr;
@@ -236,6 +231,19 @@ struct mgmt_cp_set_connection_params {
 struct mgmt_cp_encrypt_link {
 	bdaddr_t bdaddr;
 	__u8 enable;
+} __packed;
+
+#define MGMT_OP_SET_RSSI_REPORTER		0x0022
+struct mgmt_cp_set_rssi_reporter {
+	bdaddr_t	bdaddr;
+	__s8		rssi_threshold;
+	__le16	interval;
+	__u8		updateOnThreshExceed;
+} __packed;
+
+#define MGMT_OP_UNSET_RSSI_REPORTER		0x0023
+struct mgmt_cp_unset_rssi_reporter {
+	bdaddr_t	bdaddr;
 } __packed;
 
 #define MGMT_EV_CMD_COMPLETE		0x0001
@@ -350,4 +358,32 @@ struct mgmt_ev_encrypt_change {
 struct mgmt_ev_remote_class {
 	bdaddr_t bdaddr;
 	__u8 dev_class[3];
+} __packed;
+
+#define MGMT_EV_REMOTE_VERSION		0x0018
+struct mgmt_ev_remote_version {
+	bdaddr_t bdaddr;
+	__u8	lmp_ver;
+	__u16	manufacturer;
+	__u16	lmp_subver;
+} __packed;
+
+#define MGMT_EV_REMOTE_FEATURES		0x0019
+struct mgmt_ev_remote_features {
+	bdaddr_t bdaddr;
+	uint8_t features[8];
+} __packed;
+
+#define MGMT_EV_RSSI_UPDATE		0x0020
+struct mgmt_ev_rssi_update {
+	bdaddr_t	bdaddr;
+	__s8			rssi;
+} __packed;
+
+#define MGMT_EV_LE_CONN_PARAMS		0xF000
+struct mgmt_ev_le_conn_params {
+	bdaddr_t bdaddr;
+	__u16 interval;
+	__u16 latency;
+	__u16 timeout;
 } __packed;

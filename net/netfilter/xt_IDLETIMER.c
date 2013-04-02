@@ -162,14 +162,12 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 
 	info->timer = kmalloc(sizeof(*info->timer), GFP_KERNEL);
 	if (!info->timer) {
-		pr_debug("couldn't alloc timer\n");
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	info->timer->attr.attr.name = kstrdup(info->label, GFP_KERNEL);
 	if (!info->timer->attr.attr.name) {
-		pr_debug("couldn't alloc attribute name\n");
 		ret = -ENOMEM;
 		goto out_free_timer;
 	}
@@ -263,8 +261,7 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 
 		if (time_before(info->timer->timer.expires, now)) {
 			schedule_work(&info->timer->work);
-			pr_debug("Starting Checkentry timer"
-				"(Expired, Jiffies): %lu, %lu\n",
+			pr_debug("Starting Checkentry timer (Expired, Jiffies): %lu, %lu\n",
 				info->timer->timer.expires, now);
 		}
 

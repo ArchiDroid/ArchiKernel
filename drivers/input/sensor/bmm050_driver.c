@@ -1,6 +1,6 @@
 /*
- * Last modified: Dec 27, 2011
- * Revision: V2.1
+ * Last modified: Jul 26th, 2012
+ * Revision: V2.4
  * This software program is licensed subject to the GNU General Public License
  * (GPL).Version 2,June 1991, available at http://www.fsf.org/copyleft/gpl.html
 
@@ -31,9 +31,9 @@
 
 #define SENSOR_CHIP_ID_BMM (0x32)
 
-#define BMM_REG_NAME(name) BMC050_##name
-#define BMM_VAL_NAME(name) BMC050_##name
-#define BMM_CALL_API(name) bmc050_##name
+#define BMM_REG_NAME(name) BMM050_##name
+#define BMM_VAL_NAME(name) BMM050_##name
+#define BMM_CALL_API(name) bmm050_##name
 
 #define BMM_I2C_WRITE_DELAY_TIME 1
 
@@ -62,10 +62,14 @@ struct op_mode_map {
 	char *op_mode_name;
 	long op_mode;
 };
-/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+
+#ifdef CONFIG_MACH_LGE
+	/*LGE_CHANGE : 2012-10-08 Jiyeon.park(jiyeon.park@lge.com)
+	* sensor for diag bmm050
+	*/
 static atomic_t bmm_diag = ATOMIC_INIT(0);
 static atomic_t bmm_cnt = ATOMIC_INIT(0);
-/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
+#endif
 
 static const u8 odr_map[] = {10, 2, 6, 8, 15, 20, 25, 30};
 static const struct op_mode_map op_mode_maps[] = {
@@ -77,7 +81,7 @@ static const struct op_mode_map op_mode_maps[] = {
 
 
 struct bmm_client_data {
-	struct bmc050 device;
+	struct bmm050 device;
 	struct i2c_client *client;
 	struct input_dev *input;
 	struct delayed_work work;
@@ -88,7 +92,7 @@ struct bmm_client_data {
 
 	atomic_t delay;
 
-	struct bmc050_mdata value;
+	struct bmm050_mdata value;
 	u8 enable:1;
 	s8 op_mode:4;
 	u8 odr;
@@ -153,7 +157,13 @@ static void bmm_delay(u32 msec)
 static void bmm_dump_reg(struct i2c_client *client)
 {
 	int i;
+#ifdef CONFIG_MACH_LGE
+//LGE_CHANGE : 2012-11-09 Sanghun,Lee(eee3114.@lge.com)wbt sanity check
+//wbt 412964 	'dbg_buf' array elements are used uninitialized in this function with index range: [16,63].
+	u8 dbg_buf[64] = "";
+#else
 	u8 dbg_buf[64];
+#endif
 	u8 dbg_buf_str[64 * 3 + 1] = "";
 
 	for (i = 0; i < BYTES_PER_LINE; i++) {
@@ -766,7 +776,7 @@ static ssize_t bmm_show_value(struct device *dev,
 static ssize_t bmm_show_value_raw(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct bmc050_mdata value;
+	struct bmm050_mdata value;
 	int count;
 
 	BMM_CALL_API(get_raw_xyz)(&value);
@@ -916,7 +926,11 @@ static ssize_t bmm_store_test(struct device *dev,
 
 	return count;
 }
-/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+
+#ifdef CONFIG_MACH_LGE
+	/*LGE_CHANGE : 2012-10-08 Jiyeon.park(jiyeon.park@lge.com)
+	* sensor for diag bmm050
+	*/
 static ssize_t bmm_x_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -996,6 +1010,7 @@ static ssize_t bmm_diag_store(struct device *dev,
 	}
 	return count;
 }
+
 static DEVICE_ATTR(x, S_IRUGO|S_IWUSR|S_IWGRP,
 		bmm_x_show, NULL);
 static DEVICE_ATTR(y, S_IRUGO|S_IWUSR|S_IWGRP,
@@ -1006,7 +1021,9 @@ static DEVICE_ATTR(cnt, S_IRUGO|S_IWUSR|S_IWGRP,
 		bmm_diag_cnt_show, NULL);
 static DEVICE_ATTR(diag, S_IRUGO|S_IWUSR|S_IWGRP,
 		bmm_diag_show, bmm_diag_store);
-/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/static DEVICE_ATTR(chip_id, S_IRUGO,
+#endif
+
+static DEVICE_ATTR(chip_id, S_IRUGO,
 		bmm_show_chip_id, NULL);
 static DEVICE_ATTR(op_mode, S_IRUGO|S_IWUSR,
 		bmm_show_op_mode, bmm_store_op_mode);
@@ -1028,13 +1045,16 @@ static DEVICE_ATTR(test, S_IRUGO|S_IWUSR,
 		bmm_show_test, bmm_store_test);
 
 static struct attribute *bmm_attributes[] = {
-/* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-02-09*/
+#ifdef CONFIG_MACH_LGE
+	/*LGE_CHANGE : 2012-10-08 Jiyeon.park(jiyeon.park@lge.com)
+	* sensor for diag bmm050
+	*/
 	&dev_attr_x.attr,
 	&dev_attr_y.attr,
 	&dev_attr_z.attr,
 	&dev_attr_diag.attr,
 	&dev_attr_cnt.attr,
-/* LGE_CHANGE_E [jiyeon.park@lge.com] 2012-02-09*/
+#endif
 	&dev_attr_chip_id.attr,
 	&dev_attr_op_mode.attr,
 	&dev_attr_odr.attr,
@@ -1093,7 +1113,13 @@ static void bmm_input_destroy(struct bmm_client_data *client_data)
 static int bmm_restore_hw_cfg(struct i2c_client *client)
 {
 	int err = 0;
+#ifdef CONFIG_MACH_LGE
+	//LGE_CHANGE : 2012-11-09 Sanghun,Lee(eee3114.@lge.com)wbt sanity check
+	//wbt 412963	'value' is used uninitialized in this function.	
+	u8 value = 0;
+#else
 	u8 value;
+#endif
 	struct bmm_client_data *client_data =
 		(struct bmm_client_data *)i2c_get_clientdata(client);
 	int op_mode;
@@ -1439,6 +1465,7 @@ static int bmm_remove(struct i2c_client *client)
 
 static const struct i2c_device_id bmm_id[] = {
 	{SENSOR_NAME, 0},
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, bmm_id);

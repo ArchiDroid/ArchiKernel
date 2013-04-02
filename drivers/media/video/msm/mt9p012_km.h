@@ -15,6 +15,7 @@
 #define MT9P012_KM_H
 
 #include <linux/types.h>
+#include <mach/board.h>
 
 extern struct mt9p012_km_reg mt9p012_km_regs;	/* from mt9p012_km_reg.c */
 

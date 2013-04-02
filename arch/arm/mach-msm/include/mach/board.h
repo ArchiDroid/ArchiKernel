@@ -27,21 +27,6 @@
 #include <linux/msm_ssbi.h>
 #include <mach/msm_bus.h>
 
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38
- * struct msm_acpu_clock_platform_data was minssed in kernel3.0 source
- * If this structure will not need in kernel3.0, please remove 
- */
-/* platform device data structures */
-struct msm_acpu_clock_platform_data {
-	uint32_t acpu_switch_time_us;
-	uint32_t max_speed_delta_khz;
-	uint32_t vdd_switch_time_us;
-	unsigned int max_axi_khz;
-	unsigned int max_vdd;
-	int (*acpu_set_vdd) (int mvolts);
-};
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
-
 struct msm_camera_io_ext {
 	uint32_t mdcphy;
 	uint32_t mdcsz;
@@ -76,14 +61,8 @@ struct msm_camera_device_platform_data {
 	struct msm_camera_io_ext ioext;
 	struct msm_camera_io_clk ioclk;
 	uint8_t csid_core;
+	uint8_t is_vpe;
 	struct msm_bus_scale_pdata *cam_bus_scale_table;
-#if defined (CONFIG_MACH_MSM7X27A_U0)
-        /*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting*/
-	/* TODO: it is needed??? */
-	int (*camera_power_on) (void);
-	int (*camera_power_off)(void);
-        /*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting*/
-#endif
 };
 enum msm_camera_csi_data_format {
 	CSI_8BIT,
@@ -116,6 +95,7 @@ struct msm_camera_legacy_device_platform_data {
 #define MSM_CAMERA_FLASH_SRC_CURRENT_DRIVER	(0x00000001<<2)
 #define MSM_CAMERA_FLASH_SRC_EXT     (0x00000001<<3)
 #define MSM_CAMERA_FLASH_SRC_LED (0x00000001<<3)
+#define MSM_CAMERA_FLASH_SRC_LED1 (0x00000001<<4)
 
 struct msm_camera_sensor_flash_pmic {
 	uint8_t num_of_src;
@@ -141,9 +121,15 @@ struct msm_camera_sensor_flash_current_driver {
 	const struct pmic8058_leds_platform_data *driver_channel;
 };
 
+enum msm_camera_ext_led_flash_id {
+	MAM_CAMERA_EXT_LED_FLASH_SC628A,
+	MAM_CAMERA_EXT_LED_FLASH_TPS61310,
+};
+
 struct msm_camera_sensor_flash_external {
 	uint32_t led_en;
 	uint32_t led_flash_en;
+	enum msm_camera_ext_led_flash_id flash_id;
 	struct msm_cam_expander_info *expander_info;
 };
 
@@ -189,33 +175,99 @@ enum msm_camera_type {
 	BACK_CAMERA_INT_3D,
 };
 
-struct msm8960_privacy_light_cfg {
-	unsigned mpp;
+enum msm_sensor_type {
+	BAYER_SENSOR,
+	YUV_SENSOR,
 };
 
-struct msm_camera_sensor_platform_info {
-	int mount_angle;
-	int sensor_reset_enable;
-	int sensor_reset;
-	int sensor_pwd;
-	int vcm_pwd;
-	int vcm_enable;
-	int privacy_light;
-	void *privacy_light_info;
+enum camera_vreg_type {
+	REG_LDO,
+	REG_VS,
+	REG_GPIO,
+};
+
+struct camera_vreg_t {
+	char *reg_name;
+	enum camera_vreg_type type;
+	int min_voltage;
+	int max_voltage;
+	int op_mode;
+};
+
+struct msm_gpio_set_tbl {
+	unsigned gpio;
+	unsigned long flags;
+	uint32_t delay;
+};
+
+struct msm_camera_csi_lane_params {
+	uint8_t csi_lane_assign;
+	uint8_t csi_lane_mask;
 };
 
 struct msm_camera_gpio_conf {
 	void *cam_gpiomux_conf_tbl;
 	uint8_t cam_gpiomux_conf_tbl_size;
-	uint16_t *cam_gpio_tbl;
-	uint8_t cam_gpio_tbl_size;
+	struct gpio *cam_gpio_common_tbl;
+	uint8_t cam_gpio_common_tbl_size;
+	struct gpio *cam_gpio_req_tbl;
+	uint8_t cam_gpio_req_tbl_size;
+	struct msm_gpio_set_tbl *cam_gpio_set_tbl;
+	uint8_t cam_gpio_set_tbl_size;
+	uint32_t gpio_no_mux;
+	uint32_t *camera_off_table;
+	uint8_t camera_off_table_size;
+	uint32_t *camera_on_table;
+	uint8_t camera_on_table_size;
+};
+
+enum msm_camera_i2c_mux_mode {
+	MODE_R,
+	MODE_L,
+	MODE_DUAL
+};
+
+struct msm_camera_i2c_conf {
+	uint8_t use_i2c_mux;
+	struct platform_device *mux_dev;
+	enum msm_camera_i2c_mux_mode i2c_mux_mode;
+};
+
+struct msm_camera_sensor_platform_info {
+	int mount_angle;
+	int sensor_reset;
+	struct camera_vreg_t *cam_vreg;
+	int num_vreg;
+	int32_t (*ext_power_ctrl) (int enable);
+	struct msm_camera_gpio_conf *gpio_conf;
+	struct msm_camera_i2c_conf *i2c_conf;
+	struct msm_camera_csi_lane_params *csi_lane_params;
+};
+
+enum msm_camera_actuator_name {
+	MSM_ACTUATOR_MAIN_CAM_0,
+	MSM_ACTUATOR_MAIN_CAM_1,
+	MSM_ACTUATOR_MAIN_CAM_2,
+	MSM_ACTUATOR_MAIN_CAM_3,
+	MSM_ACTUATOR_MAIN_CAM_4,
+	MSM_ACTUATOR_MAIN_CAM_5,
+	MSM_ACTUATOR_MAIN_CAM_6,	
+	MSM_ACTUATOR_WEB_CAM_0,
+	MSM_ACTUATOR_WEB_CAM_1,
+	MSM_ACTUATOR_WEB_CAM_2,
 };
 
 struct msm_actuator_info {
 	struct i2c_board_info const *board_info;
+	enum msm_camera_actuator_name cam_name;
 	int bus_id;
 	int vcm_pwd;
 	int vcm_enable;
+};
+
+struct msm_eeprom_info {
+	struct i2c_board_info const *board_info;
+	int bus_id;
 };
 
 struct msm_camera_sensor_info {
@@ -236,9 +288,11 @@ struct msm_camera_sensor_info {
 	struct msm_camera_csi_params csi_params;
 	struct msm_camera_sensor_strobe_flash_data *strobe_flash_data;
 	char *eeprom_data;
-	struct msm_camera_gpio_conf *gpio_conf;
 	enum msm_camera_type camera_type;
+	enum msm_sensor_type sensor_type;
 	struct msm_actuator_info *actuator_info;
+	int pmic_gpio_enable;
+	struct msm_eeprom_info *eeprom_info;
 };
 
 struct msm_camera_board_info {
@@ -257,6 +311,17 @@ struct snd_endpoint {
 
 struct msm_snd_endpoints {
 	struct snd_endpoint *endpoints;
+	unsigned num;
+};
+
+struct cad_endpoint {
+	int id;
+	const char *name;
+	uint32_t capability;
+};
+
+struct msm_cad_endpoints {
+	struct cad_endpoint *endpoints;
 	unsigned num;
 };
 
@@ -280,6 +345,7 @@ enum msm_adspdec_concurrency {
 	MSM_ADSP_CODEC_AMRWB = 11,
 	MSM_ADSP_CODEC_EVRC = 12,
 	MSM_ADSP_CODEC_WMAPRO = 13,
+	MSM_ADSP_CODEC_AC3 = 23,
 	MSM_ADSP_MODE_TUNNEL = 24,
 	MSM_ADSP_MODE_NONTUNNEL = 25,
 	MSM_ADSP_MODE_LP = 26,
@@ -327,15 +393,17 @@ enum msm_mdp_hw_revision {
 struct msm_panel_common_pdata {
 	uintptr_t hw_revision_addr;
 	int gpio;
+	bool bl_lock;
+	spinlock_t bl_spinlock;
 	int (*backlight_level)(int level, int max, int min);
 	int (*pmic_backlight)(int level);
+	int (*rotate_panel)(void);
+	int (*backlight) (int level, int mode);
 	int (*panel_num)(void);
 	void (*panel_config_gpio)(int);
 	int (*vga_switch)(int select_vga);
 	int *gpio_num;
-	int mdp_core_clk_rate;
-	unsigned num_mdp_clk;
-	int *mdp_core_clk_table;
+	u32 mdp_max_clk;
 #ifdef CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *mdp_bus_scale_table;
 #endif
@@ -344,6 +412,7 @@ struct msm_panel_common_pdata {
 	u32 ov1_wb_size;  /* overlay1 writeback size */
 	u32 mem_hid;
 	char cont_splash_enabled;
+	char mdp_iommu_split_domain;
 };
 
 
@@ -355,6 +424,7 @@ struct lcdc_platform_data {
 #ifdef CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *bus_scale_table;
 #endif
+	int (*lvds_pixel_remap)(void);
 };
 
 struct tvenc_platform_data {
@@ -399,13 +469,24 @@ struct mipi_dsi_panel_platform_data {
 	int fpga_3d_config_addr;
 	int *gpio;
 	struct mipi_dsi_phy_ctrl *phy_ctrl_settings;
+	char dlane_swap;
 	void (*dsi_pwm_cfg)(void);
+	char enable_wled_bl_ctrl;
+};
+
+struct lvds_panel_platform_data {
+	int *gpio;
+};
+
+struct msm_wfd_platform_data {
+	char (*wfd_check_mdp_iommu_split)(void);
 };
 
 #define PANEL_NAME_MAX_LEN 50
 struct msm_fb_platform_data {
 	int (*detect_client)(const char *name);
 	int mddi_prescan;
+	unsigned char ext_resolution;
 	int (*allow_set_offset)(void);
 	char prim_panel_name[PANEL_NAME_MAX_LEN];
 	char ext_panel_name[PANEL_NAME_MAX_LEN];
@@ -418,8 +499,27 @@ struct msm_hdmi_platform_data {
 	int (*enable_5v)(int on);
 	int (*core_power)(int on, int show);
 	int (*cec_power)(int on);
+	int (*panel_power)(int on);
+	int (*gpio_config)(int on);
 	int (*init_irq)(void);
 	bool (*check_hdcp_hw_support)(void);
+	bool is_mhl_enabled;
+};
+
+struct msm_mhl_platform_data {
+	int irq;
+	/* GPIO no. for mhl intr */
+	uint32_t gpio_mhl_int;
+	/* GPIO no. for mhl block reset */
+	uint32_t gpio_mhl_reset;
+	/*
+	 * below gpios are specific to targets
+	 * that have the integrated MHL soln.
+	 */
+	/* GPIO no. for mhl block power */
+	uint32_t gpio_mhl_power;
+	/* GPIO no. for hdmi-mhl mux */
+	uint32_t gpio_hdmi_mhl_mux;
 };
 
 struct msm_i2c_platform_data {
@@ -431,13 +531,6 @@ struct msm_i2c_platform_data {
 	int pri_dat;
 	int aux_clk;
 	int aux_dat;
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38
- * At this time, below two clcok relatee members were missed in kernel3.0
- * If those parameters will not need in kernel3.0, please remove 
- */
-	const char *clk;
-	const char *pclk;
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
 	int src_clk_rate;
 	int use_gsbi_shared_mode;
 	void (*msm_i2c_config_gpio)(int iface, int config_type);
@@ -453,9 +546,20 @@ struct msm_vidc_platform_data {
 	u32 enable_ion;
 	int disable_dmx;
 	int disable_fullhd;
+	u32 cp_enabled;
+	u32 secure_wb_heap;
 #ifdef CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *vidc_bus_client_pdata;
 #endif
+	int cont_mode_dpb_count;
+	int disable_turbo;
+	unsigned long fw_addr;
+};
+
+struct vcap_platform_data {
+	unsigned *gpios;
+	int num_gpios;
+	struct msm_bus_scale_pdata *bus_client_pdata;
 };
 
 #if defined(CONFIG_USB_PEHCI_HCD) || defined(CONFIG_USB_PEHCI_HCD_MODULE)
@@ -467,10 +571,11 @@ struct isp1763_platform_data {
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 
 #ifdef CONFIG_OF_DEVICE
-void msm_copper_init(struct of_dev_auxdata **);
+void msm_8974_init(struct of_dev_auxdata **);
 #endif
 void msm_add_devices(void);
-void msm_copper_add_devices(void);
+void msm_8974_add_devices(void);
+void msm_8974_add_drivers(void);
 void msm_map_common_io(void);
 void msm_map_qsd8x50_io(void);
 void msm_map_msm8x60_io(void);
@@ -479,15 +584,21 @@ void msm_map_msm8930_io(void);
 void msm_map_apq8064_io(void);
 void msm_map_msm7x30_io(void);
 void msm_map_fsm9xxx_io(void);
-void msm_map_copper_io(void);
+void msm_map_8974_io(void);
+void msm_map_msm8625_io(void);
+void msm_map_msm9625_io(void);
 void msm_init_irq(void);
-void msm_copper_init_irq(void);
+void msm_8974_init_irq(void);
 void vic_handle_irq(struct pt_regs *regs);
+void msm_8974_reserve(void);
+void msm_8974_very_early(void);
+void msm_8974_init_gpiomux(void);
 
 struct mmc_platform_data;
 int msm_add_sdcc(unsigned int controller,
 		struct mmc_platform_data *plat);
 
+void msm_pm_register_irqs(void);
 struct msm_usb_host_platform_data;
 int msm_add_host(unsigned int host,
 		struct msm_usb_host_platform_data *plat);

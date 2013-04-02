@@ -19,7 +19,7 @@
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
-#include "proc_comm.h"
+#include <mach/proc_comm.h>
 
 static struct dentry *dent;
 static int proc_comm_test_res;

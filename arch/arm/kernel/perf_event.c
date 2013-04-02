@@ -12,9 +12,10 @@
  */
 #define pr_fmt(fmt) "hw perfevents: " fmt
 
+#include <linux/bitmap.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -26,18 +27,11 @@
 #include <asm/irq_regs.h>
 #include <asm/pmu.h>
 #include <asm/stacktrace.h>
+
 #include <linux/cpu_pm.h>
 
-static struct platform_device *pmu_device;
-
 /*
- * Hardware lock to serialize accesses to PMU registers. Needed for the
- * read/modify/write sequences.
- */
-static DEFINE_RAW_SPINLOCK(pmu_lock);
-
-/*
- * ARMv6 supports a maximum of 3 events, starting from index 1. If we add
+ * ARMv6 supports a maximum of 3 events, starting from index 0. If we add
  * another platform that supports more, we need to increase this to be the
  * largest of all platforms.
  *
@@ -45,88 +39,37 @@ static DEFINE_RAW_SPINLOCK(pmu_lock);
  *  cycle counter CCNT + 31 events counters CNT0..30.
  *  Cortex-A8 has 1+4 counters, Cortex-A9 has 1+6 counters.
  */
-#define ARMPMU_MAX_HWEVENTS		33
+#define ARMPMU_MAX_HWEVENTS		32
 
-/* The events for a given CPU. */
-struct cpu_hw_events {
-	/*
-	 * The events that are active on the CPU for the given index. Index 0
-	 * is reserved.
-	 */
-	struct perf_event	*events[ARMPMU_MAX_HWEVENTS];
+static DEFINE_PER_CPU(struct perf_event * [ARMPMU_MAX_HWEVENTS], hw_events);
+static DEFINE_PER_CPU(unsigned long [BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)], used_mask);
+static DEFINE_PER_CPU(struct pmu_hw_events, cpu_hw_events);
 
-	/*
-	 * A 1 bit for an index indicates that the counter is being used for
-	 * an event. A 0 means that the counter can be used.
-	 */
-	unsigned long		used_mask[BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)];
-
-	/*
-	 * A 1 bit for an index indicates that the counter is actively being
-	 * used.
-	 */
-	unsigned long		active_mask[BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)];
-};
-static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
-
-struct arm_pmu {
-	enum arm_perf_pmu_ids id;
-	const char	*name;
-	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
-#ifdef CONFIG_SMP
-	void            (*secondary_enable)(unsigned int irq);
-	void            (*secondary_disable)(unsigned int irq);
-#endif
-	void		(*enable)(struct hw_perf_event *evt, int idx);
-	void		(*disable)(struct hw_perf_event *evt, int idx);
-	int		(*get_event_idx)(struct cpu_hw_events *cpuc,
-					 struct hw_perf_event *hwc);
-	u32		(*read_counter)(int idx);
-	void		(*write_counter)(int idx, u32 val);
-	int             (*set_event_filter) (struct hw_perf_event *evt,
-			struct perf_event_attr *attr);
-	void		(*start)(void);
-	void		(*stop)(void);
-	void		(*reset)(void *);
-	unsigned	(*cache_map)[PERF_COUNT_HW_CACHE_MAX]
-				    [PERF_COUNT_HW_CACHE_OP_MAX]
-				    [PERF_COUNT_HW_CACHE_RESULT_MAX];
-	const unsigned	(*event_map)[PERF_COUNT_HW_MAX];
-	u32		raw_event_mask;
-	int		num_events;
-	u64		max_period;
-};
+#define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
 
 /* Set at runtime when we know what CPU type we are. */
-static const struct arm_pmu *armpmu;
+static struct arm_pmu *cpu_pmu;
 
 enum arm_perf_pmu_ids
 armpmu_get_pmu_id(void)
 {
 	int id = -ENODEV;
 
-	if (armpmu != NULL)
-		id = armpmu->id;
+	if (cpu_pmu != NULL)
+		id = cpu_pmu->id;
 
 	return id;
 }
 EXPORT_SYMBOL_GPL(armpmu_get_pmu_id);
 
-int
-armpmu_get_max_events(void)
+int perf_num_counters(void)
 {
 	int max_events = 0;
 
-	if (armpmu != NULL)
-		max_events = armpmu->num_events;
+	if (cpu_pmu != NULL)
+		max_events = cpu_pmu->num_events;
 
 	return max_events;
-}
-EXPORT_SYMBOL_GPL(armpmu_get_max_events);
-
-int perf_num_counters(void)
-{
-	return armpmu_get_max_events();
 }
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
@@ -138,7 +81,11 @@ EXPORT_SYMBOL_GPL(perf_num_counters);
 #define CACHE_OP_UNSUPPORTED		0xFFFF
 
 static int
-armpmu_map_cache_event(u64 config)
+armpmu_map_cache_event(unsigned (*cache_map)
+				      [PERF_COUNT_HW_CACHE_MAX]
+				      [PERF_COUNT_HW_CACHE_OP_MAX]
+				      [PERF_COUNT_HW_CACHE_RESULT_MAX],
+		       u64 config)
 {
 	unsigned int cache_type, cache_op, cache_result, ret;
 
@@ -154,7 +101,7 @@ armpmu_map_cache_event(u64 config)
 	if (cache_result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
 		return -EINVAL;
 
-	ret = (int)(*armpmu->cache_map)[cache_type][cache_op][cache_result];
+	ret = (int)(*cache_map)[cache_type][cache_op][cache_result];
 
 	if (ret == CACHE_OP_UNSUPPORTED)
 		return -ENOENT;
@@ -163,23 +110,46 @@ armpmu_map_cache_event(u64 config)
 }
 
 static int
-armpmu_map_event(u64 config)
+armpmu_map_event(const unsigned (*event_map)[PERF_COUNT_HW_MAX], u64 config)
 {
-	int mapping = (*armpmu->event_map)[config];
-	return mapping == HW_OP_UNSUPPORTED ? -EOPNOTSUPP : mapping;
+	int mapping = (*event_map)[config];
+	return mapping == HW_OP_UNSUPPORTED ? -ENOENT : mapping;
 }
 
 static int
-armpmu_map_raw_event(u64 config)
+armpmu_map_raw_event(u32 raw_event_mask, u64 config)
 {
-	return (int)(config & armpmu->raw_event_mask);
+	return (int)(config & raw_event_mask);
 }
 
-static int
+static int map_cpu_event(struct perf_event *event,
+			 const unsigned (*event_map)[PERF_COUNT_HW_MAX],
+			 unsigned (*cache_map)
+					[PERF_COUNT_HW_CACHE_MAX]
+					[PERF_COUNT_HW_CACHE_OP_MAX]
+					[PERF_COUNT_HW_CACHE_RESULT_MAX],
+			 u32 raw_event_mask)
+{
+	u64 config = event->attr.config;
+
+	switch (event->attr.type) {
+	case PERF_TYPE_HARDWARE:
+		return armpmu_map_event(event_map, config);
+	case PERF_TYPE_HW_CACHE:
+		return armpmu_map_cache_event(cache_map, config);
+	case PERF_TYPE_RAW:
+		return armpmu_map_raw_event(raw_event_mask, config);
+	}
+
+	return -ENOENT;
+}
+
+int
 armpmu_event_set_period(struct perf_event *event,
 			struct hw_perf_event *hwc,
 			int idx)
 {
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	s64 left = local64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
 	int ret = 0;
@@ -210,11 +180,12 @@ armpmu_event_set_period(struct perf_event *event,
 	return ret;
 }
 
-static u64
+u64
 armpmu_event_update(struct perf_event *event,
 		    struct hw_perf_event *hwc,
-		    int idx, int overflow)
+		    int idx)
 {
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	u64 delta, prev_raw_count, new_raw_count;
 
 again:
@@ -225,13 +196,7 @@ again:
 			     new_raw_count) != prev_raw_count)
 		goto again;
 
-	new_raw_count &= armpmu->max_period;
-	prev_raw_count &= armpmu->max_period;
-
-	if (overflow)
-		delta = armpmu->max_period - prev_raw_count + new_raw_count + 1;
-	else
-		delta = new_raw_count - prev_raw_count;
+	delta = (new_raw_count - prev_raw_count) & armpmu->max_period;
 
 	local64_add(delta, &event->count);
 	local64_sub(delta, &hwc->period_left);
@@ -247,16 +212,15 @@ armpmu_read(struct perf_event *event)
 	/* Don't read disabled counters! */
 	if (hwc->idx < 0)
 		return;
-	armpmu_event_update(event, hwc, hwc->idx, 0);
+
+	armpmu_event_update(event, hwc, hwc->idx);
 }
 
 static void
 armpmu_stop(struct perf_event *event, int flags)
 {
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
-
-	if (!armpmu)
-		return;
 
 	/*
 	 * ARM pmu always has to update the counter, so ignore
@@ -265,7 +229,7 @@ armpmu_stop(struct perf_event *event, int flags)
 	if (!(hwc->state & PERF_HES_STOPPED)) {
 		armpmu->disable(hwc, hwc->idx);
 		barrier(); /* why? */
-		armpmu_event_update(event, hwc, hwc->idx, 0);
+		armpmu_event_update(event, hwc, hwc->idx);
 		hwc->state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
 	}
 }
@@ -273,10 +237,8 @@ armpmu_stop(struct perf_event *event, int flags)
 static void
 armpmu_start(struct perf_event *event, int flags)
 {
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
-
-	if (!armpmu)
-		return;
 
 	/*
 	 * ARM pmu always has to reprogram the period, so ignore
@@ -294,22 +256,26 @@ armpmu_start(struct perf_event *event, int flags)
 	 * happened since disabling.
 	 */
 	armpmu_event_set_period(event, hwc, hwc->idx);
-	armpmu->enable(hwc, hwc->idx);
+	armpmu->enable(hwc, hwc->idx, event->cpu);
 }
 
 static void
 armpmu_del(struct perf_event *event, int flags)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
+	struct pmu_hw_events *hw_events = armpmu->get_hw_events();
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
 	WARN_ON(idx < 0);
 
-	clear_bit(idx, cpuc->active_mask);
 	armpmu_stop(event, PERF_EF_UPDATE);
-	cpuc->events[idx] = NULL;
-	clear_bit(idx, cpuc->used_mask);
+	hw_events->events[idx] = NULL;
+	clear_bit(idx, hw_events->used_mask);
+
+	/* Clear event constraints. */
+	if (armpmu->clear_event_constraints)
+		armpmu->clear_event_constraints(event);
 
 	perf_event_update_userpage(event);
 }
@@ -317,15 +283,27 @@ armpmu_del(struct perf_event *event, int flags)
 static int
 armpmu_add(struct perf_event *event, int flags)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
+	struct pmu_hw_events *hw_events = armpmu->get_hw_events();
 	struct hw_perf_event *hwc = &event->hw;
 	int idx;
 	int err = 0;
 
 	perf_pmu_disable(event->pmu);
+	/*
+	 * Tests if event is constrained. If not sets it so that next
+	 * collision can be detected.
+	 */
+	if (armpmu->test_set_event_constraints)
+		if (armpmu->test_set_event_constraints(event) < 0) {
+			pr_err("Event: %llx failed constraint check.\n",
+					event->attr.config);
+			event->state = PERF_EVENT_STATE_OFF;
+			goto out;
+		}
 
 	/* If we don't have a space for the counter then finish early. */
-	idx = armpmu->get_event_idx(cpuc, hwc);
+	idx = armpmu->get_event_idx(hw_events, hwc);
 	if (idx < 0) {
 		err = idx;
 		goto out;
@@ -337,8 +315,7 @@ armpmu_add(struct perf_event *event, int flags)
 	 */
 	event->hw.idx = idx;
 	armpmu->disable(hwc, idx);
-	cpuc->events[idx] = event;
-	set_bit(idx, cpuc->active_mask);
+	hw_events->events[idx] = event;
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 	if (flags & PERF_EF_START)
@@ -352,63 +329,106 @@ out:
 	return err;
 }
 
-static struct pmu pmu;
-
 static int
-validate_event(struct cpu_hw_events *cpuc,
+validate_event(struct pmu_hw_events *hw_events,
 	       struct perf_event *event)
 {
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event fake_event = event->hw;
+	struct pmu *leader_pmu = event->group_leader->pmu;
 
-	if (event->pmu != &pmu || event->state <= PERF_EVENT_STATE_OFF)
+	if (event->pmu != leader_pmu || event->state <= PERF_EVENT_STATE_OFF)
 		return 1;
 
-	return armpmu->get_event_idx(cpuc, &fake_event) >= 0;
+	return armpmu->get_event_idx(hw_events, &fake_event) >= 0;
 }
 
 static int
 validate_group(struct perf_event *event)
 {
 	struct perf_event *sibling, *leader = event->group_leader;
-	struct cpu_hw_events fake_pmu;
+	struct pmu_hw_events fake_pmu;
+	DECLARE_BITMAP(fake_used_mask, ARMPMU_MAX_HWEVENTS);
 
-	memset(&fake_pmu, 0, sizeof(fake_pmu));
+	/*
+	 * Initialise the fake PMU. We only need to populate the
+	 * used_mask for the purposes of validation.
+	 */
+	memset(fake_used_mask, 0, sizeof(fake_used_mask));
+	fake_pmu.used_mask = fake_used_mask;
 
 	if (!validate_event(&fake_pmu, leader))
-		return -ENOSPC;
+		return -EINVAL;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
 		if (!validate_event(&fake_pmu, sibling))
-			return -ENOSPC;
+			return -EINVAL;
 	}
 
 	if (!validate_event(&fake_pmu, event))
-		return -ENOSPC;
+		return -EINVAL;
 
 	return 0;
 }
 
 static irqreturn_t armpmu_platform_irq(int irq, void *dev)
 {
-	struct arm_pmu_platdata *plat = dev_get_platdata(&pmu_device->dev);
+	struct arm_pmu *armpmu = (struct arm_pmu *) dev;
+	struct platform_device *plat_device = armpmu->plat_device;
+	struct arm_pmu_platdata *plat = dev_get_platdata(&plat_device->dev);
 
 	return plat->handle_irq(irq, dev, armpmu->handle_irq);
 }
 
+int
+armpmu_generic_request_irq(int irq, irq_handler_t *handle_irq)
+{
+        return request_irq(irq, *handle_irq,
+                        IRQF_DISABLED | IRQF_NOBALANCING,
+                        "armpmu", NULL);
+}
+
+void
+armpmu_generic_free_irq(int irq)
+{
+        if (irq >= 0)
+                free_irq(irq, NULL);
+}
+
+static void
+armpmu_release_hardware(struct arm_pmu *armpmu)
+{
+	int i, irq, irqs;
+	struct platform_device *pmu_device = armpmu->plat_device;
+
+	irqs = min(pmu_device->num_resources, num_possible_cpus());
+
+	for (i = 0; i < irqs; ++i) {
+		if (!cpumask_test_and_clear_cpu(i, &armpmu->active_irqs))
+			continue;
+		irq = platform_get_irq(pmu_device, i);
+		armpmu->free_pmu_irq(irq);
+	}
+
+	release_pmu(armpmu->type);
+}
+
 static int
-armpmu_reserve_hardware(void)
+armpmu_reserve_hardware(struct arm_pmu *armpmu)
 {
 	struct arm_pmu_platdata *plat;
 	irq_handler_t handle_irq;
-	int i, err = -ENODEV, irq;
+	int i, err, irq, irqs;
+	struct platform_device *pmu_device = armpmu->plat_device;
 
-	pmu_device = reserve_pmu(ARM_PMU_DEVICE_CPU);
-	if (IS_ERR(pmu_device)) {
+	if (!pmu_device)
+		return -ENODEV;
+
+	err = reserve_pmu(armpmu->type);
+	if (err) {
 		pr_warning("unable to reserve pmu\n");
-		return PTR_ERR(pmu_device);
+		return err;
 	}
-
-	init_pmu(ARM_PMU_DEVICE_CPU);
 
 	plat = dev_get_platdata(&pmu_device->dev);
 	if (plat && plat->handle_irq)
@@ -416,100 +436,73 @@ armpmu_reserve_hardware(void)
 	else
 		handle_irq = armpmu->handle_irq;
 
-	if (pmu_device->num_resources < 1) {
+	irqs = min(pmu_device->num_resources, num_possible_cpus());
+	if (irqs < 1) {
 		pr_err("no irqs for PMUs defined\n");
 		return -ENODEV;
 	}
 
-	for (i = 0; i < pmu_device->num_resources; ++i) {
+	for (i = 0; i < irqs; ++i) {
+		err = 0;
 		irq = platform_get_irq(pmu_device, i);
 		if (irq < 0)
 			continue;
 
-		err = request_irq(irq, handle_irq,
-				  IRQF_DISABLED | IRQF_NOBALANCING,
-				  "armpmu", NULL);
-		if (err) {
-			pr_warning("unable to request IRQ%d for ARM perf "
-				"counters\n", irq);
-			break;
-#ifdef CONFIG_SMP
-		} else if (armpmu->secondary_enable) {
-			armpmu->secondary_enable(irq);
-#endif
+		/*
+		 * If we have a single PMU interrupt that we can't shift,
+		 * assume that we're running on a uniprocessor machine and
+		 * continue. Otherwise, continue without this interrupt.
+		 */
+		if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
+			pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
+				    irq, i);
+			continue;
 		}
+
+		err = armpmu->request_pmu_irq(irq, &handle_irq);
+
+                if (err) {
+                        pr_warning("unable to request IRQ%d for %s perf "
+                                "counters\n", irq, armpmu->name);
+
+			armpmu_release_hardware(cpu_pmu);
+                        return err;
+                }
+
+		cpumask_set_cpu(i, &armpmu->active_irqs);
 	}
 
-	if (err) {
-		for (i = i - 1; i >= 0; --i) {
-			irq = platform_get_irq(pmu_device, i);
-			if (irq >= 0)
-				free_irq(irq, NULL);
-		}
-		release_pmu(pmu_device);
-		pmu_device = NULL;
-	}
-
-	return err;
+	return 0;
 }
 
 static void
-armpmu_release_hardware(void)
+hw_perf_event_destroy(struct perf_event *event)
 {
-	int i, irq;
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
+	atomic_t *active_events	 = &armpmu->active_events;
+	struct mutex *pmu_reserve_mutex = &armpmu->reserve_mutex;
 
-	for (i = pmu_device->num_resources - 1; i >= 0; --i) {
-		irq = platform_get_irq(pmu_device, i);
-		if (irq >= 0) {
-			free_irq(irq, NULL);
-#ifdef CONFIG_SMP
-			if (armpmu->secondary_disable)
-				armpmu->secondary_disable(irq);
-#endif
-		}
+	if (atomic_dec_and_mutex_lock(active_events, pmu_reserve_mutex)) {
+		armpmu_release_hardware(armpmu);
+		mutex_unlock(pmu_reserve_mutex);
 	}
-	armpmu->stop();
-
-	release_pmu(pmu_device);
-	pmu_device = NULL;
 }
 
 static int
 event_requires_mode_exclusion(struct perf_event_attr *attr)
 {
 	return attr->exclude_idle || attr->exclude_user ||
-		attr->exclude_kernel || attr->exclude_hv;
-}
-
-static atomic_t active_events = ATOMIC_INIT(0);
-static DEFINE_MUTEX(pmu_reserve_mutex);
-
-static void
-hw_perf_event_destroy(struct perf_event *event)
-{
-	if (atomic_dec_and_mutex_lock(&active_events, &pmu_reserve_mutex)) {
-		armpmu_release_hardware();
-		mutex_unlock(&pmu_reserve_mutex);
-	}
+	       attr->exclude_kernel || attr->exclude_hv;
 }
 
 static int
 __hw_perf_event_init(struct perf_event *event)
 {
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	int mapping, err;
 
-	/* Decode the generic type into an ARM event identifier. */
-	if (PERF_TYPE_HARDWARE == event->attr.type) {
-		mapping = armpmu_map_event(event->attr.config);
-	} else if (PERF_TYPE_HW_CACHE == event->attr.type) {
-		mapping = armpmu_map_cache_event(event->attr.config);
-	} else if (PERF_TYPE_RAW == event->attr.type) {
-		mapping = armpmu_map_raw_event(event->attr.config);
-	} else {
-		pr_debug("event type %x not supported\n", event->attr.type);
-		return -EOPNOTSUPP;
-	}
+	mapping = armpmu->map_event(event);
 
 	if (mapping < 0) {
 		pr_debug("event %x:%llx not supported\n", event->attr.type,
@@ -517,38 +510,43 @@ __hw_perf_event_init(struct perf_event *event)
 		return mapping;
 	}
 
-
 	/*
 	 * We don't assign an index until we actually place the event onto
 	 * hardware. Use -1 to signify that we haven't decided where to put it
 	 * yet. For SMP systems, each core has it's own PMU so we can't do any
 	 * clever allocation or constraints checking at this point.
 	 */
-	hwc->idx = -1;
+	hwc->idx		= -1;
+	hwc->config_base	= 0;
+	hwc->config		= 0;
+	hwc->event_base		= 0;
 
 	/*
-	 * Store the event encoding into the config_base field. config and
-	 * event_base are unused as the only 2 things we need to know are
-	 * the event mapping and the counter to use. The counter to use is
-	 * also the indx and the config_base is the event type.
+	 * Check whether we need to exclude the counter from certain modes.
 	 */
-	hwc->config_base = 0;
-	hwc->config = 0;
-	hwc->event_base = 0;
-
 	if ((!armpmu->set_event_filter ||
-		armpmu->set_event_filter(hwc, &event->attr)) &&
-		event_requires_mode_exclusion(&event->attr)) {
+	     armpmu->set_event_filter(hwc, &event->attr)) &&
+	     event_requires_mode_exclusion(&event->attr)) {
 		pr_debug("ARM performance counters do not support "
-				"mode exclusion\n");
+			 "mode exclusion\n");
 		return -EPERM;
 	}
 
-	hwc->config_base |= (unsigned long)mapping;
+
+	/*
+	 * Store the event encoding into the config_base field.
+	 */
+	hwc->config_base	    |= (unsigned long)mapping;
 
 	if (!hwc->sample_period) {
-		hwc->sample_period  = armpmu->max_period;
-		hwc->last_period = hwc->sample_period;
+		/*
+		 * For non-sampling runs, limit the sample_period to half
+		 * of the counter width. That way, the new counter value
+		 * is far less likely to overtake the previous one unless
+		 * you have some serious IRQ latency issues.
+		 */
+		hwc->sample_period  = armpmu->max_period >> 1;
+		hwc->last_period    = hwc->sample_period;
 		local64_set(&hwc->period_left, hwc->sample_period);
 	}
 
@@ -564,32 +562,27 @@ __hw_perf_event_init(struct perf_event *event)
 
 static int armpmu_event_init(struct perf_event *event)
 {
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	int err = 0;
+	atomic_t *active_events = &armpmu->active_events;
 
-	switch (event->attr.type) {
-	case PERF_TYPE_RAW:
-	case PERF_TYPE_HARDWARE:
-	case PERF_TYPE_HW_CACHE:
-		break;
+	/* does not support taken branch sampling */
+	if (has_branch_stack(event))
+		return -EOPNOTSUPP;
 
-	default:
+	if (armpmu->map_event(event) == -ENOENT)
 		return -ENOENT;
-	}
-
-	if (!armpmu)
-		return -ENODEV;
 
 	event->destroy = hw_perf_event_destroy;
 
-	if (!atomic_inc_not_zero(&active_events)) {
-		mutex_lock(&pmu_reserve_mutex);
-		if (atomic_read(&active_events) == 0) {
-			err = armpmu_reserve_hardware();
-		}
+	if (!atomic_inc_not_zero(active_events)) {
+		mutex_lock(&armpmu->reserve_mutex);
+		if (atomic_read(active_events) == 0)
+			err = armpmu_reserve_hardware(armpmu);
 
 		if (!err)
-			atomic_inc(&active_events);
-		mutex_unlock(&pmu_reserve_mutex);
+			atomic_inc(active_events);
+		mutex_unlock(&armpmu->reserve_mutex);
 	}
 
 	if (err)
@@ -604,22 +597,9 @@ static int armpmu_event_init(struct perf_event *event)
 
 static void armpmu_enable(struct pmu *pmu)
 {
-	/* Enable all of the perf events on hardware. */
-	int idx, enabled = 0;
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-
-	if (!armpmu)
-		return;
-
-	for (idx = 0; idx <= armpmu->num_events; ++idx) {
-		struct perf_event *event = cpuc->events[idx];
-
-		if (!event)
-			continue;
-
-		armpmu->enable(&event->hw, idx);
-		enabled = 1;
-	}
+	struct arm_pmu *armpmu = to_arm_pmu(pmu);
+	struct pmu_hw_events *hw_events = armpmu->get_hw_events();
+	int enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
 
 	if (enabled)
 		armpmu->start();
@@ -627,20 +607,139 @@ static void armpmu_enable(struct pmu *pmu)
 
 static void armpmu_disable(struct pmu *pmu)
 {
-	if (armpmu)
-		armpmu->stop();
+	struct arm_pmu *armpmu = to_arm_pmu(pmu);
+	armpmu->stop();
+}
+
+static void armpmu_init(struct arm_pmu *armpmu)
+{
+	atomic_set(&armpmu->active_events, 0);
+	mutex_init(&armpmu->reserve_mutex);
+
+	armpmu->pmu.pmu_enable = armpmu_enable;
+	armpmu->pmu.pmu_disable = armpmu_disable;
+	armpmu->pmu.event_init = armpmu_event_init;
+	armpmu->pmu.add = armpmu_add;
+	armpmu->pmu.del = armpmu_del;
+	armpmu->pmu.start = armpmu_start;
+	armpmu->pmu.stop = armpmu_stop;
+	armpmu->pmu.read = armpmu_read;
+}
+
+int armpmu_register(struct arm_pmu *armpmu, char *name, int type)
+{
+	armpmu_init(armpmu);
+	return perf_pmu_register(&armpmu->pmu, name, type);
+}
+
+/* Include the PMU-specific implementations. */
+#include "perf_event_xscale.c"
+#include "perf_event_v6.c"
+#include "perf_event_v7.c"
+#include "perf_event_msm_krait.c"
+#include "perf_event_msm.c"
+
+/*
+ * Ensure the PMU has sane values out of reset.
+ * This requires SMP to be available, so exists as a separate initcall.
+ */
+static int __init
+cpu_pmu_reset(void)
+{
+	if (cpu_pmu && cpu_pmu->reset)
+		return on_each_cpu(cpu_pmu->reset, NULL, 1);
+	return 0;
+}
+arch_initcall(cpu_pmu_reset);
+
+/*
+ * PMU platform driver and devicetree bindings.
+ */
+static struct of_device_id armpmu_of_device_ids[] = {
+	{.compatible = "arm,cortex-a9-pmu"},
+	{.compatible = "arm,cortex-a8-pmu"},
+	{.compatible = "arm,arm1136-pmu"},
+	{.compatible = "arm,arm1176-pmu"},
+	{},
+};
+
+static struct platform_device_id armpmu_plat_device_ids[] = {
+	{.name = "cpu-arm-pmu"},
+	{},
+};
+
+static int __devinit armpmu_device_probe(struct platform_device *pdev)
+{
+	if (!cpu_pmu)
+		return -ENODEV;
+
+	cpu_pmu->plat_device = pdev;
+	return 0;
+}
+
+static struct platform_driver armpmu_driver = {
+	.driver		= {
+		.name	= "cpu-arm-pmu",
+		.of_match_table = armpmu_of_device_ids,
+	},
+	.probe		= armpmu_device_probe,
+	.id_table	= armpmu_plat_device_ids,
+};
+
+static int __init register_pmu_driver(void)
+{
+	return platform_driver_register(&armpmu_driver);
+}
+device_initcall(register_pmu_driver);
+
+static struct pmu_hw_events *armpmu_get_cpu_events(void)
+{
+	return &__get_cpu_var(cpu_hw_events);
+}
+
+static void __init cpu_pmu_init(struct arm_pmu *armpmu)
+{
+	int cpu;
+	for_each_possible_cpu(cpu) {
+		struct pmu_hw_events *events = &per_cpu(cpu_hw_events, cpu);
+		events->events = per_cpu(hw_events, cpu);
+		events->used_mask = per_cpu(used_mask, cpu);
+		raw_spin_lock_init(&events->pmu_lock);
+	}
+	armpmu->get_hw_events = armpmu_get_cpu_events;
+	armpmu->type = ARM_PMU_DEVICE_CPU;
+}
+
+/*
+ * PMU hardware loses all context when a CPU goes offline.
+ * When a CPU is hotplugged back in, since some hardware registers are
+ * UNKNOWN at reset, the PMU must be explicitly reset to avoid reading
+ * junk values out of them.
+ */
+static int __cpuinit pmu_cpu_notify(struct notifier_block *b,
+					unsigned long action, void *hcpu)
+{
+	if ((action & ~CPU_TASKS_FROZEN) != CPU_STARTING)
+		return NOTIFY_DONE;
+
+	if (cpu_pmu && cpu_pmu->reset)
+		cpu_pmu->reset(NULL);
+
+	return NOTIFY_OK;
 }
 
 static void armpmu_update_counters(void)
 {
+	struct pmu_hw_events *hw_events;
 	int idx;
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
-	if (!armpmu)
+	if (!cpu_pmu)
 		return;
 
-	for (idx = 0; idx <= armpmu->num_events; ++idx) {
-		struct perf_event *event = cpuc->events[idx];
+	hw_events = cpu_pmu->get_hw_events();
+
+	for (idx = 0; idx <= cpu_pmu->num_events; ++idx) {
+		struct perf_event *event = hw_events->events[idx];
 
 		if (!event)
 			continue;
@@ -649,41 +748,46 @@ static void armpmu_update_counters(void)
 	}
 }
 
-static struct pmu pmu = {
-	.pmu_enable	= armpmu_enable,
-	.pmu_disable	= armpmu_disable,
-	.event_init	= armpmu_event_init,
-	.add		= armpmu_add,
-	.del		= armpmu_del,
-	.start		= armpmu_start,
-	.stop		= armpmu_stop,
-	.read		= armpmu_read,
+static int cpu_has_active_perf(void)
+{
+	struct pmu_hw_events *hw_events;
+	int enabled;
+
+	if (!cpu_pmu)
+		return 0;
+
+	hw_events = cpu_pmu->get_hw_events();
+	enabled = bitmap_weight(hw_events->used_mask, cpu_pmu->num_events);
+
+	if (enabled)
+		/*Even one event's existence is good enough.*/
+		return 1;
+
+	return 0;
+}
+
+static struct notifier_block __cpuinitdata pmu_cpu_notifier = {
+	.notifier_call = pmu_cpu_notify,
 };
 
-/* Include the PMU-specific implementations. */
-#include "perf_event_xscale.c"
-#include "perf_event_v6.c"
-#include "perf_event_v7.c"
-#include "perf_event_msm.c"
-#include "perf_event_msm_l2.c"
-#include "perf_event_msm_krait.c"
-#include "perf_event_msm_krait_l2.c"
-
+/*TODO: Unify with pending patch from ARM */
 static int perf_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
 		void *v)
 {
 	switch (cmd) {
 	case CPU_PM_ENTER:
-		armpmu_update_counters();
-		perf_pmu_disable(&pmu);
+		if (cpu_has_active_perf()) {
+			armpmu_update_counters();
+			perf_pmu_disable(&cpu_pmu->pmu);
+		}
 		break;
 
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
-		if (armpmu && armpmu->reset)
-			armpmu->reset(NULL);
-		perf_pmu_enable(&pmu);
-
+		if (cpu_has_active_perf() && cpu_pmu->reset) {
+			cpu_pmu->reset(NULL);
+			perf_pmu_enable(&cpu_pmu->pmu);
+		}
 		break;
 	}
 
@@ -695,18 +799,8 @@ static struct notifier_block perf_cpu_pm_notifier_block = {
 };
 
 /*
- * Ensure the PMU has sane values out of reset.
- * This requires SMP to be available, so exists as a separate initcall.
+ * CPU PMU identification and registration.
  */
-static int __init
-armpmu_reset(void)
-{
-	if (armpmu && armpmu->reset)
-		return on_each_cpu(armpmu->reset, NULL, 1);
-	return 0;
-}
-arch_initcall(armpmu_reset);
-
 static int __init
 init_hw_perf_events(void)
 {
@@ -720,22 +814,25 @@ init_hw_perf_events(void)
 		case 0xB360:	/* ARM1136 */
 		case 0xB560:	/* ARM1156 */
 		case 0xB760:	/* ARM1176 */
-			armpmu = armv6pmu_init();
+			cpu_pmu = armv6pmu_init();
 			break;
 		case 0xB020:	/* ARM11mpcore */
-			armpmu = armv6mpcore_pmu_init();
+			cpu_pmu = armv6mpcore_pmu_init();
 			break;
 		case 0xC080:	/* Cortex-A8 */
-			armpmu = armv7_a8_pmu_init();
+			cpu_pmu = armv7_a8_pmu_init();
 			break;
 		case 0xC090:	/* Cortex-A9 */
-			armpmu = armv7_a9_pmu_init();
+			cpu_pmu = armv7_a9_pmu_init();
 			break;
 		case 0xC050:	/* Cortex-A5 */
-			armpmu = armv7_a5_pmu_init();
+			cpu_pmu = armv7_a5_pmu_init();
 			break;
 		case 0xC0F0:	/* Cortex-A15 */
-			armpmu = armv7_a15_pmu_init();
+			cpu_pmu = armv7_a15_pmu_init();
+			break;
+		case 0xC070:	/* Cortex-A7 */
+			cpu_pmu = armv7_a7_pmu_init();
 			break;
 		}
 	/* Intel CPUs [xscale]. */
@@ -743,40 +840,42 @@ init_hw_perf_events(void)
 		part_number = (cpuid >> 13) & 0x7;
 		switch (part_number) {
 		case 1:
-			armpmu = xscale1pmu_init();
+			cpu_pmu = xscale1pmu_init();
 			break;
 		case 2:
-			armpmu = xscale2pmu_init();
+			cpu_pmu = xscale2pmu_init();
 			break;
 		}
 	/* Qualcomm CPUs */
 	} else if (0x51 == implementor) {
 		switch (part_number) {
 		case 0x00F0:    /* 8x50 & 7x30*/
-			armpmu = armv7_scorpion_pmu_init();
+			cpu_pmu = armv7_scorpion_pmu_init();
 			break;
 		case 0x02D0:    /* 8x60 */
-			armpmu = armv7_scorpionmp_pmu_init();
-			scorpionmp_l2_pmu_init();
+//			fabricmon_pmu_init();
+			cpu_pmu = armv7_scorpionmp_pmu_init();
 			break;
 		case 0x0490:    /* 8960 sim */
 		case 0x04D0:    /* 8960 */
-			armpmu = armv7_krait_pmu_init();
-			krait_l2_pmu_init();
+		case 0x06F0:    /* 8064 */
+//			fabricmon_pmu_init();
+			cpu_pmu = armv7_krait_pmu_init();
 			break;
 		}
 	}
 
-	if (armpmu) {
+
+	if (cpu_pmu) {
 		pr_info("enabled with %s PMU driver, %d counters available\n",
-			armpmu->name, armpmu->num_events);
+			cpu_pmu->name, cpu_pmu->num_events);
+		cpu_pmu_init(cpu_pmu);
+		register_cpu_notifier(&pmu_cpu_notifier);
+		armpmu_register(cpu_pmu, "cpu", PERF_TYPE_RAW);
+		cpu_pm_register_notifier(&perf_cpu_pm_notifier_block);
 	} else {
 		pr_info("no hardware support available\n");
 	}
-
-	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
-
-	cpu_pm_register_notifier(&perf_cpu_pm_notifier_block);
 
 	return 0;
 }

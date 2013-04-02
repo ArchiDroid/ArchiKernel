@@ -136,7 +136,6 @@ struct kgsl_mmu_ops {
 		(struct kgsl_mmu *mmu, uint32_t ts, bool ts_valid);
 	int (*mmu_enable_clk)
 		(struct kgsl_mmu *mmu, int ctx_id);
-	int (*mmu_get_hwpagetable_asid)(struct kgsl_mmu *mmu);
 	int (*mmu_get_pt_lsb)(struct kgsl_mmu *mmu,
 				unsigned int unit_id,
 				enum kgsl_iommu_context_id ctx_id);
@@ -150,7 +149,8 @@ struct kgsl_mmu_pt_ops {
 			unsigned int protflags,
 			unsigned int *tlb_flags);
 	int (*mmu_unmap) (void *mmu_pt,
-			struct kgsl_memdesc *memdesc);
+			struct kgsl_memdesc *memdesc,
+			unsigned int *tlb_flags);
 	void *(*mmu_create_pagetable) (void);
 	void (*mmu_destroy_pagetable) (void *pt);
 	int (*mmu_pt_equal) (struct kgsl_pagetable *pt,
@@ -277,14 +277,6 @@ static inline int kgsl_mmu_get_pt_lsb(struct kgsl_mmu *mmu,
 		return 0;
 }
 
-static inline int kgsl_mmu_get_hwpagetable_asid(struct kgsl_mmu *mmu)
-{
-	if (mmu->mmu_ops && mmu->mmu_ops->mmu_get_hwpagetable_asid)
-		return mmu->mmu_ops->mmu_get_hwpagetable_asid(mmu);
-	else
-		return 0;
-}
-
 static inline int kgsl_mmu_enable_clk(struct kgsl_mmu *mmu,
 					int ctx_id)
 {
@@ -299,12 +291,6 @@ static inline void kgsl_mmu_disable_clk_on_ts(struct kgsl_mmu *mmu,
 {
 	if (mmu->mmu_ops && mmu->mmu_ops->mmu_disable_clk_on_ts)
 		mmu->mmu_ops->mmu_disable_clk_on_ts(mmu, ts, ts_valid);
-}
-
-static inline int kgsl_mmu_gpuaddr_in_range(unsigned int gpuaddr)
-{
-	return ((gpuaddr >= KGSL_PAGETABLE_BASE) &&
-		(gpuaddr < (KGSL_PAGETABLE_BASE + kgsl_mmu_get_ptsize())));
 }
 
 static inline unsigned int kgsl_mmu_get_int_mask(void)

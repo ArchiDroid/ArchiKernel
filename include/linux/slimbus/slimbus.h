@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -378,9 +378,19 @@ struct slim_ch {
  * @seglen: Segment length of this channel.
  * @rootexp: root exponent of this channel. Rate can be found using rootexp and
  *	coefficient. Used during scheduling.
- * @srch: Source ports used by this channel.
- * @nsrc: number of source ports used by this channel.
- * @sinkh: Sink port used by this channel.
+ * @srch: Source port used by this channel.
+ * @sinkh: Sink ports used by this channel.
+ * @nsink: number of sink ports used by this channel.
+ * @chan: Channel number sent on hardware lines for this channel. May not be
+ *	equal to array-index into chans if client requested to use number beyond
+ *	channel-array for the controller.
+ * @ref: Reference number to keep track of how many clients (upto 2) are using
+ *	this channel.
+ * @def: Used to keep track of how many times the channel definition is sent
+ *	to hardware and this will decide if channel-remove can be sent for the
+ *	channel. Channel definition may be sent upto twice (once per producer
+ *	and once per consumer). Channel removal should be sent only once to
+ *	avoid clients getting underflow/overflow errors.
  */
 struct slim_ich {
 	struct slim_ch		prop;
@@ -394,9 +404,12 @@ struct slim_ich {
 	u32			newintr;
 	u32			seglen;
 	u8			rootexp;
-	u32			*srch;
-	int			nsrc;
-	u32			sinkh;
+	u32			srch;
+	u32			*sinkh;
+	int			nsink;
+	u8			chan;
+	int			ref;
+	int			def;
 };
 
 /*
@@ -472,6 +485,8 @@ enum slim_clk_state {
  * @nports: Number of ports supported by the controller
  * @chans: Channels associated with this controller
  * @nchans: Number of channels supported
+ * @reserved: Reserved channels that controller wants to use internally
+ *		Clients will be assigned channel numbers after this number
  * @sched: scheduler structure used by the controller
  * @dev_released: completion used to signal when sysfs has released this
  *	controller so that it can be deleted during shutdown
@@ -516,6 +531,7 @@ struct slim_controller {
 	int			nports;
 	struct slim_ich		*chans;
 	int			nchans;
+	u8			reserved;
 	struct slim_sched	sched;
 	struct completion	dev_released;
 	int			(*xfer_msg)(struct slim_controller *ctrl,
@@ -744,18 +760,30 @@ extern enum slim_port_err slim_port_get_xfer_status(struct slim_device *sb,
 			u32 ph, u8 **done_buf, u32 *done_len);
 
 /*
- * slim_connect_ports: Connect port(s) to channel.
+ * slim_connect_src: Connect source port to channel.
  * @sb: client handle
- * @srch: source handles to be connected to this channel
- * @nrsc: number of source ports
- * @sinkh: sink handle to be connected to this channel
+ * @srch: source handle to be connected to this channel
  * @chanh: Channel with which the ports need to be associated with.
- * Per slimbus specification, a channel may have multiple source-ports and 1
- * sink port.Channel specified in chanh needs to be allocated first.
+ * Per slimbus specification, a channel may have 1 source port.
+ * Channel specified in chanh needs to be allocated first.
+ * Returns -EALREADY if source is already configured for this channel.
+ * Returns -ENOTCONN if channel is not allocated
  */
-extern int slim_connect_ports(struct slim_device *sb, u32 *srch, int nsrc,
-				u32 sinkh, u16 chanh);
+extern int slim_connect_src(struct slim_device *sb, u32 srch, u16 chanh);
 
+/*
+ * slim_connect_sink: Connect sink port(s) to channel.
+ * @sb: client handle
+ * @sinkh: sink handle(s) to be connected to this channel
+ * @nsink: number of sinks
+ * @chanh: Channel with which the ports need to be associated with.
+ * Per slimbus specification, a channel may have multiple sink-ports.
+ * Channel specified in chanh needs to be allocated first.
+ * Returns -EALREADY if sink is already configured for this channel.
+ * Returns -ENOTCONN if channel is not allocated
+ */
+extern int slim_connect_sink(struct slim_device *sb, u32 *sinkh, int nsink,
+				u16 chanh);
 /*
  * slim_disconnect_ports: Disconnect port(s) from channel
  * @sb: client handle
@@ -784,18 +812,32 @@ extern int slim_get_slaveport(u8 la, int idx, u32 *rh, enum slim_port_flow flw);
  * slim_alloc_ch: Allocate a slimbus channel and return its handle.
  * @sb: client handle.
  * @chanh: return channel handle
- * Slimbus channels are limited to 256 per specification. LSB of the handle
- * indicates channel number and MSB of the handle is used by the slimbus
- * framework. -EXFULL is returned if all channels are in use.
+ * Slimbus channels are limited to 256 per specification.
+ * -EXFULL is returned if all channels are in use.
  * Although slimbus specification supports 256 channels, a controller may not
  * support that many channels.
  */
 extern int slim_alloc_ch(struct slim_device *sb, u16 *chanh);
 
 /*
+ * slim_query_ch: Get reference-counted handle for a channel number. Every
+ * channel is reference counted by one as producer and the others as
+ * consumer)
+ * @sb: client handle
+ * @chan: slimbus channel number
+ * @chanh: return channel handle
+ * If request channel number is not in use, it is allocated, and reference
+ * count is set to one. If the channel was was already allocated, this API
+ * will return handle to that channel and reference count is incremented.
+ * -EXFULL is returned if all channels are in use
+ */
+extern int slim_query_ch(struct slim_device *sb, u8 chan, u16 *chanh);
+/*
  * slim_dealloc_ch: Deallocate channel allocated using the API above
  * -EISCONN is returned if the channel is tried to be deallocated without
  *  being removed first.
+ *  -ENOTCONN is returned if deallocation is tried on a channel that's not
+ *  allocated.
  */
 extern int slim_dealloc_ch(struct slim_device *sb, u16 chanh);
 
@@ -813,8 +855,8 @@ extern int slim_dealloc_ch(struct slim_device *sb, u16 chanh);
  *	(e.g. 5.1 audio has 6 channels with same parameters. They will all be
  *	grouped and given 1 handle for simplicity and avoid repeatedly calling
  *	the API)
- * -EISCONN is returned if the channel is already connected. -EBUSY is
- * returned if the channel is already allocated to some other client.
+ * -EISCONN is returned if channel is already used with different parameters.
+ * -ENXIO is returned if the channel is not yet allocated.
  */
 extern int slim_define_ch(struct slim_device *sb, struct slim_ch *prop,
 				u16 *chanh, u8 nchan, bool grp, u16 *grph);
@@ -835,6 +877,7 @@ extern int slim_define_ch(struct slim_device *sb, struct slim_ch *prop,
  * -EXFULL is returned if there is no space in TDM to reserve the bandwidth.
  * -EISCONN/-ENOTCONN is returned if the channel is already connected or not
  * yet defined.
+ * -EINVAL is returned if individual control of a grouped-channel is attempted.
  */
 extern int slim_control_ch(struct slim_device *sb, u16 grpchanh,
 				enum slim_ch_control chctrl, bool commit);

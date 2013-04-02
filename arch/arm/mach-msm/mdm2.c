@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,7 +33,6 @@
 #include <asm/mach-types.h>
 #include <asm/uaccess.h>
 #include <mach/mdm2.h>
-#include <mach/mdm-peripheral.h>
 #include <mach/restart.h>
 #include <mach/subsystem_notif.h>
 #include <mach/subsystem_restart.h>
@@ -43,97 +42,225 @@
 #include "clock.h"
 #include "mdm_private.h"
 
-#define MDM_MODEM_TIMEOUT	6000
-#define MDM_HOLD_TIME		4000
-#define MDM_MODEM_DELTA		100
-#define IFLINE_UP			1
-#define IFLINE_DOWN			0
+#define MDM_PBLRDY_CNT		20
 
-static int mdm_debug_on;
-static struct mdm_callbacks mdm_cb;
+static int mdm_debug_mask;
+static int power_on_count;
+static int hsic_peripheral_status;
+static DEFINE_MUTEX(hsic_status_lock);
 
-#define MDM_DBG(...)	do { if (mdm_debug_on) \
-					pr_info(__VA_ARGS__); \
-			} while (0);
-
-static void power_on_mdm(struct mdm_modem_drv *mdm_drv)
+static void mdm_peripheral_connect(struct mdm_modem_drv *mdm_drv)
 {
-	peripheral_disconnect();
+	if (!mdm_drv->pdata->peripheral_platform_device)
+		return;
 
-	/* Pull both ERR_FATAL and RESET low */
-	MDM_DBG("Pulling PWR and RESET gpio's low\n");
-	gpio_direction_output(mdm_drv->ap2mdm_pmic_reset_n_gpio, 0);
-	gpio_direction_output(mdm_drv->ap2mdm_kpdpwr_n_gpio, 0);
-	/* Wait for them to settle. */
-	usleep(1000);
+	mutex_lock(&hsic_status_lock);
+	if (hsic_peripheral_status)
+		goto out;
+	platform_device_add(mdm_drv->pdata->peripheral_platform_device);
+	hsic_peripheral_status = 1;
+out:
+	mutex_unlock(&hsic_status_lock);
+}
 
-	/* Deassert RESET first and wait for ir to settle. */
-	MDM_DBG("%s: Pulling RESET gpio high\n", __func__);
-	gpio_direction_output(mdm_drv->ap2mdm_pmic_reset_n_gpio, 1);
-	usleep(1000);
+static void mdm_peripheral_disconnect(struct mdm_modem_drv *mdm_drv)
+{
+	if (!mdm_drv->pdata->peripheral_platform_device)
+		return;
 
-	/* Pull PWR gpio high and wait for it to settle. */
-	MDM_DBG("%s: Powering on mdm modem\n", __func__);
-	gpio_direction_output(mdm_drv->ap2mdm_kpdpwr_n_gpio, 1);
-	usleep(1000);
+	mutex_lock(&hsic_status_lock);
+	if (!hsic_peripheral_status)
+		goto out;
+	platform_device_del(mdm_drv->pdata->peripheral_platform_device);
+	hsic_peripheral_status = 0;
+out:
+	mutex_unlock(&hsic_status_lock);
+}
 
-	peripheral_connect();
+/* This function can be called from atomic context. */
+static void mdm_toggle_soft_reset(struct mdm_modem_drv *mdm_drv)
+{
+	int soft_reset_direction_assert = 0,
+	    soft_reset_direction_de_assert = 1;
 
+	if (mdm_drv->pdata->soft_reset_inverted) {
+		soft_reset_direction_assert = 1;
+		soft_reset_direction_de_assert = 0;
+	}
+	gpio_direction_output(mdm_drv->ap2mdm_soft_reset_gpio,
+			soft_reset_direction_assert);
+	/* Use mdelay because this function can be called from atomic
+	 * context.
+	 */
+	mdelay(10);
+	gpio_direction_output(mdm_drv->ap2mdm_soft_reset_gpio,
+			soft_reset_direction_de_assert);
+}
+
+/* This function can be called from atomic context. */
+static void mdm_atomic_soft_reset(struct mdm_modem_drv *mdm_drv)
+{
+	mdm_toggle_soft_reset(mdm_drv);
+}
+
+static void mdm_power_down_common(struct mdm_modem_drv *mdm_drv)
+{
+	int i;
+	int soft_reset_direction =
+		mdm_drv->pdata->soft_reset_inverted ? 1 : 0;
+
+	mdm_peripheral_disconnect(mdm_drv);
+
+	/* Wait for the modem to complete its power down actions. */
+	for (i = 20; i > 0; i--) {
+		if (gpio_get_value(mdm_drv->mdm2ap_status_gpio) == 0)
+			break;
+		msleep(100);
+	}
+	if (i == 0) {
+		pr_err("%s: MDM2AP_STATUS never went low. Doing a hard reset\n",
+			   __func__);
+		gpio_direction_output(mdm_drv->ap2mdm_soft_reset_gpio,
+					soft_reset_direction);
+		/*
+		* Currently, there is a debounce timer on the charm PMIC. It is
+		* necessary to hold the PMIC RESET low for ~3.5 seconds
+		* for the reset to fully take place. Sleep here to ensure the
+		* reset has occured before the function exits.
+		*/
+		msleep(4000);
+	}
+}
+
+static void mdm_do_first_power_on(struct mdm_modem_drv *mdm_drv)
+{
+	int i;
+	int pblrdy;
+
+	if (power_on_count != 1) {
+		pr_err("%s: Calling fn when power_on_count != 1\n",
+			   __func__);
+		return;
+	}
+
+	pr_err("%s: Powering on modem for the first time\n", __func__);
+	mdm_peripheral_disconnect(mdm_drv);
+
+	/* If this is the first power-up after a panic, the modem may still
+	 * be in a power-on state, in which case we need to toggle the gpio
+	 * instead of just de-asserting it. No harm done if the modem was
+	 * powered down.
+	 */
+	mdm_toggle_soft_reset(mdm_drv);
+
+	/* If the device has a kpd pwr gpio then toggle it. */
+	if (mdm_drv->ap2mdm_kpdpwr_n_gpio > 0) {
+		/* Pull AP2MDM_KPDPWR gpio high and wait for PS_HOLD to settle,
+		 * then	pull it back low.
+		 */
+		pr_debug("%s: Pulling AP2MDM_KPDPWR gpio high\n", __func__);
+		gpio_direction_output(mdm_drv->ap2mdm_kpdpwr_n_gpio, 1);
+		msleep(1000);
+		gpio_direction_output(mdm_drv->ap2mdm_kpdpwr_n_gpio, 0);
+	}
+
+	if (!mdm_drv->mdm2ap_pblrdy)
+		goto start_mdm_peripheral;
+
+	for (i = 0; i  < MDM_PBLRDY_CNT; i++) {
+		pblrdy = gpio_get_value(mdm_drv->mdm2ap_pblrdy);
+		if (pblrdy)
+			break;
+		usleep_range(5000, 5000);
+	}
+
+	pr_debug("%s: i:%d\n", __func__, i);
+
+start_mdm_peripheral:
+	mdm_peripheral_connect(mdm_drv);
 	msleep(200);
 }
 
-static void power_down_mdm(struct mdm_modem_drv *mdm_drv)
+static void mdm_do_soft_power_on(struct mdm_modem_drv *mdm_drv)
 {
 	int i;
+	int pblrdy;
 
-	for (i = MDM_MODEM_TIMEOUT; i > 0; i -= MDM_MODEM_DELTA) {
-		pet_watchdog();
-		msleep(MDM_MODEM_DELTA);
-		if (gpio_get_value(mdm_drv->mdm2ap_status_gpio) == 0)
+	pr_err("%s: soft resetting mdm modem\n", __func__);
+	mdm_peripheral_disconnect(mdm_drv);
+	mdm_toggle_soft_reset(mdm_drv);
+
+	if (!mdm_drv->mdm2ap_pblrdy)
+		goto start_mdm_peripheral;
+
+	for (i = 0; i  < MDM_PBLRDY_CNT; i++) {
+		pblrdy = gpio_get_value(mdm_drv->mdm2ap_pblrdy);
+		if (pblrdy)
 			break;
+		usleep_range(5000, 5000);
 	}
 
-	if (i <= 0) {
-		pr_err("%s: MDM2AP_STATUS never went low.\n",
-			 __func__);
-		gpio_direction_output(mdm_drv->ap2mdm_pmic_reset_n_gpio, 0);
+	pr_debug("%s: i:%d\n", __func__, i);
 
-		for (i = MDM_HOLD_TIME; i > 0; i -= MDM_MODEM_DELTA) {
-			pet_watchdog();
-			msleep(MDM_MODEM_DELTA);
-		}
-	}
-
-	peripheral_disconnect();
+start_mdm_peripheral:
+	mdm_peripheral_connect(mdm_drv);
+	msleep(200);
 }
 
-static void normal_boot_done(struct mdm_modem_drv *mdm_drv)
+static void mdm_power_on_common(struct mdm_modem_drv *mdm_drv)
 {
+	power_on_count++;
+
+	/* this gpio will be used to indicate apq readiness,
+	 * de-assert it now so that it can be asserted later.
+	 * May not be used.
+	 */
+	if (mdm_drv->ap2mdm_wakeup_gpio > 0)
+		gpio_direction_output(mdm_drv->ap2mdm_wakeup_gpio, 0);
+
+	/*
+	 * If we did an "early power on" then ignore the very next
+	 * power-on request because it would the be first request from
+	 * user space but we're already powered on. Ignore it.
+	 */
+	if (mdm_drv->pdata->early_power_on &&
+			(power_on_count == 2))
+		return;
+
+	if (power_on_count == 1)
+		mdm_do_first_power_on(mdm_drv);
+	else
+		mdm_do_soft_power_on(mdm_drv);
 }
 
 static void debug_state_changed(int value)
 {
-	mdm_debug_on = value;
+	mdm_debug_mask = value;
 }
 
-static void mdm_status_changed(int value)
+static void mdm_status_changed(struct mdm_modem_drv *mdm_drv, int value)
 {
-	MDM_DBG("%s: value:%d\n", __func__, value);
+	pr_debug("%s: value:%d\n", __func__, value);
 
 	if (value) {
-		peripheral_disconnect();
-		peripheral_connect();
+		mdm_peripheral_disconnect(mdm_drv);
+		mdm_peripheral_connect(mdm_drv);
+		if (mdm_drv->ap2mdm_wakeup_gpio > 0)
+			gpio_direction_output(mdm_drv->ap2mdm_wakeup_gpio, 1);
 	}
 }
 
+static struct mdm_ops mdm_cb = {
+	.power_on_mdm_cb = mdm_power_on_common,
+	.reset_mdm_cb = mdm_power_on_common,
+	.atomic_reset_mdm_cb = mdm_atomic_soft_reset,
+	.power_down_mdm_cb = mdm_power_down_common,
+	.debug_state_changed_cb = debug_state_changed,
+	.status_cb = mdm_status_changed,
+};
+
 static int __init mdm_modem_probe(struct platform_device *pdev)
 {
-	/* Instantiate driver object. */
-	mdm_cb.power_on_mdm_cb = power_on_mdm;
-	mdm_cb.power_down_mdm_cb = power_down_mdm;
-	mdm_cb.normal_boot_done_cb = normal_boot_done;
-	mdm_cb.debug_state_changed_cb = debug_state_changed;
-	mdm_cb.status_cb = mdm_status_changed;
 	return mdm_common_create(pdev, &mdm_cb);
 }
 

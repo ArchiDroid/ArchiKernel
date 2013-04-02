@@ -1,0 +1,19 @@
+#
+# Inlcude the specific Kconfig file for LGE board
+#
+
+# LGE V3 Model
+source "arch/arm/mach-msm/lge/vee3/Kconfig"
+
+# LGE V7 Model
+source "arch/arm/mach-msm/lge/vee7/Kconfig"
+
+# LGE U0 Model
+source "arch/arm/mach-msm/lge/u0/Kconfig"
+
+# LGE M4 Model
+source "arch/arm/mach-msm/lge/m4/Kconfig"
+
+# LGE V1 Model
+source "arch/arm/mach-msm/lge/v1/Kconfig"
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,9 +17,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/marimba.h>
 #include <linux/io.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 #include <asm/mach-types.h>
 #include <mach/rpc_pmapp.h>
+#include <mach/socinfo.h>
 
 #include "board-msm7627a.h"
 #include "devices-msm7x2xa.h"
@@ -32,7 +33,7 @@ static struct bt_vreg_info bt_vregs[] = {
 	{"bt", 21, 2900000, 3300000, 1, NULL}
 };
 
-struct platform_device msm_bt_power_device = {
+static struct platform_device msm_bt_power_device = {
 	.name = "bt_power",
 };
 
@@ -98,8 +99,20 @@ static unsigned fm_i2s_config_power_off[] = {
 int gpio_bt_sys_rest_en = 133;
 static void gpio_bt_config(void)
 {
+	u32 socinfo = socinfo_get_platform_version();
 	if (machine_is_msm7627a_qrd1())
 		gpio_bt_sys_rest_en = 114;
+	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
+				|| machine_is_msm8625_evt())
+		gpio_bt_sys_rest_en = 16;
+	if (machine_is_msm8625_qrd7())
+		gpio_bt_sys_rest_en = 88;
+	if (machine_is_msm7627a_qrd3()) {
+		if (socinfo == 0x70002)
+			gpio_bt_sys_rest_en = 88;
+		 else
+			gpio_bt_sys_rest_en = 85;
+	}
 }
 
 static int bt_set_gpio(int on)
@@ -107,14 +120,37 @@ static int bt_set_gpio(int on)
 	int rc = 0;
 	struct marimba config = { .mod_id =  SLAVE_ID_BAHAMA};
 
+	pr_debug("%s: Setting SYS_RST_PIN(%d) to %d\n",
+			__func__, gpio_bt_sys_rest_en, on);
 	if (on) {
-		rc = gpio_direction_output(gpio_bt_sys_rest_en, 1);
+
+		if (machine_is_msm7627a_evb() || machine_is_msm8625_qrd7()) {
+			rc = gpio_tlmm_config(GPIO_CFG(gpio_bt_sys_rest_en, 0,
+					GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
+					GPIO_CFG_2MA),
+					GPIO_CFG_ENABLE);
+
+			gpio_set_value(gpio_bt_sys_rest_en, 1);
+		} else {
+			rc = gpio_direction_output(gpio_bt_sys_rest_en, 1);
+		}
 		msleep(100);
 	} else {
+
 		if (!marimba_get_fm_status(&config) &&
 				!marimba_get_bt_status(&config)) {
-			gpio_set_value_cansleep(gpio_bt_sys_rest_en, 0);
-			rc = gpio_direction_input(gpio_bt_sys_rest_en);
+			if (machine_is_msm7627a_evb() ||
+					 machine_is_msm8625_qrd7()) {
+				gpio_set_value(gpio_bt_sys_rest_en, 0);
+				rc = gpio_tlmm_config(GPIO_CFG(
+					gpio_bt_sys_rest_en, 0,
+					GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN,
+					GPIO_CFG_2MA),
+					GPIO_CFG_ENABLE);
+			} else {
+				gpio_set_value_cansleep(gpio_bt_sys_rest_en, 0);
+				rc = gpio_direction_input(gpio_bt_sys_rest_en);
+			}
 			msleep(100);
 		}
 	}
@@ -322,7 +358,8 @@ static int config_i2s(int mode)
 	int pin, rc = 0;
 
 	if (mode == FM_I2S_ON) {
-		if (machine_is_msm7x27a_surf() || machine_is_msm7625a_surf())
+		if (machine_is_msm7x27a_surf() || machine_is_msm7625a_surf()
+				|| machine_is_msm8625_surf())
 			config_pcm_i2s_mode(0);
 		pr_err("%s mode = FM_I2S_ON", __func__);
 
@@ -365,7 +402,8 @@ static int config_pcm(int mode)
 	int pin, rc = 0;
 
 	if (mode == BT_PCM_ON) {
-		if (machine_is_msm7x27a_surf() || machine_is_msm7625a_surf())
+		if (machine_is_msm7x27a_surf() || machine_is_msm7625a_surf()
+				|| machine_is_msm8625_surf())
 			config_pcm_i2s_mode(1);
 		pr_err("%s mode =BT_PCM_ON", __func__);
 		rc = switch_pcm_i2s_reg_mode(1);
@@ -589,13 +627,16 @@ static int bluetooth_switch_regulators(int on)
 
 	for (i = 0; i < ARRAY_SIZE(bt_vregs); i++) {
 		if (IS_ERR_OR_NULL(bt_vregs[i].reg)) {
-			rc = bt_vregs[i].reg ?
-				PTR_ERR(bt_vregs[i].reg) :
-				-ENODEV;
-			dev_err(&msm_bt_power_device.dev,
-				"%s: invalid regulator handle for %s: %d\n",
+			bt_vregs[i].reg =
+				regulator_get(&msm_bt_power_device.dev,
+						bt_vregs[i].name);
+			if (IS_ERR(bt_vregs[i].reg)) {
+				rc = PTR_ERR(bt_vregs[i].reg);
+				dev_err(&msm_bt_power_device.dev,
+					"%s: could not get regulator %s: %d\n",
 					__func__, bt_vregs[i].name, rc);
-			goto reg_disable;
+				goto reg_disable;
+			}
 		}
 
 		rc = on ? regulator_set_voltage(bt_vregs[i].reg,
@@ -649,6 +690,7 @@ reg_disable:
 			i--;
 			regulator_disable(bt_vregs[i].reg);
 			regulator_put(bt_vregs[i].reg);
+			bt_vregs[i].reg = NULL;
 		}
 	}
 	return rc;
@@ -677,11 +719,9 @@ static unsigned int msm_bahama_setup_power(void)
 		pr_err("%s: could not enable regulator: %d\n", __func__, rc);
 		goto reg_fail;
 	}
-	if (machine_is_msm7627a_qrd1())
-		gpio_tlmm_config(GPIO_CFG(gpio_bt_sys_rest_en, 0,
-			GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
-			GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-
+	gpio_tlmm_config(GPIO_CFG(gpio_bt_sys_rest_en, 0,
+				GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
+				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 
 	/*setup Bahama_sys_reset_n*/
 	rc = gpio_request(gpio_bt_sys_rest_en, "bahama sys_rst_n");
@@ -935,11 +975,23 @@ void __init msm7627a_bt_power_init(void)
 	int i, rc = 0;
 	struct device *dev;
 
+
 	gpio_bt_config();
 
-	i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
-			bahama_devices,
-			ARRAY_SIZE(bahama_devices));
+	rc = i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
+				bahama_devices,
+				ARRAY_SIZE(bahama_devices));
+	if (rc < 0) {
+		pr_err("%s: I2C Register failed\n", __func__);
+		return;
+	}
+
+	rc = platform_device_register(&msm_bt_power_device);
+	if (rc < 0) {
+		pr_err("%s: device register failed\n", __func__);
+		return;
+	}
+
 	dev = &msm_bt_power_device.dev;
 
 	for (i = 0; i < ARRAY_SIZE(bt_vregs); i++) {
@@ -961,6 +1013,6 @@ reg_get_fail:
 		regulator_put(bt_vregs[i].reg);
 		bt_vregs[i].reg = NULL;
 	}
-	return;
+	platform_device_unregister(&msm_bt_power_device);
 }
 #endif

@@ -36,7 +36,7 @@ static int diagcmd_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (!pdata){
-		D("diagcmd_probe pdata err:%s\n", pdata->name);
+		D("diagcmd_probe pdata err\n");
 		return -EBUSY;
 	}
 

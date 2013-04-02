@@ -21,7 +21,7 @@
 #include <mach/msm_serial_hsl_regs.h>
 
 #ifdef MSM_DEBUG_UART_PHYS
-       .macro  addruart, rp, rv
+       .macro  addruart, rp, rv, tmp
 	ldr     \rp, =MSM_DEBUG_UART_PHYS
 	ldr     \rv, =MSM_DEBUG_UART_BASE
 	.endm

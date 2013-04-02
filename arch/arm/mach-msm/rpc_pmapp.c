@@ -13,6 +13,7 @@
 
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <asm/mach-types.h>
 #include <mach/board.h>
 #include <mach/rpc_pmapp.h>
@@ -548,7 +549,7 @@ EXPORT_SYMBOL(pmapp_vreg_pincntrl_vote);
 
 int pmapp_disp_backlight_set_brightness(int value)
 {
-	if (value < 0 || value > 100)
+	if (value < 0 || value > 255)
 		return -EINVAL;
 
 	return pmapp_rpc_set_only(value, 0, 0, 0, 1,

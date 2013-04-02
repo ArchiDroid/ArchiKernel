@@ -1,0 +1,22 @@
+config MACH_MSM7X27A_U0
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x27A U0"
+    help
+        Support for the LG Electronics MSM7x27A U0.
+
+config LGE_BATTERY_SUSPEND_RESUME
+    depends on ARCH_MSM7X27A
+    select MACH_LGE
+    bool "MSM7x25A U0"
+    help
+         Support for the LG Electronics Power.
+
+config LGE_DETECT_USB_CABLE_TYPE
+    bool "Check the type of usb cable is connected to Handset"
+    depends on MACH_LGE
+    default n
+    help
+         Check the type of usb cable is connected to handset, like Factory USB or UART, normal
+         charger and unknown cable.

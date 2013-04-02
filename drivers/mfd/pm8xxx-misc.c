@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,6 +14,7 @@
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -132,9 +133,23 @@
 #define UART_PATH_SEL_MASK			0x60
 #define UART_PATH_SEL_SHIFT			0x5
 
+#define USB_ID_PU_EN_MASK			0x10	/* PM8921 family only */
+#define USB_ID_PU_EN_SHIFT			4
+
 /* Shutdown/restart delays to allow for LDO 7/dVdd regulator load settling. */
 #define PM8901_DELAY_AFTER_REG_DISABLE_MS	4
 #define PM8901_DELAY_BEFORE_SHUTDOWN_MS		8
+
+#define REG_PM8XXX_XO_CNTRL_2	0x114
+#define MP3_1_MASK	0xE0
+#define MP3_2_MASK	0x1C
+#define MP3_1_SHIFT	5
+#define MP3_2_SHIFT	2
+
+#define REG_HSED_BIAS0_CNTL2		0xA1
+#define REG_HSED_BIAS1_CNTL2		0x135
+#define REG_HSED_BIAS2_CNTL2		0x138
+#define HSED_EN_MASK			0xC0
 
 struct pm8xxx_misc_chip {
 	struct list_head			link;
@@ -493,6 +508,8 @@ int pm8xxx_reset_pwr_off(int reset)
 		case PM8XXX_VERSION_8901:
 			rc = __pm8901_reset_pwr_off(chip, reset);
 			break;
+		case PM8XXX_VERSION_8038:
+		case PM8XXX_VERSION_8917:
 		case PM8XXX_VERSION_8921:
 			rc = __pm8921_reset_pwr_off(chip, reset);
 			break;
@@ -537,7 +554,7 @@ int pm8xxx_smpl_control(int enable)
 		case PM8XXX_VERSION_8018:
 			rc = pm8xxx_misc_masked_write(chip,
 				REG_PM8018_SLEEP_CTRL, SLEEP_CTRL_SMPL_EN_MASK,
-				(enable ? SLEEP_CTRL_SMPL_EN_PWR_OFF
+				(enable ? SLEEP_CTRL_SMPL_EN_RESET
 					   : SLEEP_CTRL_SMPL_EN_PWR_OFF));
 			break;
 		case PM8XXX_VERSION_8058:
@@ -549,7 +566,7 @@ int pm8xxx_smpl_control(int enable)
 		case PM8XXX_VERSION_8921:
 			rc = pm8xxx_misc_masked_write(chip,
 				REG_PM8921_SLEEP_CTRL, SLEEP_CTRL_SMPL_EN_MASK,
-				(enable ? SLEEP_CTRL_SMPL_EN_PWR_OFF
+				(enable ? SLEEP_CTRL_SMPL_EN_RESET
 					   : SLEEP_CTRL_SMPL_EN_PWR_OFF));
 			break;
 		default:
@@ -943,6 +960,197 @@ int pm8xxx_uart_gpio_mux_ctrl(enum pm8xxx_uart_path_sel uart_path_sel)
 	return rc;
 }
 EXPORT_SYMBOL(pm8xxx_uart_gpio_mux_ctrl);
+
+/**
+ * pm8xxx_usb_id_pullup - Control a pullup for USB ID
+ *
+ * @enable: enable (1) or disable (0) the pullup
+ *
+ * RETURNS: an appropriate -ERRNO error value on error, or zero for success.
+ */
+int pm8xxx_usb_id_pullup(int enable)
+{
+	struct pm8xxx_misc_chip *chip;
+	unsigned long flags;
+	int rc = -ENXIO;
+
+	spin_lock_irqsave(&pm8xxx_misc_chips_lock, flags);
+
+	/* Loop over all attached PMICs and call specific functions for them. */
+	list_for_each_entry(chip, &pm8xxx_misc_chips, link) {
+		switch (chip->version) {
+		case PM8XXX_VERSION_8921:
+		case PM8XXX_VERSION_8922:
+		case PM8XXX_VERSION_8917:
+		case PM8XXX_VERSION_8038:
+			rc = pm8xxx_misc_masked_write(chip,
+				REG_PM8XXX_GPIO_MUX_CTRL, USB_ID_PU_EN_MASK,
+				enable << USB_ID_PU_EN_SHIFT);
+
+			if (rc)
+				pr_err("Fail: reg=%x, rc=%d\n",
+				       REG_PM8XXX_GPIO_MUX_CTRL, rc);
+			break;
+		default:
+			/* Functionality not supported */
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&pm8xxx_misc_chips_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL(pm8xxx_usb_id_pullup);
+
+static int __pm8901_preload_dVdd(struct pm8xxx_misc_chip *chip)
+{
+	int rc;
+
+	/* dVdd preloading is not needed for PMIC PM8901 rev 2.3 and beyond. */
+	if (pm8xxx_get_revision(chip->dev->parent) >= PM8XXX_REVISION_8901_2p3)
+		return 0;
+
+	rc = pm8xxx_writeb(chip->dev->parent, 0x0BD, 0x0F);
+	if (rc)
+		pr_err("pm8xxx_writeb failed for 0x0BD, rc=%d\n", rc);
+
+	rc = pm8xxx_writeb(chip->dev->parent, 0x001, 0xB4);
+	if (rc)
+		pr_err("pm8xxx_writeb failed for 0x001, rc=%d\n", rc);
+
+	pr_info("dVdd preloaded\n");
+
+	return rc;
+}
+
+/**
+ * pm8xxx_preload_dVdd - preload the dVdd regulator during off state.
+ *
+ * This can help to reduce fluctuations in the dVdd voltage during startup
+ * at the cost of additional off state current draw.
+ *
+ * This API should only be called if dVdd startup issues are suspected.
+ *
+ * RETURNS: an appropriate -ERRNO error value on error, or zero for success.
+ */
+int pm8xxx_preload_dVdd(void)
+{
+	struct pm8xxx_misc_chip *chip;
+	unsigned long flags;
+	int rc = 0;
+
+	spin_lock_irqsave(&pm8xxx_misc_chips_lock, flags);
+
+	/* Loop over all attached PMICs and call specific functions for them. */
+	list_for_each_entry(chip, &pm8xxx_misc_chips, link) {
+		switch (chip->version) {
+		case PM8XXX_VERSION_8901:
+			rc = __pm8901_preload_dVdd(chip);
+			break;
+		default:
+			/* PMIC doesn't have preload_dVdd; do nothing. */
+			break;
+		}
+		if (rc) {
+			pr_err("preload_dVdd failed, rc=%d\n", rc);
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&pm8xxx_misc_chips_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pm8xxx_preload_dVdd);
+
+int pm8xxx_aux_clk_control(enum pm8xxx_aux_clk_id clk_id,
+				enum pm8xxx_aux_clk_div divider, bool enable)
+{
+	struct pm8xxx_misc_chip *chip;
+	unsigned long flags;
+	u8 clk_mask = 0, value = 0;
+
+	if (clk_id == CLK_MP3_1) {
+		clk_mask = MP3_1_MASK;
+		value = divider << MP3_1_SHIFT;
+	} else if (clk_id == CLK_MP3_2) {
+		clk_mask = MP3_2_MASK;
+		value = divider << MP3_2_SHIFT;
+	} else {
+		pr_err("Invalid clock id of %d\n", clk_id);
+		return -EINVAL;
+	}
+	if (!enable)
+		value = 0;
+
+	spin_lock_irqsave(&pm8xxx_misc_chips_lock, flags);
+
+	/* Loop over all attached PMICs and call specific functions for them. */
+	list_for_each_entry(chip, &pm8xxx_misc_chips, link) {
+		switch (chip->version) {
+		case PM8XXX_VERSION_8038:
+		case PM8XXX_VERSION_8921:
+			pm8xxx_misc_masked_write(chip,
+					REG_PM8XXX_XO_CNTRL_2, clk_mask, value);
+			break;
+		default:
+			/* Functionality not supported */
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&pm8xxx_misc_chips_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pm8xxx_aux_clk_control);
+
+int pm8xxx_hsed_bias_control(enum pm8xxx_hsed_bias bias, bool enable)
+{
+	struct pm8xxx_misc_chip *chip;
+	unsigned long flags;
+	int rc = 0;
+	u16 addr;
+
+	switch (bias) {
+	case PM8XXX_HSED_BIAS0:
+		addr = REG_HSED_BIAS0_CNTL2;
+		break;
+	case PM8XXX_HSED_BIAS1:
+		addr = REG_HSED_BIAS1_CNTL2;
+		break;
+	case PM8XXX_HSED_BIAS2:
+		addr = REG_HSED_BIAS2_CNTL2;
+		break;
+	default:
+		pr_err("Invalid BIAS line\n");
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&pm8xxx_misc_chips_lock, flags);
+
+	/* Loop over all attached PMICs and call specific functions for them. */
+	list_for_each_entry(chip, &pm8xxx_misc_chips, link) {
+		switch (chip->version) {
+		case PM8XXX_VERSION_8058:
+		case PM8XXX_VERSION_8921:
+			rc = pm8xxx_misc_masked_write(chip, addr,
+				HSED_EN_MASK, enable ? HSED_EN_MASK : 0);
+			if (rc < 0)
+				pr_err("Enable HSED BIAS failed rc=%d\n", rc);
+			break;
+		default:
+			/* Functionality not supported */
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&pm8xxx_misc_chips_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL(pm8xxx_hsed_bias_control);
 
 static int __devinit pm8xxx_misc_probe(struct platform_device *pdev)
 {

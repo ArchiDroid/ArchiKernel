@@ -21,15 +21,13 @@ struct timed_output_dev {
 
 	/* enable the output and set the timer */
 	void	(*enable)(struct timed_output_dev *sdev, int timeout);
-//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
- /* Add voltage node for tunning vibarator operation
- * 2011-08-20, sangwoo2.park@lge.com
-*/
-	void	(*voltage)(struct timed_output_dev *sdev, int value);
-//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+	/*[LGE_BSP][yunmo.yang@lge.com] add voltage controll Interface*/
+	void	(*voltage)(struct timed_output_dev *sdev, int vol);
 
 	/* returns the current number of milliseconds remaining on the timer */
 	int		(*get_time)(struct timed_output_dev *sdev);
+	/*[LGE_BSP][yunmo.yang@lge.com] add voltage controll Interface*/
+	int		(*get_voltage)(struct timed_output_dev *sdev);
 
 	/* private data */
 	struct device	*dev;

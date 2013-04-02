@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <trace/events/asoc.h>
 
 /**
@@ -113,6 +114,23 @@ out:
 EXPORT_SYMBOL_GPL(snd_soc_jack_report);
 
 /**
+ * snd_soc_jack_report_no_dapm - Report the current status for a jack
+ *				 without DAPM sync
+ * @jack:   the jack
+ * @status: a bitmask of enum snd_jack_type values that are currently detected.
+ * @mask:   a bitmask of enum snd_jack_type values that being reported.
+ */
+void snd_soc_jack_report_no_dapm(struct snd_soc_jack *jack, int status,
+				 int mask)
+{
+	jack->status &= ~mask;
+	jack->status |= status & mask;
+
+	snd_jack_report(jack->jack, jack->status);
+}
+EXPORT_SYMBOL_GPL(snd_soc_jack_report_no_dapm);
+
+/**
  * snd_soc_jack_add_zones - Associate voltage zones with jack
  *
  * @jack:  ASoC jack
@@ -187,6 +205,8 @@ int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 		INIT_LIST_HEAD(&pins[i].list);
 		list_add(&(pins[i].list), &jack->pins);
 	}
+
+	snd_soc_dapm_new_widgets(&jack->codec->card->dapm);
 
 	/* Update to reflect the last reported status; canned jack
 	 * implementations are likely to set their state before the
@@ -338,10 +358,8 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 					gpios[i].gpio, ret);
 		}
 
-#ifdef CONFIG_GPIO_SYSFS
 		/* Expose GPIO value over sysfs for diagnostic purposes */
 		gpio_export(gpios[i].gpio, false);
-#endif
 
 		/* Update initial jack status */
 		snd_soc_jack_gpio_detect(&gpios[i]);
@@ -373,9 +391,7 @@ void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 	int i;
 
 	for (i = 0; i < count; i++) {
-#ifdef CONFIG_GPIO_SYSFS
 		gpio_unexport(gpios[i].gpio);
-#endif
 		free_irq(gpio_to_irq(gpios[i].gpio), &gpios[i]);
 		cancel_delayed_work_sync(&gpios[i].work);
 		gpio_free(gpios[i].gpio);

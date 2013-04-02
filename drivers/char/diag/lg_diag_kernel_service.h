@@ -3,12 +3,15 @@
 
 #include <../../../lge/include/lg_comdef.h>
 
-//#define LG_DIAG_DEBUG
+/* LGE_CHANGE : hyungjoon.jeon@lge.com 2013-03-05 */
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+#define LG_DIAG_DEBUG
+#endif
 
 #define DIAGPKT_HDR_PATTERN (0xDEADD00DU)
 #define DIAGPKT_OVERRUN_PATTERN (0xDEADU)
 #define DIAGPKT_USER_TBL_SIZE 10
-#define READ_BUF_SIZE 8004
+#define READ_BUF_SIZE 100000
 
 #define DIAG_DATA_TYPE_EVENT         0
 #define DIAG_DATA_TYPE_F3            1

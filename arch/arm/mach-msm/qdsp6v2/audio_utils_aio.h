@@ -1,6 +1,6 @@
 /* Copyright (C) 2008 Google, Inc.
  * Copyright (C) 2008 HTC Corporation
- * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -23,14 +23,11 @@
 #include <linux/msm_audio.h>
 #include <linux/debugfs.h>
 #include <linux/list.h>
-#include <linux/android_pmem.h>
 #include <linux/slab.h>
+#include <linux/ion.h>
 #include <asm/ioctls.h>
 #include <asm/atomic.h>
-#include <sound/q6asm.h>
-#include <sound/apr_audio.h>
-
-
+#include "q6audio_common.h"
 
 #define TUNNEL_MODE     0x0000
 #define NON_TUNNEL_MODE 0x0001
@@ -114,9 +111,9 @@ union  meta_data {
 #define FRAME_NUM               (2)
 #define FRAME_SIZE	((4*1536) + sizeof(struct dec_meta_in))
 
-struct audio_aio_pmem_region {
+struct audio_aio_ion_region {
 	struct list_head list;
-	struct file *file;
+	struct ion_handle *handle;
 	int fd;
 	void *vaddr;
 	unsigned long paddr;
@@ -174,7 +171,8 @@ struct q6audio_aio {
 	struct list_head in_queue;      /* queue to retain input buffers */
 	struct list_head free_event_queue;
 	struct list_head event_queue;
-	struct list_head pmem_region_queue;     /* protected by lock */
+	struct list_head ion_region_queue;     /* protected by lock */
+	struct ion_client *client;
 	struct audio_aio_drv_operations drv_ops;
 	union msm_audio_event_payload eos_write_payload;
 
@@ -191,19 +189,29 @@ struct q6audio_aio {
 	long (*codec_ioctl)(struct file *, unsigned int, unsigned long);
 };
 
+void audio_aio_async_write_ack(struct q6audio_aio *audio, uint32_t token,
+				uint32_t *payload);
+
+void audio_aio_async_read_ack(struct q6audio_aio *audio, uint32_t token,
+			uint32_t *payload);
+
+int insert_eos_buf(struct q6audio_aio *audio,
+		struct audio_aio_buffer_node *buf_node);
+
+void extract_meta_out_info(struct q6audio_aio *audio,
+		struct audio_aio_buffer_node *buf_node, int dir);
+
 int audio_aio_open(struct q6audio_aio *audio, struct file *file);
 int audio_aio_enable(struct q6audio_aio  *audio);
 void audio_aio_post_event(struct q6audio_aio *audio, int type,
 		union msm_audio_event_payload payload);
 int audio_aio_release(struct inode *inode, struct file *file);
 long audio_aio_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-int audio_aio_fsync(struct file *file, int datasync);
-void audio_aio_cb(uint32_t opcode, uint32_t token,
-			uint32_t *payload,  struct q6audio_aio *audio);
+int audio_aio_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 void audio_aio_async_out_flush(struct q6audio_aio *audio);
 void audio_aio_async_in_flush(struct q6audio_aio *audio);
 #ifdef CONFIG_DEBUG_FS
 ssize_t audio_aio_debug_open(struct inode *inode, struct file *file);
-ssize_t audio_aio_debug_read(struct file *file, char __user * buf,
+ssize_t audio_aio_debug_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos);
 #endif

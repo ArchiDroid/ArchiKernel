@@ -1,0 +1,41 @@
+config MACH_MSM7X25A_M4
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A M4"
+    help
+        Support for the LG Electronics MSM7x25AB M4.
+
+config MACH_MSM7X25A_V3
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A V3"
+    help
+        Support for the LG Electronics MSM7x25AB V3.
+
+config MACH_MSM7X25A_V3_DS
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A V3"
+    help
+        Support for the LG Electronics MSM7x25AB V3.
+                       
+config MACH_MSM7X25A_V3BR_REV_B
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A V3"
+    help
+        Support for the LG Electronics MSM7x25AB V3.
+
+config MACH_MSM7X25A_V3BR_REV_C
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A V3"
+    help
+        Support for the LG Electronics MSM7x25AB V3.
+
+        

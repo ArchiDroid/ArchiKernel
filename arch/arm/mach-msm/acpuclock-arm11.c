@@ -30,8 +30,8 @@
 #include <linux/io.h>
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
+#include <mach/proc_comm.h>
 
-#include "proc_comm.h"
 #include "acpuclock.h"
 
 

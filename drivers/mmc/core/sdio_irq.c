@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <linux/export.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
 
@@ -27,39 +28,27 @@
 
 #include "sdio_ops.h"
 
-static int process_sdio_pending_irqs(struct mmc_card *card)
+static int process_sdio_pending_irqs(struct mmc_host *host)
 {
+	struct mmc_card *card = host->card;
 	int i, ret, count;
 	unsigned char pending;
 	struct sdio_func *func;
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [START]
-	unsigned char reg;
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [END]
 
 	/*
 	 * Optimization, if there is only 1 function interrupt registered
-	 * call irq handler directly
+	 * and we know an IRQ was signaled then call irq handler directly.
+	 * Otherwise do the full probe.
 	 */
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [START]
-#if 0
 	func = card->sdio_single_irq;
-	if (func) {
+	if (func && host->sdio_irq_pending) {
 		func->irq_handler(func);
 		return 1;
 	}
-#endif
-
-	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_IENx, 0, &reg);
-	if (ret) {
-		printk(KERN_ERR "%s: error %d reading SDIO_CCCR_IENx\n",
-				mmc_card_id(card), ret);
-		return ret;
-	}
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [END]
 
 	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, &pending);
 	if (ret) {
-		printk(KERN_DEBUG "%s: error %d reading SDIO_CCCR_INTx\n",
+		pr_debug("%s: error %d reading SDIO_CCCR_INTx\n",
 		       mmc_card_id(card), ret);
 		return ret;
 	}
@@ -67,35 +56,17 @@ static int process_sdio_pending_irqs(struct mmc_card *card)
 	count = 0;
 	for (i = 1; i <= 7; i++) {
 		if (pending & (1 << i)) {
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [START]
-			if (!(reg & 0x1)) {
-				pr_err("%s: Master interrupt is disabled but still "
-					"we have pending interrupt, bug in h/w??\n", __func__);
-				return -EINVAL;
-			}
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [END]
-
 			func = card->sdio_func[i - 1];
 			if (!func) {
-				printk(KERN_WARNING "%s: pending IRQ for "
+				pr_warning("%s: pending IRQ for "
 					"non-existent function\n",
 					mmc_card_id(card));
 				ret = -EINVAL;
 			} else if (func->irq_handler) {
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [START]
-				if ((reg & (1 << func->num))) {
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [END]
 				func->irq_handler(func);
 				count++;
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [START]
-				} else {
-					pr_err("%s: Interrupt ocurred even when IEx "
-						"bit is not set, bug in h/w??\n", mmc_card_id(card));
-					ret = -EINVAL;
-				}
-// 20120317 real-wifi@lge.com[wo0gi] QCT patch : SDIO kernel crash [END]
 			} else {
-				printk(KERN_WARNING "%s: pending IRQ with no handler\n",
+				pr_warning("%s: pending IRQ with no handler\n",
 				       sdio_func_id(func));
 				ret = -EINVAL;
 			}
@@ -147,7 +118,8 @@ static int sdio_irq_thread(void *_host)
 		ret = __mmc_claim_host(host, &host->sdio_irq_thread_abort);
 		if (ret)
 			break;
-		ret = process_sdio_pending_irqs(host->card);
+		ret = process_sdio_pending_irqs(host);
+		host->sdio_irq_pending = false;
 		mmc_release_host(host);
 
 		/*
@@ -243,14 +215,14 @@ static void sdio_single_irq_set(struct mmc_card *card)
 
 	card->sdio_single_irq = NULL;
 	if ((card->host->caps & MMC_CAP_SDIO_IRQ) &&
-	    card->host->sdio_irqs == 1)
+			card->host->sdio_irqs == 1)
 		for (i = 0; i < card->sdio_funcs; i++) {
-		       func = card->sdio_func[i];
-		       if (func && func->irq_handler) {
-			       card->sdio_single_irq = func;
-			       break;
-		       }
-	       }
+			func = card->sdio_func[i];
+			if (func && func->irq_handler) {
+				card->sdio_single_irq = func;
+				break;
+			}
+		}
 }
 
 /**

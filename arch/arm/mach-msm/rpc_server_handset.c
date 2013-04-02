@@ -1,6 +1,6 @@
 /* arch/arm/mach-msm/rpc_server_handset.c
  *
- * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2010,2012 Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,6 +18,9 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/switch.h>
+#if defined(CONFIG_MACH_LGE)
+#include <../../../kernel/power/power.h>
+#endif
 
 #include <asm/mach-types.h>
 
@@ -181,11 +184,8 @@ struct hs_cmd_data_type {
 };
 
 static const uint32_t hs_key_map[] = {
-        /*
 	KEY(HS_PWR_K, KEY_POWER),
-	KEY(HS_END_K, KEY_END),*/
-	KEY(HS_PWR_K, KEY_END),
-	KEY(HS_END_K, KEY_POWER),
+	KEY(HS_END_K, KEY_END),
 	KEY(HS_STEREO_HEADSET_K, SW_HEADPHONE_INSERT_W_MIC),
 	KEY(HS_HEADSET_HEADPHONE_K, SW_HEADPHONE_INSERT),
 	KEY(HS_HEADSET_MICROPHONE_K, SW_MICROPHONE_INSERT),
@@ -280,12 +280,23 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 	if (key_parm == HS_REL_K)
 		key_code = key_parm;
 
+	printk("%s: reported key is %d\n",__func__,key);
+
 	switch (key) {
 	case KEY_POWER:
 	case KEY_END:
+		if (hs->hs_pdata->ignore_end_key)
+			input_report_key(hs->ipdev, KEY_POWER,
+						(key_code != HS_REL_K));
+		else
+			input_report_key(hs->ipdev, key,
+						(key_code != HS_REL_K));
+		break;
 	case KEY_MEDIA:
 	case KEY_VOLUMEUP:
 	case KEY_VOLUMEDOWN:
+		// LGE_CHANGE,narasimha.chikka@lge.com,Add Power Key press Log
+		printk(KERN_INFO "%s,key=%d,key_code=%d \n",__func__,key,key_code);
 		input_report_key(hs->ipdev, key, (key_code != HS_REL_K));
 		break;
 	case SW_HEADPHONE_INSERT_W_MIC:
@@ -314,6 +325,33 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 	}
 	input_sync(hs->ipdev);
 }
+
+/*LGE_CHANGE_S,Wakeup apps proc for battery notification */
+#ifdef CONFIG_MACH_LGE
+void report_power_key(void)
+{
+int state = 0;
+		
+#ifdef CONFIG_EARLYSUSPEND
+
+	if(NULL != hs && NULL != hs->ipdev){
+
+		state = check_suspend_state();
+
+		if (state == 1){
+			input_report_key(hs->ipdev, KEY_POWER,
+						1);
+			input_report_key(hs->ipdev, KEY_POWER,
+						0);
+			input_sync(hs->ipdev);
+		}
+	}
+
+#endif
+}
+EXPORT_SYMBOL(report_power_key);
+#endif
+/*LGE_CHANGE_E,Wakeup apps proc for battery notification */
 
 static int handle_hs_rpc_call(struct msm_rpc_server *server,
 			   struct rpc_request_hdr *req, unsigned len)
@@ -520,7 +558,7 @@ static int hs_cb_func(struct msm_rpc_client *client, void *buffer, int in_size)
 	return 0;
 }
 
-static int __init hs_rpc_cb_init(void)
+static int __devinit hs_rpc_cb_init(void)
 {
 	int rc = 0, i, num_vers;
 
@@ -608,14 +646,11 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	hs = kzalloc(sizeof(struct msm_handset), GFP_KERNEL);
 	if (!hs)
 		return -ENOMEM;
-
-	/* LGE_UPDATE_S	myunghee.kim 2011.12.09 						*/
-	/* WiredAccessoryObserver.java check h2w device not h2w_headset for headset detecdtion */
-	/* so we modified board-u0-sound.c & this file						*/
-	/* modify here because of OS Upgrade							*/
-	/* original code : hs->sdev.name	= "h2w";					*/
-	hs->sdev.name	= "h2w_handset";
-	/* LGE_UPDATE_E										*/
+#ifdef CONFIG_MACH_LGE
+	hs->sdev.name	= "h2w_rpc";
+#else /*qct original*/
+        hs->sdev.name	= "h2w";
+#endif /*CONFIG_MACH_LGE*/
 	hs->sdev.print_name = msm_headset_print_name;
 
 	rc = switch_dev_register(&hs->sdev);
@@ -649,7 +684,7 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	input_set_capability(ipdev, EV_SW, SW_HEADPHONE_INSERT);
 	input_set_capability(ipdev, EV_SW, SW_MICROPHONE_INSERT);
 	input_set_capability(ipdev, EV_KEY, KEY_POWER);
-	//input_set_capability(ipdev, EV_KEY, KEY_END);
+	input_set_capability(ipdev, EV_KEY, KEY_END);
 
 	rc = input_register_device(ipdev);
 	if (rc) {

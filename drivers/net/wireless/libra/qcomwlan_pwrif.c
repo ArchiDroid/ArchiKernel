@@ -12,6 +12,7 @@
  */
 
 #include <linux/qcomwlan_pwrif.h>
+#include <linux/export.h>
 
 #define GPIO_WLAN_DEEP_SLEEP_N  230
 #define GPIO_WLAN_DEEP_SLEEP_N_DRAGON  82
@@ -72,7 +73,7 @@ int vos_chip_power_qrf8615(int on)
 	static const int vregs_qwlan_peek_current[] = {
 		4000,
 		150000,
-		200000,
+		60000,
 		0,
 		32000,
 		130000,
@@ -154,7 +155,7 @@ int vos_chip_power_qrf8615(int on)
 
 	/* WLAN VREG settings */
 	for (i = 0; i < ARRAY_SIZE(vregs_qwlan_name); i++) {
-		if (vregs_qwlan[i] == NULL) {
+		if (on && !wlan_on)	{
 			vregs_qwlan[i] = regulator_get(NULL,
 					vregs_qwlan_name[i]);
 			if (IS_ERR(vregs_qwlan[i])) {
@@ -187,8 +188,7 @@ int vos_chip_power_qrf8615(int on)
 					goto vreg_fail;
 				}
 			}
-		}
-		if (on && !wlan_on) {
+
 			if (vregs_qwlan_peek_current[i]) {
 				rc = regulator_set_optimum_mode(vregs_qwlan[i],
 						vregs_qwlan_peek_current[i]);

@@ -30,15 +30,8 @@
  */
 #define CI13XX_REQ_VENDOR_ID(id)  (id & 0xFFFF0000UL)
 
-/* MSM specific */
-#define MSM_PIPE_ID_MASK         (0x1F)
-#define MSM_TX_PIPE_ID_OFS       (16)
-#define MSM_SPS_MODE             BIT(5)
-#define MSM_TBE                  BIT(6)
-#define MSM_ETD_TYPE             BIT(1)
-#define MSM_ETD_IOC              BIT(9)
-#define MSM_VENDOR_ID            BIT(16)
-#define MSM_EP_PIPE_ID_RESET_VAL 0x1F001F
+#define MSM_ETD_TYPE			BIT(1)
+#define MSM_EP_PIPE_ID_RESET_VAL	0x1F001F
 
 /******************************************************************************
  * STRUCTURES
@@ -125,8 +118,14 @@ struct ci13xxx_udc_driver {
 #define CI13XXX_PULLUP_ON_VBUS		BIT(2)
 #define CI13XXX_DISABLE_STREAMING	BIT(3)
 #define CI13XXX_ZERO_ITC		BIT(4)
+#define CI13XXX_IS_OTG			BIT(5)
 
-#define CI13XXX_CONTROLLER_RESET_EVENT		0
+#define CI13XXX_CONTROLLER_RESET_EVENT			0
+#define CI13XXX_CONTROLLER_CONNECT_EVENT		1
+#define CI13XXX_CONTROLLER_SUSPEND_EVENT		2
+#define CI13XXX_CONTROLLER_REMOTE_WAKEUP_EVENT	3
+#define CI13XXX_CONTROLLER_RESUME_EVENT	        4
+#define CI13XXX_CONTROLLER_DISCONNECT_EVENT	    5
 	void	(*notify_event) (struct ci13xxx *udc, unsigned event);
 };
 
@@ -143,19 +142,25 @@ struct ci13xxx {
 	struct ci13xxx_ep          ci13xxx_ep[ENDPT_MAX]; /* extended endpts */
 	u32                        ep0_dir;    /* ep0 direction */
 #define ep0out ci13xxx_ep[0]
-#define ep0in  ci13xxx_ep[16]
+#define ep0in  ci13xxx_ep[hw_ep_max / 2]
 	u8                         remote_wakeup; /* Is remote wakeup feature
 							enabled by the host? */
 	u8                         suspended;  /* suspended by the host */
 	u8                         configured;  /* is device configured */
 	u8                         test_mode;  /* the selected test mode */
 
+	struct delayed_work        rw_work;    /* remote wakeup delayed work */
 	struct usb_gadget_driver  *driver;     /* 3rd party gadget driver */
 	struct ci13xxx_udc_driver *udc_driver; /* device controller driver */
 	int                        vbus_active; /* is VBUS active */
 	int                        softconnect; /* is pull-up enable allowed */
-	struct otg_transceiver    *transceiver; /* Transceiver struct */
 	unsigned long dTD_update_fail_count;
+	struct usb_phy            *transceiver; /* Transceiver struct */
+};
+
+struct ci13xxx_platform_data {
+	u8 usb_core_id;
+	void *prv_data;
 };
 
 /******************************************************************************
@@ -233,7 +238,10 @@ do { \
 			   "[%s] " format "\n", __func__, ## args); \
 } while (0)
 
+#ifndef err
 #define err(format, args...)    ci13xxx_printk(KERN_ERR, format, ## args)
+#endif
+
 #define warn(format, args...)   ci13xxx_printk(KERN_WARNING, format, ## args)
 #define info(format, args...)   ci13xxx_printk(KERN_INFO, format, ## args)
 

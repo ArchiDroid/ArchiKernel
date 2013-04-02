@@ -10,6 +10,8 @@
  * GNU General Public License for more details.
  *
  */
+
+#include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/memory_alloc.h>
 #include <asm/cacheflush.h>
@@ -664,7 +666,8 @@ kgsl_sharedmem_page_alloc_user(struct kgsl_memdesc *memdesc,
 {
 	unsigned int protflags;
 
-	BUG_ON(size == 0);
+	if (size == 0)
+		return -EINVAL;
 
 	protflags = GSL_PT_PAGE_RV;
 	if (!(flags & KGSL_MEMFLAGS_GPUREADONLY))

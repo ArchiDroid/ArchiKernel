@@ -1,7 +1,7 @@
 /* linux/arch/arm/mach-msm/board-trout-mmc.c
 ** Author: Brian Swetland <swetland@google.com>
 */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -11,18 +11,15 @@
 #include <linux/err.h>
 #include <linux/debugfs.h>
 
-#include <asm/gpio.h>
 #include <asm/io.h>
 
 #include <mach/vreg.h>
-
+#include <mach/proc_comm.h>
 #include <mach/mmc.h>
 
 #include "devices.h"
 
 #include "board-trout.h"
-
-#include "proc_comm.h"
 
 #define DEBUG_SDSLOT_VDD 1
 

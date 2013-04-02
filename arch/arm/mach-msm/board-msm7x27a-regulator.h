@@ -18,4 +18,12 @@
 
 extern struct proccomm_regulator_platform_data msm7x27a_proccomm_regulator_data;
 
+/* [LGE_BSP_S] jihyun2.jang@lge.com, 20130212 - RT8966A miniABB regulator */
+#ifdef CONFIG_MINIABB_REGULATOR
+#include "miniabb-regulator.h"
+
+extern struct miniabb_regulator_platform_data miniabb_regulator_data;
+#endif /* CONFIG_MINIABB_REGULATOR */
+/* [LGE_BSP_E] jihyun2.jang@lge.com, 20130212 - RT8966A miniABB regulator */
+
 #endif

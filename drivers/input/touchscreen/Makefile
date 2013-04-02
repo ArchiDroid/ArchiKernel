@@ -15,10 +15,15 @@ obj-$(CONFIG_TOUCHSCREEN_ADS7846)	+= ads7846.o
 obj-$(CONFIG_TOUCHSCREEN_ATMEL_MAXTOUCH)	+= atmel_maxtouch.o
 obj-$(CONFIG_TOUCHSCREEN_ATMEL_MXT)	+= atmel_mxt_ts.o
 obj-$(CONFIG_TOUCHSCREEN_ATMEL_TSADCC)	+= atmel_tsadcc.o
+obj-$(CONFIG_TOUCHSCREEN_AUO_PIXCIR)	+= auo-pixcir-ts.o
 obj-$(CONFIG_TOUCHSCREEN_BITSY)		+= h3600_ts_input.o
 obj-$(CONFIG_TOUCHSCREEN_BU21013)       += bu21013_ts.o
 obj-$(CONFIG_TOUCHSCREEN_CYPRESS_TMG)	+= cy8c_tmg_ts.o
+obj-$(CONFIG_TOUCHSCREEN_BU21013)	+= bu21013_ts.o
 obj-$(CONFIG_TOUCHSCREEN_CY8CTMG110)	+= cy8ctmg110_ts.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP_CORE)	+= cyttsp_core.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP_I2C)	+= cyttsp_i2c.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP_SPI)	+= cyttsp_spi.o
 obj-$(CONFIG_TOUCHSCREEN_DA9034)	+= da9034-ts.o
 obj-$(CONFIG_TOUCHSCREEN_DYNAPRO)	+= dynapro.o
 obj-$(CONFIG_TOUCHSCREEN_HAMPSHIRE)	+= hampshire.o
@@ -26,7 +31,9 @@ obj-$(CONFIG_TOUCHSCREEN_GUNZE)		+= gunze.o
 obj-$(CONFIG_TOUCHSCREEN_EETI)		+= eeti_ts.o
 obj-$(CONFIG_TOUCHSCREEN_ELAN_I2C_8232) += elan8232_i2c.o
 obj-$(CONFIG_TOUCHSCREEN_ELO)		+= elo.o
+obj-$(CONFIG_TOUCHSCREEN_EGALAX)	+= egalax_ts.o
 obj-$(CONFIG_TOUCHSCREEN_FUJITSU)	+= fujitsu_ts.o
+obj-$(CONFIG_TOUCHSCREEN_ILI210X)	+= ili210x.o
 obj-$(CONFIG_TOUCHSCREEN_INEXIO)	+= inexio.o
 obj-$(CONFIG_TOUCHSCREEN_INTEL_MID)	+= intel-mid-touch.o
 obj-$(CONFIG_TOUCHSCREEN_LPC32XX)	+= lpc32xx_ts.o
@@ -43,15 +50,18 @@ obj-$(CONFIG_TOUCHSCREEN_HTCPEN)	+= htcpen.o
 obj-$(CONFIG_TOUCHSCREEN_USB_COMPOSITE)	+= usbtouchscreen.o
 obj-$(CONFIG_TOUCHSCREEN_PCAP)		+= pcap_ts.o
 obj-$(CONFIG_TOUCHSCREEN_PENMOUNT)	+= penmount.o
+obj-$(CONFIG_TOUCHSCREEN_PIXCIR)	+= pixcir_i2c_ts.o
 obj-$(CONFIG_TOUCHSCREEN_S3C2410)	+= s3c2410_ts.o
 obj-$(CONFIG_TOUCHSCREEN_ST1232)	+= st1232.o
 obj-$(CONFIG_TOUCHSCREEN_STMPE)		+= stmpe-ts.o
+obj-$(CONFIG_TOUCHSCREEN_TI_TSCADC)	+= ti_tscadc.o
 obj-$(CONFIG_TOUCHSCREEN_TNETV107X)	+= tnetv107x-ts.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI)	+= synaptics_i2c_rmi.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C) +=synaptics/
 obj-$(CONFIG_TOUCHSCREEN_TOUCHIT213)	+= touchit213.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHRIGHT)	+= touchright.o
 obj-$(CONFIG_TOUCHSCREEN_TOUCHWIN)	+= touchwin.o
+obj-$(CONFIG_TOUCHSCREEN_TSC_SERIO)	+= tsc40.o
 obj-$(CONFIG_TOUCHSCREEN_TSC2005)	+= tsc2005.o
 obj-$(CONFIG_TOUCHSCREEN_TSC2007)	+= tsc2007.o
 obj-$(CONFIG_TOUCHSCREEN_UCB1400)	+= ucb1400_ts.o
@@ -68,21 +78,30 @@ obj-$(CONFIG_TOUCHSCREEN_W90X900)	+= w90p910_ts.o
 obj-$(CONFIG_TOUCHSCREEN_TPS6507X)	+= tps6507x-ts.o
 obj-$(CONFIG_TOUCHSCREEN_MSM_LEGACY)		+= msm_touch.o
 obj-$(CONFIG_TOUCHSCREEN_CY8C_TS)	+= cy8c_ts.o
-obj-$(CONFIG_TOUCHSCREEN_CYTTSP_I2C)       += cyttsp-i2c.o
+obj-$(CONFIG_TOUCHSCREEN_CYTTSP_I2C_QC)       += cyttsp-i2c-qc.o
 #LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
-obj-$(CONFIG_TOUCHSCREEN_MCS8000)	+= mcs8000_ts.o mcs8000_download.o
-obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS)	+= u0_synaptics_ts.o
 obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= melfas_mms136_ts.o
-obj-$(CONFIG_TOUCHSCREEN_MCS8000_MMS128)	+= mcs8000_ts_mms128.o
 #LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
-
 # LGE_CHANGES_S : download config
-obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= melfas_mms136_ISC_download.o
-obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= melfas_mms136_ISP_download.o
-obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= melfas_mms136_tovis_bin.o
-obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= melfas_mms136_lgit_bin.o
-#obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136)	+= melfas_mms136_firmware_binary.o
-# LGE_CHANGES_E : download config
+obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136) += melfas_mms136_ISC_download.o
+obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136) += melfas_mms136_ISP_download.o
+obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136) += melfas_mms136_tovis_bin.o
+obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136) += melfas_mms136_lgit_bin.o
+#obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS136) += melfas_mms136_firmware_binary.o
+#2012-10-06 JongWook-Park(blood9874@lge.com) [V3] Melfas mms-128s ISC Firmware upgrade patch [START]
+# obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS128S) += mms128s_ts.o mms128s_firmware_binary.o mms128s_ISC_download.o mms128s_ISP_download.o
+obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS128S) += mms128s_ts.o mms128s_firmware_binary.o mms128s_ISC_download.o mms128s_ISP_download.o MMS100S_FIRMWARE.o MMS100S_ISC_Updater_Customize.o MMS100S_ISC_Updater_V03.o
+obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS128S_V1) += mms128s_v1_ts.o mms128s_firmware_binary.o mms128s_ISC_download.o mms128s_ISP_download.o MMS100S_FIRMWARE.o MMS100S_ISC_Updater_Customize.o MMS100S_ISC_Updater_V03.o
+obj-$(CONFIG_TOUCHSCREEN_MELFAS_MMS100S) += mms100s_ts.o
+#2012-10-06 JongWook-Park(blood9874@lge.com) [V3] Melfas mms-128s ISC Firmware upgrade patch [END]
+obj-$(CONFIG_TOUCHSCREEN_MELFAS_TS)	+= melfas_ts.o mcs8000_download.o melfas_ISC_download.o 
+# obj-$(CONFIG_TOUCHSCREEN_MELFAS_TS) += melfas_ts.o mms128s_firmware_binary.o mms128s_ISC_download.o mms128s_ISP_download.o MMS100S_FIRMWARE.o MMS100S_ISC_Updater_Customize.o MMS100S_ISC_Updater_V03.o
 
-obj-$(CONFIG_TOUCHSCREEN_MXT140)	+= qt602240.o
-obj-$(CONFIG_TOUCHSCREEN_MELFAS_TS)	+= melfas_ts.o mcs8000_download.o  melfas_mms128_download.o
+# LGE_CHANGES_E : download config
+# LGE_CHANGE_S : byungyong.hwang@lge.com Synaptics 3020 series porting
+obj-$(CONFIG_LGE_TOUCHSCREEN_SYNAPTICS_I2C_RMI4) += lge_touch_core.o
+obj-$(CONFIG_LGE_TOUCHSCREEN_SYNAPTICS_I2C_RMI4) += touch_synaptics_s7020.o
+obj-$(CONFIG_LGE_TOUCHSCREEN_SYNAPTICS_I2C_RMI4) += touch_tester.o
+obj-$(CONFIG_LGE_TOUCHSCREEN_SYNAPTICS_I2C_RMI4) += touch_synaptics_fw_upgrade.o
+# LGE_CHANGE_# : byungyong.hwang@lge.com
+obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)	+= DS4/

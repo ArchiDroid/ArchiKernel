@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,9 +15,11 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/msm_tsens.h>
 #include <linux/platform_data/qcom_crypto_device.h>
 #include <linux/dma-mapping.h>
+#include <sound/msm-dai-q6.h>
+#include <sound/apr_audio.h>
+#include <linux/usb/android.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/flash.h>
 #include <mach/board.h>
@@ -30,12 +32,14 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/msm_sps.h>
 #include <mach/dma.h>
+#include "pm.h"
 #include "devices.h"
-#include "mpm.h"
+#include <mach/mpm.h>
 #include "spm.h"
-#include <mach/pm.h>
 #include "rpm_resources.h"
 #include "msm_watchdog.h"
+#include "rpm_stats.h"
+#include "rpm_log.h"
 
 /* Address of GSBI blocks */
 #define MSM_GSBI1_PHYS          0x16000000
@@ -58,10 +62,14 @@
 #define MSM_PMIC1_SSBI_CMD_PHYS	0x00500000
 #define MSM_PMIC_SSBI_SIZE	SZ_4K
 
+#define MSM_GPIO_I2C_CLK 16
+#define MSM_GPIO_I2C_SDA 17
+
 static struct msm_watchdog_pdata msm_watchdog_pdata = {
 	.pet_time = 10000,
 	.bark_time = 11000,
-	.has_secure = true,
+	.has_secure = false,
+	.use_kernel_fiq = true,
 };
 
 struct platform_device msm9615_device_watchdog = {
@@ -99,8 +107,15 @@ struct platform_device msm9615_device_dmov = {
 	},
 };
 
+struct platform_device msm9615_device_acpuclk = {
+	.name           = "acpuclk-9615",
+	.id             = -1,
+};
+
 #define MSM_USB_BAM_BASE     0x12502000
-#define MSM_USB_BAM_SIZE     0x3DFFF
+#define MSM_USB_BAM_SIZE     SZ_16K
+#define MSM_HSIC_BAM_BASE    0x12542000
+#define MSM_HSIC_BAM_SIZE    SZ_16K
 
 static struct resource resources_otg[] = {
 	{
@@ -125,6 +140,8 @@ struct platform_device msm_device_otg = {
 	},
 };
 
+#define MSM_HSUSB_RESUME_GPIO	79
+
 static struct resource resources_hsusb[] = {
 	{
 		.start	= MSM9615_HSUSB_PHYS,
@@ -136,19 +153,37 @@ static struct resource resources_hsusb[] = {
 		.end	= USB1_HS_IRQ,
 		.flags	= IORESOURCE_IRQ,
 	},
+	{
+		.start	= MSM_HSUSB_RESUME_GPIO,
+		.end	= MSM_HSUSB_RESUME_GPIO,
+		.name	= "USB_RESUME",
+		.flags	= IORESOURCE_IO,
+	},
 };
 
 static struct resource resources_usb_bam[] = {
 	{
 		.name	= "usb_bam_addr",
 		.start	= MSM_USB_BAM_BASE,
-		.end	= MSM_USB_BAM_BASE + MSM_USB_BAM_SIZE,
+		.end	= MSM_USB_BAM_BASE + MSM_USB_BAM_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
 		.name	= "usb_bam_irq",
 		.start	= USB1_HS_BAM_IRQ,
 		.end	= USB1_HS_BAM_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "hsic_bam_addr",
+		.start	= MSM_HSIC_BAM_BASE,
+		.end	= MSM_HSIC_BAM_BASE + MSM_HSIC_BAM_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "hsic_bam_irq",
+		.start	= USB_HSIC_BAM_IRQ,
+		.end	= USB_HSIC_BAM_IRQ,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -165,6 +200,29 @@ struct platform_device msm_device_gadget_peripheral = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(resources_hsusb),
 	.resource	= resources_hsusb,
+	.dev		= {
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+static struct resource resources_hsic_peripheral[] = {
+	{
+		.start	= MSM9615_HSIC_PHYS,
+		.end	= MSM9615_HSIC_PHYS + MSM9615_HSIC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= USB_HSIC_IRQ,
+		.end	= USB_HSIC_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device msm_device_hsic_peripheral = {
+	.name		= "msm_hsic_peripheral",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_hsic_peripheral),
+	.resource	= resources_hsic_peripheral,
 	.dev		= {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
@@ -190,6 +248,30 @@ struct platform_device msm_device_hsusb_host = {
 	.num_resources  = ARRAY_SIZE(resources_hsusb_host),
 	.resource       = resources_hsusb_host,
 	.dev            = {
+		.dma_mask               = &dma_mask,
+		.coherent_dma_mask      = 0xffffffff,
+	},
+};
+
+static struct resource resources_hsic_host[] = {
+	{
+		.start	= MSM9615_HSIC_PHYS,
+		.end	= MSM9615_HSIC_PHYS + MSM9615_HSIC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= USB_HSIC_IRQ,
+		.end	= USB_HSIC_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device msm_device_hsic_host = {
+	.name		= "msm_hsic_host",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_hsic_host),
+	.resource	= resources_hsic_host,
+	.dev		= {
 		.dma_mask               = &dma_mask,
 		.coherent_dma_mask      = 0xffffffff,
 	},
@@ -240,6 +322,19 @@ static struct resource resources_qup_i2c_gsbi5[] = {
 		.start	= GSBI5_QUP_IRQ,
 		.end	= GSBI5_QUP_IRQ,
 		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name   = "i2c_clk",
+		.start     = MSM_GPIO_I2C_CLK,
+		.end       = MSM_GPIO_I2C_CLK,
+		.flags     = IORESOURCE_IO,
+	},
+	{
+		.name   = "i2c_sda",
+		.start     = MSM_GPIO_I2C_SDA,
+		.end       = MSM_GPIO_I2C_SDA,
+		.flags     = IORESOURCE_IO,
+
 	},
 };
 
@@ -325,6 +420,185 @@ struct platform_device msm9615_slim_ctrl = {
 	},
 };
 
+struct platform_device msm_pcm = {
+	.name	= "msm-pcm-dsp",
+	.id	= -1,
+};
+
+struct platform_device msm_multi_ch_pcm = {
+	.name	= "msm-multi-ch-pcm-dsp",
+	.id	= -1,
+};
+
+struct platform_device msm_pcm_routing = {
+	.name	= "msm-pcm-routing",
+	.id	= -1,
+};
+
+struct platform_device msm_cpudai0 = {
+	.name	= "msm-dai-q6",
+	.id	= 0x4000,
+};
+
+struct platform_device msm_cpudai1 = {
+	.name	= "msm-dai-q6",
+	.id	= 0x4001,
+};
+
+struct platform_device msm_cpudai_bt_rx = {
+	.name   = "msm-dai-q6",
+	.id     = 0x3000,
+};
+
+struct platform_device msm_cpudai_bt_tx = {
+	.name   = "msm-dai-q6",
+	.id     = 0x3001,
+};
+
+/*
+ * Machine specific data for AUX PCM Interface
+ * which the driver will  be unware of.
+ */
+struct msm_dai_auxpcm_pdata auxpcm_pdata = {
+	.clk = "pcm_clk",
+	.mode_8k = {
+		.mode = AFE_PCM_CFG_MODE_PCM,
+		.sync = AFE_PCM_CFG_SYNC_INT,
+		.frame = AFE_PCM_CFG_FRM_256BPF,
+		.quant = AFE_PCM_CFG_QUANT_LINEAR_NOPAD,
+		.slot = 0,
+		.data = AFE_PCM_CFG_CDATAOE_MASTER,
+		.pcm_clk_rate = 2048000,
+	},
+	.mode_16k = {
+		.mode = AFE_PCM_CFG_MODE_PCM,
+		.sync = AFE_PCM_CFG_SYNC_INT,
+		.frame = AFE_PCM_CFG_FRM_256BPF,
+		.quant = AFE_PCM_CFG_QUANT_LINEAR_NOPAD,
+		.slot = 0,
+		.data = AFE_PCM_CFG_CDATAOE_MASTER,
+		.pcm_clk_rate = 4096000,
+	}
+};
+
+struct platform_device msm_cpudai_auxpcm_rx = {
+	.name = "msm-dai-q6",
+	.id = 2,
+	.dev = {
+		.platform_data = &auxpcm_pdata,
+	},
+};
+
+struct platform_device msm_cpudai_auxpcm_tx = {
+	.name = "msm-dai-q6",
+	.id = 3,
+	.dev = {
+		.platform_data = &auxpcm_pdata,
+	},
+};
+
+struct msm_dai_auxpcm_pdata sec_auxpcm_pdata = {
+	.clk = "sec_pcm_clk",
+	.mode_8k = {
+		.mode = AFE_PCM_CFG_MODE_PCM,
+		.sync = AFE_PCM_CFG_SYNC_INT,
+		.frame = AFE_PCM_CFG_FRM_256BPF,
+		.quant = AFE_PCM_CFG_QUANT_LINEAR_NOPAD,
+		.slot = 0,
+		.data = AFE_PCM_CFG_CDATAOE_MASTER,
+		.pcm_clk_rate = 2048000,
+	},
+	.mode_16k = {
+		.mode = AFE_PCM_CFG_MODE_PCM,
+		.sync = AFE_PCM_CFG_SYNC_INT,
+		.frame = AFE_PCM_CFG_FRM_256BPF,
+		.quant = AFE_PCM_CFG_QUANT_LINEAR_NOPAD,
+		.slot = 0,
+		.data = AFE_PCM_CFG_CDATAOE_MASTER,
+		.pcm_clk_rate = 4096000,
+	}
+};
+
+struct platform_device msm_cpudai_sec_auxpcm_rx = {
+	.name = "msm-dai-q6",
+	.id = 12,
+	.dev = {
+		.platform_data = &sec_auxpcm_pdata,
+	},
+};
+
+struct platform_device msm_cpudai_sec_auxpcm_tx = {
+	.name = "msm-dai-q6",
+	.id = 13,
+	.dev = {
+		.platform_data = &sec_auxpcm_pdata,
+	},
+};
+
+struct platform_device msm_cpu_fe = {
+	.name	= "msm-dai-fe",
+	.id	= -1,
+};
+
+struct platform_device msm_stub_codec = {
+	.name	= "msm-stub-codec",
+	.id	= 1,
+};
+
+struct platform_device msm_voice = {
+	.name	= "msm-pcm-voice",
+	.id	= -1,
+};
+
+struct platform_device msm_i2s_cpudai0 = {
+	.name   = "msm-dai-q6",
+	.id     = PRIMARY_I2S_RX,
+};
+
+struct platform_device msm_i2s_cpudai1 = {
+	.name   = "msm-dai-q6",
+	.id     = PRIMARY_I2S_TX,
+};
+struct platform_device msm_voip = {
+	.name	= "msm-voip-dsp",
+	.id	= -1,
+};
+
+struct platform_device msm_compr_dsp = {
+	.name	= "msm-compr-dsp",
+	.id	= -1,
+};
+
+struct platform_device msm_pcm_hostless = {
+	.name	= "msm-pcm-hostless",
+	.id	= -1,
+};
+
+struct platform_device msm_cpudai_afe_01_rx = {
+	.name = "msm-dai-q6",
+	.id = 0xE0,
+};
+
+struct platform_device msm_cpudai_afe_01_tx = {
+	.name = "msm-dai-q6",
+	.id = 0xF0,
+};
+
+struct platform_device msm_cpudai_afe_02_rx = {
+	.name = "msm-dai-q6",
+	.id = 0xF1,
+};
+
+struct platform_device msm_cpudai_afe_02_tx = {
+	.name = "msm-dai-q6",
+	.id = 0xE1,
+};
+
+struct platform_device msm_pcm_afe = {
+	.name	= "msm-pcm-afe",
+	.id	= -1,
+};
+
 static struct resource resources_ssbi_pmic1[] = {
 	{
 		.start  = MSM_PMIC1_SSBI_CMD_PHYS,
@@ -379,21 +653,6 @@ struct platform_device msm_device_sps = {
 	.dev.platform_data = &msm_sps_pdata,
 };
 
-static struct tsens_platform_data msm_tsens_pdata = {
-	.slope			= 910,
-	.tsens_factor		= 1000,
-	.hw_type		= MSM_9615,
-	.tsens_num_sensor	= 5,
-};
-
-struct platform_device msm9615_device_tsens = {
-	.name		= "tsens8960-tm",
-	.id		= -1,
-	.dev 		= {
-		.platform_data = &msm_tsens_pdata,
-	},
-};
-
 #define MSM_NAND_PHYS		0x1B400000
 static struct resource resources_nand[] = {
 	[0] = {
@@ -411,8 +670,7 @@ static struct resource resources_nand[] = {
 };
 
 struct flash_platform_data msm_nand_data = {
-	.parts		= NULL,
-	.nr_parts	= 0,
+	.version = VERSION_2,
 };
 
 struct platform_device msm_device_nand = {
@@ -679,6 +937,30 @@ int __init msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat)
 	return platform_device_register(pdev);
 }
 
+#ifdef CONFIG_FB_MSM_EBI2
+static struct resource msm_ebi2_lcdc_resources[] = {
+	{
+		.name   = "base",
+		.start  = 0x1B300000,
+		.end    = 0x1B300000 + PAGE_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "lcd01",
+		.start  = 0x1FC00000,
+		.end    = 0x1FC00000 + 0x80000 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device msm_ebi2_lcdc_device = {
+	.name   = "ebi2_lcd",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_ebi2_lcdc_resources),
+	.resource       = msm_ebi2_lcdc_resources,
+};
+#endif
+
 #ifdef CONFIG_CACHE_L2X0
 static int __init l2x0_cache_init(void)
 {
@@ -701,72 +983,152 @@ static int __init l2x0_cache_init(void)
 static int __init l2x0_cache_init(void){ return 0; }
 #endif
 
-struct msm_rpm_map_data rpm_map_data[] __initdata = {
-	MSM_RPM_MAP(TRIGGER_TIMED_TO, TRIGGER_TIMED, 1),
-	MSM_RPM_MAP(TRIGGER_TIMED_SCLK_COUNT, TRIGGER_TIMED, 1),
-
-	MSM_RPM_MAP(RPM_CTL, RPM_CTL, 1),
-
-	MSM_RPM_MAP(CXO_CLK, CXO_CLK, 1),
-	MSM_RPM_MAP(SYSTEM_FABRIC_CLK, SYSTEM_FABRIC_CLK, 1),
-	MSM_RPM_MAP(DAYTONA_FABRIC_CLK, DAYTONA_FABRIC_CLK, 1),
-	MSM_RPM_MAP(SFPB_CLK, SFPB_CLK, 1),
-	MSM_RPM_MAP(CFPB_CLK, CFPB_CLK, 1),
-	MSM_RPM_MAP(EBI1_CLK, EBI1_CLK, 1),
-
-	MSM_RPM_MAP(SYS_FABRIC_CFG_HALT_0, SYS_FABRIC_CFG_HALT, 2),
-	MSM_RPM_MAP(SYS_FABRIC_CFG_CLKMOD_0, SYS_FABRIC_CFG_CLKMOD, 3),
-	MSM_RPM_MAP(SYS_FABRIC_CFG_IOCTL, SYS_FABRIC_CFG_IOCTL, 1),
-	MSM_RPM_MAP(SYSTEM_FABRIC_ARB_0, SYSTEM_FABRIC_ARB, 27),
-
-	MSM_RPM_MAP(PM8018_S1_0, PM8018_S1, 2),
-	MSM_RPM_MAP(PM8018_S2_0, PM8018_S2, 2),
-	MSM_RPM_MAP(PM8018_S3_0, PM8018_S3, 2),
-	MSM_RPM_MAP(PM8018_S4_0, PM8018_S4, 2),
-	MSM_RPM_MAP(PM8018_S5_0, PM8018_S5, 2),
-	MSM_RPM_MAP(PM8018_L1_0, PM8018_L1, 2),
-	MSM_RPM_MAP(PM8018_L2_0, PM8018_L2, 2),
-	MSM_RPM_MAP(PM8018_L3_0, PM8018_L3, 2),
-	MSM_RPM_MAP(PM8018_L4_0, PM8018_L4, 2),
-	MSM_RPM_MAP(PM8018_L5_0, PM8018_L5, 2),
-	MSM_RPM_MAP(PM8018_L6_0, PM8018_L6, 2),
-	MSM_RPM_MAP(PM8018_L7_0, PM8018_L7, 2),
-	MSM_RPM_MAP(PM8018_L8_0, PM8018_L8, 2),
-	MSM_RPM_MAP(PM8018_L9_0, PM8018_L9, 2),
-	MSM_RPM_MAP(PM8018_L10_0, PM8018_L10, 2),
-	MSM_RPM_MAP(PM8018_L11_0, PM8018_L11, 2),
-	MSM_RPM_MAP(PM8018_L12_0, PM8018_L12, 2),
-	MSM_RPM_MAP(PM8018_L13_0, PM8018_L13, 2),
-	MSM_RPM_MAP(PM8018_L14_0, PM8018_L14, 2),
-	MSM_RPM_MAP(PM8018_LVS1, PM8018_LVS1, 1),
-	MSM_RPM_MAP(NCP_0, NCP, 2),
-	MSM_RPM_MAP(CXO_BUFFERS, CXO_BUFFERS, 1),
-	MSM_RPM_MAP(USB_OTG_SWITCH, USB_OTG_SWITCH, 1),
-	MSM_RPM_MAP(HDMI_SWITCH, HDMI_SWITCH, 1),
-};
-unsigned int rpm_map_data_size = ARRAY_SIZE(rpm_map_data);
-
-static struct msm_rpm_platform_data msm_rpm_data = {
+struct msm_rpm_platform_data msm9615_rpm_data __initdata = {
 	.reg_base_addrs = {
 		[MSM_RPM_PAGE_STATUS] = MSM_RPM_BASE,
 		[MSM_RPM_PAGE_CTRL] = MSM_RPM_BASE + 0x400,
 		[MSM_RPM_PAGE_REQ] = MSM_RPM_BASE + 0x600,
 		[MSM_RPM_PAGE_ACK] = MSM_RPM_BASE + 0xa00,
 	},
-
 	.irq_ack = RPM_APCC_CPU0_GP_HIGH_IRQ,
 	.irq_err = RPM_APCC_CPU0_GP_LOW_IRQ,
-	.irq_vmpm = RPM_APCC_CPU0_GP_MEDIUM_IRQ,
-	.msm_apps_ipc_rpm_reg = MSM_APCS_GCC_BASE + 0x008,
-	.msm_apps_ipc_rpm_val = 4,
+	.irq_wakeup = RPM_APCC_CPU0_WAKE_UP_IRQ,
+	.ipc_rpm_reg = MSM_APCS_GCC_BASE + 0x008,
+	.ipc_rpm_val = 4,
+	.target_id = {
+		MSM_RPM_MAP(9615, NOTIFICATION_CONFIGURED_0, NOTIFICATION, 4),
+		MSM_RPM_MAP(9615, NOTIFICATION_REGISTERED_0, NOTIFICATION, 4),
+		MSM_RPM_MAP(9615, INVALIDATE_0, INVALIDATE, 8),
+		MSM_RPM_MAP(9615, TRIGGER_TIMED_TO, TRIGGER_TIMED, 1),
+		MSM_RPM_MAP(9615, TRIGGER_TIMED_SCLK_COUNT, TRIGGER_TIMED, 1),
+		MSM_RPM_MAP(9615, RPM_CTL, RPM_CTL, 1),
+		MSM_RPM_MAP(9615, CXO_CLK, CXO_CLK, 1),
+		MSM_RPM_MAP(9615, SYSTEM_FABRIC_CLK, SYSTEM_FABRIC_CLK, 1),
+		MSM_RPM_MAP(9615, DAYTONA_FABRIC_CLK, DAYTONA_FABRIC_CLK, 1),
+		MSM_RPM_MAP(9615, SFPB_CLK, SFPB_CLK, 1),
+		MSM_RPM_MAP(9615, CFPB_CLK, CFPB_CLK, 1),
+		MSM_RPM_MAP(9615, EBI1_CLK, EBI1_CLK, 1),
+		MSM_RPM_MAP(9615, SYS_FABRIC_CFG_HALT_0,
+				SYS_FABRIC_CFG_HALT, 2),
+		MSM_RPM_MAP(9615, SYS_FABRIC_CFG_CLKMOD_0,
+				SYS_FABRIC_CFG_CLKMOD, 3),
+		MSM_RPM_MAP(9615, SYS_FABRIC_CFG_IOCTL,
+				SYS_FABRIC_CFG_IOCTL, 1),
+		MSM_RPM_MAP(9615, SYSTEM_FABRIC_ARB_0,
+				SYSTEM_FABRIC_ARB, 27),
+		MSM_RPM_MAP(9615, PM8018_S1_0, PM8018_S1, 2),
+		MSM_RPM_MAP(9615, PM8018_S2_0, PM8018_S2, 2),
+		MSM_RPM_MAP(9615, PM8018_S3_0, PM8018_S3, 2),
+		MSM_RPM_MAP(9615, PM8018_S4_0, PM8018_S4, 2),
+		MSM_RPM_MAP(9615, PM8018_S5_0, PM8018_S5, 2),
+		MSM_RPM_MAP(9615, PM8018_L1_0, PM8018_L1, 2),
+		MSM_RPM_MAP(9615, PM8018_L2_0, PM8018_L2, 2),
+		MSM_RPM_MAP(9615, PM8018_L3_0, PM8018_L3, 2),
+		MSM_RPM_MAP(9615, PM8018_L4_0, PM8018_L4, 2),
+		MSM_RPM_MAP(9615, PM8018_L5_0, PM8018_L5, 2),
+		MSM_RPM_MAP(9615, PM8018_L6_0, PM8018_L6, 2),
+		MSM_RPM_MAP(9615, PM8018_L7_0, PM8018_L7, 2),
+		MSM_RPM_MAP(9615, PM8018_L8_0, PM8018_L8, 2),
+		MSM_RPM_MAP(9615, PM8018_L9_0, PM8018_L9, 2),
+		MSM_RPM_MAP(9615, PM8018_L10_0, PM8018_L10, 2),
+		MSM_RPM_MAP(9615, PM8018_L11_0, PM8018_L11, 2),
+		MSM_RPM_MAP(9615, PM8018_L12_0, PM8018_L12, 2),
+		MSM_RPM_MAP(9615, PM8018_L13_0, PM8018_L13, 2),
+		MSM_RPM_MAP(9615, PM8018_L14_0, PM8018_L14, 2),
+		MSM_RPM_MAP(9615, PM8018_LVS1, PM8018_LVS1, 1),
+		MSM_RPM_MAP(9615, NCP_0, NCP, 2),
+		MSM_RPM_MAP(9615, CXO_BUFFERS, CXO_BUFFERS, 1),
+		MSM_RPM_MAP(9615, USB_OTG_SWITCH, USB_OTG_SWITCH, 1),
+		MSM_RPM_MAP(9615, HDMI_SWITCH, HDMI_SWITCH, 1),
+		MSM_RPM_MAP(9615, VOLTAGE_CORNER, VOLTAGE_CORNER, 1),
+	},
+	.target_status = {
+		MSM_RPM_STATUS_ID_MAP(9615, VERSION_MAJOR),
+		MSM_RPM_STATUS_ID_MAP(9615, VERSION_MINOR),
+		MSM_RPM_STATUS_ID_MAP(9615, VERSION_BUILD),
+		MSM_RPM_STATUS_ID_MAP(9615, SUPPORTED_RESOURCES_0),
+		MSM_RPM_STATUS_ID_MAP(9615, SUPPORTED_RESOURCES_1),
+		MSM_RPM_STATUS_ID_MAP(9615, SUPPORTED_RESOURCES_2),
+		MSM_RPM_STATUS_ID_MAP(9615, RESERVED_SUPPORTED_RESOURCES_0),
+		MSM_RPM_STATUS_ID_MAP(9615, SEQUENCE),
+		MSM_RPM_STATUS_ID_MAP(9615, RPM_CTL),
+		MSM_RPM_STATUS_ID_MAP(9615, CXO_CLK),
+		MSM_RPM_STATUS_ID_MAP(9615, SYSTEM_FABRIC_CLK),
+		MSM_RPM_STATUS_ID_MAP(9615, DAYTONA_FABRIC_CLK),
+		MSM_RPM_STATUS_ID_MAP(9615, SFPB_CLK),
+		MSM_RPM_STATUS_ID_MAP(9615, CFPB_CLK),
+		MSM_RPM_STATUS_ID_MAP(9615, EBI1_CLK),
+		MSM_RPM_STATUS_ID_MAP(9615, SYS_FABRIC_CFG_HALT),
+		MSM_RPM_STATUS_ID_MAP(9615, SYS_FABRIC_CFG_CLKMOD),
+		MSM_RPM_STATUS_ID_MAP(9615, SYS_FABRIC_CFG_IOCTL),
+		MSM_RPM_STATUS_ID_MAP(9615, SYSTEM_FABRIC_ARB),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S1_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S1_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S2_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S2_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S3_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S3_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S4_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S4_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S5_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_S5_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L1_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L1_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L2_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L2_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L3_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L3_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L4_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L4_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L5_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L5_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L6_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L6_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L7_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L7_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L8_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L8_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L9_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L9_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L10_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L10_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L11_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L11_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L12_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L12_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L13_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L13_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L14_0),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_L14_1),
+		MSM_RPM_STATUS_ID_MAP(9615, PM8018_LVS1),
+		MSM_RPM_STATUS_ID_MAP(9615, NCP_0),
+		MSM_RPM_STATUS_ID_MAP(9615, NCP_1),
+		MSM_RPM_STATUS_ID_MAP(9615, CXO_BUFFERS),
+		MSM_RPM_STATUS_ID_MAP(9615, USB_OTG_SWITCH),
+		MSM_RPM_STATUS_ID_MAP(9615, HDMI_SWITCH),
+		MSM_RPM_STATUS_ID_MAP(9615, VOLTAGE_CORNER),
+	},
+	.target_ctrl_id = {
+		MSM_RPM_CTRL_MAP(9615, VERSION_MAJOR),
+		MSM_RPM_CTRL_MAP(9615, VERSION_MINOR),
+		MSM_RPM_CTRL_MAP(9615, VERSION_BUILD),
+		MSM_RPM_CTRL_MAP(9615, REQ_CTX_0),
+		MSM_RPM_CTRL_MAP(9615, REQ_SEL_0),
+		MSM_RPM_CTRL_MAP(9615, ACK_CTX_0),
+		MSM_RPM_CTRL_MAP(9615, ACK_SEL_0),
+	},
+	.sel_invalidate = MSM_RPM_9615_SEL_INVALIDATE,
+	.sel_notification = MSM_RPM_9615_SEL_NOTIFICATION,
+	.sel_last = MSM_RPM_9615_SEL_LAST,
+	.ver = {3, 0, 0},
 };
 
-struct platform_device msm_rpm_device = {
+struct platform_device msm9615_rpm_device = {
 	.name   = "msm_rpm",
 	.id     = -1,
 };
 
-static uint16_t msm_mpm_irqs_m2a[MSM_MPM_NR_MPM_IRQS] = {
+static uint16_t msm_mpm_irqs_m2a[MSM_MPM_NR_MPM_IRQS] __initdata = {
 	[4] = MSM_GPIO_TO_INT(30),
 	[5] = MSM_GPIO_TO_INT(59),
 	[6] = MSM_GPIO_TO_INT(81),
@@ -782,6 +1144,7 @@ static uint16_t msm_mpm_irqs_m2a[MSM_MPM_NR_MPM_IRQS] = {
 	[16] = MSM_GPIO_TO_INT(15),
 	[19] = MSM_GPIO_TO_INT(26),
 	[20] = MSM_GPIO_TO_INT(28),
+	[22] = USB_HSIC_IRQ,
 	[23] = MSM_GPIO_TO_INT(19),
 	[24] = MSM_GPIO_TO_INT(23),
 	[26] = MSM_GPIO_TO_INT(3),
@@ -810,7 +1173,7 @@ static uint16_t msm_mpm_irqs_m2a[MSM_MPM_NR_MPM_IRQS] = {
 	[55] = MSM_GPIO_TO_INT(27),
 };
 
-static uint16_t msm_mpm_bypassed_apps_irqs[] = {
+static uint16_t msm_mpm_bypassed_apps_irqs[] __initdata = {
 	TLMM_MSM_SUMMARY_IRQ,
 	RPM_APCC_CPU0_GP_HIGH_IRQ,
 	RPM_APCC_CPU0_GP_MEDIUM_IRQ,
@@ -825,7 +1188,7 @@ static uint16_t msm_mpm_bypassed_apps_irqs[] = {
 	A2_BAM_IRQ,
 };
 
-struct msm_mpm_device_data msm_mpm_dev_data = {
+struct msm_mpm_device_data msm9615_mpm_dev_data __initdata = {
 	.irqs_m2a = msm_mpm_irqs_m2a,
 	.irqs_m2a_size = ARRAY_SIZE(msm_mpm_irqs_m2a),
 	.bypassed_apps_irqs = msm_mpm_bypassed_apps_irqs,
@@ -888,7 +1251,6 @@ static struct msm_rpmrs_level msm_rpmrs_levels[] __initdata = {
 		true,
 		100, 8000, 100000, 1,
 	},
-
 	{
 		MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE,
 		MSM_RPMRS_LIMITS(ON, ACTIVE, MAX, ACTIVE),
@@ -915,12 +1277,112 @@ static struct msm_rpmrs_level msm_rpmrs_levels[] __initdata = {
 	},
 };
 
+static struct msm_rpmrs_platform_data msm_rpmrs_data __initdata = {
+	.levels = &msm_rpmrs_levels[0],
+	.num_levels = ARRAY_SIZE(msm_rpmrs_levels),
+	.vdd_mem_levels  = {
+		[MSM_RPMRS_VDD_MEM_RET_LOW]     = 750000,
+		[MSM_RPMRS_VDD_MEM_RET_HIGH]    = 750000,
+		[MSM_RPMRS_VDD_MEM_ACTIVE]      = 1050000,
+		[MSM_RPMRS_VDD_MEM_MAX]         = 1150000,
+	},
+	.vdd_dig_levels = {
+		[MSM_RPMRS_VDD_DIG_RET_LOW]     = 0,
+		[MSM_RPMRS_VDD_DIG_RET_HIGH]    = 0,
+		[MSM_RPMRS_VDD_DIG_ACTIVE]      = 1,
+		[MSM_RPMRS_VDD_DIG_MAX]         = 3,
+	},
+	.vdd_mask = 0x7FFFFF,
+	.rpmrs_target_id = {
+		[MSM_RPMRS_ID_PXO_CLK]          = MSM_RPM_ID_CXO_CLK,
+		[MSM_RPMRS_ID_L2_CACHE_CTL]     = MSM_RPM_ID_LAST,
+		[MSM_RPMRS_ID_VDD_DIG_0]        = MSM_RPM_ID_VOLTAGE_CORNER,
+		[MSM_RPMRS_ID_VDD_DIG_1]        = MSM_RPM_ID_LAST,
+		[MSM_RPMRS_ID_VDD_MEM_0]        = MSM_RPM_ID_PM8018_L9_0,
+		[MSM_RPMRS_ID_VDD_MEM_1]        = MSM_RPM_ID_PM8018_L9_1,
+		[MSM_RPMRS_ID_RPM_CTL]          = MSM_RPM_ID_RPM_CTL,
+	},
+};
+
+static struct msm_rpmstats_platform_data msm_rpm_stat_pdata = {
+	.phys_addr_base = 0x0010D204,
+	.phys_size = SZ_8K,
+};
+
+struct platform_device msm9615_rpm_stat_device = {
+	.name = "msm_rpm_stat",
+	.id = -1,
+	.dev = {
+		.platform_data = &msm_rpm_stat_pdata,
+	},
+};
+
+static struct msm_rpm_log_platform_data msm_rpm_log_pdata = {
+	.phys_addr_base = 0x0010AC00,
+	.reg_offsets = {
+		[MSM_RPM_LOG_PAGE_INDICES] = 0x00000080,
+		[MSM_RPM_LOG_PAGE_BUFFER]  = 0x000000A0,
+	},
+	.phys_size = SZ_8K,
+	.log_len = 4096,		  /* log's buffer length in bytes */
+	.log_len_mask = (4096 >> 2) - 1,  /* length mask in units of u32 */
+};
+
+struct platform_device msm9615_rpm_log_device = {
+	.name	= "msm_rpm_log",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &msm_rpm_log_pdata,
+	},
+};
+
+uint32_t __init msm9615_rpm_get_swfi_latency(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(msm_rpmrs_levels); i++) {
+		if (msm_rpmrs_levels[i].sleep_mode ==
+			MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT)
+				return msm_rpmrs_levels[i].latency_us;
+	}
+	return 0;
+}
+
+struct android_usb_platform_data msm_android_usb_pdata = {
+	.usb_core_id = 0,
+};
+
+struct platform_device msm_android_usb_device = {
+	.name	= "android_usb",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &msm_android_usb_pdata,
+	},
+};
+
+struct android_usb_platform_data msm_android_usb_hsic_pdata  = {
+	.usb_core_id = 1,
+};
+
+struct platform_device msm_android_usb_hsic_device = {
+	.name	= "android_usb_hsic",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &msm_android_usb_hsic_pdata,
+	},
+};
+
+
 void __init msm9615_device_init(void)
 {
 	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
-	BUG_ON(msm_rpm_init(&msm_rpm_data));
-	BUG_ON(msm_rpmrs_levels_init(msm_rpmrs_levels,
-			ARRAY_SIZE(msm_rpmrs_levels)));
+	BUG_ON(msm_rpm_init(&msm9615_rpm_data));
+	BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
+	msm_android_usb_pdata.swfi_latency =
+		msm_rpmrs_levels[0].latency_us;
+	msm_android_usb_hsic_pdata.swfi_latency =
+		msm_rpmrs_levels[0].latency_us;
+
 }
 
 #define MSM_SHARED_RAM_PHYS 0x40000000
@@ -935,15 +1397,15 @@ void __init msm9615_map_io(void)
 
 void __init msm9615_init_irq(void)
 {
-	msm_mpm_irq_extn_init();
+	struct msm_mpm_device_data *data = NULL;
+
+#ifdef CONFIG_MSM_MPM
+	data = &msm9615_mpm_dev_data;
+#endif
+
+	msm_mpm_irq_extn_init(data);
 	gic_init(0, GIC_PPI_START, MSM_QGIC_DIST_BASE,
 						(void *)MSM_QGIC_CPU_BASE);
-
-	/* Edge trigger PPIs except AVS_SVICINT and AVS_SVICINTSWDONE */
-	writel_relaxed(0xFFFFD7FF, MSM_QGIC_DIST_BASE + GIC_DIST_CONFIG + 4);
-
-	writel_relaxed(0x0000FFFF, MSM_QGIC_DIST_BASE + GIC_DIST_ENABLE_SET);
-	mb();
 }
 
 struct platform_device msm_bus_9615_sys_fabric = {
@@ -955,3 +1417,26 @@ struct platform_device msm_bus_def_fab = {
 	.name  = "msm_bus_fabric",
 	.id    =  MSM_BUS_FAB_DEFAULT,
 };
+
+#ifdef CONFIG_FB_MSM_EBI2
+static void __init msm_register_device(struct platform_device *pdev, void *data)
+{
+	int ret;
+
+	pdev->dev.platform_data = data;
+
+	ret = platform_device_register(pdev);
+	if (ret)
+		dev_err(&pdev->dev,
+			  "%s: platform_device_register() failed = %d\n",
+			  __func__, ret);
+}
+
+void __init msm_fb_register_device(char *name, void *data)
+{
+	if (!strncmp(name, "ebi2", 4))
+		msm_register_device(&msm_ebi2_lcdc_device, data);
+	else
+		pr_err("%s: unknown device! %s\n", __func__, name);
+}
+#endif

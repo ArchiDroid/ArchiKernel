@@ -15,6 +15,7 @@
 #include <linux/fcntl.h>
 #include <linux/platform_device.h>
 #include "diagchar_hdlc.h"
+#include <mach/msm_smd.h>
 #include "diagfwd.h"
 #include "diagmem.h"
 #include "diagchar.h"
@@ -775,7 +776,7 @@ static int diagchar_open(void)
 			mutex_unlock(&driver->diagchar_mutex);
 			return -ENOMEM;
 		}
-
+		driver->data_ready[i] = 0x0;
 		driver->data_ready[i] |= MSG_MASKS_TYPE;
 		driver->data_ready[i] |= EVENT_MASKS_TYPE;
 		driver->data_ready[i] |= LOG_MASKS_TYPE;
@@ -798,7 +799,7 @@ static int diagchar_ioctl_servie(unsigned int iocmd, unsigned long ioarg)
 		struct bindpkt_params_per_process *pkt_params =
 			(struct bindpkt_params_per_process *) ioarg;
 
-		for (i = 0; i < diag_max_registration; i++) { // REG_TABLE_SIZE -> diag_max_registration
+		for (i = 0; i < diag_max_reg; i++) { // REG_TABLE_SIZE -> diag_max_registration
 			if (driver->table[i].process_id == 0) {
 				driver->table[i].cmd_code =
 					pkt_params->params->cmd_code;
@@ -1624,7 +1625,7 @@ static void process_diag_payload(void)
 	int type = *(int *)read_buffer;
 	unsigned char* ptr = read_buffer+4;
 
-#ifdef LG_DIAG_DEBUG
+#if 1//def LG_DIAG_DEBUG
 	printk(KERN_INFO "\n LG_FW : %s enter ,  read_buffer = 0x%x, type= %d\n", __func__,(uint32_t)read_buffer,type);
 #endif
 
@@ -1636,13 +1637,13 @@ static int CreateWaitThread(void* param)
 {
 	if(diagchar_open() != 0)
 	{
-#ifdef LG_DIAG_DEBUG
+#if 1 //def LG_DIAG_DEBUG
 		printk(KERN_INFO "\n LG_FW :	size written is %d \n", driver->used);
 #endif
 		kthread_stop(lg_diag_thread);
 		return 0; 	 
 	}
-#ifdef LG_DIAG_DEBUG
+#if 1//def LG_DIAG_DEBUG
 	printk(KERN_INFO "LG_FW : diagchar_open succeed\n");
 #endif
 
@@ -1650,20 +1651,32 @@ static int CreateWaitThread(void* param)
 
 	do{
 		num_bytes_read = diagchar_read(read_buffer, READ_BUF_SIZE);
-#ifdef LG_DIAG_DEBUG
+#if 1//def LG_DIAG_DEBUG
 		printk(KERN_DEBUG "LG_FW : CreateWaitThread, diagchar_read %d byte",num_bytes_read);
 #endif
 		if(*(int *)read_buffer == DEINIT_TYPE)
+		{
 			break;
-		process_diag_payload();
+		}
+		/* LGE CHANGE : khyun.kim@lge.com LG diag interface modified.
+		Remove unnecessary loops.
+		*/
+		else if(*(int *)read_buffer != PKT_TYPE)
+		{
+			continue;
+		}
+		else
+		{			
+			process_diag_payload();
+		}
 	}while(1);
 
 	return 0;
 }
 
-void lgfw_diag_kernel_service_init(int driver_ptr)
+void lgfw_diag_kernel_service_init(struct diagchar_dev* driver_ptr)
 {
-	driver = (struct diagchar_dev*)driver_ptr;
+	driver = driver_ptr;
 
 	lg_diag_thread = kthread_run(CreateWaitThread, NULL, "kthread_lg_diag");
 	if (IS_ERR(lg_diag_thread)) {

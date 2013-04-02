@@ -203,7 +203,7 @@ ENTRY(v6_flush_kern_dcache_area)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(v6_dma_inv_range)
+v6_dma_inv_range:
 #ifdef CONFIG_DMA_CACHE_RWFO
 	ldrb	r2, [r0]			@ read for ownership
 	strb	r2, [r0]			@ write for ownership
@@ -248,7 +248,7 @@ ENTRY(v6_dma_inv_range)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(v6_dma_clean_range)
+v6_dma_clean_range:
 	bic	r0, r0, #D_CACHE_LINE_SIZE - 1
 1:
 #ifdef CONFIG_DMA_CACHE_RWFO
@@ -347,18 +347,5 @@ ENDPROC(v6_dma_unmap_area)
 
 	__INITDATA
 
-	.type	v6_cache_fns, #object
-ENTRY(v6_cache_fns)
-	.long	v6_flush_icache_all
-	.long	v6_flush_kern_cache_all
-	.long	v6_flush_user_cache_all
-	.long	v6_flush_user_cache_range
-	.long	v6_coherent_kern_range
-	.long	v6_coherent_user_range
-	.long	v6_flush_kern_dcache_area
-	.long	v6_dma_map_area
-	.long	v6_dma_unmap_area
-	.long	v6_dma_inv_range
-	.long	v6_dma_clean_range
-	.long	v6_dma_flush_range
-	.size	v6_cache_fns, . - v6_cache_fns
+	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
+	define_cache_functions v6

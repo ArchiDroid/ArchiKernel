@@ -12,13 +12,19 @@ config SWITCH_GPIO
 	help
 	  Say Y here to enable GPIO based switch support.
 
-# LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
+# LGE_UPDATE_S	: jaz.john@lge.com  20120421
 # headset detect switch
 config LGE_SWITCH_GPIO
 	bool "LGE GPIO Swith support"
 	depends on GENERIC_GPIO
 	help
 	  Say Y here to enable LGE GPIO based switch support.
-# LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+# LGE_UPDATE_E		20120421	
+
+config LGE_HEADSET_DETECTION_FSA8008
+    tristate "FSA8008 Headset Switch"
+	help
+	  Say Y here to enable LGE headset detector ic.
+
 
 endif # SWITCH

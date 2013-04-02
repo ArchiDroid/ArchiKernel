@@ -44,3 +44,28 @@ config MMC_PARANOID_SD_INIT
 	  about re-trying SD init requests. This can be a useful
 	  work-around for buggy controllers and hardware. Enable
 	  if you are experiencing issues with SD detection.
+
+# LGE_CHANGE_S : bohyun.jung@lge.com 
+config MMC_ISSUE_HPI_CMD_ON_PRG_STATE
+	bool "Enable HPI CMD on PRG_STATE"
+	default y
+	help
+	  If you say Y here, the MMC only issue HPI command on PRG state.
+	  remove possibility of infinite loop; continously sending HPI command
+	  not recommanded on emmc spec.
+
+config MACH_SAMSUNG_EMMC_V441_PLUS
+	bool "Samsung EMMC ver. 4.41 Plus"
+	default n
+	help
+	  If you say Y here, disable bkops.
+
+config MACH_FEATURE_DISCARD
+	bool "Discard Option"
+	default n
+	help
+	  If you say Y here, additional feature like discard is enabled.
+	  Before actually enable discard, it double check emmc version and manufacture id.
+	  support over 4.5 or samsung emmc 4.41+ (vendor confirm).
+
+# LGE_CHANGE_E : bohyun.jung@lge.com 

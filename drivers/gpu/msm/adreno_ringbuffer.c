@@ -53,11 +53,9 @@ adreno_ringbuffer_waitspace(struct adreno_ringbuffer *rb, unsigned int numcmds,
 	unsigned int freecmds;
 	unsigned int *cmds;
 	uint cmds_gpu;
-	struct adreno_device *adreno_dev = ADRENO_DEVICE(rb->device);
-	unsigned long wait_timeout = msecs_to_jiffies(adreno_dev->wait_timeout);
 	unsigned long wait_time;
+	unsigned long wait_timeout = msecs_to_jiffies(ADRENO_IDLE_TIMEOUT);
 	unsigned long wait_time_part;
-	unsigned int msecs_part = KGSL_TIMEOUT_PART;
 	unsigned int prev_reg_val[hang_detect_regs_count];
 
 	memset(prev_reg_val, 0, sizeof(prev_reg_val));
@@ -88,7 +86,7 @@ adreno_ringbuffer_waitspace(struct adreno_ringbuffer *rb, unsigned int numcmds,
 	}
 
 	wait_time = jiffies + wait_timeout;
-	wait_time_part = jiffies + msecs_to_jiffies(msecs_part);
+	wait_time_part = jiffies + msecs_to_jiffies(KGSL_TIMEOUT_PART);
 	/* wait for space in ringbuffer */
 	while (1) {
 		GSL_RB_GET_READPTR(rb, &rb->rptr);
@@ -102,7 +100,7 @@ adreno_ringbuffer_waitspace(struct adreno_ringbuffer *rb, unsigned int numcmds,
 		 */
 		if (time_after(jiffies, wait_time_part)) {
 			wait_time_part = jiffies +
-				msecs_to_jiffies(msecs_part);
+				msecs_to_jiffies(KGSL_TIMEOUT_PART);
 			if ((adreno_hang_detect(rb->device,
 						prev_reg_val))){
 				KGSL_DRV_ERR(rb->device,
@@ -394,7 +392,7 @@ int adreno_ringbuffer_start(struct adreno_ringbuffer *rb, unsigned int init_ram)
 	adreno_dev->gpudev->rb_init(adreno_dev, rb);
 
 	/* idle device to validate ME INIT */
-	status = adreno_idle(device, KGSL_TIMEOUT_DEFAULT);
+	status = adreno_idle(device);
 
 	if (status == 0)
 		rb->flags |= KGSL_FLAGS_STARTED;
@@ -511,6 +509,9 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 		total_sizedwords += 4; /* global timestamp for recovery*/
 	}
 
+	if (adreno_is_a20x(adreno_dev))
+		total_sizedwords += 2; /* CACHE_FLUSH */
+
 	ringcmds = adreno_ringbuffer_allocspace(rb, total_sizedwords);
 	/* GPU may hang during space allocation, if thats the case the current
 	 * context may have hung the GPU */
@@ -607,6 +608,12 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 				      eoptimestamp)));
 		GSL_RB_WRITE(ringcmds, rcmd_gpu,
 			rb->timestamp[KGSL_MEMSTORE_GLOBAL]);
+	}
+
+	if (adreno_is_a20x(adreno_dev)) {
+		GSL_RB_WRITE(ringcmds, rcmd_gpu,
+			cp_type3_packet(CP_EVENT_WRITE, 1));
+		GSL_RB_WRITE(ringcmds, rcmd_gpu, CACHE_FLUSH);
 	}
 
 	if (!(flags & KGSL_CMD_FLAGS_NO_TS_CMP)) {
@@ -942,7 +949,7 @@ adreno_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 	 * this is conservative but works reliably and is ok
 	 * even for performance simulations
 	 */
-	adreno_idle(device, KGSL_TIMEOUT_DEFAULT);
+	adreno_idle(device);
 #endif
 	/* If context hung and recovered then return error so that the
 	 * application may handle it */

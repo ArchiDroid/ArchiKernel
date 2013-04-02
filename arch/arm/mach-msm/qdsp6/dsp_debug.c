@@ -24,7 +24,7 @@
 #include <linux/delay.h>
 #include <asm/atomic.h>
 
-#include "../proc_comm.h"
+#include <mach/proc_comm.h>
 #include <mach/debug_mm.h>
 
 static wait_queue_head_t dsp_wait;

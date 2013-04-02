@@ -21,12 +21,13 @@
 
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/module.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/ctype.h>
 #include <linux/pm.h>
-
+#include <linux/device.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>

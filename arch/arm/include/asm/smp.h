@@ -71,12 +71,6 @@ extern void platform_secondary_init(unsigned int cpu);
 extern void platform_smp_prepare_cpus(unsigned int);
 
 /*
- * Logical CPU mapping.
- */
-extern int __cpu_logical_map[NR_CPUS];
-#define cpu_logical_map(cpu)	__cpu_logical_map[cpu]
-
-/*
  * Initial data for bringing up a secondary CPU.
  */
 struct secondary_data {
@@ -100,4 +94,5 @@ extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 extern void smp_send_all_cpu_backtrace(void);
+
 #endif /* ifndef __ASM_ARM_SMP_H */

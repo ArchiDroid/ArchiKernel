@@ -412,6 +412,13 @@ struct hci_cp_read_remote_version {
 	__le16   handle;
 } __packed;
 
+// +s LGBT_COMMON_PATCH_SR01017282 sunmee.choi@lge.com 2012-11-26 performance issue (opp request time)
+#define HCI_OP_READ_CLOCK_OFFSET	0x041f
+struct hci_cp_read_clock_offset {
+	__le16   handle;
+} __packed;
+// +e LGBT_COMMON_PATCH_SR01017282
+
 #define HCI_OP_SETUP_SYNC_CONN		0x0428
 struct hci_cp_setup_sync_conn {
 	__le16   handle;
@@ -869,6 +876,17 @@ struct hci_rp_read_data_block_size {
 	__le16   num_blocks;
 } __packed;
 
+#define HCI_OP_READ_RSSI	0x1405
+struct hci_cp_read_rssi {
+	__le16   handle;
+} __packed;
+
+struct hci_rp_read_rssi {
+	__u8     status;
+	__le16   handle;
+	__s8     rssi;
+} __packed;
+
 #define HCI_OP_READ_LOCAL_AMP_INFO	0x1409
 struct hci_rp_read_local_amp_info {
 	__u8     status;
@@ -1321,6 +1339,15 @@ struct hci_ev_le_advertising_info {
 	bdaddr_t bdaddr;
 	__u8	 length;
 	__u8	 data[0];
+} __packed;
+
+#define HCI_EV_LE_CONN_UPDATE_COMPLETE	0x03
+struct hci_ev_le_conn_update_complete {
+	__u8     status;
+	__le16   handle;
+	__le16   interval;
+	__le16   latency;
+	__le16   supervision_timeout;
 } __packed;
 
 #define HCI_EV_LE_LTK_REQ		0x05

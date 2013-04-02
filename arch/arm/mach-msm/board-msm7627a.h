@@ -13,7 +13,11 @@
 #ifndef __ARCH_ARM_MACH_MSM_BOARD_7627A__
 #define __ARCH_ARM_MACH_MSM_BOARD_7627A__
 
+#include "pm.h"
 void __init msm7627a_init_mmc(void);
+
+void __init msm_msm7627a_allocate_memory_regions(void);
+void __init msm_fb_add_devices(void);
 
 enum {
 	GPIO_EXPANDER_IRQ_BASE  = NR_MSM_IRQS + NR_GPIO_IRQS,
@@ -47,6 +51,26 @@ enum {
 	GPIO_CAM_GP_LED_EN1,
 	GPIO_CAM_GP_LED_EN2,
 };
+/* LGE_CHANGE  [yoonsoo.kim@lge.com] 20120131 : U0 700 Rev.F Base*/
+#ifdef CONFIG_LGE_HEADSET_DETECTION_FSA8008
+// 20120914 - error
+/* LGE_CHANGE [ew0804.kim] fsa8008 gpio */
+#define GPIO_EAR_SENSE_N          41
+#define GPIO_EARPOL_DETECT        4
+#define GPIO_EAR_MIC_EN           127
+/* 2012-09-27 JongKwang-Lee(jongkwang.lee@lge.com) [V3] change HOOK Button  on V3 Rev.C [START] */
+#ifdef CONFIG_MACH_MSM7X25A_V3BR_REV_C
+#define GPIO_EAR_KEY_INT          28
+#else
+#define GPIO_EAR_KEY_INT          29
+#endif
+/* 2012-09-27 JongKwang-Lee(jongkwang.lee@lge.com) [V3] change HOOK Button  on V3 Rev.C [END] */
+#else
+#define GPIO_EAR_SENSE			41
+#define GPIO_BUTTON_DETECT		29
+#define GPIO_MIC_MODE			127
+#endif
+
 
 enum {
 	QRD_GPIO_HOST_VBUS_EN       = 107,
@@ -62,6 +86,7 @@ enum {
 	QRD_GPIO_CAM_GP_CAMIF_RESET,
 };
 
+#define ADSP_RPC_PROG           0x3000000a
 #if defined(CONFIG_BT) && defined(CONFIG_MARIMBA_CORE)
 
 #define FPGA_MSM_CNTRL_REG2 0x90008010
@@ -79,6 +104,14 @@ enum {
 #define I2C_PIN_CTL       0x15
 #define I2C_NORMAL	  0x40
 
+/* LGE_CHANGE_S : 2012-09-15 sungmin.cho@lge.com flash led porting */
+#ifdef CONFIG_LEDS_AS364X
+#define GPIO_FLASH_I2C_SCL  	27
+#define GPIO_FLASH_I2C_SDA  	26
+#define FLASH_I2C_ADDRESS  	0x30
+#endif
+/* LGE_CHANGE_E : 2012-09-15 sungmin.cho@lge.com flash led porting */
+
 struct bahama_config_register {
 	u8 reg;
 	u8 value;
@@ -94,11 +127,20 @@ struct bt_vreg_info {
 	struct regulator *reg;
 };
 
-extern struct platform_device msm_bt_power_device;
-
 void __init msm7627a_bt_power_init(void);
 #endif
 
-void __init msm7627a_camera_init(void);
+/*LGE_CHANGE_S : seven.kim@lge.com 2.0PL pre-cs merge , Fix build error*/
+#if 0
+extern struct platform_device msm_device_snd;
+extern struct platform_device msm_device_adspdec;
+extern struct platform_device msm_device_cad;
+#endif 
+/*LGE_CHANGE_E : seven.kim@lge.com 2.0PL pre-cs merge*/
 
+void __init msm7627a_camera_init(void);
+int lcd_camera_power_onoff(int on);
+
+void __init msm7627a_add_io_devices(void);
+void __init qrd7627a_add_io_devices(void);
 #endif

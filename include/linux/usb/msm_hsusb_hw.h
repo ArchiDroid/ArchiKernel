@@ -19,6 +19,7 @@
 #define USB_AHBBURST         (MSM_USB_BASE + 0x0090)
 #define USB_AHBMODE          (MSM_USB_BASE + 0x0098)
 #define USB_CAPLENGTH        (MSM_USB_BASE + 0x0100) /* 8 bit */
+#define USB_HS_GPTIMER_BASE  (MSM_USB_BASE + 0x80)
 
 #define USB_USBCMD           (MSM_USB_BASE + 0x0140)
 #define USB_USBSTS           (MSM_USB_BASE + 0x0144)
@@ -29,10 +30,15 @@
 
 #define USBCMD_RESET   2
 #define USB_USBINTR          (MSM_USB_BASE + 0x0148)
+#define USB_FRINDEX          (MSM_USB_BASE + 0x014C)
 
 #define PORTSC_PHCD            (1 << 23) /* phy suspend mode */
 #define PORTSC_PTS_MASK         (3 << 30)
 #define PORTSC_PTS_ULPI         (3 << 30)
+#define PORTSC_LS               (3 << 10)
+#define PORTSC_LS_DM            (1 << 10)
+#define PORTSC_CSC              (1 << 1)
+#define PORTSC_CCS              (1 << 0)
 
 #define USB_ULPI_VIEWPORT    (MSM_USB_BASE + 0x0170)
 #define ULPI_RUN              (1 << 30)
@@ -54,14 +60,26 @@
 #define PHY_IDHV_INTEN          (1 << 8) /* PHY ID HV interrupt */
 #define PHY_OTGSESSVLDHV_INTEN  (1 << 9) /* PHY Session Valid HV int. */
 
+#define STS_PCI                 (1 << 2) /* R/WC - Port Change Detect */
+#define STS_URI                 (1 << 6) /* R/WC - RESET recv'd */
+#define STS_SLI                 (1 << 8) /* R/WC - suspend state entered */
+
 /* OTG definitions */
 #define OTGSC_INTSTS_MASK	(0x7f << 16)
 #define OTGSC_IDPU		(1 << 5)
+#define OTGSC_INTR_MASK		(0x7f << 24)
+#define OTGSC_HADP		(1 << 6)
 #define OTGSC_ID		(1 << 8)
 #define OTGSC_BSV		(1 << 11)
 #define OTGSC_IDIS		(1 << 16)
 #define OTGSC_BSVIS		(1 << 19)
 #define OTGSC_IDIE		(1 << 24)
 #define OTGSC_BSVIE		(1 << 27)
+#define OTGSC_DPIE		(1 << 30)
+#define OTGSC_DPIS		(1 << 22)
+
+/* OTG interrupt status mask */
+#define OTG_USBSTS_MASK		(STS_PCI | STS_URI | STS_SLI | PHY_ALT_INT)
+#define OTG_OTGSTS_MASK		(OTGSC_IDIS | OTGSC_BSVIS | OTGSC_DPIS)
 
 #endif /* __LINUX_USB_GADGET_MSM72K_UDC_H__ */

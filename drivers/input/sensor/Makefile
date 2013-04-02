@@ -4,40 +4,20 @@
 
 # Each configuration option enables a list of files.
 
-obj-$(CONFIG_SENSOR_GP2AP)	+= gp2ap002.o
-obj-$(CONFIG_SENSOR_AK8975)	+= akm8975.o
-#ifeq ($(CONFIG_MACH_MSM7X27A_U0),y)
-#obj-$(CONFIG_SENSOR_BMA222)	+= bma222_driver.o bma222.o 
-#else
-obj-$(CONFIG_SENSOR_BMA222)	+= bma222.o 
-#endif
-obj-$(CONFIG_SENSOR_K3DH)       += k3dh.o
-obj-$(CONFIG_SENSOR_AMI304)     += ami304.o
-obj-$(CONFIG_SENSOR_AMI306)     += ami306.o
-obj-$(CONFIG_SENSORS_BH1721)	+= bh1721fvc.o
-obj-$(CONFIG_SENSOR_HSCDTD004A)	+= alps_IF_Driver/
+obj-$(CONFIG_SENSOR_GP2AP)      += gp2ap002.o
+#LGE_CHANGE : 2012-10-24 Sanghun,Lee(eee3114.@lge.com) sensor change from bmc150 to bmc050
+obj-$(CONFIG_SENSORS_BMA2X2)	+= bma2x2_driver.o
+#LGE_CHANGE : 2012-10-24 Sanghun,Lee(eee3114.@lge.com) sensor change from bmc150 to bmc050
 obj-$(CONFIG_SENSORS_BMA250)    += bma250_driver.o
 obj-$(CONFIG_SENSORS_BMM050)   += bmm050_driver.o bmm050.o
+obj-$(CONFIG_SENSOR_APDS9190)   += apds9190.o
+#[LGSI_SP4_BSP_BEGIN][kirankumar.vm@lge.com] Avago Proximity Changes
+obj-$(CONFIG_SENSOR_APDS9130)   += apds9130.o
+#[LGSI_SP4_BSP_END][kirankumar.vm@lge.com]
 
-ifeq ($(CONFIG_SENSOR_BMA222_USE_SMBUS),y)
-EXTRA_CFLAGS += -DBMA222_SMBUS
-endif
-ifeq ($(CONFIG_SENSOR_BMA222_WITH_DEBUG),y)
-EXTRA_CFLAGS += -DBMA222_DEBUG
-endif
-ifeq ($(CONFIG_SENSOR_BMA222_HAS_EARLYSUSPEND),y)
-EXTRA_CFLAGS += -DBMA222_HAS_EARLYSUSPEND
-endif
+#LGE_CHANGE : 2013-02-04 jinseok.choi@lge.com V1 uses Rohm RPR0400 for Proximity Sensor
+obj-$(CONFIG_SENSOR_RPR0400)   += rpr0400_driver.o
 
 ifeq ($(CONFIG_SENSORS_BMM050),y)
 EXTRA_CFLAGS += -DBMM_USE_BASIC_I2C_FUNC
 endif
-
-ifeq ($(CONFIG_SENSOR_BMA222_ENABLE_INT1),y)
-EXTRA_CFLAGS += -DBMA222_ENABLE_INT1
-endif
-
-ifeq ($(CONFIG_SENSOR_BMA222_ENABLE_INT2),y)
-EXTRA_CFLAGS += -DBMA222_ENABLE_INT2
-endif
-

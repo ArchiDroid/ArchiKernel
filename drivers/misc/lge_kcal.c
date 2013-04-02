@@ -27,7 +27,10 @@
 
 /* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2012-01-04] 
 : For the calibration of LCD Color temperature */
-#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE
+//#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE
+/* LGE_CHANGE_S jungrock.oh@lge.com 2013-01-05 change u0 featuring*/
+#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
+/* LGE_CHANGE_E jungrock.oh@lge.com 2013-01-05 change u0 featuring */
 #define LCD_K_CAL_SIZE 6
 static unsigned char lcd_buf[LCD_K_CAL_SIZE]={255,};
 

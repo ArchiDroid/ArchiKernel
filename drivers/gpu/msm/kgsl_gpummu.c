@@ -472,7 +472,7 @@ static void kgsl_gpummu_default_setstate(struct kgsl_mmu *mmu,
 		return;
 
 	if (flags & KGSL_MMUFLAGS_PTUPDATE) {
-		kgsl_idle(mmu->device, KGSL_TIMEOUT_DEFAULT);
+		kgsl_idle(mmu->device);
 		gpummu_pt = mmu->hwpagetable->priv;
 		kgsl_regwrite(mmu->device, MH_MMU_PT_BASE,
 			gpummu_pt->base.gpuaddr);
@@ -552,7 +552,7 @@ static int kgsl_gpummu_start(struct kgsl_mmu *mmu)
 	kgsl_regwrite(device, MH_MMU_CONFIG, mmu->config);
 
 	/* idle device */
-	kgsl_idle(device,  KGSL_TIMEOUT_DEFAULT);
+	kgsl_idle(device);
 
 	/* enable axi interrupts */
 	kgsl_regwrite(device, MH_INTERRUPT_MASK,
@@ -592,7 +592,8 @@ static int kgsl_gpummu_start(struct kgsl_mmu *mmu)
 
 static int
 kgsl_gpummu_unmap(void *mmu_specific_pt,
-		struct kgsl_memdesc *memdesc)
+		struct kgsl_memdesc *memdesc,
+		unsigned int *tlb_flags)
 {
 	unsigned int numpages;
 	unsigned int pte, ptefirst, ptelast, superpte;
@@ -731,7 +732,6 @@ struct kgsl_mmu_ops gpummu_ops = {
 	.mmu_get_current_ptbase = kgsl_gpummu_get_current_ptbase,
 	.mmu_enable_clk = NULL,
 	.mmu_disable_clk_on_ts = NULL,
-	.mmu_get_hwpagetable_asid = NULL,
 	.mmu_get_pt_lsb = NULL,
 	.mmu_get_reg_map_desc = NULL,
 };

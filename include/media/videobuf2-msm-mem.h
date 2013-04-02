@@ -16,7 +16,7 @@
 #define _VIDEOBUF2_PMEM_CONTIG_H
 
 #include <media/videobuf2-core.h>
-#include <mach/msm_subsystem_map.h>
+#include <mach/iommu_domains.h>
 #include <linux/ion.h>
 
 struct videobuf2_mapping {
@@ -56,8 +56,6 @@ struct videobuf2_contig_pmem {
 	int dirty;
 	unsigned int count;
 	void *alloc_ctx;
-	struct msm_mapped_buffer *msm_buffer;
-	int subsys_id;
 	unsigned long mapped_phyaddr;
 	struct ion_handle *ion_handle;
 	struct ion_client *client;

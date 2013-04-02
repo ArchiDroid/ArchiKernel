@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,7 +29,7 @@
 #include "u_rmnet.h"
 
 #define BAM_N_PORTS	1
-#define BAM2BAM_N_PORTS	1
+#define BAM2BAM_N_PORTS	3
 
 static struct workqueue_struct *gbam_wq;
 static int n_bam_ports;
@@ -79,10 +79,6 @@ module_param(dl_intr_threshold, uint, S_IRUGO | S_IWUSR);
 
 #define BAM_CH_OPENED	BIT(0)
 #define BAM_CH_READY	BIT(1)
-#define SPS_PARAMS_PIPE_ID_MASK		(0x1F)
-#define SPS_PARAMS_SPS_MODE			BIT(5)
-#define SPS_PARAMS_TBE		        BIT(6)
-#define MSM_VENDOR_ID				BIT(16)
 
 struct bam_ch_info {
 	unsigned long		flags;
@@ -659,6 +655,8 @@ static void gbam2bam_disconnect_work(struct work_struct *w)
 	usb_ep_disable(port->gr->out);
 	usb_ep_disable(port->gr->in);
 
+	port->gr->in->driver_data = NULL;
+	port->gr->out->driver_data = NULL;
 }
 
 static void gbam_connect_work(struct work_struct *w)
@@ -702,7 +700,7 @@ static void gbam2bam_connect_work(struct work_struct *w)
 	int ret;
 	unsigned long flags;
 
-	ret = usb_ep_enable(port->gr->in, port->gr->in_desc);
+	ret = usb_ep_enable(port->gr->in);
 	if (ret) {
 		pr_err("%s: usb_ep_enable failed eptype:IN ep:%p",
 				__func__, port->gr->in);
@@ -710,7 +708,7 @@ static void gbam2bam_connect_work(struct work_struct *w)
 	}
 	port->gr->in->driver_data = port;
 
-	ret = usb_ep_enable(port->gr->out, port->gr->out_desc);
+	ret = usb_ep_enable(port->gr->out);
 	if (ret) {
 		pr_err("%s: usb_ep_enable failed eptype:OUT ep:%p",
 				__func__, port->gr->out);
@@ -739,8 +737,8 @@ static void gbam2bam_connect_work(struct work_struct *w)
 	d->rx_req->context = port;
 	d->rx_req->complete = gbam_endless_rx_complete;
 	d->rx_req->length = 0;
-	sps_params = (SPS_PARAMS_SPS_MODE | d->src_pipe_idx |
-				 MSM_VENDOR_ID) & ~SPS_PARAMS_TBE;
+	sps_params = (MSM_SPS_MODE | d->src_pipe_idx |
+				 MSM_VENDOR_ID) & ~MSM_IS_FINITE_TRANSFER;
 	d->rx_req->udc_priv = sps_params;
 	d->tx_req = usb_ep_alloc_request(port->port_usb->in, GFP_KERNEL);
 	if (!d->tx_req)
@@ -749,8 +747,8 @@ static void gbam2bam_connect_work(struct work_struct *w)
 	d->tx_req->context = port;
 	d->tx_req->complete = gbam_endless_tx_complete;
 	d->tx_req->length = 0;
-	sps_params = (SPS_PARAMS_SPS_MODE | d->dst_pipe_idx |
-				 MSM_VENDOR_ID) & ~SPS_PARAMS_TBE;
+	sps_params = (MSM_SPS_MODE | d->dst_pipe_idx |
+				 MSM_VENDOR_ID) & ~MSM_IS_FINITE_TRANSFER;
 	d->tx_req->udc_priv = sps_params;
 
 	/* queue in & out requests */
@@ -1123,7 +1121,7 @@ int gbam_connect(struct grmnet *gr, u8 port_num,
 	d = &port->data_ch;
 
 	if (trans == USB_GADGET_XPORT_BAM) {
-		ret = usb_ep_enable(gr->in, gr->in_desc);
+		ret = usb_ep_enable(gr->in);
 		if (ret) {
 			pr_err("%s: usb_ep_enable failed eptype:IN ep:%p",
 					__func__, gr->in);
@@ -1131,7 +1129,7 @@ int gbam_connect(struct grmnet *gr, u8 port_num,
 		}
 		gr->in->driver_data = port;
 
-		ret = usb_ep_enable(gr->out, gr->out_desc);
+		ret = usb_ep_enable(gr->out);
 		if (ret) {
 			pr_err("%s: usb_ep_enable failed eptype:OUT ep:%p",
 					__func__, gr->out);
@@ -1215,4 +1213,50 @@ free_bam_ports:
 	destroy_workqueue(gbam_wq);
 
 	return ret;
+}
+
+static int gbam_wake_cb(void *param)
+{
+	struct gbam_port	*port = (struct gbam_port *)param;
+	struct bam_ch_info *d;
+	struct f_rmnet		*dev;
+
+	dev = port_to_rmnet(port->gr);
+	d = &port->data_ch;
+
+	pr_debug("%s: woken up by peer\n", __func__);
+
+	return usb_gadget_wakeup(dev->cdev->gadget);
+}
+
+void gbam_suspend(struct grmnet *gr, u8 port_num, enum transport_type trans)
+{
+	struct gbam_port	*port;
+	struct bam_ch_info *d;
+
+	if (trans != USB_GADGET_XPORT_BAM2BAM)
+		return;
+
+	port = bam2bam_ports[port_num];
+	d = &port->data_ch;
+
+	pr_debug("%s: suspended port %d\n", __func__, port_num);
+
+	usb_bam_register_wake_cb(d->connection_idx, gbam_wake_cb, port);
+}
+
+void gbam_resume(struct grmnet *gr, u8 port_num, enum transport_type trans)
+{
+	struct gbam_port	*port;
+	struct bam_ch_info *d;
+
+	if (trans != USB_GADGET_XPORT_BAM2BAM)
+		return;
+
+	port = bam2bam_ports[port_num];
+	d = &port->data_ch;
+
+	pr_debug("%s: resumed port %d\n", __func__, port_num);
+
+	usb_bam_register_wake_cb(d->connection_idx, NULL, NULL);
 }

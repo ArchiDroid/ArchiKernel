@@ -1,6 +1,6 @@
 /* drivers/serial/msm_serial_hs_hwreg.h
  *
- * Copyright (c) 2007-2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2007-2009, 2012, Code Aurora Forum. All rights reserved.
  * 
  * All source code in this file is licensed under the following license
  * except where indicated.
@@ -51,7 +51,9 @@ enum msm_hsl_regs {
 	UARTDM_NCF_TX,
 	UARTDM_DMEN,
 	UARTDM_BCR,
-	UARTDM_LAST
+	UARTDM_TXFS,
+	UARTDM_RXFS,
+	UARTDM_LAST,
 };
 
 #define UARTDM_MR1_ADDR 0x0
@@ -118,6 +120,7 @@ enum msm_hsl_regs {
 #define UARTDM_ISR_ADDR 0x14
 #define UARTDM_RX_TOTAL_SNAP_ADDR 0x38
 
+#define UARTDM_TXFS_ADDR 0x4C
 #define UARTDM_RXFS_ADDR 0x50
 
 /* Register field Mask Mapping */
@@ -157,9 +160,12 @@ enum msm_hsl_regs {
 #define UARTDM_MR1_CTS_CTL_BMSK 0x40
 #define UARTDM_MR1_RX_RDY_CTL_BMSK 0x80
 
-#define UARTDM_MR2_LOOP_MODE_BMSK        0x80
-#define UARTDM_MR2_ERROR_MODE_BMSK       0x40
-#define UARTDM_MR2_BITS_PER_CHAR_BMSK    0x30
+#define UARTDM_MR2_LOOP_MODE_BMSK		0x80
+#define UARTDM_MR2_ERROR_MODE_BMSK		0x40
+#define UARTDM_MR2_BITS_PER_CHAR_BMSK		0x30
+#define UARTDM_MR2_RX_ZERO_CHAR_OFF		0x100
+#define UARTDM_MR2_RX_ERROR_CHAR_OFF		0x200
+#define UARTDM_MR2_RX_BREAK_ZERO_CHAR_OFF	0x100
 
 #define UARTDM_MR2_BITS_PER_CHAR_8	(0x3 << 4)
 

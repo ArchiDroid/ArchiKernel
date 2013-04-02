@@ -23,6 +23,38 @@ static struct msm_panel_info pinfo;
  */
 static struct mipi_dsi_phy_ctrl dsi_video_mode_phy_db =
 {
+
+#if 0//defined(CONFIG_MACH_MSM8X25_V7) //QCT reccomend, youngbae.choi@lge.com, 2012-12-29
+	/*63fps*/
+	/* DSI Bit Clock at 335MHz, 2 lane, RGB888 */
+	/* regulator */
+	{0x03, 0x01, 0x01, 0x00},
+	/* timing */
+	{0xa8, 0x89, 0x16, 0x00, 0x90, 0x95, 0x19, 0x8b, 0x10, 0x03, 0x04},
+	/* phy ctrl */
+	{0x7f, 0x00, 0x00, 0x00},
+	/* strength */
+	{0xbb, 0x02, 0x06, 0x00},
+	/* pll control */
+	{0x00, 0x5d, 0x31, 0xD2, 0x00, 0x40, 0x37, 0x62, 0x01, 0x0F, 0x07, 
+	0x05, 0x14, 0x03, 0x0, 0x0, 0x0, 0x20, 0x0, 0x02, 0x0}, 
+#else //QCT reccomend, sohyun.nam@lge.com, 2012-11-16
+	/*60fps*/ 
+	/* DSI Bit Clock at 335MHz, 2 lane, RGB888 */ 
+	/* regulator */ 
+	{0x03, 0x01, 0x01, 0x00}, 
+	/* timing */ 
+	{0xA6, 0x89, 0x15, 0x00, 0x90, 0x8F, 0x18, 0x8B, 0x0F, 0x03, 0x04}, 
+	/* phy ctrl */ 
+	{0x7f, 0x00, 0x00, 0x00}, 
+	/* strength */ 
+	{0xbb, 0x02, 0x06, 0x00}, 
+	/* pll control */ 
+	{0x00, 0x4B, 0x31, 0xD2, 0x00, 0x40, 0x37, 0x62, 0x01, 0x0F, 0x07, 
+	0x05, 0x14, 0x03, 0x0, 0x0, 0x0, 0x20, 0x0, 0x02, 0x0}, 
+#endif
+
+#if 0
 	/*60fps*/
 	/* DSI Bit Clock at 335MHz, 2 lane, RGB888 */
 	/* regulator */
@@ -36,7 +68,8 @@ static struct mipi_dsi_phy_ctrl dsi_video_mode_phy_db =
 	/* pll control */
 	{0x00, 0x4A, 0x31, 0xD2, 0x00, 0x40, 0x37, 0x62, 0x01, 0x0F, 0x07, 
 	0x05, 0x14, 0x03, 0x0, 0x0, 0x0, 0x20, 0x0, 0x02, 0x0}, 
-	
+#endif
+
 #if 0 /*50fps parameter*/
 	/* DSI_BIT_CLK at 200MHz, 2 lane, RGB888 */
 	/* regulator */
@@ -100,10 +133,9 @@ static int __init mipi_video_lg4573b_hvga_pt_init(void)
 	pinfo.lcdc.border_clr = 0;	/* blk */
 	pinfo.lcdc.underflow_clr = 0xff;	/* blue */
 	pinfo.lcdc.hsync_skew = 0;
-	pinfo.bl_max = 100;
+	pinfo.bl_max = 147;
 	pinfo.bl_min = 1;
 	pinfo.fb_num = 2;
-
 
 	pinfo.mipi.mode = DSI_VIDEO_MODE;
 
@@ -137,8 +169,11 @@ static int __init mipi_video_lg4573b_hvga_pt_init(void)
 	pinfo.mipi.stream = 0; /* dma_p */
 	pinfo.mipi.mdp_trigger = DSI_CMD_TRIGGER_NONE; /*DSI_CMD_TRIGGER_SW;*/
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;
+#if 0//defined(CONFIG_MACH_MSM8X25_V7) //QCT reccomend, youngbae.choi@lge.com, 2012-12-29
+	pinfo.mipi.frame_rate = 63;	/* 60fps, 50fps, 30fps */
+#else
 	pinfo.mipi.frame_rate = 60;	/* 60fps, 50fps, 30fps */
-
+#endif
 	pinfo.mipi.dsi_phy_db = &dsi_video_mode_phy_db;
 	pinfo.mipi.dlane_swap = 0x01;	
 	pinfo.mipi.tx_eot_append = 0x01;

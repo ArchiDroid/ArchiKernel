@@ -61,7 +61,7 @@ struct hdmi_msm_state_type {
 	boolean hpd_cable_chg_detected;
 	boolean full_auth_done;
 	boolean hpd_during_auth;
-	struct work_struct hpd_state_work, hpd_read_work;
+	struct work_struct hpd_state_work;
 	struct timer_list hpd_state_timer;
 	struct completion ddc_sw_done;
 
@@ -98,7 +98,7 @@ struct hdmi_msm_state_type {
 
 #define CEC_QUEUE_SIZE		16
 #define CEC_QUEUE_END	 (hdmi_msm_state->cec_queue_start + CEC_QUEUE_SIZE)
-#define RETRANSMIT_MAX_NUM	7
+#define RETRANSMIT_MAX_NUM	5
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_CEC_SUPPORT */
 
 	int irq;
@@ -110,6 +110,7 @@ struct hdmi_msm_state_type {
 	void __iomem *hdmi_io;
 
 	struct external_common_state_type common;
+	boolean is_mhl_enabled;
 };
 
 extern struct hdmi_msm_state_type *hdmi_msm_state;
@@ -134,5 +135,5 @@ void hdmi_msm_cec_msg_recv(void);
 void hdmi_msm_cec_one_touch_play(void);
 void hdmi_msm_cec_msg_send(struct hdmi_msm_cec_msg *msg);
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_CEC_SUPPORT */
-
+void mhl_connect_api(boolean on);
 #endif /* __HDMI_MSM_H__ */

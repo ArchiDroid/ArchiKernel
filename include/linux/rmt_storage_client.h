@@ -80,4 +80,9 @@ struct rmt_shrd_mem_param {
 
 #define RMT_STORAGE_SEND_STATUS \
 	_IOW(RMT_STORAGE_IOCTL_MAGIC, 2, struct rmt_storage_send_sts)
+
+/*LGE_CHANGE_S: seunhang.lee@lge.com 03/01/2013:Check rmt Client Ready*/
+#define RMT_STORAGE_READY_CLIENT \
+	_IOW(RMT_STORAGE_IOCTL_MAGIC, 3, struct rmt_storage_send_sts)
+/*LGE_CHANGE_E: seunhang.lee@lge.com 03/01/2013:Check rmt Client Ready*/
 #endif

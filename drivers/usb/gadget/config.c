@@ -7,15 +7,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/errno.h>
@@ -28,6 +19,40 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
+/**
+ * usb_find_descriptor_fillbuf - fill buffer with the requested descriptor
+ * @buf: Buffer to be filled
+ * @buflen: Size of buf
+ * @src: Array of descriptor pointers, terminated by null pointer.
+ * @desc_type: bDescriptorType field of the requested descriptor.
+ *
+ * Copies the requested descriptor into the buffer, returning the length
+ * or a negative error code if it is not found or can't be copied.  Useful
+ * when DT_OTG descriptor is requested.
+ */
+int
+usb_find_descriptor_fillbuf(void *buf, unsigned buflen,
+		const struct usb_descriptor_header **src, u8 desc_type)
+{
+	if (!src)
+		return -EINVAL;
+
+	for (; NULL != *src; src++) {
+		unsigned len;
+
+		if ((*src)->bDescriptorType != desc_type)
+			continue;
+
+		len = (*src)->bLength;
+		if (len > buflen)
+			return -EINVAL;
+
+		memcpy(buf, *src, len);
+		return len;
+	}
+
+	return -ENOENT;
+}
 
 /**
  * usb_descriptor_fillbuf - fill buffer with descriptors
@@ -165,28 +190,3 @@ usb_copy_descriptors(struct usb_descriptor_header **src)
 	return ret;
 }
 
-/**
- * usb_find_endpoint - find a copy of an endpoint descriptor
- * @src: original vector of descriptors
- * @copy: copy of @src
- * @match: endpoint descriptor found in @src
- *
- * This returns the copy of the @match descriptor made for @copy.  Its
- * intended use is to help remembering the endpoint descriptor to use
- * when enabling a given endpoint.
- */
-struct usb_endpoint_descriptor *
-usb_find_endpoint(
-	struct usb_descriptor_header **src,
-	struct usb_descriptor_header **copy,
-	struct usb_endpoint_descriptor *match
-)
-{
-	while (*src) {
-		if (*src == (void *) match)
-			return (void *)*copy;
-		src++;
-		copy++;
-	}
-	return NULL;
-}

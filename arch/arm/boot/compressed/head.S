@@ -27,14 +27,6 @@
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
-#elif defined(CONFIG_CPU_V7)
-		.macro	loadsp, rb, tmp
-		.endm
-		.macro	writeb, ch, rb
-wait:		mrc	p14, 0, pc, c0, c1, 0
-		bcs	wait
-		mcr	p14, 0, \ch, c0, c5, 0
-		.endm
 #elif defined(CONFIG_CPU_XSCALE)
 		.macro	loadsp, rb, tmp
 		.endm
@@ -66,7 +58,7 @@ wait:		mrc	p14, 0, pc, c0, c1, 0
 		add	\rb, \rb, #0x00010000	@ Ser1
 #endif
 		.endm
-#elif defined(CONFIG_ARCH_S3C2410)
+#elif defined(CONFIG_ARCH_S3C24XX)
 		.macro loadsp, rb, tmp
 		mov	\rb, #0x50000000
 		add	\rb, \rb, #0x4000 * CONFIG_S3C_LOWLEVEL_UART_PORT
@@ -277,10 +269,11 @@ restart:	adr	r0, LC0
 		 * of RAM and hope for the best.
 		 */
 		cmp	r0, #1
-		sub	r0, r4, #(TEXT_OFFSET - 0x100)
+		sub	r0, r4, #TEXT_OFFSET
+		add	r0, r0, #0x100
 		mov	r1, r6
 		sub	r2, sp, r6
-		blne	atags_to_fdt
+		bleq	atags_to_fdt
 
 		ldmfd	sp!, {r0-r3, ip, lr}
 		sub	sp, sp, #0x10000
@@ -468,7 +461,8 @@ not_relocated:	mov	r0, #0
 		mov	r0, #0			@ must be zero
 		mov	r1, r7			@ restore architecture number
 		mov	r2, r8			@ restore atags pointer
-		mov	pc, r4			@ call kernel
+ ARM(		mov	pc, r4	)		@ call kernel
+ THUMB(		bx	r4	)		@ entry point is always ARM
 
 		.align	2
 		.type	LC0, #object
@@ -665,6 +659,7 @@ __armv7_mmu_cache_on:
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
 #endif
+		mcr	p15, 0, r0, c7, c5, 4	@ ISB
 		mcr	p15, 0, r0, c1, c0, 0	@ load control register
 		mrc	p15, 0, r0, c1, c0, 0	@ and read it back
 		mov	r0, #0

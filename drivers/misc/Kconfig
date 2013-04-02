@@ -2,23 +2,13 @@
 # Misc strange devices
 #
 
-# This one has to live outside of the MISC_DEVICES conditional,
-# because it may be selected by drivers/platform/x86/hp_accel.
+menu "Misc devices"
+
 config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
 	select INPUT_POLLDEV
 	default n
-
-menuconfig MISC_DEVICES
-	bool "Misc devices"
-	---help---
-	  Say Y here to get to see options for device drivers from various
-	  different categories. This option alone does not add any kernel code.
-
-	  If you say N, all options in this submenu will be skipped and disabled.
-
-if MISC_DEVICES
 
 config AD525X_DPOT
 	tristate "Analog Devices Digital Potentiometers"
@@ -65,17 +55,9 @@ config ANDROID_PMEM
 	bool "Android pmem allocator"
 	default y
 
-config ANDROID_VIBRATOR
-    bool "Android vibrator support"
-	depends on ANDROID_TIMED_OUTPUT
-	default y
-	help
-	  This option enalbes device driver support for Android Vibrator driver.
-	  Some functions should be given by platform data for enable PWM, Motor IC, etc.
-
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
-	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
+	depends on HAVE_CLK
 	help
 	  This option enables device driver support for the PWM channels
 	  on certain Atmel processors.  Pulse Width Modulation is used for
@@ -158,6 +140,7 @@ config PHANTOM
 
 config INTEL_MID_PTI
 	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
+	depends on PCI
 	default n
 	help
 	  The PTI (Parallel Trace Interface) driver directs
@@ -240,13 +223,6 @@ config ENCLOSURE_SERVICES
 	  contain storage devices).  You also need either a host
 	  driver (SCSI/ATA) which supports enclosures
 	  or a SCSI enclosure device (SES) to use these services.
-
-config KERNEL_DEBUGGER_CORE
-	bool "Kernel Debugger Core"
-	default n
-	---help---
-	  Generic kernel debugging command processor used by low level
-	  (interrupt context) platform-specific debuggers.
 
 config SGI_XP
 	tristate "Support communication between SGI SSIs"
@@ -502,7 +478,7 @@ config BMP085
 	  module will be called bmp085.
 
 config PCH_PHUB
-	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR IOH(ML7213/ML7223) PHUB"
+	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
 	depends on PCI
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
@@ -510,15 +486,33 @@ config PCH_PHUB
 	  processor. The Topcliff has MAC address and Option ROM data in SROM.
 	  This driver can access MAC address and Option ROM data in SROM.
 
-	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
-	  Output Hub), ML7213 and ML7223.
-	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use and ML7223 IOH is
-	  for MP(Media Phone) use.
-	  ML7213/ML7223 is companion chip for Intel Atom E6xx series.
-	  ML7213/ML7223 is completely compatible for Intel EG20T PCH.
+	  This driver also can be used for LAPIS Semiconductor's IOH,
+	  ML7213/ML7223/ML7831.
+	  ML7213 which is for IVI(In-Vehicle Infotainment) use.
+	  ML7223 IOH is for MP(Media Phone) use.
+	  ML7831 IOH is for general purpose use.
+	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called pch_phub.
+
+config USB_SWITCH_FSA9480
+	tristate "FSA9480 USB Switch"
+	depends on I2C
+	help
+	  The FSA9480 is a USB port accessory detector and switch.
+	  The FSA9480 is fully controlled using I2C and enables USB data,
+	  stereo and mono audio, video, microphone and UART data to use
+	  a common connector port.
+
+config MAX8997_MUIC
+	tristate "MAX8997 MUIC Support"
+	depends on MFD_MAX8997
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX8997 PMIC.
+	  The MAX8997 MUIC is a USB port accessory detector and switch.
 
 config WL127X_RFKILL
 	tristate "Bluetooth power control driver for TI wl127x"
@@ -601,6 +595,14 @@ config PMIC8058_PWM
 	  purposes including software controlled brightness of backlight,
 	  motor control, and waveform generation.
 
+#[LGSI_SP4_BSP_BEGIN][kirankumar.vm@lge.com] Immersion Vibrator changes
+config TSPDRV
+	bool "tspdrv"
+	default n
+	help
+	  This option enables the Immersion Touchsense Vibrator
+#[LGSI_SP4_BSP_END][kirankumar.vm@lge.com] Immersion Vibrator changes
+
 config PMIC8XXX_VIBRATOR
 	tristate "Qualcomm Vibrator support for PMIC8XXX"
 	depends on MFD_PM8XXX && ANDROID_TIMED_OUTPUT
@@ -625,14 +627,6 @@ config PMIC8XXX_UPL
 	  simple truth table based logic via a set of control registers. I/O may
 	  be routed in and out of the UPL module via GPIO or DTEST pins.
 
-config LGE_ATCMD_TTY
-	bool "Support LGE atcmd bypassing tty"
-	default n
-	help
-	  Support LGE atcmd bypassing tty. "/dev/atcmd-tty0" is back-end tty,
-	  and "dev/atcmd-tty1" is front-end tty. Back-end tty will be interfaced
-	  with portbridge and front-end tty will be interfaced with parser/filter.
-
 config PMIC8058_XOADC
 	tristate "Qualcomm PM8058 XOADC driver"
 	depends on PMIC8058
@@ -642,12 +636,11 @@ config PMIC8058_XOADC
 	  PMIC8058. Driver interface to program registers of the ADC over
 	  AMUX channels, devices on programmable MPP's and xotherm.
 
-config TZCOM
-	tristate "Trustzone Communicator driver"
-	default n
+config QSEECOM
+	tristate "Qualcomm Secure Execution Communicator driver"
 	help
 	  Provides a communication interface between userspace and
-	  TrustZone Operating Environment (TZBSP) using Secure Channel
+	  Qualcomm Secure Execution Environment (QSEE) using Secure Channel
 	  Manager (SCM) interface.
 
 config QFP_FUSE
@@ -658,6 +651,16 @@ config QFP_FUSE
 	  to the fuse block. Currently this is supported only
 	  on FSM targets.
 
+config USB_HSIC_SMSC_HUB
+	tristate "Support for HSIC based MSM on-chip SMSC3503 HUB"
+	depends on USB_EHCI_MSM_HSIC
+	help
+	  Enables support for the HSIC (High Speed Inter-Chip) based
+	  SMSC3503 hub controller present on the Qualcomm chipsets.
+
+	  This adds support for connecting devices like mouse in HSIC
+	  Host mode.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -665,5 +668,5 @@ source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
-
-endif # MISC_DEVICES
+source "drivers/misc/altera-stapl/Kconfig"
+endmenu

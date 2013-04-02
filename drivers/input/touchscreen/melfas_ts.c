@@ -1,120 +1,177 @@
-/* drivers/input/touchscreen/melfas_ts.c
+/*
+ * MELFAS mcs8000 touchscreen driver
  *
- * Copyright (C) 2010 Melfas, Inc.
+ * Copyright (C) 2011 LGE, Inc.
  *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  */
 
-
+#include <linux/timer.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/earlysuspend.h>
-#include <linux/hrtimer.h>
+#include <linux/workqueue.h>
+
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/slab.h>
-#include <linux/platform_device.h>
+#include <asm/uaccess.h>
+#include <linux/miscdevice.h>
+
+/* To enable FW Upgrade */
+#include "mcs8000_download.h"
+
 #include <linux/i2c-gpio.h>
-#include <mach/board_lge.h>
-#include "melfas_ts.h"
-#define TS_MAX_Z_TOUCH			255
-#define TS_MAX_W_TOUCH		30
+#include CONFIG_LGE_BOARD_HEADER_FILE
 
 
-#define TS_MAX_X_COORD 		320 
-#define TS_MAX_Y_COORD 		480 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+static struct early_suspend ts_early_suspend;
+static void mcs8000_early_suspend(struct early_suspend *h);
+static void mcs8000_late_resume(struct early_suspend *h);
+#endif
 
-#define TS_READ_START_ADDR 	0x0F
-#define TS_READ_START_ADDR2 	0x10
-#define TS_READ_VERSION_ADDR	0xF0
-#define TSP_REVISION		0xF0
-#define HARDWARE_REVISION	0xF1
-#define COMPATIBILITY_GROUP	0xF2
-#define CORE_FIRMWARE_VERSION   0xF3
 
-#define TS_LATEST_FW_VERSION_EU_SUN	0x12
+//static int mcs8000_ts_off(void);
+int mcs8000_ts_on(void);
+static void mcs8000_Data_Clear(void);
+static void ResetTS(void);
+static void Release_All_Fingers(void);
+
+#define TS_POLLING_TIME 0 /* msec */
+
+
+#define DEBUG_TS 0 /* enable or disable debug message */
+
+#if DEBUG_TS
+#define DMSG(fmt, args...) printk(KERN_DEBUG fmt, ##args)
+#else
+#define DMSG(fmt, args...) do {} while (0)
+#endif
+
+#define ON	1
+#define OFF	0
+#define PRESSED		1
+#define RELEASED	0
+
+/* melfas data */
+#define TS_MAX_Z_TOUCH											255
+#define TS_MAX_W_TOUCH											30
+#define MTSI_VERSION												0x07    /* 0x05 */
+#define TS_MAX_X_COORD											320
+#define TS_MAX_Y_COORD											480
+#define FW_VERSION													0x00	
+
+#define TS_READ_START_ADDR 								0x0F
+#define TS_READ_START_ADDR2 							0x10
+
+#if 1	//  woden@lge.com [2013-02-26] => New TS Firmware was applied.
+#define TS_LATEST_FW_VERSION_EU_SUN	0x16
+#define TS_LATEST_FW_VERSION_EU_INO	0x20
+#else
+#define TS_LATEST_FW_VERSION_EU_SUN	0x15
 #define TS_LATEST_FW_VERSION_EU_INO	0x18
-#define TS_LATEST_FW_VERSION_BR_NEW	0x12
-#define TS_LATEST_FW_VERSION_BR_OLD	0x01
-#define TS_LATEST_FW_VERSION_BELL_NEW	0x03
-#define TS_LATEST_FW_VERSION_BELL_OLD	0x05
-#define TS_LATEST_FW_VERSION_TELUS_SUN	0x10
-#define TS_LATEST_FW_VERSION_TELUS_INO	0x02
-#define TS_READ_REGS_LEN 		100
-#define MELFAS_MAX_TOUCH		5
+#endif
 
-#define DEBUG_PRINT 			0
+#define TS_READ_REGS_LEN 									66
+#define MELFAS_MAX_TOUCH									11
 
-#define SET_DOWNLOAD_BY_GPIO	1
-#define MIP_INPUT_EVENT_PACKET_SIZE	0x0F
-#define MIP_INPUT_EVENT_INFORMATION	0x10
+#define I2C_RETRY_CNT											10
+#define PRESS_KEY													1
+#define RELEASE_KEY												0
+#define DEBUG_PRINT 												0
 
-#define HARD_HOME_KEY 172
-#define SIM_SWITCH_KEY 211
 
-/* LGE_CHANGE_S : RECENT_APPS_KEY (Bell Operator in Canada) */
-#define RECENT_APPS_KEY 600
-/* LGE_CHANGE_E : RECENT_APPS_KEY */
 
-#if SET_DOWNLOAD_BY_GPIO
-#include <mcs8000_download.h>
-#endif // SET_DOWNLOAD_BY_GPIO
+#define	SET_DOWNLOAD_BY_GPIO							1
+#define GPIO_TOUCH_ID 121
+
+#if defined(CONFIG_MACH_MSM7X25A_V3_DS) || defined(CONFIG_MACH_MSM7X25A_V1)
+#define KEY_SIM_SWITCH 223
+#endif
+
+int power_flag=0;
 static int irq_flag;
-static int power_flag;
+
 enum {
 	None = 0,
 	TOUCH_SCREEN,
 	TOUCH_KEY
 };
 
-struct muti_touch_info
-{
+struct muti_touch_info {
 	int strength;
-	int width;	
+	int width;
 	int posX;
 	int posY;
 };
 
-struct melfas_ts_data 
-{
-	uint16_t addr;
-	struct i2c_client *client; 
+
+struct mcs8000_ts_device {
+	struct i2c_client *client;
 	struct input_dev *input_dev;
-//	struct work_struct  work;
-	struct delayed_work  work;
-	uint32_t flags;
+	struct delayed_work work; 
+	//struct work_struct  work;
 	int num_irq;
 	int intr_gpio;
 	int scl_gpio;
 	int sda_gpio;
+	bool pendown;
 	int (*power)(unsigned char onoff);
-	struct early_suspend early_suspend;
+	struct workqueue_struct *ts_wq;
+
+	/*20110607 seven.kim@lge.com for touch frimware download [START] */
+	//struct wake_lock wakelock;
+	int irq_sync;
+	int fw_version;
+	int hw_version;
+	int status;
+	int tsp_type;
+	/*20110607 seven.kim@lge.com for touch frimware download [END] */
 };
 
-static struct workqueue_struct *melfas_wq;
+static struct input_dev *mcs8000_ts_input = NULL;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void melfas_ts_early_suspend(struct early_suspend *h);
-static void melfas_ts_late_resume(struct early_suspend *h);
-#endif
+struct mcs8000_ts_device mcs8000_ts_dev;
 
-static struct muti_touch_info g_Mtouch_info[MELFAS_MAX_TOUCH];
+int Is_Release_Error[MELFAS_MAX_TOUCH]={0}; /* for touch stable */
+
+static unsigned char ucSensedInfo = 0;
+
+#define READ_NUM 8 /* now, just using two finger data */
+
+static unsigned char g_touchLogEnable = 0;
+
 unsigned char ex_fw_ver;
+unsigned char ex_hw_ver;
+unsigned char ex_touch_id;
+
+void mcs8000_firmware_info(unsigned char* fw_ver, unsigned char* hw_ver, unsigned char *comp_ver);
+	
+//static int misc_opened = 0;
+//static unsigned int mcs8000_debug_mask = MCS8000_DM_TRACE_NO;
+
+//static struct mcs8000_ts_device *mcs8000_ext_ts = (void *)NULL; 
+
 
 void Send_Touch(unsigned int x, unsigned int y)
 {
-/*	input_report_abs(mcs8000_ts_dev.input_dev, ABS_MT_TOUCH_MAJOR, 1);
+	input_report_abs(mcs8000_ts_dev.input_dev, ABS_MT_TOUCH_MAJOR, 1);
 	input_report_abs(mcs8000_ts_dev.input_dev, ABS_MT_POSITION_X, x);
 	input_report_abs(mcs8000_ts_dev.input_dev, ABS_MT_POSITION_Y, y);
 	input_mt_sync(mcs8000_ts_dev.input_dev);
@@ -124,713 +181,973 @@ void Send_Touch(unsigned int x, unsigned int y)
 	input_report_abs(mcs8000_ts_dev.input_dev, ABS_MT_POSITION_Y, y);
 	input_mt_sync(mcs8000_ts_dev.input_dev);
 	input_sync(mcs8000_ts_dev.input_dev);
-*/
 }
 EXPORT_SYMBOL(Send_Touch);
-/*
-void disable_touch_key(int r)
-{
-	gpio_tlmm_config(GPIO_CFG(9, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	gpio_tlmm_config(GPIO_CFG(10, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	gpio_tlmm_config(GPIO_CFG(38, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	gpio_tlmm_config(GPIO_CFG(39, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	gpio_set_value(9, r);
-	gpio_set_value(10, r);
-	gpio_set_value(38, !r);
-	gpio_set_value(39, r);
-	
-}
-EXPORT_SYMBOL(disable_touch_key);
-*/
-/*
-static int melfas_init_panel(struct melfas_ts_data *ts)
-{
-	//int buf = 0x00;
-	uint8_t buf[1];
-	int ret;
-	
-	buf[0]=0x00;
-	ret = i2c_master_send(ts->client, buf, 1);
 
-	if(ret <0)
+/* #define to_delayed_work(_work) container_of(_work, struct delayed_work, work ) */
+
+
+static struct muti_touch_info g_Mtouch_info[MELFAS_MAX_TOUCH];
+/*
+static int melfas_init_panel(struct mcs8000_ts_device *ts)
+{
+	int ret ;
+	int buf = 0;
+	ret = i2c_master_send(ts->client, &buf, 1);
+	
+	ret = i2c_master_send(ts->client, &buf, 1);
+
+	if (ret <0)
 	{
-		printk(KERN_ERR "melfas_ts_probe: i2c_master_send() failed\n [%d]", ret);	
+		printk(KERN_ERR "melfas_ts_probe: i2c_master_send() failed\n [%d]", ret);
 		return 0;
 	}
+
 
 	return true;
 }
 */
 
-static void release_all_finger(struct melfas_ts_data *ts)
+/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-12-07] 
+: For an abnormal condition after getting ESD */
+static void ResetTS(void)
 {
-	int i;
-	for(i=0; i<MELFAS_MAX_TOUCH; i++) {
-		if(-1 == g_Mtouch_info[i].strength) {
+	struct mcs8000_ts_device *dev;
+	dev = &mcs8000_ts_dev;
+
+	mcs8000_Data_Clear();
+
+	//disable_irq(dev->num_irq);
+
+
+	/* add Touch power flag eungjin.kim@lge.com [2012-02-06]*/	
+	if(power_flag==1){
+			power_flag--;
+			dev->power(OFF);
+	}	
+	/* add Touch power flag eungjin.kim@lge.com [2012-02-06]*/	
+
+
+
+	mdelay(20);
+
+	mcs8000_ts_on();	
+
+	printk(KERN_DEBUG "Reset TS For ESD\n");
+
+	//enable_irq(dev->num_irq);
+}
+/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-12-07] 
+: For an abnormal condition after getting ESD */ 
+
+
+/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-12-07] 
+: For an abnormal condition after getting ESD */
+int CheckTSForESD(unsigned char ucData)
+{
+	unsigned char ucStatus;
+	ucStatus = ucData&0x0f;
+
+	if (ucStatus == 0x0f) //Abnormal condition
+	{
+		ResetTS();
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-12-07] 
+: For an abnormal condition after getting ESD */ 
+
+static void Release_All_Fingers(void)
+{
+		struct mcs8000_ts_device *dev;
+		
+		int i=0;
+		dev = &mcs8000_ts_dev;
+		for(i=0; i<MELFAS_MAX_TOUCH; i++) {
+			if(-1 == g_Mtouch_info[i].strength) {
+				g_Mtouch_info[i].posX = 0;
+				g_Mtouch_info[i].posY = 0;
+				continue;
+			}
+	
+			g_Mtouch_info[i].strength = 0;
+	
+			input_report_abs(dev->input_dev, ABS_MT_TRACKING_ID, i);
+			input_report_abs(dev->input_dev, ABS_MT_POSITION_X, g_Mtouch_info[i].posX);
+			input_report_abs(dev->input_dev, ABS_MT_POSITION_Y, g_Mtouch_info[i].posY);
+			input_report_abs(dev->input_dev, ABS_MT_TOUCH_MAJOR, g_Mtouch_info[i].strength );
+			input_report_abs(dev->input_dev, ABS_MT_WIDTH_MAJOR, g_Mtouch_info[i].width);
+			input_mt_sync(dev->input_dev);
+	
 			g_Mtouch_info[i].posX = 0;
 			g_Mtouch_info[i].posY = 0;
-			continue;
+	
+			if(0 == g_Mtouch_info[i].strength)
+				g_Mtouch_info[i].strength = -1;
 		}
-
-		g_Mtouch_info[i].strength = 0;
-
-		input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, i);
-		input_report_abs(ts->input_dev, ABS_MT_POSITION_X, g_Mtouch_info[i].posX);
-		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, g_Mtouch_info[i].posY);
-		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, g_Mtouch_info[i].width );
-		input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
-
-		input_mt_sync(ts->input_dev);
-
-		g_Mtouch_info[i].posX = 0;
-		g_Mtouch_info[i].posY = 0;
-
-		if(0 == g_Mtouch_info[i].strength)
-			g_Mtouch_info[i].strength = -1;
-	}
-	input_sync(ts->input_dev);	 	
+		input_sync(dev->input_dev);		
 }
 
-static void melfas_ts_work_func(struct work_struct *work)
-{
-//	struct melfas_ts_data *ts = container_of(work, struct melfas_ts_data, work);
-	struct melfas_ts_data *ts=container_of(to_delayed_work(work), struct melfas_ts_data, work);
-	int ret = 0, i;//,count=0;
-	uint8_t buf[TS_READ_REGS_LEN];
-	int touchType=0, touchState =0, touchID=0, posX=0, posY=0, width = 0, strength=10, keyID = 0, reportID = 0;
-	uint8_t read_num = 0;
-	bool fTouchedScreen = false;
 
+static void mcs8000_work(struct work_struct *work)
+{
+	int read_num, FingerID;
+	int touchType = 0, touchState = 0;
+	struct mcs8000_ts_device *ts = container_of(to_delayed_work(work), struct mcs8000_ts_device, work);
+	int ret 		= 0;
+	int i = 0, j = 0;
+	uint8_t buf[TS_READ_REGS_LEN];
+  int keyID 	= 0;
+	int iTouchedCnt;
+	
+	/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-11-23] 
+	: For an abnormal condition of touchscreen after the phone sleeps on and off*/
+	int Is_Touch_Valid = 0;
+	/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-11-23] 
+	: For an abnormal condition of touchscreen after the phone sleeps on and off*/ 
+	
 #if DEBUG_PRINT
 	printk(KERN_ERR "melfas_ts_work_func\n");
 
-	if(ts ==NULL)
+	if (ts == NULL)
 			printk(KERN_ERR "melfas_ts_work_func : TS NULL\n");
 #endif
 
-	buf[0] = MIP_INPUT_EVENT_PACKET_SIZE;
-	ret = i2c_master_send(ts->client, buf, 1);
-	if(ret<=0)
-		goto i2c_fail;
-	ret = i2c_master_recv(ts->client, &read_num, 1);
-	if(ret<=0)
-		goto i2c_fail;
+/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-11-09] : 
+TD1416085584 :  After sleep on and off while sensing a touchscreen,
+Touchscreen doesn't work*/
+	
+	
+/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-11-09]*/
 
-	if( read_num <= 0 ) {
-		printk("[melfas]read number 0 error occured!!!! \n");
-		release_all_finger(ts);
+
+	buf[0] = TS_READ_START_ADDR;
+
+	ret = i2c_master_send(ts->client, buf, 1);
+	if(ret < 0)
+	{
+#if DEBUG_PRINT
+		printk(KERN_ERR "i2c_master_send: i2c failed\n");
 		if (irq_flag == 0) {
 			irq_flag++;
 			enable_irq(ts->client->irq);
 		}
-		return;
+
+		return ;	
+#endif 
+	}
+	ret = i2c_master_recv(ts->client, buf, 1);
+	if(ret < 0)
+	{
+#if DEBUG_PRINT
+		printk(KERN_ERR "i2c_master_recv: i2c failed\n");
+		if (irq_flag == 0) {
+			irq_flag++;
+			enable_irq(ts->client->irq);
+		}
+
+		return ;	
+#endif 
 	}
 
-	buf[0] = MIP_INPUT_EVENT_INFORMATION;
-	ret = i2c_master_send(ts->client, buf, 1);
-	if(ret<=0)
-		goto i2c_fail;
+	read_num = buf[0];
+			
+/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-10-17] : 
+TD1416085584 :  After sleeping on and off while sensing a touchscreen,
+Touchscreen doesn't work*/
 
-	ret = i2c_master_recv(ts->client, &buf[0], read_num);
-	if(ret<=0)
-		goto i2c_fail;
-	for (i = 0; i < read_num; i = i + 6) // extract touch information
+	iTouchedCnt = 6*5;
+
+	if(read_num > iTouchedCnt)
+	{	
+		if (irq_flag == 0) {
+			irq_flag++;
+			enable_irq(ts->client->irq);
+		}
+		return ;
+	}
+/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-11-09]*/
+
+	if(read_num>0)
 	{
-		if (ret < 0)
+/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-11-23] 
+: For an abnormal condition of touchscreen after the phone sleeps on and off*/	
+	    Is_Touch_Valid = 1;
+/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-11-23] 
+: For an abnormal condition of touchscreen after the phone sleeps on and off*/ 
+		
+		buf[0] = TS_READ_START_ADDR2;
+
+		ret = i2c_master_send(ts->client, buf, 1);
+		if(ret < 0)
 		{
+#if DEBUG_PRINT
 			printk(KERN_ERR "melfas_ts_work_func: i2c failed\n");
 			if (irq_flag == 0) {
-				irq_flag++;
-				enable_irq(ts->client->irq);
-			}
-			return ;
+			irq_flag++;
+
+			enable_irq(ts->client->irq);
+}
+			return ;	
+#endif 
 		}
-		else
+		ret = i2c_master_recv(ts->client, buf, read_num);
+		if(ret < 0)
 		{
-			if( buf[i] == 0x0f ){
-				printk(KERN_ERR "[melfas]ESD ERROR occured\n");
-				release_all_finger(ts);
-				if(power_flag==1){
-					power_flag--;	
-				ts->power(0);
-				}
-				msleep(800);
-				if(power_flag==0){
-					power_flag++;
-				ts->power(1);
-				}	
-					if (irq_flag == 0) {
-						irq_flag++;	
-						enable_irq(ts->client->irq);
-					}
+#if DEBUG_PRINT
+			printk(KERN_ERR "melfas_ts_work_func: i2c failed\n");
+			if (irq_flag == 0) {
+			irq_flag++;
+			enable_irq(ts->client->irq);
+}
+			return ;	
+#endif 
+		}
+
+	/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-11-28] 
+	: For an abnormal condition after getting ESD */
+		ucSensedInfo  = buf[0];
+		if (CheckTSForESD(ucSensedInfo))
+		{
+			if (irq_flag == 0) {
+			irq_flag++;
+			enable_irq(ts->client->irq);
+			}
 			
 			return;
-			}
-//			printk("##############buf[0]=%d\n",buf[0]);
-			
-			touchType  =  ((buf[i] & 0x60) >> 5);
-			touchState =((buf[i] & 0x80) == 0x80);
-			reportID = (buf[i] & 0x0F);
-			posX = (uint16_t) (buf[i + 1] & 0x0F) << 8 | buf[i + 2];
-			posY = (uint16_t) (buf[i + 1] & 0xF0) << 4 | buf[i + 3];
-			width = buf[i + 4];
-			
-			if(touchType == 2 ) //touch key
-			{
-				keyID = reportID;
-			}
-	/*		else
-			{
-				keyID = reportID;
-			}*/
-
-			touchID = reportID-1;
-
-			if(touchID > MELFAS_MAX_TOUCH-1)
-			{
-			    if (irq_flag == 0) {
-				irq_flag++;
-				enable_irq(ts->client->irq);
-			    }	
-			    
-			    return ;
-			}
-
-			if(touchType == TOUCH_SCREEN)
-			{
-				fTouchedScreen = true;
-				g_Mtouch_info[touchID].posX= posX;
-				g_Mtouch_info[touchID].posY= posY;
-				g_Mtouch_info[touchID].width= width;
-
-				if(touchState)
-					g_Mtouch_info[touchID].strength= strength;
-				else 
-					g_Mtouch_info[touchID].strength = 0;
-
-			}
-			else if(touchType == TOUCH_KEY)
-			{
-#if (defined(CONFIG_MACH_MSM7X25A_M4EU_EVB)|| defined(CONFIG_MACH_MSM7X25A_M4BR_REV_B))
-				if (keyID == 0x1)
-					input_report_key(ts->input_dev, KEY_BACK, touchState ? 1 : 0);
-				if (keyID == 0x2)
-					input_report_key(ts->input_dev, HARD_HOME_KEY, touchState ? 1 : 0);
-				if (keyID == 0x3)
-					input_report_key(ts->input_dev, KEY_MENU, touchState ? 1 : 0);
-				if (keyID == 0x4)
-					input_report_key(ts->input_dev, SIM_SWITCH_KEY, touchState ? 1 : 0);
-				
-#elif (defined(CONFIG_MACH_MSM7X25A_M4CA_BELL_REV_B))
-/* LGE_CHANGE_S : RECENT_APPS_KEY (Bell Operator in Canada) */
-				if (keyID == 0x1)
-					input_report_key(ts->input_dev, KEY_BACK, touchState ? 1 : 0);
-				else
-					input_report_key(ts->input_dev, KEY_MENU, touchState ? 1 : 0);
-/*
-				if (keyID == 0x2)
-					input_report_key(ts->input_dev, HARD_HOME_KEY, touchState ? 1 : 0);
-				if (keyID == 0x3)
-					input_report_key(ts->input_dev, RECENT_APPS_KEY, touchState ? 1 : 0);
-				if (keyID == 0x4)
-					input_report_key(ts->input_dev, KEY_MENU, touchState ? 1 : 0);
-*/
-/* LGE_CHANGE_E : RECENT_APPS_KEY */
-#elif (defined(CONFIG_MACH_MSM7X25A_M4EU_REV_A) || defined(CONFIG_MACH_MSM7X25A_M4EU_REV_B) || defined(CONFIG_MACH_MSM7X25A_M4CA_TLS_REV_B) )
-				if (keyID == 0x1)
-					input_report_key(ts->input_dev, KEY_BACK, touchState ? 1 : 0);
-				if (keyID == 0x2)
-					input_report_key(ts->input_dev, KEY_MENU, touchState ? 1 : 0);
-				
-#endif
-				
-	
-#if DEBUG_PRINT
-				printk(KERN_ERR "[melfas]keyID : %d, touchState: %d\n", keyID, touchState);
-#endif
-				break;
-			}
-
 		}
-	}
+	/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-11-28] 
+	: For an abnormal condition after getting ESD */ 
 
-	if(fTouchedScreen)
-	{
-		for(i=0; i<MELFAS_MAX_TOUCH; i++)
+		for(i = 0; i < read_num; i = i + 6)
 		{
-			if(g_Mtouch_info[i].strength== -1)
-				continue;
-		
-	/*	if (g_Mtouch_info[i].strength <= 0) {
-				if (count <  MELFAS_MAX_TOUCH-1) {
-					count++;
-					continue;
-				} else {
-					input_mt_sync(ts->input_dev);
-					break;
-				}
-		}*/
-			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, i);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, g_Mtouch_info[i].posX);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, g_Mtouch_info[i].posY);
-			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, g_Mtouch_info[i].width);
+			touchType  = (buf[i] >> 5) & 0x03;				
+			#if DEBUG_PRINT
+			printk(KERN_INFO "TouchType  : [%d]\n", touchType);
+			#endif
 
-			input_report_abs(ts->input_dev, ABS_MT_PRESSURE, g_Mtouch_info[i].strength);
-			input_mt_sync(ts->input_dev);
-#if DEBUG_PRINT
-		
-			printk(KERN_ERR "[melfas]Touch ID: %d, State : %d, x: %d, y: %d, z: %d w: %d\n",
-				i, touchState, g_Mtouch_info[i].posX, g_Mtouch_info[i].posY, g_Mtouch_info[i].strength, g_Mtouch_info[i].width);
-			
+			/* Touch Type is Screen */
+			if (touchType == TOUCH_SCREEN) 
+			{
+				FingerID = (buf[i] & 0x0F) -1;
+				touchState = (buf[i] & 0x80);
+
+				if((FingerID >=0) && (FingerID < MELFAS_MAX_TOUCH)) {
+				g_Mtouch_info[FingerID].posX= (uint16_t)(buf[i + 1] & 0x0F) << 8 | buf[i + 2];
+				g_Mtouch_info[FingerID].posY= (uint16_t)(buf[i + 1] & 0xF0) << 4 | buf[i + 3];				
+				g_Mtouch_info[FingerID].width = buf[i + 4];
+
+				if (touchState)
+					g_Mtouch_info[FingerID].strength = buf[i + 5];
+				else
+					g_Mtouch_info[FingerID].strength = 0;
+				}
+			}
+			/* Touch type is key */
+			else if (touchType == TOUCH_KEY)
+			{
+
+				keyID = (buf[i] & 0x0F);
+				touchState = (buf[i] & 0x80);
+
+				/* 2012-10-08 JongWook-Park(blood9874@lge.com) [V3] Melfas mms-128s TSD patch [START] */
+				#if 1
+				if(g_touchLogEnable)
+					printk(KERN_INFO "keyID    : [%d]\n", keyID);
+				#endif
+				/* 2012-10-08 JongWook-Park(blood9874@lge.com) [V3] Melfas mms-128s TSD patch [END] */
+
+#if defined(CONFIG_MACH_MSM7X25A_V3_DS) || defined(CONFIG_MACH_MSM7X25A_V1)
+				/* 2012-09-25 JongWook-Park(blood9874@lge.com) [V3] Bring up V3 mms-128s touch [START] */ 
+				switch(keyID)
+				{
+					case 0x1:
+						input_report_key(ts->input_dev, KEY_BACK, touchState ? PRESS_KEY : RELEASE_KEY);
+						break;
+					case 0x2:
+						input_report_key(ts->input_dev, KEY_HOMEPAGE/*KEY_HOME*/, touchState ? PRESS_KEY : RELEASE_KEY);
+						break;
+					case 0x3:
+						input_report_key(ts->input_dev, KEY_MENU, touchState ? PRESS_KEY : RELEASE_KEY);
+						break;
+					case 0x4:
+						input_report_key(ts->input_dev, KEY_SIM_SWITCH, touchState ? PRESS_KEY : RELEASE_KEY);
+						break;
+					default:
+						//make exception to debug
+						//or printk msg
+						break;					
+				}
+				/* 2012-09-25 JongWook-Park(blood9874@lge.com) [V3] Bring up V3 mms-128s touch [END] */ 
+#else
+				/* 2012-10-23 JongWook-Park(blood9874@lge.com) [V3] Single Touch Bring Up [START] */ 
+				#if 0
+				if (keyID == 0x1)
+					input_report_key(ts->input_dev, KEY_MENU, touchState ? PRESS_KEY : RELEASE_KEY);
+				if (keyID == 0x2)
+					input_report_key(ts->input_dev, KEY_BACK, touchState ? PRESS_KEY : RELEASE_KEY);
+				#else
+				if (keyID == 0x1)
+					input_report_key(ts->input_dev, KEY_BACK, touchState ? PRESS_KEY : RELEASE_KEY);
+				if (keyID == 0x2)
+					input_report_key(ts->input_dev, KEY_MENU, touchState ? PRESS_KEY : RELEASE_KEY);
+				#endif
+				/* 2012-10-23 JongWook-Park(blood9874@lge.com) [V3] Single Touch Bring Up [END] */ 
 #endif
-			if(g_Mtouch_info[i].strength == 0)
-				g_Mtouch_info[i].strength = -1;
+				/* LGE_CHANGE_E: E1 yongboem.kim@lge.com [2012-01-10] : for Rev.A Touch Key */
+			}
+		}
+
+		/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-12-19] : 
+		For the MIP Protocal*/
+
+		/* 2012-11-27 JongWook-Park(blood9874@lge.com) mms-128s touch work function patch [START] */ 
+		if (touchType == TOUCH_SCREEN){ 
+			for(j = 0; j < MELFAS_MAX_TOUCH; j++) 
+			{
+				if(g_Mtouch_info[j].strength== -1)
+					continue;
+
+				/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-11-09] : 
+				TD1416085584 :  After sleeping on and off while sensing a touchscreen,
+				Touchscreen doesn't work*/
+				if(Is_Release_Error[j]==1) {			
+					input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, j);
+					input_report_abs(ts->input_dev, ABS_MT_POSITION_X, g_Mtouch_info[j].posX);
+					input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, g_Mtouch_info[j].posY);
+					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0/*g_Mtouch_info[j].strength*/ );
+					input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, g_Mtouch_info[j].width);
+	                input_report_abs(ts->input_dev, ABS_MT_PRESSURE, g_Mtouch_info[j].strength);                        
+					input_mt_sync(ts->input_dev);		  
+					//input_sync(ts->input_dev);/* LGE_CHANGE_S : wonsang.yoon@lge.com [2011-12-17]  blocking*/
+					Is_Release_Error[j]=0;
+				}		
+				/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-11-09]*/
+				
+				if (g_Mtouch_info[j].strength > 0) {	// Press
+				input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, j);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, g_Mtouch_info[j].posX);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, g_Mtouch_info[j].posY);
+				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, g_Mtouch_info[j].strength);
+				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, g_Mtouch_info[j].width);
+	            input_report_abs(ts->input_dev, ABS_MT_PRESSURE, g_Mtouch_info[j].strength);                        
+				input_mt_sync(ts->input_dev);   
+				} else {	// Release
+					input_mt_sync(ts->input_dev);
+				}
+				/* 2012-10-08 JongWook-Park(blood9874@lge.com) [V3] Melfas mms-128s TSD patch [START] */
+				#if 1
+				if(g_touchLogEnable)
+				{
+					printk(KERN_ERR "melfas_ts_work_func: Touch ID: %d, State : %d, x: %d, y: %d, z: %d w: %d\n", 
+							j, (g_Mtouch_info[j].strength>0), g_Mtouch_info[j].posX, g_Mtouch_info[j].posY, g_Mtouch_info[j].strength, g_Mtouch_info[j].width);
+				}
+				#endif	
+				/* 2012-10-08 JongWook-Park(blood9874@lge.com) [V3] Melfas mms-128s TSD patch [END] */
+
+				if(g_Mtouch_info[j].strength == 0){
+					g_Mtouch_info[j].strength = -1;
+				}
+			}
+
+			#if 0
+			if(g_touchLogEnable)
+			{
+				/* 2012-10-31 JongWook-Park(blood9874@lge.com) [V3] Melfas mms-128s Sensitivity Debug */
+				intensity_extract();
+			}
+			#endif	
 
 		}
+		/* 2012-11-27 JongWook-Park(blood9874@lge.com) mms-128s touch work function patch [END] */ 
+		
+		input_sync(ts->input_dev);
+
+	}			
+	/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-11-23] 
+	: For an abnormal condition of touchscreen after the phone sleeps on and off*/
+	if(Is_Touch_Valid){
+		/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-12-20] 
+		: msleep function takes more than setting up delay time*/
+		//msleep(1);
+		usleep_range(1000,1000);	
+		/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-12-20] 
+		: msleep function takes more than setting up delay time*/
 	}
-
-	input_sync(ts->input_dev);
-
-
+	else{
+		#if DEBUG_PRINT
+		printk("mcs8000_work : Invalid data INT happen !!! Added more delay !!!");
+		#endif
+		msleep(20); 
+	}
+	/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-11-23] 
+	: For an abnormal condition of touchscreen after the phone sleeps on and off*/  
 	if (irq_flag == 0) {
 		irq_flag++;
 		enable_irq(ts->client->irq);
 	}
-	return;
-
-i2c_fail:	
-		printk("[melfas]i2c failed occured!!!! \n");
-		release_all_finger(ts);
-		if(power_flag==1){
-			power_flag--;	
-		ts->power(0);
-		}
-		msleep(100);
-		if(power_flag==0){
-			power_flag++;
-		ts->power(1);
-		}	
-		
-		if (irq_flag == 0) {
-			irq_flag++;
-			enable_irq(ts->client->irq);
-		}
+	
 }
 
-static irqreturn_t melfas_ts_irq_handler(int irq, void *handle)
+static void mcs8000_Data_Clear(void) /* for touch stable */
 {
-	struct melfas_ts_data *ts = (struct melfas_ts_data *)handle;
-#if DEBUG_PRINT
-	printk(KERN_ERR "melfas_ts_irq_handler\n");
-#endif
-	if (irq_flag == 1) {
-		irq_flag--;	
-		disable_irq_nosync(ts->client->irq);
+	int i;
+
+	for(i=0; i<MELFAS_MAX_TOUCH; i++)
+	 {
+	   if(g_Mtouch_info[i].strength != -1)
+	   	{
+	   	  Is_Release_Error[i]=1;
+	  		g_Mtouch_info[i].strength = -1;
+	   	}
+
 	}
-//	schedule_work(&ts->work);
-	queue_delayed_work(melfas_wq, &ts->work, 0);
+}
+
+
+static irqreturn_t mcs8000_ts_irq_handler(int irq, void *handle)
+{
+	struct mcs8000_ts_device *dev = (struct mcs8000_ts_device *)handle;
+
+#if DEBUG_PRINT
+	printk(KERN_ERR "melfas_ts_work_func is sending irq");
+#endif		
+		if (irq_flag == 1) {
+		irq_flag--;	
+		disable_irq_nosync(dev->num_irq);
+		}
+		/* schedule_delayed_work(&dev->work, 0); */
+		//schedule_work(&dev->work);
+		 queue_delayed_work(dev->ts_wq, &dev->work,msecs_to_jiffies(TS_POLLING_TIME)); 
+
 	return IRQ_HANDLED;
 }
-void melfas_firmware_info(struct melfas_ts_data *ts,unsigned char *fw_ver, unsigned char *hw_ver)
+
+#if 0
+static int mcs8000_ts_off(void)
+{
+	struct mcs8000_ts_device *dev = NULL;
+	int ret = 0;
+
+	dev = &mcs8000_ts_dev;
+
+/* add Touch power flag eungjin.kim@lge.com [2012-02-06]*/	
+	if(power_flag==1){
+			power_flag--;
+			ret = dev->power(OFF);
+	}	
+/* add Touch power flag eungjin.kim@lge.com [2012-02-06]*/	
+
+	if (ret < 0) {
+		printk(KERN_ERR "mcs8000_ts_on power on failed\n");
+		goto err_power_failed;
+	}
+	msleep(10);
+
+err_power_failed:
+	return ret;
+}
+#endif
+/* LGE_CHANGE_S: E1 eungjin.kim@lge.com [2012-02-16] 
+: For Touch screen non response after wakeup*/
+int mcs8000_ts_on(void)
+/* LGE_CHANGE_S: E1 eungjin.kim@lge.com [2012-02-16] 
+: For Touch screen non response after wakeup*/
+{
+	struct mcs8000_ts_device *dev = NULL;
+	int ret = 0;
+
+	dev = &mcs8000_ts_dev;
+
+/* add Touch power flag eungjin.kim@lge.com [2012-02-06]*/	
+		if(power_flag==0){
+			power_flag++;
+			ret = dev->power(ON);
+		}
+/* add Touch power flag eungjin.kim@lge.com [2012-02-06]*/	
+
+	if (ret < 0) {
+		printk(KERN_ERR "mcs8000_ts_on power on failed\n");
+		goto err_power_failed;
+	}
+	
+/* LGE_CHANGE_S: E0 kevinzone.han@lge.com [2011-11-23] 
+: For an abnormal condition of touchscreen after the phone sleeps on and off*/	
+	msleep(30);
+/* LGE_CHANGE_E: E0 kevinzone.han@lge.com [2011-11-23] 
+
+: For an abnormal condition of touchscreen after the phone sleeps on and off*/ 
+err_power_failed:
+	return ret;
+}
+
+/* LGE_CHANGE_S: E1 eungjin.kim@lge.com [2012-02-16] 
+: For Touch screen non response after wakeup*/
+EXPORT_SYMBOL(mcs8000_ts_on);
+/* LGE_CHANGE_E: E0 eungjin.kim@lge.com [2012-02-16] 
+: For  For Touch screen non response after wakeup*/
+
+void mcs8000_firmware_info(unsigned char *fw_ver, unsigned char *hw_ver,unsigned char *touch_id)
 {
 	unsigned char data;
-	
-	i2c_smbus_write_byte(ts->client, 0xf1);
-	data = i2c_smbus_read_byte(ts->client);
-	msleep(10);
-	printk(KERN_INFO "HARDWARE REVISION [0x%x]\n", data);
-	*hw_ver = data;
-	
-	i2c_smbus_write_byte(ts->client, 0xf5);
-	data = i2c_smbus_read_byte(ts->client);
-	msleep(10);
-	printk(KERN_INFO "FIRMWARE_VERSION [0x%x]\n", data);
-	*fw_ver = data;
+	struct mcs8000_ts_device *dev = NULL;
+	dev = &mcs8000_ts_dev;
 
-	ex_fw_ver=*fw_ver;
+	i2c_smbus_write_byte(dev->client, 0xf1);
+		data = i2c_smbus_read_byte(dev->client);
+		msleep(10);
+		printk(KERN_INFO "HARDWARE REVISION [0x%x]\n", data);
+		*hw_ver = data;
+		ex_hw_ver = *hw_ver;	
+		
+		i2c_smbus_write_byte(dev->client, 0xf5);
+		data = i2c_smbus_read_byte(dev->client);
+		msleep(10);
+		printk(KERN_INFO "FIRMWARE_VERSION [0x%x]\n", data);
+		*fw_ver = data;
+	
+		ex_fw_ver=*fw_ver;
+	
+		data = gpio_get_value(GPIO_TOUCH_ID);
+		printk(KERN_INFO "TOUCH_ID [0x%x]\n", data);
+		*touch_id = data;
+		ex_touch_id = *touch_id;
 }
+/*
+static struct miscdevice mcs8000_ts_misc_dev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "mcs8000-touch",
+	.fops = &mcs8000_ts_ioctl_fops,
+};
+*/
 
 static ssize_t read_touch_version(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "M4 Touch Ver:%02x\n",ex_fw_ver);
+	unsigned char temp_fw_ver, temp_hw_ver, temp_touch_id;
+
+	mcs8000_firmware_info(&temp_fw_ver, &temp_hw_ver, &temp_touch_id);
+	return sprintf(buf, "M4 Touch ID:%02x,HW:%02x,FW:%02x\n",ex_touch_id,ex_hw_ver,ex_fw_ver);
 }
 
+
+/* static DEVICE_ATTR(touch_control, S_IRUGO|S_IWUSR,NULL,write_touch_control); */
+/* static DEVICE_ATTR(touch_status, S_IRUGO,read_touch_status, NULL); */
 static DEVICE_ATTR(version, S_IRUGO /*| S_IWUSR*/, read_touch_version, NULL);
+/* static DEVICE_ATTR(dl_status, S_IRUGO,read_touch_dl_status, NULL); */
 
-static int melfas_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+int mcs8000_create_file(struct input_dev *pdev)
 {
-	struct melfas_ts_data *ts;
+	int ret;
+
+	ret = device_create_file(&pdev->dev, &dev_attr_version);
+	if (ret) {
+		printk(KERN_DEBUG "LG_FW : dev_attr_version create fail\n");
+		device_remove_file(&pdev->dev, &dev_attr_version);
+		return ret;
+	}
+/*
+	ret = device_create_file(&pdev->dev, &dev_attr_dl_status);
+	if (ret) {
+		printk( KERN_DEBUG "LG_FW : dev_attr_dl_status create fail\n");
+		device_remove_file(&pdev->dev, &dev_attr_dl_status);
+		return ret;
+	}
+
+	ret = device_create_file(&pdev->dev, &dev_attr_touch_status);
+	if (ret) {
+		printk( KERN_DEBUG "LG_FW : dev_attr_touch_status create fail\n");
+		device_remove_file(&pdev->dev, &dev_attr_touch_status);
+		return ret;
+	}
+
+	ret = device_create_file(&pdev->dev, &dev_attr_touch_control);
+	if (ret) {
+		printk( KERN_DEBUG "LG_FW : dev_attr_touch_control create fail\n");
+		device_remove_file(&pdev->dev, &dev_attr_touch_control);
+		return ret;
+	}
+*/
+	return ret;
+}
+
+int mcs8000_remove_file(struct input_dev *pdev)
+{
+	device_remove_file(&pdev->dev, &dev_attr_version);
+/*
+ *	device_remove_file(&pdev->dev, &dev_attr_dl_status);
+ *	device_remove_file(&pdev->dev, &dev_attr_touch_status);
+ *	device_remove_file(&pdev->dev, &dev_attr_touch_control);
+ */
+	return 0;
+}
+
+static int mcs8000_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+	int err = 0;
+	/* int try_cnt = 0; */ /* For Touch FW Upgrade */
+	/* unsigned char data; */ /* For Touch FW Upgrade */
 	struct touch_platform_data *ts_pdata;
-	int ret = 0, i; 
-	int fw_ret=0,vendor=0;
+	struct mcs8000_ts_device *dev;
 	unsigned char fw_ver, hw_ver;
-	uint8_t buf[4] = {0,};
+	int fw_ret=0,vendor=0;
+	
+	/* unsigned char tmp_val, tmp_reg ; */
+	unsigned char touch_id;
 	irq_flag = 1;
-	power_flag = 1;
-	
-#if DEBUG_PRINT
-	printk(KERN_ERR "melfas_ts_probe\n");
-#endif
+	DMSG("%s: start...\n", __FUNCTION__);
+
 	ts_pdata = client->dev.platform_data;
-	
-	melfas_wq = create_singlethread_workqueue("melfas_wq");
-	if (!melfas_wq) {
-		printk(KERN_ERR "melfas_ts_probe:failed to create singlethread workqueue\n");
-		return -ENOMEM;
-	}
-	
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)){
-        	printk(KERN_ERR "melfas_ts_probe: need I2C_FUNC_I2C\n");
-        	ret = -ENODEV;
-		goto err_check_functionality_failed;
-    	}
 
-	ts = kmalloc(sizeof(struct melfas_ts_data), GFP_KERNEL);
-	if (ts == NULL){
-        	printk(KERN_ERR "melfas_ts_probe: failed to create a state of melfas-ts\n");
-        	ret = -ENOMEM;
-        	goto err_alloc_data_failed;
-	}
-
-//   	INIT_WORK(&ts->work, melfas_ts_work_func);
-	INIT_DELAYED_WORK(&ts->work, melfas_ts_work_func);
-	ts->power = ts_pdata->power;
-	ts->num_irq = client->irq;
-	ts->intr_gpio	= (client->irq) - NR_MSM_IRQS ;
-	ts->sda_gpio = ts_pdata->sda;
-	ts->scl_gpio  = ts_pdata->scl;
-	ts->client = client;
-    	i2c_set_clientdata(client, ts);
-    	ret = i2c_master_send(ts->client, buf, 1);
+/* 2012-09-25 JongWook-Park(blood9874@lge.com) [V3] Bring up V3 mms-128s touch [START] */ 
+	input_set_abs_params(mcs8000_ts_input, ABS_MT_POSITION_X, 0, TS_MAX_X_COORD, 0, 0);
+	input_set_abs_params(mcs8000_ts_input, ABS_MT_POSITION_Y, 0, TS_MAX_Y_COORD, 0, 0);
+	input_set_abs_params(mcs8000_ts_input, ABS_MT_TOUCH_MAJOR, 0, TS_MAX_Z_TOUCH, 0, 0);
+	input_set_abs_params(mcs8000_ts_input, ABS_MT_TRACKING_ID, 0, MELFAS_MAX_TOUCH-1, 0, 0);
+	/* LGE_CHANGE_S mystery184.kim@lge.com fix multi-touch protocol */
+	input_set_abs_params(mcs8000_ts_input, ABS_MT_PRESSURE, 0, 255, 0, 0);
+	/* LGE_CHANGE_E mystery184.kim@lge.com fix multi-touch protocol */
+	/* input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, TS_MAX_W_TOUCH, 0, 0); */
+	/* 2012-09-25 JongWook-Park(blood9874@lge.com) [V3] Bring up V3 mms-128s touch [END] */ 
 
 #if DEBUG_PRINT
-	printk(KERN_ERR "melfas_ts_probe: i2c_master_send() [%d], Add[%d]\n", ret, ts->client->addr);
+  printk(KERN_INFO "ABS_MT_POSITION_X123 :  ABS_MT_POSITION_Y = [%d] : [%d] \n", ts_pdata->ts_x_max, ts_pdata->ts_y_max);
 #endif
-	
-	ts->input_dev = input_allocate_device();
-	
-	if (!ts->input_dev){
-		printk(KERN_ERR "melfas_ts_probe: Not enough memory\n");
-		ret = -ENOMEM;
-		goto err_input_dev_alloc_failed;
+
+	dev = &mcs8000_ts_dev;
+
+	 INIT_DELAYED_WORK(&dev->work, mcs8000_work); 
+	//INIT_WORK(&dev->work, mcs8000_work);
+
+	dev->power = ts_pdata->power;
+	dev->num_irq = client->irq;
+	dev->intr_gpio	= (client->irq) - NR_MSM_IRQS ;
+	dev->sda_gpio = ts_pdata->sda;
+	dev->scl_gpio  = ts_pdata->scl;
+
+
+	dev->input_dev = mcs8000_ts_input;
+	DMSG("mcs8000 dev->num_irq is %d , dev->intr_gpio is %d\n", dev->num_irq, dev->intr_gpio);
+
+	dev->client = client;
+	i2c_set_clientdata(client, dev);
+
+	if (!(err = i2c_check_functionality(client->adapter, I2C_FUNC_I2C))) {
+		printk(KERN_ERR "%s: fucntionality check failed\n", __FUNCTION__);
+		return err;
 	} 
 
-/* LGE_CHANGE_S : RECENT_APPS_KEY (Bell Operator in Canada) */
-#if defined(CONFIG_MACH_MSM7X25A_M4CA_BELL_REV_B)
-	ts->input_dev->name = "touch_mcs8000_bell";
-#else
-	ts->input_dev->name = "touch_mcs8000" ;
-#endif
-/* LGE_CHANGE_E : RECENT_APPS_KEY */
-
-	ts->input_dev->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
-	
-#if defined(CONFIG_MACH_MSM7X25A_M4CA_BELL_REV_B)
-/* LGE_CHANGE_S : RECENT_APPS_KEY (Bell Operator in Canada) */
-	ts->input_dev->keybit[BIT_WORD(KEY_BACK)] |= BIT_MASK(KEY_BACK);
-//	ts->input_dev->keybit[BIT_WORD(HARD_HOME_KEY)] |= BIT_MASK(HARD_HOME_KEY);
-//	ts->input_dev->keybit[BIT_WORD(RECENT_APPS_KEY)] |= BIT_MASK(RECENT_APPS_KEY);
-	ts->input_dev->keybit[BIT_WORD(KEY_MENU)] |= BIT_MASK(KEY_MENU);
-/* LGE_CHANGE_E : RECENT_APPS_KEY */
-#else
-	ts->input_dev->keybit[BIT_WORD(KEY_MENU)] |= BIT_MASK(KEY_MENU);
-#if (defined(CONFIG_MACH_MSM7X25A_M4BR_REV_B))
-	ts->input_dev->keybit[BIT_WORD(HARD_HOME_KEY)] |= BIT_MASK(HARD_HOME_KEY);
-#else	
-	ts->input_dev->keybit[BIT_WORD(KEY_HOME)] |= BIT_MASK(KEY_HOME);
-#endif
-	ts->input_dev->keybit[BIT_WORD(KEY_BACK)] |= BIT_MASK(KEY_BACK);		
-	ts->input_dev->keybit[BIT_WORD(SIM_SWITCH_KEY)] |= BIT_MASK(SIM_SWITCH_KEY);			
-#endif
-	
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, TS_MAX_X_COORD, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, TS_MAX_Y_COORD, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, TS_MAX_W_TOUCH, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, MELFAS_MAX_TOUCH-1, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, 0, TS_MAX_Z_TOUCH, 0, 0);
-
-	ret = input_register_device(ts->input_dev);
-	if (ret){
-		printk(KERN_ERR "melfas_ts_probe: Failed to register device\n");
-		ret = -ENOMEM;
-		goto err_input_register_device_failed;
-	}
-
-/* LGE_CHANGE_S : RECENT_APPS_KEY (Bell Operator in Canada) */
-#if defined(CONFIG_MACH_MSM7X25A_M4CA_BELL_REV_B)
-	ret = gpio_request(ts->intr_gpio, "touch_mcs8000_bell");
-#else
-	ret = gpio_request(ts->intr_gpio, "touch_mcs8000");
-#endif
-/* LGE_CHANGE_E : RECENT_APPS_KEY */
-
-	if (ret < 0) {
-		printk(KERN_ERR "%s: gpio request fail\n", __FUNCTION__);
-		return ret;
-	}
-
-	ret = gpio_direction_input(ts->intr_gpio);
-	if (ret < 0) {
+	err = gpio_request(dev->intr_gpio, "touch_mcs8000");
+	if (err < 0) {
 		printk(KERN_ERR "%s: gpio input direction fail\n", __FUNCTION__);
-		return ret;
-	}
-	if (ts->num_irq){
-#if DEBUG_PRINT
-        printk(KERN_ERR "melfas_ts_probe: trying to request irq: %s-%d\n", ts->client->name, ts->num_irq);
-#endif
-        ret = request_irq(ts->num_irq, melfas_ts_irq_handler, IRQF_TRIGGER_LOW, ts->client->name, ts);
-        if (ret > 0){
-            printk(KERN_ERR "melfas_ts_probe: Can't allocate irq %d, ret %d\n", ts->client->irq, ret);
-            ret = -EBUSY;
-            goto err_request_irq;
-        }
+		return err;
 	}
 
-	disable_irq(ts->num_irq);
-//	ts->power(0);
+	err = gpio_direction_input(dev->intr_gpio);
+	if (err < 0) {
+		printk(KERN_ERR "%s: gpio input direction fail\n", __FUNCTION__);
+		return err;
+	}
+
+	/* TODO: You have try to change this driver's architecture using request_threaded_irq()
+	 * So, I will change this to request_threaded_irq()
+	 */
+	err = request_threaded_irq(dev->num_irq, NULL, mcs8000_ts_irq_handler,
+			IRQF_TRIGGER_LOW | IRQF_ONESHOT, "mcs8000_ts", dev);
+	
+	if (err < 0) {
+		printk(KERN_ERR "%s: request_irq failed\n", __FUNCTION__);
+		return err;
+	}
+	if (irq_flag == 1) {
+		irq_flag--;	
+		disable_irq(dev->num_irq);
+	}
+	
+//	mcs8000_ts_off();
 //	mdelay(10);
-	ts->power(1);
+	mcs8000_ts_on();
 	mdelay(30);
-	melfas_firmware_info(ts,&fw_ver, &hw_ver);
+	mcs8000_firmware_info(&fw_ver, &hw_ver,&touch_id);
 	mdelay(10);
+
+
+	//mcs8000_ext_ts = dev;
+	
+	
+	mcs8000_create_file(mcs8000_ts_input);  
+	
 #if SET_DOWNLOAD_BY_GPIO
-	buf[0] = TS_READ_VERSION_ADDR;
-	ret = i2c_master_send(ts->client, buf, 1);
+/*	buf[0] = TS_READ_VERSION_ADDR;
+	ret = i2c_master_send(dev->client, buf, 1);
 	if(ret < 0){
 		printk(KERN_ERR "melfas_ts_work_func : i2c_master_send [%d]\n", ret);			
 	}
 
-	ret = i2c_master_recv(ts->client, buf, 4);
+	ret = i2c_master_recv(dev->client, buf, 4);
 	if(ret < 0){
 		printk(KERN_ERR "melfas_ts_work_func : i2c_master_recv [%d]\n", ret);			
 	}
-	
-#if defined(CONFIG_MACH_MSM7X25A_M4EU_EVB) //temporary for M3C EVB 
-		mcsdl_download_binary_data(1, 1,hw_ver,0);
 
-#elif (defined(CONFIG_MACH_MSM7X25A_M4EU_REV_A) || defined(CONFIG_MACH_MSM7X25A_M4EU_REV_B) )
-	//if(hw_ver==0x00){
-	if(lge_bd_rev < 4){ 
+*/	
+	if(touch_id == 0){ //suntel
+		 if(hw_ver==0x01){    	
+			fw_ret = mcsdl_download_binary_data(1, 1,hw_ver,1);
+			vendor=2;
+		}
 		if ( fw_ver !=TS_LATEST_FW_VERSION_EU_SUN ) { 
 			fw_ret = mcsdl_download_binary_data(1, 1,hw_ver,1);
 			vendor=2;
 		}	
-	}else{ //for rev C,D,1.1
+	}else{ //for rev C,D,1.1 Innotek
+		if(hw_ver==0x00){	
+			fw_ret = mcsdl_download_binary_data(1, 1,hw_ver,2);
+			vendor=3;
+		}
 		if ( fw_ver !=TS_LATEST_FW_VERSION_EU_INO ){  
 			 fw_ret =	mcsdl_download_binary_data(1, 1,hw_ver,2);
 			 vendor=3;
 		}	
 	}	
-#elif defined(CONFIG_MACH_MSM7X25A_M4CA_BELL_REV_B)
-//Change the touch panel
-	if(hw_ver==0x00){
-		if ( fw_ver !=TS_LATEST_FW_VERSION_EU_SUN){
-		 	fw_ret=mcsdl_download_binary_data(1, 1,hw_ver,1);
-			vendor=2;
-		}	
-	}	
-	else{
-		if ( fw_ver !=TS_LATEST_FW_VERSION_EU_INO){
-			fw_ret=mcsdl_download_binary_data(1, 1,hw_ver,2);
-			vendor=3;
-		}	
-	}
-
-/*soohwan.kang
-	if(hw_ver==0x03){
-		if ( fw_ver !=TS_LATEST_FW_VERSION_BELL_NEW)
-			mcsdl_download_binary_data(1, 1,hw_ver,4);
-	}	
-	else{  // hw_ver:02 fw_ver:05
-		if ( fw_ver !=TS_LATEST_FW_VERSION_BELL_OLD)
-			mcsdl_download_binary_data(1, 1,hw_ver,3);
-	}	
-*/
-#elif defined(CONFIG_MACH_MSM7X25A_M4CA_TLS_REV_B)
-	if(hw_ver==0x00){
-		if ( fw_ver !=TS_LATEST_FW_VERSION_TELUS_SUN)
-			mcsdl_download_binary_data(1, 1,hw_ver,1);
-	}	
-	else{
-		if ( fw_ver !=TS_LATEST_FW_VERSION_TELUS_INO)
-			mcsdl_download_binary_data(1, 1,hw_ver,2);
-	}	
-#else // for (CONFIG_MACH_MSM7X25A_M4BR_REV_B) 
-	//if(hw_ver==0x02){
-	if(lge_bd_rev > 1){ //for Rev B ,C ,D ,1.1
-		if ( fw_ver !=TS_LATEST_FW_VERSION_BR_NEW){
-			fw_ret=mcsdl_download_binary_data(1, 1,hw_ver,3);
-			vendor=4;
-		}	
-	}
-	else{ //for Rev A
-		if ( fw_ver !=TS_LATEST_FW_VERSION_BR_OLD){
-			fw_ret=mcsdl_download_binary_data(1, 1,hw_ver,5);
-			vendor=5;
-		}	
-	}	
-#endif
-
-
 #endif // SET_DOWNLOAD_BY_GPIO
-	
-	enable_irq(ts->num_irq);
-	
+
+	if (irq_flag == 0) {
+		irq_flag++;
+		enable_irq(dev->num_irq);
+	}
+	mcs8000_firmware_info(&fw_ver, &hw_ver,&touch_id);
 	if(fw_ret!=0){
 		mms100_ISC_download_binary_data(0,0,vendor);
 	}
-	melfas_firmware_info(ts,&fw_ver, &hw_ver);
 	
-	ret = device_create_file(&ts->input_dev->dev, &dev_attr_version);
-
-
-	for (i = 0; i < MELFAS_MAX_TOUCH ; i++)  /* _SUPPORT_MULTITOUCH_ */
-		g_Mtouch_info[i].strength = -1;	
-
-	release_all_finger(ts);//To release initial sensitiviy 
-#if DEBUG_PRINT	
-	printk(KERN_ERR "melfas_ts_probe: succeed to register input device\n");
-#endif
-
-#if CONFIG_HAS_EARLYSUSPEND
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ts->early_suspend.suspend = melfas_ts_early_suspend;
-	ts->early_suspend.resume = melfas_ts_late_resume;
-	register_early_suspend(&ts->early_suspend);
-#endif
 	
-#if DEBUG_PRINT
-	printk(KERN_INFO "melfas_ts_probe: Start touchscreen. name: %s, irq: %d\n", ts->client->name, ts->client->irq);
-#endif
-	return 0;
-
-err_request_irq:
-	printk(KERN_ERR "melfas-ts: err_request_irq failed\n");
-	free_irq(client->irq, ts);
-err_input_register_device_failed:
-	printk(KERN_ERR "melfas-ts: err_input_register_device failed\n");
-	input_free_device(ts->input_dev);
-err_input_dev_alloc_failed:
-	printk(KERN_ERR "melfas-ts: err_input_dev_alloc failed\n");
-err_alloc_data_failed:
-	printk(KERN_ERR "melfas-ts: err_alloc_data failed_\n");	
-//err_detect_failed:
-//	printk(KERN_ERR "melfas-ts: err_detect failed\n");
-//	kfree(ts);
-err_check_functionality_failed:
-	printk(KERN_ERR "melfas-ts: err_check_functionality failed_\n");
-
-	return ret;
-}
-
-static int melfas_ts_remove(struct i2c_client *client)
-{
-	struct melfas_ts_data *ts = i2c_get_clientdata(client);
-
-	unregister_early_suspend(&ts->early_suspend);
-	free_irq(client->irq, ts);
-	input_unregister_device(ts->input_dev);
-	kfree(ts);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	ts_early_suspend.suspend = mcs8000_early_suspend;
+	ts_early_suspend.resume = mcs8000_late_resume;
+	ts_early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1 ;
+	register_early_suspend(&ts_early_suspend);
+#endif	
 	return 0;
 }
 
-static int melfas_ts_suspend(struct i2c_client *client, pm_message_t mesg)
+static int mcs8000_ts_remove(struct i2c_client *client)
 {
-	int ret;
-	struct melfas_ts_data *ts = i2c_get_clientdata(client);
+	struct mcs8000_ts_device *dev = i2c_get_clientdata(client);
 
- 	if (irq_flag == 1) {
-		irq_flag--;
-		disable_irq_nosync(client->irq);
-	}	
+	free_irq(dev->num_irq, dev);
+	i2c_set_clientdata(client, NULL);
+
+	return 0;
+}
+
+#ifndef CONFIG_HAS_EARLYSUSPEND
+static int mcs8000_ts_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	struct mcs8000_ts_device *dev = i2c_get_clientdata(client);
+
 	
-//	ret=cancel_work_sync(&ts->work);
-	ret = cancel_delayed_work_sync(&ts->work);  
-/*	if (ret){
-		printk("*****************cancle work=%d\n",ret); 
-		enable_irq(client->irq);
-	}	*/
-//	ret = i2c_smbus_write_byte_data(ts->client, 0x01, 0x00); /* sleep */
-//	if (ret < 0)
-//		printk(KERN_ERR "melfas_ts_suspend: i2c_smbus_write_byte_data failed\n");
-	release_all_finger(ts);
-	if(power_flag==1){
-		power_flag--;	
-		ts->power(0);
-	}
-	msleep(10);
+		DMSG(KERN_INFO"%s: start! \n", __FUNCTION__);
+		if (irq_flag == 1) {
+		irq_flag--;	
+		disable_irq(dev->num_irq);
+		}
+		
+		DMSG("%s: irq disable\n", __FUNCTION__);
+		
+		if(power_flag==1){
+			power_flag--;
+			dev->power(OFF);
+			}	
+
 	return 0;
 }
 
-static int melfas_ts_resume(struct i2c_client *client)
+static int mcs8000_ts_resume(struct i2c_client *client)
 {
-	struct melfas_ts_data *ts = i2c_get_clientdata(client);
+	struct mcs8000_ts_device *dev = i2c_get_clientdata(client);
 
-//	melfas_init_panel(ts);
-	if(power_flag==0){
-		power_flag++;
-	ts->power(1);
-	}
-	msleep(10);
-	if (irq_flag == 0) {
-		irq_flag++;
-		enable_irq(client->irq); // scl wave
-	}
+	
+		DMSG(KERN_INFO"%s: start! \n", __FUNCTION__);
+
+		if(power_flag==0){
+			power_flag++;
+			dev->power(ON);
+		}
+			
+		if (irq_flag == 0) {
+			irq_flag++;
+			enable_irq(dev->num_irq);
+		}
+		
+		DMSG("%s: irq enable\n", __FUNCTION__);
+	
+
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static void melfas_ts_early_suspend(struct early_suspend *h)
+static void mcs8000_early_suspend(struct early_suspend *h)
 {
-	struct melfas_ts_data *ts;
-	ts = container_of(h, struct melfas_ts_data, early_suspend);
-	melfas_ts_suspend(ts->client, PMSG_SUSPEND);
+	int ret=0;
+	struct mcs8000_ts_device *dev = &mcs8000_ts_dev;
+
+		//mcs8000_Data_Clear(); 
+
+		DMSG(KERN_INFO"%s: start! \n", __FUNCTION__);
+		if (irq_flag == 1) {
+			irq_flag--;	
+			disable_irq(dev->num_irq);
+			DMSG("%s: irq disable\n", __FUNCTION__);
+		}
+
+		ret = cancel_delayed_work_sync(&dev->work);
+		Release_All_Fingers();
+		if(power_flag==1){
+			power_flag--;
+			dev->power(OFF);
+		}	
+	
 }
 
-static void melfas_ts_late_resume(struct early_suspend *h)
+static void mcs8000_late_resume(struct early_suspend *h)
 {
-	struct melfas_ts_data *ts;
-	ts = container_of(h, struct melfas_ts_data, early_suspend);
-	melfas_ts_resume(ts->client);
+	struct mcs8000_ts_device *dev = &mcs8000_ts_dev;
+
+	
+		DMSG(KERN_INFO"%s: start! \n", __FUNCTION__);
+		
+		if(power_flag==0){
+			power_flag++;
+			dev->power(ON);
+		}
+		
+		if (irq_flag == 0) {
+			irq_flag++;
+			enable_irq(dev->num_irq);
+			DMSG("%s: irq enable\n", __FUNCTION__);
+		}
+	
 }
 #endif
 
-static const struct i2c_device_id melfas_ts_id[] =
-{
-    { MELFAS_TS_NAME, 1 },
-    { }
+static const struct i2c_device_id mcs8000_ts_id[] = {
+	{"touch_mcs8000", 1},
+	{ }
 };
 
-static struct i2c_driver melfas_ts_driver =
-{
-    .driver = {
-    .name = MELFAS_TS_NAME,
-    },
-    .id_table = melfas_ts_id,
-    .probe = melfas_ts_probe,
-    .remove = __devexit_p(melfas_ts_remove),
+
+static struct i2c_driver mcs8000_i2c_ts_driver = {
+	.probe = mcs8000_ts_probe,
+	.remove = mcs8000_ts_remove,
 #ifndef CONFIG_HAS_EARLYSUSPEND
-	.suspend		= melfas_ts_suspend,
-	.resume		= melfas_ts_resume,
+	.suspend = mcs8000_ts_suspend,
+	.resume  = mcs8000_ts_resume,
 #endif
+	.id_table = mcs8000_ts_id,
+	.driver = {
+		.name = "touch_mcs8000",
+		.owner = THIS_MODULE,
+	},
 };
 
-static int __devinit melfas_ts_init(void)
+static int __devinit mcs8000_ts_init(void)
 {
-	return i2c_add_driver(&melfas_ts_driver);
+	int err = 0;
+	struct mcs8000_ts_device *dev;
+	dev = &mcs8000_ts_dev;
+
+	memset(&mcs8000_ts_dev, 0, sizeof(struct mcs8000_ts_device));
+
+	mcs8000_ts_input = input_allocate_device();
+	if (mcs8000_ts_input == NULL) {
+		printk(KERN_ERR "%s: input_allocate: not enough memory\n",
+				__FUNCTION__);
+		err = -ENOMEM;
+		goto err_input_allocate;
+	}
+
+	mcs8000_ts_input->name = "touch_mcs8000";
+
+
+    set_bit(EV_ABS, mcs8000_ts_input->evbit);
+    set_bit(EV_KEY, mcs8000_ts_input->evbit);
+    set_bit(INPUT_PROP_DIRECT, mcs8000_ts_input->propbit);
+     
+    mcs8000_ts_input->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
+
+	#if 0
+    mcs8000_ts_input->keybit[BIT_WORD(KEY_BACK)] |= BIT_MASK(KEY_BACK);
+    mcs8000_ts_input->keybit[BIT_WORD(KEY_HOMEPAGE)] |= BIT_MASK(KEY_HOMEPAGE);
+    mcs8000_ts_input->keybit[BIT_WORD(KEY_MENU)] |= BIT_MASK(KEY_MENU);
+#if defined(CONFIG_MACH_MSM7X25A_V3_DS)    
+    mcs8000_ts_input->keybit[BIT_WORD(KEY_SIM_SWITCH)] |= BIT_MASK(KEY_SIM_SWITCH);
+#endif
+	#else
+		mcs8000_ts_input->keybit[BIT_WORD(KEY_BACK)] |= BIT_MASK(KEY_BACK);
+		mcs8000_ts_input->keybit[BIT_WORD(KEY_MENU)] |= BIT_MASK(KEY_MENU);
+#if defined(CONFIG_MACH_MSM7X25A_V3_DS) || defined(CONFIG_MACH_MSM7X25A_V1)
+		mcs8000_ts_input->keybit[BIT_WORD(KEY_HOMEPAGE)] |= BIT_MASK(KEY_HOMEPAGE);
+		mcs8000_ts_input->keybit[BIT_WORD(KEY_SIM_SWITCH)] |= BIT_MASK(KEY_SIM_SWITCH);
+#endif
+	#endif	
+
+	err = input_register_device(mcs8000_ts_input);
+	if (err < 0) {
+		printk(KERN_ERR "%s: Fail to register device\n", __FUNCTION__);
+		goto err_input_register;
+	}
+
+	err = i2c_add_driver(&mcs8000_i2c_ts_driver);
+	if (err < 0) {
+		printk(KERN_ERR "%s: failed to probe i2c \n", __FUNCTION__);
+		goto err_i2c_add_driver;
+	}
+/*
+	err = misc_register(&mcs8000_ts_misc_dev);
+	if (err < 0) {
+		printk(KERN_ERR "%s: failed to misc register\n", __FUNCTION__);
+		goto err_misc_register;
+	}
+*/
+	dev->ts_wq = create_singlethread_workqueue("ts_wq");
+	if (!dev->ts_wq) {
+		printk(KERN_ERR "%s: failed to create wp\n", __FUNCTION__);
+		err = -1;
+	}
+	return err;
+/*
+err_misc_register:
+misc_deregister(&mcs8000_ts_misc_dev);
+*/
+err_i2c_add_driver:
+	i2c_del_driver(&mcs8000_i2c_ts_driver);
+err_input_register:
+	input_unregister_device(mcs8000_ts_input);
+err_input_allocate:
+	input_free_device(mcs8000_ts_input);
+	mcs8000_ts_input = NULL;
+	return err;
 }
 
-static void __exit melfas_ts_exit(void)
+static void __exit mcs8000_ts_exit(void)
 {
-	i2c_del_driver(&melfas_ts_driver);
-	if (melfas_wq)               
-	destroy_workqueue(melfas_wq);
+	struct mcs8000_ts_device *dev;
+	dev = &mcs8000_ts_dev;
+/* mcs8000_remove_file(mcs8000_ts_input); */
+	i2c_del_driver(&mcs8000_i2c_ts_driver);
+	input_unregister_device(mcs8000_ts_input);
+	input_free_device(mcs8000_ts_input);
+
+	if (dev->ts_wq)
+		destroy_workqueue(dev->ts_wq);
+	printk(KERN_INFO "touchscreen driver was unloaded!\nHave a nice day!\n");
 }
 
-MODULE_DESCRIPTION("Driver for Melfas MTSI Touchscreen Controller");
-MODULE_AUTHOR("MinSang, Kim <kimms@melfas.com>");
-MODULE_VERSION("0.1");
+module_init(mcs8000_ts_init);
+module_exit(mcs8000_ts_exit);
+
+MODULE_DESCRIPTION("MELFAS MCS8000 Touchscreen Driver");
 MODULE_LICENSE("GPL");
 
-module_init(melfas_ts_init);
-module_exit(melfas_ts_exit);

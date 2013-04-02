@@ -9,7 +9,7 @@
  */
 #include <linux/irq.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/radix-tree.h>
@@ -112,6 +112,7 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	return radix_tree_lookup(&irq_desc_tree, irq);
 }
+EXPORT_SYMBOL(irq_to_desc);
 
 static void delete_irq_desc(unsigned int irq)
 {
@@ -344,6 +345,7 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  * @from:	Start the search from this irq number
  * @cnt:	Number of consecutive irqs to allocate.
  * @node:	Preferred node on which the irq descriptor should be allocated
+ * @owner:	Owning module (can be NULL)
  *
  * Returns the first irq number or error code
  */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,18 +31,13 @@
 #define VOLANS_MAN_ID             0x70
 #define VOLANS_REV_1_0_CARD_ID    0x0
 #define VOLANS_REV_2_0_CARD_ID    0x2881
-/* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [START] */
-#define GET_INODE_FROM_FILEP(filp) \
-		((filp)->f_path.dentry->d_inode)
-/* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [END] */
 
 typedef int (suspend_handler_t)(struct sdio_func *);
 typedef void (resume_handler_t)(struct sdio_func *);
 typedef void (notify_card_removal_t)(void);
+typedef void (shutdown_handler_t)(void);
 
-// 2012.03.13 real-wifi@lge.com[wo0gi] QCT patch : CMD52 timeout patch [START]
 int libra_enable_sdio_irq_in_chip(struct sdio_func *func, u8 enable);
-// 2012.03.13 real-wifi@lge.com[wo0gi] QCT patch : CMD52 timeout patch [END]
 int    libra_sdio_configure(sdio_irq_handler_t libra_sdio_rxhandler,
 		void (*func_drv_fn)(int *status),
 		u32 funcdrv_timeout, u32 blksize);
@@ -81,9 +76,8 @@ void libra_sdio_release_irq(struct sdio_func *func);
 int libra_enable_sdio_irq(struct sdio_func *func, u8 enable);
 void libra_sdio_disable_func(struct sdio_func *func);
 int libra_disable_sdio_irq_capability(struct sdio_func *func, u8 disable);
-/* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [START] */
-void enable_mmchost_detect_change(const char *mmc_msm_dev, int enable);
-/* 2011.12.26 real-wifi@lge.com[wo0gi] QCT patch : enhance Wi-Fi On [END] */
 int libra_sdio_notify_card_removal(
 		notify_card_removal_t *libra_sdio_notify_card_removal_hdlr);
+int libra_sdio_register_shutdown_hdlr(
+		shutdown_handler_t *libra_shutdown_hdlr);
 #endif /* __LIBRA_SDIOIF_H__ */

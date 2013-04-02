@@ -15,6 +15,8 @@
  *
  */
 
+#include <asm/atomic.h>
+
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -39,12 +41,12 @@
 #include <mach/subsystem_restart.h>
 #include <mach/subsystem_notif.h>
 
-#include <timer.h>
+#include "ramdump.h"
+#include "timer.h"
 
 #define DRV_NAME	"msm_dsps"
-#define DRV_VERSION	"3.02"
+#define DRV_VERSION	"4.02"
 
-#define PPSS_PAUSE_REG	0x1804
 
 #define PPSS_TIMER0_32KHZ_REG	0x1004
 #define PPSS_TIMER0_20MHZ_REG	0x0804
@@ -58,8 +60,14 @@
  *  @cdev - character device for user interface.
  *  @pdata - platform data.
  *  @pil - handle to DSPS Firmware loader.
+ *  @dspsfw_ramdump_dev - handle to ramdump device for DSPS
+ *  @dspsfw_ramdump_segments - Ramdump segment information for DSPS
+ *  @smem_ramdump_dev - handle to ramdump device for smem
+ *  @smem_ramdump_segments - Ramdump segment information for smem
  *  @is_on - DSPS is on.
  *  @ref_count - open/close reference count.
+ *  @wdog_irq - DSPS Watchdog IRQ
+ *  @crash_in_progress - 1 if crash recovery is in progress
  *  @ppss_base - ppss registers virtual base address.
  */
 struct dsps_drv {
@@ -73,9 +81,17 @@ struct dsps_drv {
 
 	void *pil;
 
+	void *dspsfw_ramdump_dev;
+	struct ramdump_segment dspsfw_ramdump_segments[4];
+
+	void *smem_ramdump_dev;
+	struct ramdump_segment smem_ramdump_segments[1];
+
 	int is_on;
 	int ref_count;
+	int wdog_irq;
 
+	atomic_t crash_in_progress;
 	void __iomem *ppss_base;
 };
 
@@ -89,8 +105,7 @@ static struct dsps_drv *drv;
  */
 static int dsps_crash_shutdown_g;
 
-
-static void dsps_fatal_handler(struct work_struct *work);
+static void dsps_restart_handler(void);
 
 /**
  *  Load DSPS Firmware.
@@ -121,23 +136,29 @@ static void dsps_unload(void)
 
 /**
  *  Suspend DSPS CPU.
+ *
+ * Only call if dsps_pwr_ctl_en is false.
+ * If dsps_pwr_ctl_en is true, then DSPS will control its own power state.
  */
 static void dsps_suspend(void)
 {
 	pr_debug("%s.\n", __func__);
 
-	writel_relaxed(1, drv->ppss_base + PPSS_PAUSE_REG);
+	writel_relaxed(1, drv->ppss_base + drv->pdata->ppss_pause_reg);
 	mb(); /* Make sure write commited before ioctl returns. */
 }
 
 /**
  *  Resume DSPS CPU.
+ *
+ * Only call if dsps_pwr_ctl_en is false.
+ * If dsps_pwr_ctl_en is true, then DSPS will control its own power state.
  */
 static void dsps_resume(void)
 {
 	pr_debug("%s.\n", __func__);
 
-	writel_relaxed(0, drv->ppss_base + PPSS_PAUSE_REG);
+	writel_relaxed(0, drv->ppss_base + drv->pdata->ppss_pause_reg);
 	mb(); /* Make sure write commited before ioctl returns. */
 }
 
@@ -210,7 +231,7 @@ static int dsps_power_on_handler(void)
 
 		}
 
-		ret = clk_enable(clock);
+		ret = clk_prepare_enable(clock);
 		if (ret) {
 			pr_err("%s: enable clk %s err %d.",
 			       __func__, name, ret);
@@ -299,7 +320,7 @@ clk_err:
 		if (clock == NULL)
 			continue;
 
-		clk_disable(clock);
+		clk_disable_unprepare(clock);
 	}
 
 	return -ENODEV;
@@ -329,7 +350,7 @@ static int dsps_power_off_handler(void)
 			const char *name = drv->pdata->clks[i].name;
 
 			pr_debug("%s: set clk %s off.", __func__, name);
-			clk_disable(drv->pdata->clks[i].clock);
+			clk_disable_unprepare(drv->pdata->clks[i].clock);
 		}
 
 	for (i = 0; i < drv->pdata->regs_num; i++)
@@ -360,7 +381,28 @@ static int dsps_power_off_handler(void)
 	return 0;
 }
 
-static DECLARE_WORK(dsps_fatal_work, dsps_fatal_handler);
+/**
+ *
+ * Log subsystem restart failure reason
+ */
+static void dsps_log_sfr(void)
+{
+	const char dflt_reason[] = "Died too early due to unknown reason";
+	char *smem_reset_reason;
+	unsigned smem_reset_size;
+
+	smem_reset_reason = smem_get_entry(SMEM_SSR_REASON_DSPS0,
+		&smem_reset_size);
+	if (smem_reset_reason != NULL && smem_reset_reason[0] != 0) {
+		smem_reset_reason[smem_reset_size-1] = 0;
+		pr_err("%s: DSPS failure: %s\nResetting DSPS\n",
+			__func__, smem_reset_reason);
+		memset(smem_reset_reason, 0, smem_reset_size);
+		wmb();
+	} else
+		pr_err("%s: DSPS failure: %s\nResetting DSPS\n",
+			__func__, dflt_reason);
+}
 
 /**
  *  Watchdog interrupt handler
@@ -368,9 +410,9 @@ static DECLARE_WORK(dsps_fatal_work, dsps_fatal_handler);
  */
 static irqreturn_t dsps_wdog_bite_irq(int irq, void *dev_id)
 {
-	pr_debug("%s\n", __func__);
-	(void)schedule_work(&dsps_fatal_work);
-	disable_irq_nosync(irq);
+	pr_err("%s\n", __func__);
+	dsps_log_sfr();
+	dsps_restart_handler();
 	return IRQ_HANDLED;
 }
 
@@ -388,8 +430,10 @@ static long dsps_ioctl(struct file *file,
 
 	switch (cmd) {
 	case DSPS_IOCTL_ON:
-		ret = dsps_power_on_handler();
-		dsps_resume();
+		if (!drv->pdata->dsps_pwr_ctl_en) {
+			ret = dsps_power_on_handler();
+			dsps_resume();
+		}
 		break;
 	case DSPS_IOCTL_OFF:
 		if (!drv->pdata->dsps_pwr_ctl_en) {
@@ -406,7 +450,9 @@ static long dsps_ioctl(struct file *file,
 		ret = put_user(val, (u32 __user *) arg);
 		break;
 	case DSPS_IOCTL_RESET:
-		dsps_fatal_handler(NULL);
+		pr_err("%s: User-initiated DSPS reset.\nResetting DSPS\n",
+		       __func__);
+		dsps_restart_handler();
 		ret = 0;
 		break;
 	default:
@@ -498,20 +544,51 @@ static int dsps_alloc_resources(struct platform_device *pdev)
 	ppss_wdog = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 						"ppss_wdog");
 	if (ppss_wdog) {
-		ret = request_irq(ppss_wdog->start, dsps_wdog_bite_irq,
+		drv->wdog_irq = ppss_wdog->start;
+		ret = request_irq(drv->wdog_irq, dsps_wdog_bite_irq,
 				  IRQF_TRIGGER_RISING, "dsps_wdog", NULL);
 		if (ret) {
 			pr_err("%s: request_irq fail %d\n", __func__, ret);
 			goto request_irq_err;
 		}
 	} else {
+		drv->wdog_irq = -1;
 		pr_debug("%s: ppss_wdog not supported.\n", __func__);
+	}
+
+	drv->dspsfw_ramdump_segments[0].address = drv->pdata->tcm_code_start;
+	drv->dspsfw_ramdump_segments[0].size =  drv->pdata->tcm_code_size;
+	drv->dspsfw_ramdump_segments[1].address = drv->pdata->tcm_buf_start;
+	drv->dspsfw_ramdump_segments[1].size =  drv->pdata->tcm_buf_size;
+	drv->dspsfw_ramdump_segments[2].address = drv->pdata->pipe_start;
+	drv->dspsfw_ramdump_segments[2].size =  drv->pdata->pipe_size;
+	drv->dspsfw_ramdump_segments[3].address = drv->pdata->ddr_start;
+	drv->dspsfw_ramdump_segments[3].size =  drv->pdata->ddr_size;
+
+	drv->dspsfw_ramdump_dev = create_ramdump_device("dsps");
+	if (!drv->dspsfw_ramdump_dev) {
+		pr_err("%s: create_ramdump_device(\"dsps\") fail\n",
+			      __func__);
+		goto create_ramdump_err;
+	}
+
+	drv->smem_ramdump_segments[0].address = drv->pdata->smem_start;
+	drv->smem_ramdump_segments[0].size =  drv->pdata->smem_size;
+	drv->smem_ramdump_dev = create_ramdump_device("smem-dsps");
+	if (!drv->smem_ramdump_dev) {
+		pr_err("%s: create_ramdump_device(\"smem\") fail\n",
+		       __func__);
+		goto create_ramdump_err;
 	}
 
 	if (drv->pdata->init)
 		drv->pdata->init(drv->pdata);
 
 	return 0;
+
+create_ramdump_err:
+	disable_irq_nosync(drv->wdog_irq);
+	free_irq(drv->wdog_irq, NULL);
 
 request_irq_err:
 	iounmap(drv->ppss_base);
@@ -564,7 +641,8 @@ static int dsps_open(struct inode *ip, struct file *fp)
 			return ret;
 		}
 
-		dsps_resume();
+		if (!drv->pdata->dsps_pwr_ctl_en)
+			dsps_resume();
 	}
 	drv->ref_count++;
 
@@ -599,6 +677,8 @@ static void dsps_free_resources(void)
 			drv->pdata->regs[i].reg = NULL;
 		}
 	}
+
+	free_irq(drv->wdog_irq, NULL);
 
 	iounmap(drv->ppss_base);
 }
@@ -646,22 +726,16 @@ const struct file_operations dsps_fops = {
  *  Fatal error handler
  *  Resets DSPS.
  */
-static void dsps_fatal_handler(struct work_struct *work)
+static void dsps_restart_handler(void)
 {
-	uint32_t dsps_state;
+	pr_debug("%s: Restart lvl %d\n",
+		__func__, get_restart_level());
 
-	dsps_state = smsm_get_state(SMSM_DSPS_STATE);
-
-	pr_debug("%s: DSPS state 0x%x\n", __func__, dsps_state);
-
-	if (dsps_state & SMSM_RESET) {
-		pr_err("%s: DSPS fatal error detected. Resetting\n",
-		       __func__);
-		panic("DSPS fatal error detected.");
+	if (atomic_add_return(1, &drv->crash_in_progress) > 1) {
+		pr_err("%s: DSPS already resetting. Count %d\n", __func__,
+		       atomic_read(&drv->crash_in_progress));
 	} else {
-		pr_debug("%s: User-initiated DSPS reset. Resetting\n",
-			 __func__);
-		panic("User-initiated DSPS reset.");
+		subsystem_restart("dsps");
 	}
 }
 
@@ -680,12 +754,9 @@ static void dsps_smsm_state_cb(void *data, uint32_t old_state,
 		dsps_crash_shutdown_g = 0;
 		return;
 	}
-
 	if (new_state & SMSM_RESET) {
-		pr_err
-		    ("%s: SMSM_RESET state detected. restarting the DSPS\n",
-		     __func__);
-		panic("SMSM_RESET state detected.");
+		dsps_log_sfr();
+		dsps_restart_handler();
 	}
 }
 
@@ -697,7 +768,9 @@ static void dsps_smsm_state_cb(void *data, uint32_t old_state,
 static int dsps_shutdown(const struct subsys_data *subsys)
 {
 	pr_debug("%s\n", __func__);
-	dsps_unload();
+	disable_irq_nosync(drv->wdog_irq);
+	pil_force_shutdown(drv->pdata->pil_name);
+	dsps_power_off_handler();
 	return 0;
 }
 
@@ -709,11 +782,10 @@ static int dsps_shutdown(const struct subsys_data *subsys)
 static int dsps_powerup(const struct subsys_data *subsys)
 {
 	pr_debug("%s\n", __func__);
-	if (dsps_load(drv->pdata->pil_name) != 0) {
-		pr_err("%s: fail to restart DSPS after reboot\n",
-		       __func__);
-		return 1;
-	}
+	dsps_power_on_handler();
+	pil_force_boot(drv->pdata->pil_name);
+	atomic_set(&drv->crash_in_progress, 0);
+	enable_irq(drv->wdog_irq);
 	return 0;
 }
 
@@ -736,8 +808,34 @@ static void dsps_crash_shutdown(const struct subsys_data *subsys)
  */
 static int dsps_ramdump(int enable, const struct subsys_data *subsys)
 {
+	int ret = 0;
 	pr_debug("%s\n", __func__);
-	return 0;
+
+	if (enable) {
+		if (drv->dspsfw_ramdump_dev != NULL) {
+			ret = do_ramdump(drv->dspsfw_ramdump_dev,
+				drv->dspsfw_ramdump_segments,
+				ARRAY_SIZE(drv->dspsfw_ramdump_segments));
+			if (ret < 0) {
+				pr_err("%s: Unable to dump DSPS memory (rc = %d).\n",
+				       __func__, ret);
+				goto dsps_ramdump_out;
+			}
+		}
+		if (drv->smem_ramdump_dev != NULL) {
+			ret = do_ramdump(drv->smem_ramdump_dev,
+				drv->smem_ramdump_segments,
+				ARRAY_SIZE(drv->smem_ramdump_segments));
+			if (ret < 0) {
+				pr_err("%s: Unable to dump smem memory (rc = %d).\n",
+				       __func__, ret);
+				goto dsps_ramdump_out;
+			}
+		}
+	}
+
+dsps_ramdump_out:
+	return ret;
 }
 
 static struct subsys_data dsps_ssrops = {
@@ -768,6 +866,8 @@ static int __devinit dsps_probe(struct platform_device *pdev)
 		pr_err("%s: kzalloc fail.\n", __func__);
 		goto alloc_err;
 	}
+	atomic_set(&drv->crash_in_progress, 0);
+
 	drv->pdata = pdev->dev.platform_data;
 
 	drv->dev_class = class_create(THIS_MODULE, DRV_NAME);

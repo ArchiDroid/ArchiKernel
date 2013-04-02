@@ -13,19 +13,6 @@
  *
  */
 
-#include <mach/hardware.h>
-
-void arch_idle(void);
-
-#if defined(CONFIG_MSM_NATIVE_RESTART) || defined(CONFIG_ARCH_FSM9XXX)
-void arch_reset(char mode, const char *cmd);
-#else
-static inline void arch_reset(char mode, const char *cmd)
-{
-	for (;;) ;  /* depends on IPC w/ other core */
-}
-#endif
-
 /* low level hardware reset hook -- for example, hitting the
  * PSHOLD line on the PMIC to hard reset the system
  */

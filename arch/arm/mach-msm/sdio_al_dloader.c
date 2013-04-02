@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -530,7 +530,7 @@ static void update_gd(int code)
 	curr_index++;
 }
 
-static int __init bootloader_debugfs_init(void)
+static int bootloader_debugfs_init(void)
 {
 	/* /sys/kernel/debug/bootloader there will be dld_arr file */
 	root = debugfs_create_dir("bootloader", NULL);
@@ -1140,14 +1140,6 @@ static int sdio_dld_open(struct tty_struct *tty, struct file *file)
 		return status;
 	}
 
-	status = sdio_dld_create_thread();
-	if (status) {
-		sdio_dld_dealloc_local_buffers();
-		pr_err(MODULE_NAME ": %s, failed in sdio_dld_create_thread()."
-				   "status=%d\n", __func__, status);
-		return status;
-	}
-
 	/* init waiting event of the write callback */
 	init_waitqueue_head(&sdio_dld->write_callback_event.wait_event);
 
@@ -1168,6 +1160,15 @@ static int sdio_dld_open(struct tty_struct *tty, struct file *file)
 	sdio_dld->push_timer.data = (unsigned long) sdio_dld;
 	sdio_dld->push_timer.function = sdio_dld_push_timer_handler;
 
+	status = sdio_dld_create_thread();
+	if (status) {
+		del_timer_sync(&sdio_dld->timer);
+		del_timer_sync(&sdio_dld->push_timer);
+		sdio_dld_dealloc_local_buffers();
+		pr_err(MODULE_NAME ": %s, failed in sdio_dld_create_thread()."
+				   "status=%d\n", __func__, status);
+		return status;
+	}
 	return 0;
 }
 

@@ -1,0 +1,69 @@
+config MACH_MSM8X25_V7
+	depends on ARCH_MSM8625
+	depends on !MSM_STACKED_MEMORY
+	select MACH_LGE
+	bool "MACH_MSM8X25_V7"
+	help
+	  Support for the LG Electronics vee7 board LGE.
+
+# LGE_CHANGE_S,narasimha.chikka@lge.com,Add PCB Revision config
+config LGE_PCB_REVISION
+	int "PCB Revision(0~11)"
+	range 0 11
+	default "1" 
+	depends on MACH_MSM8X25_V7
+	help
+	 Choose PCB Revision(see board_XX.h)
+	 0: EVB, 1: RevA, 2: RevB, 3: RevC, 4: RevD, 5: RevE,
+	 6: RevF, 7: RevG, 8: Rev1P0 9: Rev1P1 10: Rev1P2 11: Reserved
+
+# LGE_CHANGE_E,narasimha.chikka@lge.com,Add PCB Revision config
+
+config MACH_MSM8X25_U0
+	select MACH_LGE
+	bool "MSM8X25_U0"
+	help
+	  Support for the LG Electronics MSM8X25 U0 swap version.(E2 release )
+
+config MACH_MSM8X25_HDK
+	select MACH_LGE
+	bool "MSM8X25_HDK"
+	help
+	  Support for the LG Electronics MSM8X25 HDK.
+
+config FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+	bool "Removes the glitch in lg booting logo"
+	default n
+	help
+	  Removes the glitch in lg booting logo
+
+#LGE_CHANGE_S,for semi booting scenario
+config LGE_POWER_ON_STATUS_PATCH
+	bool "Report power on satus of handset"
+	depends on MACH_LGE
+	default n
+	help
+	 This patch is added to read the power on status from modem and update
+	 the same in apps processor's /proc/sys/kernel/boot_reason file.
+	 Ref: Documentation/arcr/arm/msm/boot.txt	  
+#LGE_CHANGE_E,for semi booting scenario
+
+config LGE_TOUCH_FOUR_BUTTON_SUPPORT
+	bool "Dual Sim model support 4 button"
+	depends on MACH_LGE
+	default n
+
+config LGE_TOUCH_POWER_USING_PMIC
+	bool "Touch 3.0V power from PMIC LDO1"
+	depends on MACH_LGE
+	default n
+
+# LGE_CHANGE_S,narasimha.chikka@lge.com,Reboot reason in emmc
+config LGE_REBOOT_REASON_IN_EMMC
+	bool "Reboot reason in emmc"
+	depends on MACH_LGE
+	default n	
+	help
+	  Stores reboot reason in emmc
+# LGE_CHANGE_E,narasimha.chikka@lge.com,Reboot reason in emmc	  
+

@@ -16,7 +16,7 @@
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
 
-static int debug;
+static bool debug;
 
 /* Version Information */
 #define DRIVER_VERSION "v2.00"
@@ -135,7 +135,6 @@ static struct usb_driver quausb2_usb_driver = {
 	.probe = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table = quausb2_id_table,
-	.no_dynamic_id = 1,
 };
 
 /**
@@ -916,9 +915,10 @@ static int qt2_ioctl(struct tty_struct *tty,
 		dbg("%s() port %d, cmd == TIOCMIWAIT enter",
 			__func__, port->number);
 		prev_msr_value = port_extra->shadowMSR  & QT2_SERIAL_MSR_MASK;
+		barrier();
+		__set_current_state(TASK_INTERRUPTIBLE);
 		while (1) {
 			add_wait_queue(&port_extra->wait, &wait);
-			set_current_state(TASK_INTERRUPTIBLE);
 			schedule();
 			dbg("%s(): port %d, cmd == TIOCMIWAIT here\n",
 				__func__, port->number);
@@ -926,9 +926,12 @@ static int qt2_ioctl(struct tty_struct *tty,
 			/* see if a signal woke us up */
 			if (signal_pending(current))
 				return -ERESTARTSYS;
+			set_current_state(TASK_INTERRUPTIBLE);
 			msr_value = port_extra->shadowMSR & QT2_SERIAL_MSR_MASK;
-			if (msr_value == prev_msr_value)
+			if (msr_value == prev_msr_value) {
+				__set_current_state(TASK_RUNNING);
 				return -EIO;  /* no change - error */
+			}
 			if ((arg & TIOCM_RNG &&
 				((prev_msr_value & QT2_SERIAL_MSR_RI) ==
 					(msr_value & QT2_SERIAL_MSR_RI))) ||
@@ -941,6 +944,7 @@ static int qt2_ioctl(struct tty_struct *tty,
 				(arg & TIOCM_CTS &&
 				((prev_msr_value & QT2_SERIAL_MSR_CTS) ==
 					(msr_value & QT2_SERIAL_MSR_CTS)))) {
+				__set_current_state(TASK_RUNNING);
 				return 0;
 			}
 		} /* end inifinite while */
@@ -1937,7 +1941,6 @@ static struct usb_serial_driver quatech2_device = {
 		.name = "quatech_usb2",
 	},
 	.description = DRIVER_DESC,
-	.usb_driver = &quausb2_usb_driver,
 	.id_table = quausb2_id_table,
 	.num_ports = 8,
 	.open = qt2_open,
@@ -1959,41 +1962,11 @@ static struct usb_serial_driver quatech2_device = {
 	.write_bulk_callback = qt2_write_bulk_callback,
 };
 
-static int __init quausb2_usb_init(void)
-{
-	int retval;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&quatech2_device, NULL
+};
 
-	dbg("%s\n", __func__);
-
-	/* register with usb-serial */
-	retval = usb_serial_register(&quatech2_device);
-
-	if (retval)
-		goto failed_usb_serial_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			DRIVER_DESC "\n");
-
-	/* register with usb */
-
-	retval = usb_register(&quausb2_usb_driver);
-	if (retval == 0)
-		return 0;
-
-	/* if we're here, usb_register() failed */
-	usb_serial_deregister(&quatech2_device);
-failed_usb_serial_register:
-		return retval;
-}
-
-static void __exit quausb2_usb_exit(void)
-{
-	usb_deregister(&quausb2_usb_driver);
-	usb_serial_deregister(&quatech2_device);
-}
-
-module_init(quausb2_usb_init);
-module_exit(quausb2_usb_exit);
+module_usb_serial_driver(quausb2_usb_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -76,5 +76,39 @@
 
 #define APQ8064_IMEM_PHYS		0x2A03F000
 #define APQ8064_IMEM_SIZE		SZ_4K
+
+#define APQ8064_RPM_PHYS		0x00108000
+#define APQ8064_RPM_SIZE		SZ_4K
+
+#define APQ8064_RPM_MPM_PHYS		0x00200000
+#define APQ8064_RPM_MPM_SIZE		SZ_4K
+
+#define APQ8064_SAW0_PHYS		0x02089000
+#define APQ8064_SAW0_SIZE		SZ_4K
+
+#define APQ8064_SAW1_PHYS		0x02099000
+#define APQ8064_SAW1_SIZE		SZ_4K
+
+#define APQ8064_SAW2_PHYS		0x020A9000
+#define APQ8064_SAW2_SIZE		SZ_4K
+
+#define APQ8064_SAW3_PHYS		0x020B9000
+#define APQ8064_SAW3_SIZE		SZ_4K
+
+#define APQ8064_SAW_L2_PHYS		0x02012000
+#define APQ8064_SAW_L2_SIZE		SZ_4K
+#define APQ8064_QFPROM_PHYS		0x00700000
+#define APQ8064_QFPROM_SIZE		SZ_4K
+
+#define APQ8064_SIC_NON_SECURE_PHYS	0x12100000
+#define APQ8064_SIC_NON_SECURE_SIZE	SZ_64K
+
+#define APQ8064_HDMI_PHYS		0x04A00000
+#define APQ8064_HDMI_SIZE		SZ_4K
+
+#ifdef CONFIG_DEBUG_APQ8064_UART
+#define MSM_DEBUG_UART_BASE		IOMEM(0xFA740000)
+#define MSM_DEBUG_UART_PHYS		0x16640000
+#endif
 
 #endif

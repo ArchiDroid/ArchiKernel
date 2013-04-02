@@ -23,7 +23,6 @@
 #include "linux/proc_fs.h"
 
 #include <mach/hardware.h>
-#include <mach/msm_subsystem_map.h>
 #include <linux/io.h>
 #include <mach/board.h>
 
@@ -81,7 +80,7 @@ struct msm_fb_data_type {
 	DISP_TARGET dest;
 	struct fb_info *fbi;
 
-	struct device *dev;
+	struct delayed_work backlight_worker;
 	boolean op_enable;
 	uint32 fb_imgType;
 	boolean sw_currently_refreshing;
@@ -134,6 +133,8 @@ struct msm_fb_data_type {
 			      struct fb_cmap *cmap);
 	int (*do_histogram) (struct fb_info *info,
 			      struct mdp_histogram_data *hist);
+	int (*start_histogram) (struct mdp_histogram_start_req *req);
+	int (*stop_histogram) (struct fb_info *info, uint32_t block);
 	void (*vsync_ctrl) (int enable);
 	void *cursor_buf;
 	void *cursor_buf_phys;
@@ -176,7 +177,8 @@ struct msm_fb_data_type {
 	struct list_head writeback_register_queue;
 	wait_queue_head_t wait_q;
 	struct ion_client *iclient;
-	struct msm_mapped_buffer *map_buffer;
+	unsigned long display_iova;
+	unsigned long rotator_iova;
 	struct mdp_buf_type *ov0_wb_buf;
 	struct mdp_buf_type *ov1_wb_buf;
 	u32 ov_start;

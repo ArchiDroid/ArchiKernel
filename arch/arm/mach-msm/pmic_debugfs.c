@@ -913,6 +913,38 @@ static int debug_spkr_is_mute_en(char *buf, int size)
 	return snprintf(buf, size, "%d\n", enabled);
 }
 
+//LGE_CHAGE_S,narasimha.chikka@lge.com,Add debugfs for charger ic register
+#if defined(CONFIG_MACH_MSM8X25_V7)
+static int debug_get_charger_ic_reg(char *buf, int size)
+{
+	struct max8971_reg reg;
+	int len=0;
+	memset(&reg,0x00,sizeof(reg));
+
+	if (pmic_get_charging_ic_reg(&reg) < 0){
+		printk(KERN_INFO "%s failed \n",__func__);
+		return -EFAULT;
+	}
+
+	len += snprintf(buf,size, "MAX8971_REG_CHGINT=0x%02x\n",reg.reg_chgint);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_CHGINT_MASK=0x%02x\n",reg.reg_chgint_mask);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_CHG_STAT=0x%02x\n",reg.reg_chg_stat);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_DETAILS1=0x%02x\n",reg.reg_details1);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_DETAILS2=0x%02x\n",reg.reg_details2);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_CHGCNTL1=0x%02x\n",reg.reg_chgcntl1);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_FCHGCRNT=0x%02x\n",reg.reg_fchgcrnt);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_DCCRNT=0x%02x\n",reg.reg_dccrnt);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_TOPOFF=0x%02x\n",reg.reg_topoff);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_TEMPREG=0x%02x\n",reg.reg_tempreg);
+	len += snprintf(buf+len,size-len, "MAX8971_REG_PROTCMD=0x%02x\n",reg.reg_protcmd);
+	len += snprintf(buf+len,size-len, "Read result=%d\n",reg.read_result);
+
+	return len;
+
+}
+#endif
+//LGE_CHAGE_E,narasimha.chikka@lge.com,Add debugfs for charger ic register
+
 /*******************************************************************
  * debug function table
 *******************************************************************/
@@ -997,6 +1029,9 @@ struct pmic_debug_desc pmic_debug[] = {
 	{NULL, debug_spkr_add_right_left_chan},
 	{NULL, debug_spkr_set_gain}, /* SPKR_SET_GAIN_PROC */
 	{NULL , debug_spkr_en}, /* SPKR_EN_PROC */
+#if defined(CONFIG_MACH_MSM8X25_V7)
+	{debug_get_charger_ic_reg,NULL},
+#endif
 };
 
 /***********************************************************************/

@@ -209,6 +209,7 @@ start_rx_end:
 static void gsmd_rx_push(struct work_struct *w)
 {
 	struct gsmd_port *port = container_of(w, struct gsmd_port, push);
+	struct smd_port_info *pi = port->pi;
 	struct list_head *q;
 
 	pr_debug("%s: port:%p port#%d", __func__, port, port->port_num);
@@ -216,10 +217,9 @@ static void gsmd_rx_push(struct work_struct *w)
 	spin_lock_irq(&port->port_lock);
 
 	q = &port->read_queue;
-	while (!list_empty(q)) {
+	while (pi->ch && !list_empty(q)) {
 		struct usb_request *req;
 		int avail;
-		struct smd_port_info *pi = port->pi;
 
 		req = list_first_entry(q, struct usb_request, list);
 
@@ -245,7 +245,7 @@ static void gsmd_rx_push(struct work_struct *w)
 			char		*packet = req->buf;
 			unsigned	size = req->actual;
 			unsigned	n;
-			unsigned	count;
+			int		count;
 
 			n = port->n_read;
 			if (n) {
@@ -296,21 +296,24 @@ static void gsmd_tx_pull(struct work_struct *w)
 {
 	struct gsmd_port *port = container_of(w, struct gsmd_port, pull);
 	struct list_head *pool = &port->write_pool;
+	struct smd_port_info *pi = port->pi;
+	struct usb_ep *in;
 
 	pr_debug("%s: port:%p port#%d pool:%p\n", __func__,
 			port, port->port_num, pool);
 
+	spin_lock_irq(&port->port_lock);
+
 	if (!port->port_usb) {
 		pr_debug("%s: usb is disconnected\n", __func__);
+		spin_unlock_irq(&port->port_lock);
 		gsmd_read_pending(port);
 		return;
 	}
 
-	spin_lock_irq(&port->port_lock);
-	while (!list_empty(pool)) {
+	in = port->port_usb->in;
+	while (pi->ch && !list_empty(pool)) {
 		struct usb_request *req;
-		struct usb_ep *in = port->port_usb->in;
-		struct smd_port_info *pi = port->pi;
 		int avail;
 		int ret;
 
@@ -660,7 +663,7 @@ int gsmd_connect(struct gserial *gser, u8 portno)
 	port->nbytes_tolaptop = 0;
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	ret = usb_ep_enable(gser->in, gser->in_desc);
+	ret = usb_ep_enable(gser->in);
 	if (ret) {
 		pr_err("%s: usb_ep_enable failed eptype:IN ep:%p",
 				__func__, gser->in);
@@ -669,7 +672,7 @@ int gsmd_connect(struct gserial *gser, u8 portno)
 	}
 	gser->in->driver_data = port;
 
-	ret = usb_ep_enable(gser->out, gser->out_desc);
+	ret = usb_ep_enable(gser->out);
 	if (ret) {
 		pr_err("%s: usb_ep_enable failed eptype:OUT ep:%p",
 				__func__, gser->out);

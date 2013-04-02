@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,6 +22,7 @@
 #include "devices.h"
 #include "smd_private.h"
 #include "clock-local.h"
+#include "msm_watchdog.h"
 
 #include <asm/mach/flash.h>
 #include <asm/mach/mmc.h>
@@ -68,6 +69,26 @@ struct platform_device msm_device_uart2 = {
 	.id	= 1,
 	.num_resources	= ARRAY_SIZE(resources_uart2),
 	.resource	= resources_uart2,
+};
+
+static struct resource resources_uart3[] = {
+	{
+		.start	= INT_UART3,
+		.end	= INT_UART3,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= MSM_UART3_PHYS,
+		.end	= MSM_UART3_PHYS + MSM_UART3_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device msm_device_uart3 = {
+	.name	= "msm_uim",
+	.id	= 2,
+	.num_resources	= ARRAY_SIZE(resources_uart3),
+	.resource	= resources_uart3,
 };
 
 /*
@@ -387,5 +408,24 @@ struct platform_device fsm_qfp_fuse_device = {
 struct platform_device fsm_xo_device = {
 	.name   = "fsm_xo_driver",
 	.id     = -1,
+};
+
+/*
+ * Watchdog
+ */
+
+static struct msm_watchdog_pdata fsm_watchdog_pdata = {
+	.pet_time = 10000,
+	.bark_time = 11000,
+	.has_secure = false,
+	.has_vic = true,
+};
+
+struct platform_device fsm9xxx_device_watchdog = {
+	.name = "msm_watchdog",
+	.id = -1,
+	.dev = {
+		.platform_data = &fsm_watchdog_pdata,
+	},
 };
 

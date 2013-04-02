@@ -10,9 +10,12 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/module.h>
 #include <linux/mii.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/usb.h>
 #include <linux/usb/usbnet.h>
 #include <linux/msm_rmnet.h>
@@ -96,7 +99,7 @@ static int rmnet_usb_suspend(struct usb_interface *iface, pm_message_t message)
 
 	dev = (struct rmnet_ctrl_dev *)unet->data[1];
 	if (!dev) {
-		dev_err(&unet->udev->dev, "%s: ctrl device not found\n",
+		dev_err(&iface->dev, "%s: ctrl device not found\n",
 				__func__);
 		retval = -ENODEV;
 		goto fail;
@@ -115,7 +118,7 @@ static int rmnet_usb_suspend(struct usb_interface *iface, pm_message_t message)
 		}
 		/*  TBD : do we need to set/clear usbnet->udev->reset_resume*/
 		} else
-		dev_dbg(&unet->udev->dev,
+		dev_dbg(&iface->dev,
 			"%s: device is busy can not suspend\n", __func__);
 
 fail:
@@ -138,8 +141,7 @@ static int rmnet_usb_resume(struct usb_interface *iface)
 
 	dev = (struct rmnet_ctrl_dev *)unet->data[1];
 	if (!dev) {
-		dev_err(&unet->udev->dev, "%s: ctrl device not found\n",
-				__func__);
+		dev_err(&iface->dev, "%s: ctrl device not found\n", __func__);
 		retval = -ENODEV;
 		goto fail;
 	}
@@ -148,9 +150,8 @@ static int rmnet_usb_resume(struct usb_interface *iface)
 
 	retval = usbnet_resume(iface);
 	if (!retval) {
-
 		if (oldstate & PM_EVENT_SUSPEND)
-			retval = rmnet_usb_ctrl_start(dev);
+			retval = rmnet_usb_ctrl_start_rx(dev);
 	}
 fail:
 	return retval;
@@ -162,17 +163,15 @@ static int rmnet_usb_bind(struct usbnet *usbnet, struct usb_interface *iface)
 	struct usb_host_endpoint	*bulk_in = NULL;
 	struct usb_host_endpoint	*bulk_out = NULL;
 	struct usb_host_endpoint	*int_in = NULL;
-	struct usb_device		*udev;
 	int				status = 0;
 	int				i;
 	int				numends;
 
-	udev = interface_to_usbdev(iface);
 	numends = iface->cur_altsetting->desc.bNumEndpoints;
 	for (i = 0; i < numends; i++) {
 		endpoint = iface->cur_altsetting->endpoint + i;
 		if (!endpoint) {
-			dev_err(&udev->dev, "%s: invalid endpoint %u\n",
+			dev_err(&iface->dev, "%s: invalid endpoint %u\n",
 				__func__, i);
 			status = -EINVAL;
 			goto out;
@@ -186,7 +185,7 @@ static int rmnet_usb_bind(struct usbnet *usbnet, struct usb_interface *iface)
 	}
 
 	if (!bulk_in || !bulk_out || !int_in) {
-		dev_err(&udev->dev, "%s: invalid endpoints\n", __func__);
+		dev_err(&iface->dev, "%s: invalid endpoints\n", __func__);
 		status = -EINVAL;
 		goto out;
 	}
@@ -258,6 +257,12 @@ static int rmnet_usb_rx_fixup(struct usbnet *dev,
 		dev->net->name, dev->net->stats.rx_packets, skb->len);
 
 	return 1;
+}
+
+static int rmnet_usb_manage_power(struct usbnet *dev, int on)
+{
+	dev->intf->needs_remote_wakeup = on;
+	return 0;
 }
 
 static int rmnet_change_mtu(struct net_device *dev, int new_mtu)
@@ -386,7 +391,7 @@ static int rmnet_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	default:
-		dev_err(&unet->udev->dev, "[%s] error: "
+		dev_err(&unet->intf->dev, "[%s] error: "
 			"rmnet_ioct called for unsupported cmd[%d]",
 			dev->name, cmd);
 		return -EINVAL;
@@ -411,20 +416,103 @@ static void rmnet_usb_setup(struct net_device *dev)
 	dev->watchdog_timeo = 1000; /* 10 seconds? */
 }
 
+static int rmnet_usb_data_status(struct seq_file *s, void *unused)
+{
+	struct usbnet *unet = s->private;
+
+	seq_printf(s, "RMNET_MODE_LLP_IP:  %d\n",
+			test_bit(RMNET_MODE_LLP_IP, &unet->data[0]));
+	seq_printf(s, "RMNET_MODE_LLP_ETH: %d\n",
+			test_bit(RMNET_MODE_LLP_ETH, &unet->data[0]));
+	seq_printf(s, "RMNET_MODE_QOS:     %d\n",
+			test_bit(RMNET_MODE_QOS, &unet->data[0]));
+	seq_printf(s, "Net MTU:            %u\n", unet->net->mtu);
+	seq_printf(s, "rx_urb_size:        %u\n", unet->rx_urb_size);
+	seq_printf(s, "rx skb q len:       %u\n", unet->rxq.qlen);
+	seq_printf(s, "rx skb done q len:  %u\n", unet->done.qlen);
+	seq_printf(s, "rx errors:          %lu\n", unet->net->stats.rx_errors);
+	seq_printf(s, "rx over errors:     %lu\n",
+			unet->net->stats.rx_over_errors);
+	seq_printf(s, "rx length errors:   %lu\n",
+			unet->net->stats.rx_length_errors);
+	seq_printf(s, "rx packets:         %lu\n", unet->net->stats.rx_packets);
+	seq_printf(s, "rx bytes:           %lu\n", unet->net->stats.rx_bytes);
+	seq_printf(s, "tx skb q len:       %u\n", unet->txq.qlen);
+	seq_printf(s, "tx errors:          %lu\n", unet->net->stats.tx_errors);
+	seq_printf(s, "tx packets:         %lu\n", unet->net->stats.tx_packets);
+	seq_printf(s, "tx bytes:           %lu\n", unet->net->stats.tx_bytes);
+	seq_printf(s, "suspend count:      %d\n", unet->suspend_count);
+	seq_printf(s, "EVENT_DEV_OPEN:     %d\n",
+			test_bit(EVENT_DEV_OPEN, &unet->flags));
+	seq_printf(s, "EVENT_TX_HALT:      %d\n",
+			test_bit(EVENT_TX_HALT, &unet->flags));
+	seq_printf(s, "EVENT_RX_HALT:      %d\n",
+			test_bit(EVENT_RX_HALT, &unet->flags));
+	seq_printf(s, "EVENT_RX_MEMORY:    %d\n",
+			test_bit(EVENT_RX_MEMORY, &unet->flags));
+	seq_printf(s, "EVENT_DEV_ASLEEP:   %d\n",
+			test_bit(EVENT_DEV_ASLEEP, &unet->flags));
+
+	return 0;
+}
+
+static int rmnet_usb_data_status_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rmnet_usb_data_status, inode->i_private);
+}
+
+const struct file_operations rmnet_usb_data_fops = {
+	.open = rmnet_usb_data_status_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int rmnet_usb_data_debugfs_init(struct usbnet *unet)
+{
+	struct dentry *rmnet_usb_data_dbg_root;
+	struct dentry *rmnet_usb_data_dentry;
+
+	rmnet_usb_data_dbg_root = debugfs_create_dir(unet->net->name, NULL);
+	if (!rmnet_usb_data_dbg_root || IS_ERR(rmnet_usb_data_dbg_root))
+		return -ENODEV;
+
+	rmnet_usb_data_dentry = debugfs_create_file("status",
+		S_IRUGO | S_IWUSR,
+		rmnet_usb_data_dbg_root, unet,
+		&rmnet_usb_data_fops);
+
+	if (!rmnet_usb_data_dentry) {
+		debugfs_remove_recursive(rmnet_usb_data_dbg_root);
+		return -ENODEV;
+	}
+
+	unet->data[2] = (unsigned long)rmnet_usb_data_dbg_root;
+
+	return 0;
+}
+
+static void rmnet_usb_data_debugfs_cleanup(struct usbnet *unet)
+{
+	struct dentry *root = (struct dentry *)unet->data[2];
+
+	debugfs_remove_recursive(root);
+	unet->data[2] = 0;
+}
+
 static int rmnet_usb_probe(struct usb_interface *iface,
 		const struct usb_device_id *prod)
 {
 	struct usbnet		*unet;
-	struct usb_device	*udev;
 	struct driver_info	*info;
+	struct usb_device	*udev;
 	unsigned int		iface_num;
 	static int		first_rmnet_iface_num = -EINVAL;
 	int			status = 0;
 
-	udev = interface_to_usbdev(iface);
 	iface_num = iface->cur_altsetting->desc.bInterfaceNumber;
 	if (iface->num_altsetting != 1) {
-		dev_err(&udev->dev, "%s invalid num_altsetting %u\n",
+		dev_err(&iface->dev, "%s invalid num_altsetting %u\n",
 			__func__, iface->num_altsetting);
 		status = -EINVAL;
 		goto out;
@@ -436,7 +524,7 @@ static int rmnet_usb_probe(struct usb_interface *iface,
 
 	status = usbnet_probe(iface, prod);
 	if (status < 0) {
-		dev_err(&udev->dev, "usbnet_probe failed %d\n", status);
+		dev_err(&iface->dev, "usbnet_probe failed %d\n", status);
 		goto out;
 	}
 	unet = usb_get_intfdata(iface);
@@ -461,6 +549,26 @@ static int rmnet_usb_probe(struct usb_interface *iface,
 
 	status = rmnet_usb_ctrl_probe(iface, unet->status,
 		(struct rmnet_ctrl_dev *)unet->data[1]);
+	if (status)
+		goto out;
+
+	status = rmnet_usb_data_debugfs_init(unet);
+	if (status)
+		dev_dbg(&iface->dev, "mode debugfs file is not available\n");
+
+	udev = unet->udev;
+
+	usb_enable_autosuspend(udev);
+
+	/* allow modem to wake up suspended system */
+	device_set_wakeup_enable(&udev->dev, 1);
+
+	/* set default autosuspend timeout for modem and roothub */
+	if (udev->parent && !udev->parent->parent) {
+		pm_runtime_set_autosuspend_delay(&udev->dev, 1000);
+		pm_runtime_set_autosuspend_delay(&udev->parent->dev, 200);
+	}
+
 out:
 	return status;
 }
@@ -468,20 +576,20 @@ out:
 static void rmnet_usb_disconnect(struct usb_interface *intf)
 {
 	struct usbnet		*unet;
-	struct usb_device	*udev;
 	struct rmnet_ctrl_dev	*dev;
-
-	udev = interface_to_usbdev(intf);
 
 	unet = usb_get_intfdata(intf);
 	if (!unet) {
-		dev_err(&udev->dev, "%s:data device not found\n", __func__);
+		dev_err(&intf->dev, "%s:data device not found\n", __func__);
 		return;
 	}
 
+	device_set_wakeup_enable(&unet->udev->dev, 0);
+	rmnet_usb_data_debugfs_cleanup(unet);
+
 	dev = (struct rmnet_ctrl_dev *)unet->data[1];
 	if (!dev) {
-		dev_err(&udev->dev, "%s:ctrl device not found\n", __func__);
+		dev_err(&intf->dev, "%s:ctrl device not found\n", __func__);
 		return;
 	}
 	unet->data[0] = 0;
@@ -494,21 +602,36 @@ static void rmnet_usb_disconnect(struct usb_interface *intf)
 /*bit position represents interface number*/
 #define PID9034_IFACE_MASK	0xF0
 #define PID9048_IFACE_MASK	0x1E0
+#define PID904C_IFACE_MASK	0x1C0
 
 static const struct driver_info rmnet_info_pid9034 = {
 	.description   = "RmNET net device",
+	.flags         = FLAG_SEND_ZLP,
 	.bind          = rmnet_usb_bind,
 	.tx_fixup      = rmnet_usb_tx_fixup,
 	.rx_fixup      = rmnet_usb_rx_fixup,
+	.manage_power  = rmnet_usb_manage_power,
 	.data          = PID9034_IFACE_MASK,
 };
 
 static const struct driver_info rmnet_info_pid9048 = {
 	.description   = "RmNET net device",
+	.flags         = FLAG_SEND_ZLP,
 	.bind          = rmnet_usb_bind,
 	.tx_fixup      = rmnet_usb_tx_fixup,
 	.rx_fixup      = rmnet_usb_rx_fixup,
+	.manage_power  = rmnet_usb_manage_power,
 	.data          = PID9048_IFACE_MASK,
+};
+
+static const struct driver_info rmnet_info_pid904c = {
+	.description   = "RmNET net device",
+	.flags         = FLAG_SEND_ZLP,
+	.bind          = rmnet_usb_bind,
+	.tx_fixup      = rmnet_usb_tx_fixup,
+	.rx_fixup      = rmnet_usb_rx_fixup,
+	.manage_power  = rmnet_usb_manage_power,
+	.data          = PID904C_IFACE_MASK,
 };
 
 static const struct usb_device_id vidpids[] = {
@@ -519,6 +642,10 @@ static const struct usb_device_id vidpids[] = {
 	{
 		USB_DEVICE(0x05c6, 0x9048), /* MDM9x15*/
 		.driver_info = (unsigned long)&rmnet_info_pid9048,
+	},
+	{
+		USB_DEVICE(0x05c6, 0x904c), /* MDM9x15*/
+		.driver_info = (unsigned long)&rmnet_info_pid904c,
 	},
 
 	{ }, /* Terminating entry */

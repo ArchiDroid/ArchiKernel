@@ -21,6 +21,7 @@
 #include <lg_diag_unifiedmsgtool.h> //#ifdef LG_SMS_PC_TEST
 #include <linux/slab.h>
 #include <lge_diag_eri.h>
+#include <LG_rapi_client.h>
 
 #ifdef CONFIG_LGE_DLOAD_SRD  //kabjoo.choi
 #include <userDataBackUpTypeDef.h>
@@ -48,36 +49,8 @@
 #include <linux/workqueue.h>
 /* END: 0014166 jihoon.lee@lge.com 20110116 */
 
-/* BEGIN: 0015327 jihoon.lee@lge.com 20110204 */
-/* MOD 0015327: [KERNEL] LG RAPI validity check */
-// remove unnecessary kernel logs
 #undef LOCAL_RAPI_DBG
-/* END: 0015327 jihoon.lee@lge.com 20110204 */
 
-#define GET_INT32(buf)       (int32_t)be32_to_cpu(*((uint32_t*)(buf)))
-#define PUT_INT32(buf, v)        (*((uint32_t*)buf) = (int32_t)be32_to_cpu((uint32_t)(v)))
-#define GET_U_INT32(buf)         ((uint32_t)GET_INT32(buf))
-#define PUT_U_INT32(buf, v)      PUT_INT32(buf, (int32_t)(v))
-
-#define GET_LONG(buf)            ((long)GET_INT32(buf))
-#define PUT_LONG(buf, v) \
-	(*((u_long*)buf) = (long)be32_to_cpu((u_long)(v)))
-
-#define GET_U_LONG(buf)	      ((u_long)GET_LONG(buf))
-#define PUT_U_LONG(buf, v)	      PUT_LONG(buf, (long)(v))
-
-
-#define GET_BOOL(buf)            ((bool_t)GET_LONG(buf))
-#define GET_ENUM(buf, t)         ((t)GET_LONG(buf))
-#define GET_SHORT(buf)           ((short)GET_LONG(buf))
-#define GET_U_SHORT(buf)         ((u_short)GET_LONG(buf))
-
-#define PUT_ENUM(buf, v)         PUT_LONG(buf, (long)(v))
-#define PUT_SHORT(buf, v)        PUT_LONG(buf, (long)(v))
-#define PUT_U_SHORT(buf, v)      PUT_LONG(buf, (long)(v))
-
-#define LG_RAPI_CLIENT_MAX_OUT_BUFF_SIZE 128
-#define LG_RAPI_CLIENT_MAX_IN_BUFF_SIZE 128
 
 /* BEGIN: 0014110 jihoon.lee@lge.com 20110115 */
 /* MOD 0014110: [FACTORY RESET] stability */
@@ -93,40 +66,8 @@ static struct msm_rpc_client *client;
 /* MOD 0014166: [KERNEL] send_to_arm9 work queue */
 extern void msleep(unsigned int msecs);
 
-static struct workqueue_struct *send_to_arm9_wq = NULL;
-struct __send_to_arm9 {
-    int mutex_flag;
-    boolean complete_main;
-    boolean complete_sub;
-    void*	pReq;
-    void* pRsp;
-    struct work_struct work;
-};
 static struct __send_to_arm9 send_to_arm9_data;
 
-//DID BACKUP  kabjoo.choi
-typedef  struct
-{
-  int pid_magic_code;  //AABBCCDD
-  char pid[60];
-  int imei_magic_code;
-  char imei[60];
-  int swv_magic_code;
-  char swv[60];
-} test_mode_emmc_direct_type;
-
-struct MmcPartition {
-    char *device_index;
-    char *filesystem;
-    char *name;
-    unsigned dstatus;
-    unsigned dtype ;
-    unsigned dfirstsec;
-    unsigned dsize;
-};
-typedef struct MmcPartition MmcPartition;
-
-#define DID_MAGIC_CODE "AABBCCDD"
 extern int lge_mmc_scan_partitions(void);
 extern const MmcPartition *lge_mmc_find_partition_by_name(const char *name);
 extern int lge_read_block(unsigned int bytes_pos, unsigned char *buf, size_t size);
@@ -136,39 +77,6 @@ extern int lge_write_block(unsigned int bytes_pos, unsigned char *buf, size_t si
 
 static void send_to_arm9_wq_func(struct work_struct *work);
 
-typedef enum {
-    NORMAL_WORK_FLAG = 0,
-    WORK_QUEUE_FLAG = 1,
-}send_to_arm9_wq_type;
-
-#define INCREASE_MUTEX_FLAG()         (++send_to_arm9_data.mutex_flag)
-#define DECREASE_MUTEX_FLAG()         ((send_to_arm9_data.mutex_flag==0)?(send_to_arm9_data.mutex_flag=0):(send_to_arm9_data.mutex_flag--))
-#define GET_MUTEX_FLAG()	(send_to_arm9_data.mutex_flag)
-#define SET_MUTEX_FLAG(v)	(send_to_arm9_data.mutex_flag = v)
-
-#define GET_COMPLETE_MAIN()	(send_to_arm9_data.complete_main==0)?0:1
-#define SET_COMPLETE_MAIN(v)	(send_to_arm9_data.complete_main = v)
-#define GET_COMPLETE_SUB()		(send_to_arm9_data.complete_sub==0)?0:1
-#define SET_COMPLETE_SUB(v)	(send_to_arm9_data.complete_sub = v)
-/* END: 0014166 jihoon.lee@lge.com 20110116 */
-
-/* BEGIN: 0015327 jihoon.lee@lge.com 20110204 */
-/* MOD 0015327: [KERNEL] LG RAPI validity check */
-typedef enum{
-	LG_RAPI_SUCCESS = 0,
-	LG_RAPI_OVER_UNDER_FLOW = 1,
-	LG_RAPI_INVALID_RESPONSE = 2,
-	
-}lg_rapi_status_type;
-/* END: 0015327 jihoon.lee@lge.com 20110204 */
-
-/* BEGIN: 0013860 jihoon.lee@lge.com 20110111 */
-/* ADD 0013860: [FACTORY RESET] ERI file save */
-//#ifndef CONFIG_LGE_ERI_DOWNLOAD
-#define EOP 1 			/*operation failed*/
-#define ENOENT 2		/**< No such file or directory */
-#define EBADF 9		/**< Bad file descriptor */
-#define ENOMEM 12         /**< Out of memory. */
 
 char *fs_err_to_string(int err_num, char *ret_buf)
 {
@@ -217,6 +125,8 @@ int LG_rapi_init(void)
 
 void Open_check(void)
 {
+/*[LGE_CHANGE_S] khyun.kim@lge.com [V7] If open count has value, occur kernel panic . */
+#if 0
 /* BEGIN: 0014110 jihoon.lee@lge.com 20110115 */
 /* MOD 0014110: [FACTORY RESET] stability */
 /* sync up with oem_rapi */
@@ -234,6 +144,8 @@ void Open_check(void)
 	}
 
 /* END: 0014110 jihoon.lee@lge.com 20110115 */
+#endif
+/*[LGE_CHANGE_E] khyun.kim@lge.com [V7] If open count has value, occur kernel panic . */
 	LG_rapi_init();
 }
 
@@ -324,7 +236,7 @@ void unifiedmsgtool_do_send_to_arm9(void*	pReq, void* pRsp)
 
 int msm_chg_LG_cable_type(void)
 {
-char output[LG_RAPI_CLIENT_MAX_OUT_BUFF_SIZE];
+char output[LG_RAPI_CLIENT_MAX_OUT_BUFF_SIZE]={0,};
 	#if 0
 	struct oem_rapi_client_streaming_func_arg arg;
 	struct oem_rapi_client_streaming_func_ret ret;
@@ -610,7 +522,7 @@ void set_operation_mode(boolean info)
 
 /* END: 0014591 jihoon.lee@lge.com 2011022 */
 }
-EXPORT_SYMBOL(set_operation_mode);
+
 
 
 #ifdef CONFIG_MACH_MSM7X27_THUNDERC
@@ -649,7 +561,7 @@ void battery_info_get(struct batt_info* resp_buf)
 	}
 	return;
 }
-EXPORT_SYMBOL(battery_info_get);
+
 
 void pseudo_batt_info_set(struct pseudo_batt_info_type* info)
 {
@@ -688,7 +600,7 @@ void pseudo_batt_info_set(struct pseudo_batt_info_type* info)
 	
 	return;
 }
-EXPORT_SYMBOL(pseudo_batt_info_set);
+
 void block_charging_set(int bypass)
 {
 	struct oem_rapi_client_streaming_func_arg arg;
@@ -725,7 +637,7 @@ void block_charging_set(int bypass)
 	
 	return;
 }
-EXPORT_SYMBOL(block_charging_set);
+
 #endif	/* CONFIG_MACH_MSM7X27_THUNDERC */
 
 void msm_get_MEID_type(char* sMeid)
@@ -784,7 +696,7 @@ void msm_get_MEID_type(char* sMeid)
 	return;  
 }
 
-EXPORT_SYMBOL(msm_get_MEID_type);
+
 
 //#ifdef CONFIG_LGE_DIAG_ERI
 int eri_send_to_arm9(void* pReq, void* pRsp, unsigned int output_length)
@@ -825,14 +737,14 @@ int eri_send_to_arm9(void* pReq, void* pRsp, unsigned int output_length)
 	
 	
 }
-EXPORT_SYMBOL(eri_send_to_arm9);
+
 //#endif
 
 
 
 // request eri.bin in case factory reset  
 //#ifndef CONFIG_LGE_ERI_DOWNLOAD
-
+#if !defined(CONFIG_MACH_MSM7X27A_U0)
 #define ERI_FILE_PATH 	"/data/eri/eri.bin"
 char eri_data[1400];
 extern int eri_factory_direct_write(const char *path , char* eri_data, int size );
@@ -900,8 +812,8 @@ void remote_eri_rpc(void)
 	
 	return;
 }
-EXPORT_SYMBOL(remote_eri_rpc);
-//#endif
+
+#endif
 /* END: 0013860 jihoon.lee@lge.com 20110111 */
 
 //DID BACKUP for dload   kabjoo.choi@lge.com  20110806
@@ -1005,7 +917,7 @@ void remote_did_rpc(void)
 	
 	return;
 }
-EXPORT_SYMBOL(remote_did_rpc);
+
 
 
 /* BEGIN: 0016311 jihoon.lee@lge.com 20110217 */
@@ -1114,7 +1026,7 @@ void remote_rpc_srd_cmmand(void*pReq, void* pRsp )  //kabjoo.choi
 	
 	return ;
 }
-EXPORT_SYMBOL(remote_rpc_srd_cmmand);
+
 
 //CSFB SRD
 void remote_rpc_with_mdm(uint32 in_len, byte *input, uint32 *out_len, byte *output)
@@ -1164,7 +1076,7 @@ void remote_rpc_with_mdm(uint32 in_len, byte *input, uint32 *out_len, byte *outp
 	
 	return;
 }
-EXPORT_SYMBOL(remote_rpc_with_mdm);
+
 void remote_rpc_with_mdm_nv_write(uint32 in_len, byte *input, uint32 *out_len, byte *output)
 {
 	struct oem_rapi_client_streaming_func_arg arg;
@@ -1211,7 +1123,7 @@ void remote_rpc_with_mdm_nv_write(uint32 in_len, byte *input, uint32 *out_len, b
 	
 	return;
 }
-EXPORT_SYMBOL(remote_rpc_with_mdm_nv_write);
+
 void remote_rpc_with_mdm_nv_sync(uint32 in_len, byte *input, uint32 *out_len, byte *output)
 {
 	struct oem_rapi_client_streaming_func_arg arg;
@@ -1258,5 +1170,405 @@ void remote_rpc_with_mdm_nv_sync(uint32 in_len, byte *input, uint32 *out_len, by
 	
 	return;
 }
-EXPORT_SYMBOL(remote_rpc_with_mdm_nv_sync);
+
 #endif 
+
+// LGE_START 20121113 seonbeom.lee [Security] support NTCODE max 40 .
+static int remote_large_data_ntcode_read(unsigned int pkt_no, void* data, int* recv_len)
+{
+	struct oem_rapi_client_streaming_func_arg arg;
+	struct oem_rapi_client_streaming_func_ret ret;
+
+	int retval = -1;
+
+	rpc_large_read_pkt_recv *recv_pkt;
+	rpc_large_read_pkt_send send_pkt;
+
+	send_pkt.pkt_no = pkt_no;
+
+	arg.event = LG_COMMON_LARGE_DATA_RPC_NTCODE_TX;
+	arg.cb_func = NULL;
+	arg.handle = (void*) 0;
+	arg.in_len = sizeof(send_pkt);
+	arg.input = (void*) &send_pkt;
+	arg.out_len_valid = 1;
+	arg.output_valid = 1;
+	arg.output_size = sizeof(rpc_large_read_pkt_recv);
+
+	ret.output = NULL;
+	ret.out_len = NULL;
+
+	if (oem_rapi_client_streaming_function(client, &arg, &ret) != 0) {
+		pr_err(	" *** oem_rapi_client_streaming_function error..!!\n");
+		goto __exit__;
+	}
+
+	if (ret.output == NULL || ret.out_len == NULL) {
+		pr_err(" *** output is NULL\n");
+		goto __exit__;
+	}
+
+	recv_pkt = (rpc_large_read_pkt_recv*) ret.output;
+
+	if (recv_pkt->pkt_no != pkt_no ||
+	recv_pkt->flag == RPC_LARGE_READ_ERROR ||
+	recv_pkt->data_len == 0 ||
+	recv_pkt->data_len > 120) {
+	pr_err(" *** recv_pkt (%d/%d/%d/%d)\n", recv_pkt->pkt_no, pkt_no, recv_pkt->flag, recv_pkt->data_len);
+	goto __exit__;
+	}
+
+	memcpy(data, recv_pkt->data, recv_pkt->data_len);
+	*recv_len = recv_pkt->data_len;
+	retval = recv_pkt->flag;
+	
+__exit__:
+	if (ret.output)
+		kfree(ret.output);
+	if (ret.out_len)
+		kfree(ret.out_len);
+	return retval;
+	
+}
+
+int ntcode_rpc_read_string(char* data)
+{
+	int i, ret, status = 0;
+	int total_len = 0;
+	char* offset = data;
+
+	Open_check();
+
+	for (i = 0; status != RPC_LARGE_READ_FINISH; i++)
+	{
+		pr_info(" *** ntcode_rpc_read_string loop (%d)\n", i);
+		status = remote_large_data_ntcode_read(i, offset, &ret);
+		if (status < 0) {
+			pr_err(" *** ntcode_rpc_read_string error..!!\n");
+			return -1;
+		}
+		offset += ret;
+		total_len +=ret;
+	}
+
+	data[total_len-1] = '\0';
+	pr_info(" *** ntcode_rpc_read_string Done(%d bytes)..!!\n", total_len);
+	return total_len;
+}
+
+static int remote_large_data_ntcode_write(unsigned int pkt_no,unsigned short flag, void* data, int* send_len)
+{
+	struct oem_rapi_client_streaming_func_arg arg;
+	struct oem_rapi_client_streaming_func_ret ret;
+
+	int retval = -1;
+
+	rpc_large_write_pkt_recv *recv_pkt;
+	rpc_large_write_pkt_send send_pkt;
+
+	send_pkt.pkt_no = pkt_no;
+	send_pkt.flag = flag;
+	send_pkt.data_len = *send_len;
+	memcpy(send_pkt.data, data, send_pkt.data_len);
+
+	arg.event = LG_COMMON_LARGE_DATA_RPC_NTCODE_RX;
+	arg.cb_func = NULL;
+	arg.handle = (void*) 0;
+	arg.in_len = sizeof(send_pkt);
+	arg.input = (void*) &send_pkt;
+	arg.out_len_valid = 1;
+	arg.output_valid = 1;
+	arg.output_size = sizeof(rpc_large_write_pkt_recv);
+
+	ret.output = NULL;
+	ret.out_len = NULL;
+
+	//debug
+	pr_err(" *** send_pkt (%d,%d,%d)", pkt_no, flag, *send_len);
+	if (oem_rapi_client_streaming_function(client, &arg, &ret) != 0) {
+		pr_err(	" *** oem_rapi_client_streaming_function error..!!\n");
+		goto __exit__;
+	}
+
+	if (ret.output == NULL || ret.out_len == NULL) {
+		pr_err(" *** output is NULL\n");
+		goto __exit__;
+	}
+
+	recv_pkt = (rpc_large_write_pkt_recv*) ret.output;
+
+	if (recv_pkt->pkt_no != pkt_no )
+	{
+	pr_err(" *** recv_pkt (%d/%d)\n", recv_pkt->pkt_no, pkt_no);
+	goto __exit__;
+	}
+	
+	retval = 1;
+	
+__exit__:
+	if (ret.output)
+		kfree(ret.output);
+	if (ret.out_len)
+		kfree(ret.out_len);
+	return retval;
+	
+}
+
+int ntcode_rpc_write_string(char* data, int data_len)
+{
+	int i, ret, status = 0;
+	int total_len = 0;
+	char* offset = data;
+	int total_pkt, last_pkt_len = 0;
+
+	Open_check();
+
+	total_len = data_len;
+	total_pkt = (total_len / 120) + (total_len % 120 == 0 ? 0 : 1);
+	last_pkt_len = (total_len % 120) + (total_len % 120 == 0 ? 120 : 0);
+	
+	for (i = 0; i < total_pkt; i++)
+	{
+		if(total_pkt-1 == i) //last pkt
+		{
+			ret = last_pkt_len;
+			status = RPC_LARGE_READ_FINISH;
+		}
+		else
+		{
+			ret = 120;
+			status = RPC_LARGE_READ_CONTINUE;
+		}
+			
+		pr_info(" *** ntcode_rpc_read_string loop (%d / %d)\n", i, total_pkt);
+		if(remote_large_data_ntcode_write(i, status, offset, &ret) <0 )
+		{
+			pr_err(" *** ntcode_rpc_read_string error..!!\n");
+			return -1;
+		}
+		offset += ret;
+	}
+
+	pr_info(" *** ntcode_rpc_write_string Done(%d bytes)..!!\n", total_len);
+	return 1;
+}
+static int remote_large_vslt_send_data(unsigned int pkt_no,unsigned short flag, void* data, int* send_len)
+{
+	struct oem_rapi_client_streaming_func_arg arg;
+	struct oem_rapi_client_streaming_func_ret ret;
+
+	int retval = -1;
+
+	rpc_large_write_pkt_recv *recv_pkt;
+	rpc_large_write_pkt_send send_pkt;
+
+	send_pkt.pkt_no = pkt_no;
+	send_pkt.flag = flag;
+	send_pkt.data_len = *send_len;
+	memcpy(send_pkt.data, data, send_pkt.data_len);
+
+	arg.event = LG_COMMON_LARGE_DATA_RPC_VSLT_RX;
+	arg.cb_func = NULL;
+	arg.handle = (void*) 0;
+	arg.in_len = sizeof(send_pkt);
+	arg.input = (void*) &send_pkt;
+	arg.out_len_valid = 1;
+	arg.output_valid = 1;
+	arg.output_size = sizeof(rpc_large_write_pkt_recv);
+
+	ret.output = NULL;
+	ret.out_len = NULL;
+
+	//debug
+	pr_err(" *** send_pkt (%d,%d,%d)", pkt_no, flag, *send_len);
+	if (oem_rapi_client_streaming_function(client, &arg, &ret) != 0) {
+		pr_err(	" *** oem_rapi_client_streaming_function error..!!\n");
+		goto __exit__;
+	}
+
+	if (ret.output == NULL || ret.out_len == NULL) {
+		pr_err(" *** output is NULL\n");
+		goto __exit__;
+	}
+
+	recv_pkt = (rpc_large_write_pkt_recv*) ret.output;
+
+	if (recv_pkt->pkt_no != pkt_no )
+	{
+	pr_err(" *** recv_pkt (%d/%d)\n", recv_pkt->pkt_no, pkt_no);
+	goto __exit__;
+	}
+	
+	retval = 1;
+	
+__exit__:
+	if (ret.output)
+		kfree(ret.output);
+	if (ret.out_len)
+		kfree(ret.out_len);
+	return retval;
+	
+}
+
+
+static int remote_large_vslt_response_data(unsigned int pkt_no, void* data, int* recv_len)
+{
+	struct oem_rapi_client_streaming_func_arg arg;
+	struct oem_rapi_client_streaming_func_ret ret;
+
+	int retval = -1;
+
+	rpc_large_read_pkt_recv *recv_pkt;
+	rpc_large_read_pkt_send send_pkt;
+
+	send_pkt.pkt_no = pkt_no;
+
+	arg.event = LG_COMMON_LARGE_DATA_RPC_VSLT_TX;
+	arg.cb_func = NULL;
+	arg.handle = (void*) 0;
+	arg.in_len = sizeof(send_pkt);
+	arg.input = (void*) &send_pkt;
+	arg.out_len_valid = 1;
+	arg.output_valid = 1;
+	arg.output_size = sizeof(rpc_large_read_pkt_recv);
+
+	ret.output = NULL;
+	ret.out_len = NULL;
+
+	if (oem_rapi_client_streaming_function(client, &arg, &ret) != 0) {
+		pr_err(	" *** oem_rapi_client_streaming_function error..!!\n");
+		goto __exit__;
+	}
+
+	if (ret.output == NULL || ret.out_len == NULL) {
+		pr_err(" *** output is NULL\n");
+		goto __exit__;
+	}
+
+	recv_pkt = (rpc_large_read_pkt_recv*) ret.output;
+
+	if (recv_pkt->pkt_no != pkt_no ||
+	recv_pkt->flag == RPC_LARGE_READ_ERROR ||
+	recv_pkt->data_len == 0 ||
+	recv_pkt->data_len > 120) {
+	pr_err(" *** recv_pkt (%d/%d/%d/%d)\n", recv_pkt->pkt_no, pkt_no, recv_pkt->flag, recv_pkt->data_len);
+	goto __exit__;
+	}
+
+	memcpy(data, recv_pkt->data, recv_pkt->data_len);
+	*recv_len = recv_pkt->data_len;
+	retval = recv_pkt->flag;
+	
+__exit__:
+	if (ret.output)
+		kfree(ret.output);
+	if (ret.out_len)
+		kfree(ret.out_len);
+	return retval;
+	
+}
+
+
+int vslt_rpc_command_string(char* in_data, int data_len, char* out_data)
+{
+	int i, ret, status = 0;
+	int total_len = 0;
+	char* offset = in_data;
+	int total_pkt, last_pkt_len = 0;
+
+	Open_check();
+
+	total_len = data_len;
+	total_pkt = (total_len / 120) + (total_len % 120 == 0 ? 0 : 1);
+	last_pkt_len = (total_len % 120) + (total_len % 120 == 0 ? 120 : 0);
+	
+	for (i = 0; i < total_pkt; i++)
+	{
+		if(total_pkt-1 == i) //last pkt
+		{
+			ret = last_pkt_len;
+			status = RPC_LARGE_READ_FINISH;
+		}
+		else
+		{
+			ret = 120;
+			status = RPC_LARGE_READ_CONTINUE;
+		}
+			
+		pr_info(" *** vslt_rpc_command_string send loop (%d / %d)\n", i, total_pkt);
+		if(remote_large_vslt_send_data(i, status, offset, &ret) <0 )
+		{
+			pr_err(" *** vslt_rpc_command_string send error..!!\n");
+			return -1;
+		}
+		offset += ret;
+	}
+	status = 0;
+	total_len = 0;
+	ret =0;
+	offset = out_data;
+	
+	for (i = 0; status != RPC_LARGE_READ_FINISH; i++)
+	{
+		pr_info(" *** vslt_rpc_command_string loop res (%d)\n", i);
+		status = remote_large_vslt_response_data(i, offset, &ret);
+		if (status < 0) {
+			pr_err(" *** vslt_rpc_command_string res error..!!\n");
+			return -1;
+		}
+		offset += ret;
+		total_len +=ret;
+	}
+
+	out_data[total_len-1] = '\0';	
+
+	pr_info(" *** vslt_rpc_command_string Done(%d bytes)..!!\n", total_len);
+	return total_len;
+}
+// LGE_END 20121113 seonbeom.lee [Security] support NTCODE max 40 .
+
+/*LGE_CHANGE_S 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+unsigned char swv_buff[100];
+char* remote_get_sw_version(void)
+{
+	struct oem_rapi_client_streaming_func_arg arg;
+	struct oem_rapi_client_streaming_func_ret ret;
+	int rc= -1;
+
+	char fs_err_buf[20];
+	
+	printk(KERN_ERR "%s, start OEM_RAPI\n",__func__);
+
+	Open_check();
+
+	arg.event = LG_FW_GET_SW_VERSION;
+	arg.cb_func = NULL;
+	arg.handle = (void*) 0;
+	arg.in_len =  sizeof(fs_err_buf);
+	arg.input =fs_err_buf;
+	arg.out_len_valid = 1;
+	arg.output_valid = 1;
+	arg.output_size = sizeof(swv_buff);
+
+	ret.output = NULL;
+	ret.out_len = NULL;
+
+	rc = oem_rapi_client_streaming_function(client,&arg,&ret);
+		
+	if(ret.output == NULL || ret.out_len == NULL){ 
+		printk(KERN_ERR "%s, output is NULL\n",__func__);
+		return 0;
+	}	
+	memcpy((void *)&swv_buff[0], ret.output, sizeof(swv_buff));
+	
+	printk(KERN_ERR "%s, output lenght =%dis\n",__func__,*ret.out_len);	
+
+	if (ret.output)
+		kfree(ret.output);
+	if (ret.out_len)
+		kfree(ret.out_len);
+	
+	return swv_buff;
+}
+/*LGE_CHANGE_E 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+

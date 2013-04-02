@@ -259,13 +259,7 @@ int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
 
 		nr = fat_ent_read(inode, &fatent, *dclus);
 		if (nr < 0)
-		{
-			/* LGE_CHANGE_S [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
-			printk(KERN_ERR "%s(%d): FAT Entry Read Error cluster (%d)\n", __func__, __LINE__, *dclus);
-			/* LGE_CHANGE_E [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
-
 			goto out;
-		}	
 		else if (nr == FAT_ENT_FREE) {
 			fat_fs_error_ratelimit(sb, "%s: invalid cluster chain"
 					       " (i_pos %lld)", __func__,

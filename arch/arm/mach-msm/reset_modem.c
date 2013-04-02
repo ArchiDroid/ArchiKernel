@@ -17,9 +17,9 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <mach/proc_comm.h>
 
 #include "smd_private.h"
-#include "proc_comm.h"
 
 #define DEBUG
 /* #undef DEBUG */

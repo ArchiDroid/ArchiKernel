@@ -22,6 +22,7 @@
 #include <linux/remote_spinlock.h>
 #include <mach/board.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 /* SSBI 2.0 controller registers */
 #define SSBI2_CMD			0x0008

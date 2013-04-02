@@ -30,7 +30,7 @@
 #include <mach/msm_fb.h>
 #include <mach/msm_iomap.h>
 #include <mach/vreg.h>
-#include "proc_comm.h"
+#include <mach/proc_comm.h>
 
 #include "board-mahimahi.h"
 #include "devices.h"

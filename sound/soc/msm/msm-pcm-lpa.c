@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +27,10 @@
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
 #include <linux/android_pmem.h>
+#include <sound/compress_params.h>
+#include <sound/compress_offload.h>
+#include <sound/compress_driver.h>
+#include <sound/timer.h>
 
 #include "msm-pcm-q6.h"
 #include "msm-pcm-routing.h"
@@ -51,12 +55,12 @@ static struct snd_pcm_hardware msm_pcm_hardware = {
 	.rate_max =             48000,
 	.channels_min =         1,
 	.channels_max =         2,
-	.buffer_bytes_max =     2 * 1024 * 1024,
+	.buffer_bytes_max =     1024 * 1024,
 /* TODO: Check on the lowest period size we can support */
 	.period_bytes_min =	128 * 1024,
-	.period_bytes_max =     512 * 1024,
+	.period_bytes_max =     256 * 1024,
 	.periods_min =          4,
-	.periods_max =          16,
+	.periods_max =          8,
 	.fifo_size =            0,
 };
 
@@ -90,8 +94,14 @@ static void event_handler(uint32_t opcode,
 		pr_debug("ASM_DATA_EVENT_WRITE_DONE\n");
 		pr_debug("Buffer Consumed = 0x%08x\n", *ptrmem);
 		prtd->pcm_irq_pos += prtd->pcm_count;
+		if (prtd->pcm_irq_pos >= prtd->pcm_size)
+			prtd->pcm_irq_pos = 0;
 		if (atomic_read(&prtd->start))
 			snd_pcm_period_elapsed(substream);
+		else
+			if (substream->timer_running)
+				snd_timer_interrupt(substream->timer, 1);
+
 		atomic_inc(&prtd->out_count);
 		wake_up(&the_locks.write_wait);
 		if (!atomic_read(&prtd->start)) {
@@ -99,10 +109,16 @@ static void event_handler(uint32_t opcode,
 			break;
 		} else
 			atomic_set(&prtd->pending_buffer, 0);
+
+		buf = prtd->audio_client->port[IN].buf;
+		if (runtime->status->hw_ptr >= runtime->control->appl_ptr) {
+			memset((void *)buf[0].data +
+				(prtd->out_head * prtd->pcm_count),
+				0, prtd->pcm_count);
+		}
 		pr_debug("%s:writing %d bytes of buffer to dsp 2\n",
 				__func__, prtd->pcm_count);
 
-		buf = prtd->audio_client->port[IN].buf;
 		param.paddr = (unsigned long)buf[0].phys
 				+ (prtd->out_head * prtd->pcm_count);
 		param.len = prtd->pcm_count;
@@ -133,6 +149,9 @@ static void event_handler(uint32_t opcode,
 		switch (payload[0]) {
 		case ASM_SESSION_CMD_RUN: {
 			if (!atomic_read(&prtd->pending_buffer))
+				break;
+			if (runtime->status->hw_ptr >=
+				runtime->control->appl_ptr)
 				break;
 			pr_debug("%s:writing %d bytes"
 				" of buffer to dsp\n",
@@ -214,10 +233,12 @@ static int msm_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		pr_debug("SNDRV_PCM_TRIGGER_START\n");
 		q6asm_run_nowait(prtd->audio_client, 0, 0, 0);
 		atomic_set(&prtd->start, 1);
+		atomic_set(&prtd->stop, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("SNDRV_PCM_TRIGGER_STOP\n");
 		atomic_set(&prtd->start, 0);
+		atomic_set(&prtd->stop, 1);
 		if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 			break;
 		break;
@@ -305,6 +326,7 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 
 	prtd->dsp_cnt = 0;
 	atomic_set(&prtd->pending_buffer, 1);
+	atomic_set(&prtd->stop, 1);
 	runtime->private_data = prtd;
 	lpa_audio.prtd = prtd;
 	lpa_set_volume(lpa_audio.volume);
@@ -340,8 +362,27 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct msm_audio *prtd = runtime->private_data;
 	int dir = 0;
+	int rc = 0;
 
-	pr_debug("%s\n", __func__);
+	/*
+	If routing is still enabled, we need to issue EOS to
+	the DSP
+	To issue EOS to dsp, we need to be run state otherwise
+	EOS is not honored.
+	*/
+	if (msm_routing_check_backend_enabled(soc_prtd->dai_link->be_id) &&
+		(!atomic_read(&prtd->stop))) {
+		rc = q6asm_run(prtd->audio_client, 0, 0, 0);
+		atomic_set(&prtd->pending_buffer, 0);
+		prtd->cmd_ack = 0;
+		q6asm_cmd_nowait(prtd->audio_client, CMD_EOS);
+		pr_debug("%s\n", __func__);
+		rc = wait_event_timeout(the_locks.eos_wait,
+			prtd->cmd_ack, 5 * HZ);
+		if (rc < 0)
+			pr_err("EOS cmd timeout\n");
+		prtd->pcm_irq_pos = 0;
+	}
 
 	dir = IN;
 	atomic_set(&prtd->pending_buffer, 0);
@@ -350,6 +391,7 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	q6asm_audio_client_buf_free_contiguous(dir,
 				prtd->audio_client);
 
+	atomic_set(&prtd->stop, 1);
 	pr_debug("%s\n", __func__);
 	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->be_id,
 		SNDRV_PCM_STREAM_PLAYBACK);
@@ -384,8 +426,6 @@ static snd_pcm_uframes_t msm_pcm_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct msm_audio *prtd = runtime->private_data;
 
-	if (prtd->pcm_irq_pos >= prtd->pcm_size)
-		prtd->pcm_irq_pos = 0;
 	pr_debug("%s: pcm_irq_pos = %d\n", __func__, prtd->pcm_irq_pos);
 	return bytes_to_frames(runtime, (prtd->pcm_irq_pos));
 }
@@ -436,7 +476,8 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -ENOMEM;
 	}
 	buf = prtd->audio_client->port[dir].buf;
-	if (!buf && !buf[0].data)
+
+	if (buf == NULL || buf[0].data == NULL)
 		return -ENOMEM;
 
 	pr_debug("%s:buf = %p\n", __func__, buf);
@@ -459,9 +500,36 @@ static int msm_pcm_ioctl(struct snd_pcm_substream *substream,
 	int rc = 0;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct msm_audio *prtd = runtime->private_data;
+	uint64_t timestamp;
+	uint64_t temp;
 
 	switch (cmd) {
+	case SNDRV_COMPRESS_TSTAMP: {
+		struct snd_compr_tstamp tstamp;
+		pr_debug("SNDRV_COMPRESS_TSTAMP\n");
+
+		memset(&tstamp, 0x0, sizeof(struct snd_compr_tstamp));
+		timestamp = q6asm_get_session_time(prtd->audio_client);
+		if (timestamp < 0) {
+			pr_err("%s: Get Session Time return value =%lld\n",
+				__func__, timestamp);
+			return -EAGAIN;
+		}
+		temp = (timestamp * 2 * runtime->channels);
+		temp = temp * (runtime->rate/1000);
+		temp = div_u64(temp, 1000);
+		tstamp.sampling_rate = runtime->rate;
+		tstamp.timestamp = timestamp;
+		pr_debug("%s: bytes_consumed:"
+			"timestamp = %lld,\n",__func__,
+			tstamp.timestamp);
+		if (copy_to_user((void *) arg, &tstamp,
+			sizeof(struct snd_compr_tstamp)))
+			return -EFAULT;
+		return 0;
+	}
 	case SNDRV_PCM_IOCTL1_RESET:
+		prtd->cmd_ack = 0;
 		rc = q6asm_cmd(prtd->audio_client, CMD_FLUSH);
 		if (rc < 0)
 			pr_err("%s: flush cmd failed rc=%d\n", __func__, rc);

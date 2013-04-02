@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define DRIVER_NAME "diag_event_log"
 
@@ -128,7 +129,7 @@ int diag_event_log_start(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(diag_event_log_start);
+
 
 int diag_event_log_end(void)
 {
@@ -139,7 +140,7 @@ int diag_event_log_end(void)
 	}
 	return 0 ;
 }
-EXPORT_SYMBOL(diag_event_log_end);
+
 
 static int  __init diag_event_log_probe(struct platform_device *pdev)
 {

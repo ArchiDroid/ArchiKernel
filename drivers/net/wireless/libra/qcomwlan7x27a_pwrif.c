@@ -16,11 +16,9 @@
 #include <mach/rpc_pmapp.h>
 #include <linux/err.h>
 #include <linux/qcomwlan7x27a_pwrif.h>
+#include <linux/module.h>
 
-/* LGE_CHANGE_S : 2011-11-30 real-wifi@lge.com[wo0gi] Modify WLAN_GPIO_EXT_POR_N [START]*/
-#define WLAN_GPIO_EXT_POR_N     5
-/* #define WLAN_GPIO_EXT_POR_N     134 */
-/*LGE_CHANGE_E : 2011-11-30 real-wifi@lge.com[wo0gi] Modify WLAN_GPIO_EXT_POR_N [END]*/
+#define WLAN_GPIO_EXT_POR_N     5 //jaeshick, 2012.09.22 : 134 -> 5 (v3/v7)
 
 static const char *id = "WLAN";
 
@@ -78,12 +76,45 @@ out:
 	return rc;
 }
 
+//jaeshick, 2012.09.22 : reset WLAN GPIO (v3/v7) - START
+int wlanGPIO_reset(void) {
+	int rc = 0;
+	pr_err("[GPIO_EBUSY] wlanGPIO_reset(WLAN_GPIO_EXT_POR_N) %d - START\n", WLAN_GPIO_EXT_POR_N);
+	
+	gpio_set_value_cansleep(WLAN_GPIO_EXT_POR_N, 0);
+	rc = gpio_direction_input(WLAN_GPIO_EXT_POR_N);
+	
+	if (rc) {
+		pr_err("[jaeshick]WLAN reset GPIO %d set direction failed %d\n",
+		WLAN_GPIO_EXT_POR_N, rc);
+	}
+	gpio_free(WLAN_GPIO_EXT_POR_N);
+	rc = pmapp_clock_vote(id, PMAPP_CLOCK_ID_A0,
+				PMAPP_CLOCK_VOTE_OFF);
+	if (rc) {
+		pr_err("[jaeshick]%s: Configuring A0 to turn OFF"
+		" failed %d\n", __func__, rc);
+	}
+	
+	pr_err("[GPIO_EBUSY] wlanGPIO_reset(WLAN_GPIO_EXT_POR_N) %d - END\n", WLAN_GPIO_EXT_POR_N);
+
+	return rc;
+
+}
+//jaeshick, 2012.09.22 : reset WLAN GPIO (v3/v7) - END
+
 int chip_power_qrf6285(bool on)
 {
 	static bool init_done;
 	int rc = 0, index = 0;
-
-	if (unlikely(!init_done)) {
+/*LGE_CHANGE_S, [jaewoo.hwang@lge.com], 2012-12-07,
+<  Delete "unlikely" Macro. It make text.unlikely section in asm.
+   If Module has text.unlikely section and specific Kernel Config 
+   then print "unwind: Index not found" kernel log.
+   Specific Kernel Config is "CONFIG_SMP is not set, CONFIG_SLUB=y, CONFIG_STACKTRACE=y"
+>*/
+	//if (unlikely(!init_done)) {
+	if (!init_done) {
 		rc = qrf6285_init_regs();
 		if (rc)
 			return rc;
@@ -95,9 +126,21 @@ int chip_power_qrf6285(bool on)
 		rc = gpio_request(WLAN_GPIO_EXT_POR_N, "WLAN_DEEP_SLEEP_N");
 
 		if (rc) {
+			//jaeshick, 2012.09.22 : reset WLAN GPIO (v3/v7) - START
+			if(wlanGPIO_reset()) {
 			pr_err("WLAN reset GPIO %d request failed %d\n",
 			WLAN_GPIO_EXT_POR_N, rc);
 			goto fail;
+			} else {
+				rc = gpio_request(WLAN_GPIO_EXT_POR_N, "WLAN_DEEP_SLEEP_N");
+
+				if (rc) {
+					pr_err("WLAN reset GPIO %d request failed %d\n",
+					WLAN_GPIO_EXT_POR_N, rc);
+					goto fail;
+				}
+			}
+			//jaeshick, 2012.09.22 : reset WLAN GPIO (v3/v7) - END
 		}
 		rc = gpio_direction_output(WLAN_GPIO_EXT_POR_N, 1);
 		if (rc < 0) {

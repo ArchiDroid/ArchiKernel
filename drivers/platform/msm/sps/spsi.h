@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,10 +21,14 @@
 #include <linux/list.h>		/* list_head */
 #include <linux/kernel.h>	/* pr_info() */
 #include <linux/compiler.h>
+#include <linux/ratelimit.h>
 
 #include <mach/sps.h>
 
 #include "sps_map.h"
+
+#define BAM_MAX_PIPES              31
+#define BAM_MAX_P_LOCK_GROUP_NUM   31
 
 /* Adjust for offset of struct sps_q_event */
 #define SPS_EVENT_INDEX(e)    ((e) - 1)
@@ -33,34 +37,91 @@
 /* BAM identifier used in log messages */
 #define BAM_ID(dev)       ((dev)->props.phys_addr)
 
+/* "Clear" value for the connection parameter struct */
+#define SPSRM_CLEAR     0xcccccccc
+
+extern u32 d_type;
+
 #ifdef CONFIG_DEBUG_FS
-extern u32 sps_debugfs_enabled;
-extern u32 detailed_debug_on;
+extern u8 debugfs_record_enabled;
+extern u8 logging_option;
+extern u8 debug_level_option;
+extern u8 print_limit_option;
+
 #define MAX_MSG_LEN 80
 #define SPS_DEBUGFS(msg, args...) do {					\
-			char buf[MAX_MSG_LEN];		\
-			snprintf(buf, MAX_MSG_LEN, msg"\n", ##args);	\
-			sps_debugfs_record(buf);	\
-		} while (0)
+		char buf[MAX_MSG_LEN];		\
+		snprintf(buf, MAX_MSG_LEN, msg"\n", ##args);	\
+		sps_debugfs_record(buf);	\
+	} while (0)
 #define SPS_ERR(msg, args...) do {					\
+		if (unlikely(print_limit_option > 2))	\
+			pr_err_ratelimited(msg, ##args);	\
+		else	\
 			pr_err(msg, ##args);	\
-			if (unlikely(sps_debugfs_enabled))	\
-				SPS_DEBUGFS(msg, ##args);	\
-		} while (0)
+		if (unlikely(debugfs_record_enabled))	\
+			SPS_DEBUGFS(msg, ##args);	\
+	} while (0)
 #define SPS_INFO(msg, args...) do {					\
+		if (unlikely(print_limit_option > 1))	\
+			pr_info_ratelimited(msg, ##args);	\
+		else	\
 			pr_info(msg, ##args);	\
-			if (unlikely(sps_debugfs_enabled))	\
-				SPS_DEBUGFS(msg, ##args);	\
-		} while (0)
+		if (unlikely(debugfs_record_enabled))	\
+			SPS_DEBUGFS(msg, ##args);	\
+	} while (0)
 #define SPS_DBG(msg, args...) do {					\
-			if (unlikely(detailed_debug_on))	\
-				pr_info(msg, ##args);	\
+		if ((unlikely(logging_option > 1))	\
+			&& (unlikely(debug_level_option > 3))) {\
+			if (unlikely(print_limit_option > 0))	\
+				pr_info_ratelimited(msg, ##args);	\
 			else	\
-				pr_debug(msg, ##args);	\
-			if (unlikely(sps_debugfs_enabled))	\
-				SPS_DEBUGFS(msg, ##args);	\
-		} while (0)
+				pr_info(msg, ##args);	\
+		} else	\
+			pr_debug(msg, ##args);	\
+		if (unlikely(debugfs_record_enabled))	\
+			SPS_DEBUGFS(msg, ##args);	\
+	} while (0)
+#define SPS_DBG1(msg, args...) do {					\
+		if ((unlikely(logging_option > 1))	\
+			&& (unlikely(debug_level_option > 2))) {\
+			if (unlikely(print_limit_option > 0))	\
+				pr_info_ratelimited(msg, ##args);	\
+			else	\
+				pr_info(msg, ##args);	\
+		} else	\
+			pr_debug(msg, ##args);	\
+		if (unlikely(debugfs_record_enabled))	\
+			SPS_DEBUGFS(msg, ##args);	\
+	} while (0)
+#define SPS_DBG2(msg, args...) do {					\
+		if ((unlikely(logging_option > 1))	\
+			&& (unlikely(debug_level_option > 1))) {\
+			if (unlikely(print_limit_option > 0))	\
+				pr_info_ratelimited(msg, ##args);	\
+			else	\
+				pr_info(msg, ##args);	\
+		} else	\
+			pr_debug(msg, ##args);	\
+		if (unlikely(debugfs_record_enabled))	\
+			SPS_DEBUGFS(msg, ##args);	\
+	} while (0)
+#define SPS_DBG3(msg, args...) do {					\
+		if ((unlikely(logging_option > 1))	\
+			&& (unlikely(debug_level_option > 0))) {\
+			if (unlikely(print_limit_option > 0))	\
+				pr_info_ratelimited(msg, ##args);	\
+			else	\
+				pr_info(msg, ##args);	\
+		} else	\
+			pr_debug(msg, ##args);	\
+		if (unlikely(debugfs_record_enabled))	\
+			SPS_DEBUGFS(msg, ##args);	\
+	} while (0)
 #else
+#define	SPS_DBG3(x...)		pr_debug(x)
+#define	SPS_DBG2(x...)		pr_debug(x)
+#define	SPS_DBG1(x...)		pr_debug(x)
 #define	SPS_DBG(x...)		pr_debug(x)
 #define	SPS_INFO(x...)		pr_info(x)
 #define	SPS_ERR(x...)		pr_err(x)
@@ -72,6 +133,7 @@ struct sps_conn_end_pt {
 	u32 bam_phys;		/* Physical address of BAM. */
 	u32 pipe_index;		/* Pipe index */
 	u32 event_threshold;	/* Pipe event threshold */
+	u32 lock_group;	/* The lock group this pipe belongs to */
 	void *bam;
 };
 
@@ -121,6 +183,21 @@ struct sps_mem_stats {
 #ifdef CONFIG_DEBUG_FS
 /* record debug info for debugfs */
 void sps_debugfs_record(const char *);
+
+/* output the content of BAM-level registers */
+void print_bam_reg(void *);
+
+/* output the content of BAM pipe registers */
+void print_bam_pipe_reg(void *, u32);
+
+/* output the content of selected BAM-level registers */
+void print_bam_selected_reg(void *);
+
+/* output the content of selected BAM pipe registers */
+void print_bam_pipe_selected_reg(void *, u32);
+
+/* output descriptor FIFO of a pipe */
+void print_bam_pipe_desc_fifo(void *, u32);
 #endif
 
 /**

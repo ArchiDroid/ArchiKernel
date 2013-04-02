@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,7 +19,55 @@ struct msm_watchdog_pdata {
 	/* bark timeout in ms */
 	unsigned int bark_time;
 	bool has_secure;
+	bool needs_expired_enable;
+	bool has_vic;
+	/* You have to be running in secure mode to use FIQ */
+	bool use_kernel_fiq;
 };
+
+struct msm_watchdog_dump {
+	uint32_t magic;
+	uint32_t curr_cpsr;
+	uint32_t usr_r0;
+	uint32_t usr_r1;
+	uint32_t usr_r2;
+	uint32_t usr_r3;
+	uint32_t usr_r4;
+	uint32_t usr_r5;
+	uint32_t usr_r6;
+	uint32_t usr_r7;
+	uint32_t usr_r8;
+	uint32_t usr_r9;
+	uint32_t usr_r10;
+	uint32_t usr_r11;
+	uint32_t usr_r12;
+	uint32_t usr_r13;
+	uint32_t usr_r14;
+	uint32_t irq_spsr;
+	uint32_t irq_r13;
+	uint32_t irq_r14;
+	uint32_t svc_spsr;
+	uint32_t svc_r13;
+	uint32_t svc_r14;
+	uint32_t abt_spsr;
+	uint32_t abt_r13;
+	uint32_t abt_r14;
+	uint32_t und_spsr;
+	uint32_t und_r13;
+	uint32_t und_r14;
+	uint32_t fiq_spsr;
+	uint32_t fiq_r8;
+	uint32_t fiq_r9;
+	uint32_t fiq_r10;
+	uint32_t fiq_r11;
+	uint32_t fiq_r12;
+	uint32_t fiq_r13;
+	uint32_t fiq_r14;
+};
+
+void msm_wdog_fiq_setup(void *stack);
+extern unsigned int msm_wdog_fiq_length, msm_wdog_fiq_start;
+extern unsigned int msm_7k_fiq_start, msm_7k_fiq_length;
 
 #ifdef CONFIG_MSM_WATCHDOG
 void pet_watchdog(void);

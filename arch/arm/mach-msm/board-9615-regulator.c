@@ -12,7 +12,7 @@
  */
 
 #include <linux/regulator/pm8xxx-regulator.h>
-#include <linux/regulator/gpio-regulator.h>
+#include <linux/regulator/msm-gpio-regulator.h>
 #include <mach/rpm-regulator.h>
 
 #include "board-9615.h"
@@ -61,21 +61,45 @@ VREG_CONSUMERS(L12) = {
 };
 VREG_CONSUMERS(L13) = {
 	REGULATOR_SUPPLY("8018_l13",		NULL),
-	REGULATOR_SUPPLY("sdc_vddp",		"msm_sdcc.1"),
+	REGULATOR_SUPPLY("sdc_vdd_io",		"msm_sdcc.1"),
 };
 VREG_CONSUMERS(L14) = {
 	REGULATOR_SUPPLY("8018_l14",		NULL),
+	REGULATOR_SUPPLY("VDDI2",		"ebi2_lcd.0"),
 };
 VREG_CONSUMERS(S1) = {
 	REGULATOR_SUPPLY("8018_s1",		NULL),
-	REGULATOR_SUPPLY("HSUSB_VDDCX",		"msm_otg"),
 };
 VREG_CONSUMERS(S2) = {
 	REGULATOR_SUPPLY("8018_s2",		NULL),
+	REGULATOR_SUPPLY("CDC_VDDA_A_1P2V",	"tabla-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_A_1P2V",	"tabla2x-slim"),
+	REGULATOR_SUPPLY("VDDD_CDC_D",		"tabla-slim"),
+	REGULATOR_SUPPLY("VDDD_CDC_D",		"tabla2x-slim"),
+	REGULATOR_SUPPLY("VDDD_CDC_D",          "0-000d"),
+	REGULATOR_SUPPLY("CDC_VDDA_A_1P2V",     "0-000d"),
+	REGULATOR_SUPPLY("VDDD_CDC_D",		"tabla top level"),
+	REGULATOR_SUPPLY("CDC_VDDA_A_1P2V",	"tabla top level"),
 };
 VREG_CONSUMERS(S3) = {
 	REGULATOR_SUPPLY("8018_s3",		NULL),
 	REGULATOR_SUPPLY("wlan_vreg",		"wlan_ar6000_pm_dev"),
+	REGULATOR_SUPPLY("CDC_VDD_CP",		"tabla-slim"),
+	REGULATOR_SUPPLY("CDC_VDD_CP",		"tabla2x-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_RX",		"tabla-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_RX",		"tabla2x-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_TX",		"tabla-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_TX",		"tabla2x-slim"),
+	REGULATOR_SUPPLY("VDDIO_CDC",		"tabla-slim"),
+	REGULATOR_SUPPLY("VDDIO_CDC",		"tabla2x-slim"),
+	REGULATOR_SUPPLY("VDDIO_CDC",		"tabla top level"),
+	REGULATOR_SUPPLY("CDC_VDD_CP",		"tabla top level"),
+	REGULATOR_SUPPLY("CDC_VDDA_TX",		"tabla top level"),
+	REGULATOR_SUPPLY("CDC_VDDA_RX",		"tabla top level"),
+	REGULATOR_SUPPLY("VDDIO_CDC",		"0-000d"),
+	REGULATOR_SUPPLY("CDC_VDD_CP",		"0-000d"),
+	REGULATOR_SUPPLY("CDC_VDDA_TX",		"0-000d"),
+	REGULATOR_SUPPLY("CDC_VDDA_RX",		"0-000d"),
 };
 VREG_CONSUMERS(S4) = {
 	REGULATOR_SUPPLY("8018_s4",		NULL),
@@ -89,6 +113,11 @@ VREG_CONSUMERS(LVS1) = {
 VREG_CONSUMERS(EXT_2P95V) = {
 	REGULATOR_SUPPLY("ext_2p95v",		NULL),
 	REGULATOR_SUPPLY("sdc_vdd",		"msm_sdcc.1"),
+};
+VREG_CONSUMERS(VDD_DIG_CORNER) = {
+	REGULATOR_SUPPLY("hsusb_vdd_dig",	"msm_otg"),
+	REGULATOR_SUPPLY("hsic_vdd_dig",	"msm_hsic_peripheral"),
+	REGULATOR_SUPPLY("hsic_vdd_dig",	"msm_hsic_host"),
 };
 
 #define PM8XXX_VREG_INIT(_id, _name, _min_uV, _max_uV, _modes, _ops, \
@@ -169,8 +198,8 @@ VREG_CONSUMERS(EXT_2P95V) = {
 
 #define RPM_INIT(_id, _min_uV, _max_uV, _modes, _ops, _apply_uV, _default_uV, \
 		 _peak_uA, _avg_uA, _pull_down, _pin_ctrl, _freq, _pin_fn, \
-		 _force_mode, _power_mode, _state, _sleep_selectable, \
-		 _always_on, _supply_regulator, _system_uA) \
+		 _force_mode, _sleep_set_force_mode, _power_mode, _state, \
+		 _sleep_selectable, _always_on, _supply_regulator, _system_uA) \
 	{ \
 		.init_data = { \
 			.constraints = { \
@@ -196,6 +225,7 @@ VREG_CONSUMERS(EXT_2P95V) = {
 		.freq			= RPM_VREG_FREQ_##_freq, \
 		.pin_fn			= _pin_fn, \
 		.force_mode		= _force_mode, \
+		.sleep_set_force_mode	= _sleep_set_force_mode, \
 		.power_mode		= _power_mode, \
 		.state			= _state, \
 		.sleep_selectable	= _sleep_selectable, \
@@ -209,6 +239,7 @@ VREG_CONSUMERS(EXT_2P95V) = {
 		 | REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_MODE \
 		 | REGULATOR_CHANGE_DRMS, 0, _max_uV, _init_peak_uA, 0, _pd, \
 		 RPM_VREG_PIN_CTRL_NONE, NONE, RPM_VREG_PIN_FN_9615_NONE, \
+		 RPM_VREG_FORCE_MODE_9615_NONE, \
 		 RPM_VREG_FORCE_MODE_9615_NONE, RPM_VREG_POWER_MODE_9615_PWM, \
 		 RPM_VREG_STATE_OFF, _sleep_selectable, _always_on, \
 		 _supply_regulator, _system_uA)
@@ -220,6 +251,7 @@ VREG_CONSUMERS(EXT_2P95V) = {
 		 | REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_MODE \
 		 | REGULATOR_CHANGE_DRMS, 0, _max_uV, _system_uA, 0, _pd, \
 		 RPM_VREG_PIN_CTRL_NONE, _freq, RPM_VREG_PIN_FN_9615_NONE, \
+		 RPM_VREG_FORCE_MODE_9615_NONE, \
 		 RPM_VREG_FORCE_MODE_9615_NONE, RPM_VREG_POWER_MODE_9615_PWM, \
 		 RPM_VREG_STATE_OFF, _sleep_selectable, _always_on, \
 		 _supply_regulator, _system_uA)
@@ -227,6 +259,17 @@ VREG_CONSUMERS(EXT_2P95V) = {
 #define RPM_VS(_id, _always_on, _pd, _sleep_selectable, _supply_regulator) \
 	RPM_INIT(_id, 0, 0, 0, REGULATOR_CHANGE_STATUS, 0, 0, 1000, 1000, _pd, \
 		 RPM_VREG_PIN_CTRL_NONE, NONE, RPM_VREG_PIN_FN_9615_NONE, \
+		 RPM_VREG_FORCE_MODE_9615_NONE, \
+		 RPM_VREG_FORCE_MODE_9615_NONE, RPM_VREG_POWER_MODE_9615_PWM, \
+		 RPM_VREG_STATE_OFF, _sleep_selectable, _always_on, \
+		 _supply_regulator, 0)
+
+#define RPM_CORNER(_id, _always_on, _sleep_selectable, _min_uV, _max_uV, \
+		_supply_regulator) \
+	RPM_INIT(_id, _min_uV, _max_uV, 0, REGULATOR_CHANGE_VOLTAGE \
+		 | REGULATOR_CHANGE_STATUS, 0, _max_uV, 0, 0, 0, \
+		 RPM_VREG_PIN_CTRL_NONE, NONE, RPM_VREG_PIN_FN_9615_NONE, \
+		 RPM_VREG_FORCE_MODE_9615_NONE, \
 		 RPM_VREG_FORCE_MODE_9615_NONE, RPM_VREG_POWER_MODE_9615_PWM, \
 		 RPM_VREG_STATE_OFF, _sleep_selectable, _always_on, \
 		 _supply_regulator, 0)
@@ -285,7 +328,7 @@ msm_rpm_regulator_init_data[] __devinitdata = {
 
 	/*	 ID    a_on pd ss min_uV   max_uV  supply  sys_uA init_ip */
 	RPM_LDO(L2,      1, 1, 0, 1800000, 1800000, NULL,      0, 10000),
-	RPM_LDO(L3,      0, 1, 0, 1800000, 1800000, NULL,      0, 0),
+	RPM_LDO(L3,      1, 1, 0, 1800000, 1800000, NULL,      0, 0),
 	RPM_LDO(L4,      0, 1, 0, 3075000, 3075000, NULL,      0, 0),
 	RPM_LDO(L5,      0, 1, 0, 2850000, 2850000, NULL,      0, 0),
 	RPM_LDO(L6,      0, 1, 0, 1800000, 2850000, NULL,      0, 0),
@@ -300,6 +343,10 @@ msm_rpm_regulator_init_data[] __devinitdata = {
 
 	/*	ID    a_on pd ss		    supply */
 	RPM_VS(LVS1,    0, 1, 0,		    "8018_s3"),
+
+	/*	   ID            a_on ss min_corner  max_corner  supply */
+	RPM_CORNER(VDD_DIG_CORNER, 0, 1, RPM_VREG_CORNER_NONE,
+		RPM_VREG_CORNER_HIGH, NULL),
 };
 
 int msm_pm8018_regulator_pdata_len __devinitdata =
@@ -311,5 +358,5 @@ msm_rpm_regulator_9615_pdata __devinitdata = {
 	.num_regulators		= ARRAY_SIZE(msm_rpm_regulator_init_data),
 	.version		= RPM_VREG_VERSION_9615,
 	.vreg_id_vdd_mem	= RPM_VREG_ID_PM8018_L9,
-	.vreg_id_vdd_dig	= RPM_VREG_ID_PM8018_S1,
+	.vreg_id_vdd_dig	= RPM_VREG_ID_PM8018_VDD_DIG_CORNER,
 };

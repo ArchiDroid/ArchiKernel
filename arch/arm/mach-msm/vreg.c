@@ -1,7 +1,7 @@
 /* arch/arm/mach-msm/vreg.c
  *
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2009-2011 Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2012 Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -16,6 +16,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -26,8 +27,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/string.h>
 #include <mach/vreg.h>
-
-#include "proc_comm.h"
+#include <mach/proc_comm.h>
 
 #if defined(CONFIG_MSM_VREG_SWITCH_INVERTED)
 #define VREG_SWITCH_ENABLE 0
@@ -132,6 +132,8 @@ void vreg_put(struct vreg *vreg)
 {
 	kfree(vreg->name);
 	regulator_put(vreg->reg);
+	list_del(&vreg->list);
+	kfree(vreg);
 }
 
 int vreg_enable(struct vreg *vreg)

@@ -27,13 +27,6 @@ config MMC_PERF_PROFILING
 	  If you say Y here, support will be added for collecting
 	  performance numbers at the MMC Queue and Host layers.
 
-config MMC_SUSPEND_RESUME_ERR_HANDLER
-	bool "SD card suspend resume error handler"
-	depends on MMC != n
-	default n
-	help
-	  This option is for handling SD card suspend resume
-	  timeout error.
 if MMC
 
 source "drivers/mmc/core/Kconfig"

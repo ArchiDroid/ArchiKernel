@@ -5,12 +5,12 @@
  *  Digital Audio (PCM) abstract layer
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Abramo Bagnara <abramo@alsa-project.org>
- *  Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; only version 2 of the License.
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
  *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -29,7 +29,7 @@
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/bitops.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 
 #define snd_pcm_substream_chip(substream) ((substream)->private_data)
 #define snd_pcm_chip(pcm) ((pcm)->private_data)
@@ -373,7 +373,7 @@ struct snd_pcm_substream {
 	int number;
 	char name[32];			/* substream name */
 	int stream;			/* stream (direction) */
-	struct pm_qos_request_list latency_pm_qos_req; /* pm_qos request */
+	struct pm_qos_request latency_pm_qos_req; /* pm_qos request */
 	size_t buffer_bytes_max;	/* limit ring buffer size */
 	struct snd_dma_buffer dma_buffer;
 	unsigned int dma_buf_id;
@@ -476,6 +476,9 @@ extern const struct file_operations snd_pcm_f_ops[2];
 int snd_pcm_new(struct snd_card *card, const char *id, int device,
 		int playback_count, int capture_count,
 		struct snd_pcm **rpcm);
+int snd_pcm_new_soc_be(struct snd_card *card, const char *id, int device,
+		int playback_count, int capture_count,
+		struct snd_pcm ** rpcm);
 int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count);
 
 int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree);
@@ -507,6 +510,18 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream, struct file *file,
 void snd_pcm_detach_substream(struct snd_pcm_substream *substream);
 void snd_pcm_vma_notify_data(void *client, void *data);
 int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file, struct vm_area_struct *area);
+
+
+#ifdef CONFIG_SND_DEBUG
+void snd_pcm_debug_name(struct snd_pcm_substream *substream,
+			   char *name, size_t len);
+#else
+static inline void
+snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
+{
+	*buf = 0;
+}
+#endif
 
 /*
  *  PCM library
@@ -750,17 +765,18 @@ static inline const struct snd_interval *hw_param_interval_c(const struct snd_pc
 	return &params->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
 }
 
-#define params_access(p) ((__force snd_pcm_access_t)snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_ACCESS)))
-#define params_format(p) ((__force snd_pcm_format_t)snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_FORMAT)))
-#define params_subformat(p) snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_SUBFORMAT))
-#define params_channels(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_CHANNELS)->min
-#define params_rate(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_RATE)->min
-#define params_period_size(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_PERIOD_SIZE)->min
-#define params_period_bytes(p) ((params_period_size(p)*snd_pcm_format_physical_width(params_format(p))*params_channels(p))/8)
-#define params_periods(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_PERIODS)->min
-#define params_buffer_size(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min
-#define params_buffer_bytes(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min
-
+#define params_channels(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_CHANNELS)->min)
+#define params_rate(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_RATE)->min)
+#define params_period_size(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_PERIOD_SIZE)->min)
+#define params_periods(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_PERIODS)->min)
+#define params_buffer_size(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min)
+#define params_buffer_bytes(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min)
 
 int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v);
 void snd_interval_mul(const struct snd_interval *a, const struct snd_interval *b, struct snd_interval *c);
@@ -813,6 +829,8 @@ int snd_pcm_hw_constraint_step(struct snd_pcm_runtime *runtime,
 int snd_pcm_hw_constraint_pow2(struct snd_pcm_runtime *runtime,
 			       unsigned int cond,
 			       snd_pcm_hw_param_t var);
+int snd_pcm_hw_rule_noresample(struct snd_pcm_runtime *runtime,
+			       unsigned int base_rate);
 int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime,
 			unsigned int cond,
 			int var,
@@ -1023,6 +1041,8 @@ static inline void snd_pcm_mmap_data_close(struct vm_area_struct *area)
 	atomic_dec(&substream->mmap_count);
 }
 
+int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
+			     struct vm_area_struct *area);
 /* mmap for io-memory area */
 #if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_ALPHA)
 #define SNDRV_PCM_INFO_MMAP_IOMEM	SNDRV_PCM_INFO_MMAP

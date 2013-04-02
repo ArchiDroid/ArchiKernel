@@ -27,8 +27,10 @@ enum {
 	/*
 	 * list of oem rapi client events
 	 */
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting */
-#if defined (CONFIG_LGE_SUPPORT_RAPI)
+//[jinseok.choi@lge.com]2012-11-22 U0 emmc access via kernel
+// undef all enum value, there is no conflict each others.
+//2012-09-17 khyun.kim@lge.com [LGE Changes] LG RAPI command added [START]
+#if 1//defined (CONFIG_LGE_SUPPORT_RAPI)
 	LG_FW_RAPI_START = 100,
 	LG_FW_RAPI_CLIENT_EVENT_GET_LINE_TYPE = LG_FW_RAPI_START,
 	LG_FW_TESTMODE_EVENT_FROM_ARM11 = LG_FW_RAPI_START + 1,
@@ -42,14 +44,14 @@ enum {
 	LG_FW_SET_OPERATION_MODE = LG_FW_RAPI_START + 5,
 	LG_FW_A2M_BLOCK_CHARGING_SET = LG_FW_RAPI_START + 6,
 	LG_FW_MANUAL_TEST_MODE = LG_FW_RAPI_START + 8,
-#ifdef CONFIG_LGE_SUPPORT_RAPI
+#if 1//def CONFIG_LGE_SUPPORT_RAPI
 	LGE_RPC_HANDLE_REQUEST = LG_FW_RAPI_START + 9,
 #endif
-#ifdef CONFIG_LGE_DLOAD_SRD
+#if 1//def CONFIG_LGE_DLOAD_SRD
 	LG_FW_REQUEST_SRD_RPC = LG_FW_RAPI_START + 10,  //kabjoo.choi
 #endif
 
-#ifdef CONFIG_LGE_DLOAD_SRD
+#if 1//def CONFIG_LGE_DLOAD_SRD
 	LG_FW_RAPI_ERI_DIAG_WRITE= LG_FW_RAPI_START + 11,   //uts dll
 #endif
 	LGE_REQUEST_ERI_RPC = LG_FW_RAPI_START + 12,
@@ -65,10 +67,24 @@ enum {
 	LG_FW_OEM_RAPI_CLIENT_SRD_COMMAND = LG_FW_RAPI_START+20,  //send event 
 	LG_FW_OEM_RAPI_CLIENT_SRD_COMMAND_WRITE,  //send event 
 	LG_FW_OEM_RAPI_CLIENT_SRD_COMMAND_SYNC,
-
+// LGE_START 20121101 seonbeom.lee [Security] porting security code.
+	LG_FW_HELPER_OEM_RAPI = LG_FW_RAPI_START + 30,
+// LGE_END 20121101 seonbeom.lee [Security] porting security code.
+/*LGE_CHANGE_S 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+	LG_FW_GET_SW_VERSION = LG_FW_RAPI_START + 40,
+/*LGE_CHANGE_E 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
 	LG_MSG_UNIFIEDMSGTOOL_FROM_ARM11 = 200, //#ifdef LG_SMS_PC_TEST 
 #endif
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting */
+
+/*121015 khyun.kim@lge.com [V7] rpc api for NTCODE [START]*/
+// LGE_START 20121113 seonbeom.lee [Security] support NTCODE max 40 .
+	LG_COMMON_LARGE_DATA_RPC_NTCODE_TX = 300,
+	LG_COMMON_LARGE_DATA_RPC_NTCODE_RX = 301,
+	LG_COMMON_LARGE_DATA_RPC_VSLT_TX = 302,
+	LG_COMMON_LARGE_DATA_RPC_VSLT_RX = 303,
+// LGE_END 20121113 seonbeom.lee [Security] support NTCODE max 40 .
+/*121015 khyun.kim@lge.com [V7] rpc api for NTCODE [END]*/
+//2012-09-17 khyun.kim@lge.com [LGE Changes] LG RAPI command added [END]
 	OEM_RAPI_CLIENT_EVENT_MAX
 
 };

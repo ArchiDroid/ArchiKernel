@@ -49,7 +49,7 @@ static int erase_eraseblock(int ebnum)
 	ei.addr = addr;
 	ei.len  = mtd->erasesize;
 
-	err = mtd->erase(mtd, &ei);
+	err = mtd_erase(mtd, &ei);
 	if (err) {
 		printk(PRINT_PREF "error %d while erasing EB %d\n", err, ebnum);
 		return err;
@@ -87,7 +87,7 @@ static int is_block_bad(int ebnum)
 	int ret;
 	loff_t addr = ebnum * mtd->erasesize;
 
-	ret = mtd->block_isbad(mtd, addr);
+	ret = mtd_block_isbad(mtd, addr);
 	if (ret)
 		printk(PRINT_PREF "block %d is bad\n", ebnum);
 	return ret;

@@ -1,6 +1,6 @@
 /* linux/sound/soc/msm/msm7201.c
  *
- * Copyright (c) 2008-2009, 2011 Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2009, 2011, 2012 Code Aurora Forum. All rights reserved.
  *
  * All source code in this file is licensed under the following license except
  * where indicated.
@@ -40,12 +40,15 @@
 #include <mach/msm_rpcrouter.h>
 
 static struct msm_rpc_endpoint *snd_ep;
+static uint32_t snd_mute_ear_mute;
+static uint32_t snd_mute_mic_mute;
 
 struct msm_snd_rpc_ids {
 	unsigned long   prog;
 	unsigned long   vers;
 	unsigned long   vers2;
 	unsigned long   rpc_set_snd_device;
+	unsigned long	rpc_set_device_vol;
 	int device;
 };
 
@@ -82,11 +85,12 @@ static int snd_msm_volume_put(struct snd_kcontrol *kcontrol,
 	spin_lock_irq(&the_locks.mixer_lock);
 	change = (msm_vol_ctl.volume != volume);
 	if (change) {
-		msm_vol_ctl.update = 1;
 		msm_vol_ctl.volume = volume;
+		msm_audio_volume_update(PCMPLAYBACK_DECODERID,
+				msm_vol_ctl.volume, msm_vol_ctl.pan);
 	}
 	spin_unlock_irq(&the_locks.mixer_lock);
-	return change;
+	return 0;
 }
 
 static int snd_msm_device_info(struct snd_kcontrol *kcontrol,
@@ -99,7 +103,7 @@ static int snd_msm_device_info(struct snd_kcontrol *kcontrol,
 	 * The number of devices supported is 26 (0 to 25)
 	 */
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 25;
+	uinfo->value.integer.max = 36;
 	return 0;
 }
 
@@ -107,6 +111,8 @@ static int snd_msm_device_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = (uint32_t)snd_rpc_ids.device;
+	ucontrol->value.integer.value[1] = snd_mute_ear_mute;
+	ucontrol->value.integer.value[2] = snd_mute_mic_mute;
 	return 0;
 }
 
@@ -120,6 +126,7 @@ int msm_snd_init_rpc_ids(void)
 	 * index for snd_set_device
 	 */
 	snd_rpc_ids.rpc_set_snd_device = 2;
+	snd_rpc_ids.rpc_set_device_vol = 3;
 	return 0;
 }
 
@@ -193,6 +200,12 @@ static int snd_msm_device_put(struct snd_kcontrol *kcontrol,
 	} req;
 
 	snd_rpc_ids.device = (int)ucontrol->value.integer.value[0];
+
+	if (ucontrol->value.integer.value[1] > 1)
+		ucontrol->value.integer.value[1] = 1;
+	if (ucontrol->value.integer.value[2] > 1)
+		ucontrol->value.integer.value[2] = 1;
+
 	req.hdr.type = 0;
 	req.hdr.rpc_vers = 2;
 
@@ -213,8 +226,74 @@ static int snd_msm_device_put(struct snd_kcontrol *kcontrol,
 	if (rc < 0) {
 		printk(KERN_ERR "%s: snd rpc call failed! rc = %d\n",
 			__func__, rc);
-	} else
-		printk(KERN_INFO "snd device connected \n");
+	} else {
+		printk(KERN_INFO "snd device connected\n");
+		snd_mute_ear_mute = ucontrol->value.integer.value[1];
+		snd_mute_mic_mute = ucontrol->value.integer.value[2];
+		printk(KERN_ERR "%s: snd_mute_ear_mute =%d, snd_mute_mic_mute = %d\n",
+				__func__, snd_mute_ear_mute, snd_mute_mic_mute);
+	}
+
+	return rc;
+}
+
+static int snd_msm_device_vol_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2; /* Device/Volume */
+
+	/*
+	 * The number of devices supported is 37 (0 to 36)
+	 */
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 36;
+	return 0;
+}
+
+static int snd_msm_device_vol_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int rc = 0;
+	struct snd_vol_req {
+		struct rpc_request_hdr hdr;
+		uint32_t device;
+		uint32_t method;
+		uint32_t volume;
+		uint32_t cb_func;
+		uint32_t client_data;
+	} req;
+
+	snd_rpc_ids.device = (int)ucontrol->value.integer.value[0];
+
+	if ((ucontrol->value.integer.value[1] < 0) ||
+		(ucontrol->value.integer.value[1] > 6)) {
+		pr_err("Device volume should be in range of 1 to 6\n");
+		return -EINVAL;
+	}
+	if ((ucontrol->value.integer.value[0] > 36) ||
+		(ucontrol->value.integer.value[0] < 0)) {
+		pr_err("Device range supported is 0 to 36\n");
+		return -EINVAL;
+	}
+
+	req.device = cpu_to_be32((int)ucontrol->value.integer.value[0]);
+	req.method = cpu_to_be32(0);
+	req.volume = cpu_to_be32((int)ucontrol->value.integer.value[1]);
+	req.cb_func = -1;
+	req.client_data = cpu_to_be32(0);
+
+	rc = msm_rpc_call(snd_ep, snd_rpc_ids.rpc_set_device_vol ,
+			&req, sizeof(req), 5 * HZ);
+
+	if (rc < 0) {
+		printk(KERN_ERR "%s: snd rpc call failed! rc = %d\n",
+			__func__, rc);
+	} else {
+		printk(KERN_ERR "%s: device [%d] volume set to [%d]\n",
+				__func__, (int)ucontrol->value.integer.value[0],
+				(int)ucontrol->value.integer.value[1]);
+	}
 
 	return rc;
 }
@@ -244,8 +323,10 @@ static const DECLARE_TLV_DB_LINEAR(db_scale_linear, -5000, 1800);
 static struct snd_kcontrol_new snd_msm_controls[] = {
 	MSM_EXT_TLV("PCM Playback Volume", 0, snd_msm_volume_info, \
 	snd_msm_volume_get, snd_msm_volume_put, 0, db_scale_linear),
-	MSM_EXT("device", 1, snd_msm_device_info, snd_msm_device_get, \
+	MSM_EXT("device", 0, snd_msm_device_info, snd_msm_device_get, \
 						 snd_msm_device_put, 0),
+	MSM_EXT("Device Volume", 0, snd_msm_device_vol_info, NULL, \
+						 snd_msm_device_vol_put, 0),
 };
 
 static int msm_new_mixer(struct snd_soc_codec *codec)
@@ -324,6 +405,8 @@ static int __init msm_audio_init(void)
 	}
 
 	ret = msm_snd_rpc_connect();
+	snd_mute_ear_mute = 0;
+	snd_mute_mic_mute = 0;
 
 	return ret;
 }

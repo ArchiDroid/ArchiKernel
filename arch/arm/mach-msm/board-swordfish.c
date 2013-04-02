@@ -34,11 +34,11 @@
 #include <mach/msm_iomap.h>
 #include <mach/msm_hsusb.h>
 #include <mach/msm_ts.h>
+#include <mach/proc_comm.h>
 #include <linux/usb/android_composite.h>
 
 #include "board-swordfish.h"
 #include "devices.h"
-#include "proc_comm.h"
 
 extern int swordfish_init_mmc(void);
 
@@ -344,7 +344,7 @@ MACHINE_START(SWORDFISH, "Swordfish Board (QCT SURF8250)")
 	.phys_io        = MSM_DEBUG_UART_PHYS,
 	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
-	.boot_params	= 0x20000100,
+	.atag_offset	= 0x100,
 	.fixup		= swordfish_fixup,
 	.map_io		= swordfish_map_io,
 	.init_irq	= msm_init_irq,
@@ -357,7 +357,7 @@ MACHINE_START(QSD8X50_FFA, "qsd8x50 FFA Board (QCT FFA8250)")
 	.phys_io	= MSM_DEBUG_UART_PHYS,
 	.io_pg_offst	= ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
-	.boot_params	= 0x20000100,
+	.atag_offset	= 0x100,
 	.fixup		= swordfish_fixup,
 	.map_io		= swordfish_map_io,
 	.init_irq	= msm_init_irq,

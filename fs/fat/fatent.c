@@ -550,19 +550,13 @@ int fat_free_clusters(struct inode *inode, int cluster)
 	struct buffer_head *bhs[MAX_BUF_PER_PAGE];
 	int i, err, nr_bhs;
 	int first_cl = cluster;
-	int old_cluster;
 
 	nr_bhs = 0;
 	fatent_init(&fatent);
 	lock_fat(sbi);
 	do {
-		old_cluster=cluster;
 		cluster = fat_ent_read(inode, &fatent, cluster);
 		if (cluster < 0) {
-            /* LGE_CHANGE_S [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
-	      	printk(KERN_ERR "%s(%d): FAT Entry Read Error cluster (%d)\n", __func__, __LINE__, old_cluster);
-			/* LGE_CHANGE_E [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
-
 			err = cluster;
 			goto error;
 		} else if (cluster == FAT_ENT_FREE) {

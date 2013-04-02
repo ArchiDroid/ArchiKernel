@@ -17,13 +17,11 @@
 struct msm_handset_platform_data {
 	const char *hs_name;
 	uint32_t pwr_key_delay_ms; /* default 500ms */
+	bool ignore_end_key;
 };
 
 void report_headset_status(bool connected);
-
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting */
 #ifdef CONFIG_MACH_LGE
-void rpc_server_hs_register_callback(void *callback_func);
+void report_power_key(void);
 #endif
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting */
 #endif

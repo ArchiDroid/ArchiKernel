@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Copyright (C) 2008 HTC Corporation
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -21,22 +22,27 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/wakelock.h>
+#include <linux/pm_qos.h>
 
 #include <linux/msm_audio.h>
 
 #include <asm/atomic.h>
 #include <asm/ioctls.h>
 #include <mach/msm_adsp.h>
+#include <mach/cpuidle.h>
 
 #include "audmgr.h"
 
+#include <mach/qdsp5/audio_acdb_def.h>
 #include <mach/qdsp5/qdsp5audppcmdi.h>
 #include <mach/qdsp5/qdsp5audppmsg.h>
+#include <mach/qdsp5/qdsp5audpp.h>
 
 #include <mach/htc_pwrsink.h>
 #include <mach/debug_mm.h>
@@ -45,6 +51,21 @@
 
 #define LOG_AUDIO_EVENTS 1
 #define LOG_AUDIO_FAULTS 0
+
+#define SRS_ID_GLOBAL			0x00000001
+#define SRS_ID_WOWHD			0x00000002
+#define SRS_ID_CSHP			0x00000003
+#define SRS_ID_HPF			0x00000004
+#define SRS_ID_PEQ			0x00000005
+#define SRS_ID_HL			0x00000006
+
+#define SRS_MASK_G 1
+#define SRS_MASK_W 2
+#define SRS_MASK_C 4
+#define SRS_MASK_HP 8
+#define SRS_MASK_P 16
+#define SRS_MASK_HL 32
+
 
 enum {
 	EV_NULL,
@@ -92,7 +113,7 @@ module_init(_pcm_log_init);
 
 
 
-#define BUFSZ (960 * 5)
+#define BUFSZ (5248)
 #define DMASZ (BUFSZ * 2)
 
 #define COMMON_OBJ_ID 6
@@ -138,7 +159,7 @@ struct audio {
 	int stopped; /* set when stopped, cleared on flush */
 
 	struct wake_lock wakelock;
-	struct wake_lock idlelock;
+	struct pm_qos_request pm_qos_req;
 
 	audpp_cmd_cfg_object_params_volume vol_pan;
 };
@@ -163,6 +184,10 @@ struct audio_copp {
 
 	int qconcert_plus_enable;
 	int qconcert_plus_needs_commit;
+
+	int srs_enable;
+	int srs_needs_commit;
+	int srs_feature_mask;
 	audpp_cmd_cfg_object_params_qconcert qconcert_plus;
 
 	int status;
@@ -170,19 +195,27 @@ struct audio_copp {
 	struct mutex lock;
 
 	struct audpp_event_callback ecb;
+
+	struct audpp_cmd_cfg_object_params_srstm_g g;
+	struct audpp_cmd_cfg_object_params_srstm_w w;
+	struct audpp_cmd_cfg_object_params_srstm_c c;
+	struct audpp_cmd_cfg_object_params_srstm_h h;
+	struct audpp_cmd_cfg_object_params_srstm_p p;
+	struct audpp_cmd_cfg_object_params_srstm_l l;
 } the_audio_copp;
 
 static void audio_prevent_sleep(struct audio *audio)
 {
 	MM_DBG("\n"); /* Macro prints the file name and function */
 	wake_lock(&audio->wakelock);
-	wake_lock(&audio->idlelock);
+	pm_qos_update_request(&audio->pm_qos_req,
+			      msm_cpuidle_get_deep_idle_latency());
 }
 
 static void audio_allow_sleep(struct audio *audio)
 {
+	pm_qos_update_request(&audio->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	wake_unlock(&audio->wakelock);
-	wake_unlock(&audio->idlelock);
 	MM_DBG("\n"); /* Macro prints the file name and function */
 }
 
@@ -190,7 +223,7 @@ static int audio_dsp_out_enable(struct audio *audio, int yes);
 static int audio_dsp_send_buffer(struct audio *audio, unsigned id, unsigned len);
 
 static void audio_dsp_event(void *private, unsigned id, uint16_t *msg);
-
+static int audio_enable_srs_trumedia(struct audio_copp *audio_copp, int enable);
 /* must be called with audio->lock held */
 static int audio_enable(struct audio *audio)
 {
@@ -247,6 +280,7 @@ static int audio_disable(struct audio *audio)
 
 		audpp_disable(-1, audio);
 
+		audio->stopped = 1;
 		wake_up(&audio->wait);
 		audmgr_disable(&audio->audmgr);
 		audio->out_needed = 0;
@@ -265,19 +299,21 @@ void audio_commit_pending_pp_params(void *priv, unsigned id, uint16_t *msg)
 	if (!audio_copp->status)
 		return;
 
-	audpp_dsp_set_mbadrc(COMMON_OBJ_ID, audio_copp->mbadrc_enable,
+	if (!is_acdb_enabled()) {
+		audpp_dsp_set_mbadrc(COMMON_OBJ_ID, audio_copp->mbadrc_enable,
 						&audio_copp->mbadrc);
 
-	audpp_dsp_set_eq(COMMON_OBJ_ID, audio_copp->eq_enable,
+		audpp_dsp_set_eq(COMMON_OBJ_ID, audio_copp->eq_enable,
 						&audio_copp->eq);
-
-	audpp_dsp_set_rx_iir(COMMON_OBJ_ID, audio_copp->rx_iir_enable,
+		audpp_dsp_set_rx_iir(COMMON_OBJ_ID, audio_copp->rx_iir_enable,
 							&audio_copp->iir);
-	audpp_dsp_set_vol_pan(COMMON_OBJ_ID, &audio_copp->vol_pan);
+		audpp_dsp_set_vol_pan(COMMON_OBJ_ID, &audio_copp->vol_pan);
 
-	audpp_dsp_set_qconcert_plus(COMMON_OBJ_ID,
+		audpp_dsp_set_qconcert_plus(COMMON_OBJ_ID,
 				audio_copp->qconcert_plus_enable,
 				&audio_copp->qconcert_plus);
+	}
+	audio_enable_srs_trumedia(audio_copp, true);
 }
 EXPORT_SYMBOL(audio_commit_pending_pp_params);
 
@@ -447,6 +483,37 @@ static int audio_enable_rx_iir(struct audio_copp *audio_copp, int enable)
 	return 0;
 }
 
+static int audio_enable_srs_trumedia(struct audio_copp *audio_copp, int enable)
+{
+
+	if (!audio_copp->srs_needs_commit)
+		return 0;
+
+	audio_copp->srs_enable = enable;
+
+	MM_DBG("Enable SRS flags 0x%x enable %d\n",
+		audio_copp->srs_feature_mask, enable);
+	if (is_audpp_enable()) {
+		MM_DBG("Updating audpp for srs\n");
+		if (audio_copp->srs_feature_mask & SRS_MASK_W)
+			audpp_dsp_set_rx_srs_trumedia_w(&audio_copp->w);
+		if (audio_copp->srs_feature_mask & SRS_MASK_C)
+			audpp_dsp_set_rx_srs_trumedia_c(&audio_copp->c);
+		if (audio_copp->srs_feature_mask & SRS_MASK_HP)
+			audpp_dsp_set_rx_srs_trumedia_h(&audio_copp->h);
+		if (audio_copp->srs_feature_mask & SRS_MASK_P)
+			audpp_dsp_set_rx_srs_trumedia_p(&audio_copp->p);
+		if (audio_copp->srs_feature_mask & SRS_MASK_HL)
+			audpp_dsp_set_rx_srs_trumedia_l(&audio_copp->l);
+		if (audio_copp->srs_feature_mask & SRS_MASK_G)
+			audpp_dsp_set_rx_srs_trumedia_g(&audio_copp->g);
+
+		audio_copp->srs_needs_commit = 0;
+		audio_copp->srs_feature_mask = 0;
+	}
+	return 0;
+}
+
 static int audio_enable_vol_pan(struct audio_copp *audio_copp)
 {
 	if (is_audpp_enable())
@@ -519,7 +586,6 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case AUDIO_STOP:
 		rc = audio_disable(audio);
-		audio->stopped = 1;
 		break;
 	case AUDIO_FLUSH:
 		if (audio->stopped) {
@@ -533,6 +599,7 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			audio_flush(audio);
 			mutex_unlock(&audio->write_lock);
 		}
+		break;
 	case AUDIO_SET_CONFIG: {
 		struct msm_audio_config config;
 		if (copy_from_user(&config, (void*) arg, sizeof(config))) {
@@ -580,7 +647,7 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 /* Only useful in tunnel-mode */
-static int audio_fsync(struct file *file,	int datasync)
+static int audio_fsync(struct file *file, loff_t a, loff_t b, int datasync)
 {
 	struct audio *audio = file->private_data;
 	int rc = 0;
@@ -753,7 +820,7 @@ static int audio_open(struct inode *inode, struct file *file)
 		goto done;
 
 	audio->out_buffer_size = BUFSZ;
-	audio->out_sample_rate = 44100;
+	audio->out_sample_rate = 48000;
 	audio->out_channel_mode = AUDPP_CMD_PCM_INTF_STEREO_V;
 	audio->out_weight = 100;
 
@@ -785,6 +852,8 @@ static long audpp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int rc = 0, enable;
 	uint16_t enable_mask;
 	int prev_state;
+	uint32_t to_set, size = 0;
+	void *tmpbuf, *srs_params = NULL;
 
 	mutex_lock(&audio_copp->lock);
 	switch (cmd) {
@@ -804,6 +873,8 @@ static long audpp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		audio_enable_rx_iir(audio_copp, enable);
 		enable = (enable_mask & QCONCERT_PLUS_ENABLE) ? 1 : 0;
 		audio_enable_qconcert_plus(audio_copp, enable);
+		enable = (enable_mask & SRS_ENABLE) ? 1 : 0;
+		audio_enable_srs_trumedia(audio_copp, enable);
 		break;
 
 	case AUDIO_SET_MBADRC: {
@@ -916,6 +987,75 @@ static long audpp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		audio_copp->qconcert_plus_needs_commit = 1;
 		break;
 
+	case AUDIO_SET_SRS_TRUMEDIA_PARAM: {
+		prev_state = audio_copp->srs_enable;
+		audio_copp->srs_enable = 0;
+
+		if (copy_from_user(&to_set, (void *)arg, sizeof(uint32_t))) {
+			rc = -EFAULT;
+			break;
+		}
+		switch (to_set) {
+		case SRS_ID_GLOBAL:
+			srs_params = (void *)audio_copp->g.v;
+			size = sizeof(audio_copp->g.v);
+			audio_copp->srs_feature_mask |= SRS_MASK_G;
+			break;
+		case SRS_ID_WOWHD:
+			srs_params = (void *)audio_copp->w.v;
+			size = sizeof(audio_copp->w.v);
+			audio_copp->srs_feature_mask |= SRS_MASK_W;
+			break;
+		case SRS_ID_CSHP:
+			srs_params = (void *)audio_copp->c.v;
+			size = sizeof(audio_copp->c.v);
+			audio_copp->srs_feature_mask |= SRS_MASK_C;
+			break;
+		case SRS_ID_HPF:
+			srs_params = (void *)audio_copp->h.v;
+			size = sizeof(audio_copp->h.v);
+			audio_copp->srs_feature_mask |= SRS_MASK_HP;
+			break;
+		case SRS_ID_PEQ:
+			srs_params = (void *)audio_copp->p.v;
+			size = sizeof(audio_copp->p.v);
+			audio_copp->srs_feature_mask |= SRS_MASK_P;
+			break;
+		case SRS_ID_HL:
+			srs_params = (void *)audio_copp->l.v;
+			size = sizeof(audio_copp->l.v);
+			audio_copp->srs_feature_mask |= SRS_MASK_HL;
+			break;
+		default:
+			MM_ERR("SRS TruMedia error: invalid ioctl\n");
+			rc = -EINVAL;
+		}
+
+		if (rc >= 0) {
+			tmpbuf = kzalloc(sizeof(uint32_t) + size , GFP_KERNEL);
+			if (!tmpbuf) {
+				MM_ERR("SRS TruMedia error: no kernel mem\n");
+				rc = -ENOMEM;
+			} else {
+				if (copy_from_user(tmpbuf, (void *)arg,
+						sizeof(uint32_t) + size))
+					rc = -EFAULT;
+				memcpy(srs_params,
+					&(((uint32_t *)tmpbuf)[1]), size);
+				kfree(tmpbuf);
+			}
+		}
+
+		MM_DBG("Ioctl SRS flags=0x%x\n", audio_copp->srs_feature_mask);
+		if (rc < 0)
+			MM_ERR("SRS TruMedia error setting params failed.\n");
+		else{
+			audio_copp->srs_needs_commit = 1;
+			audio_copp->srs_enable = prev_state;
+		}
+		break;
+	}
+
 	default:
 		rc = -EINVAL;
 	}
@@ -1013,7 +1153,8 @@ static int __init audio_init(void)
 	spin_lock_init(&the_audio.dsp_lock);
 	init_waitqueue_head(&the_audio.wait);
 	wake_lock_init(&the_audio.wakelock, WAKE_LOCK_SUSPEND, "audio_pcm");
-	wake_lock_init(&the_audio.idlelock, WAKE_LOCK_IDLE, "audio_pcm_idle");
+	pm_qos_add_request(&the_audio.pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+				PM_QOS_DEFAULT_VALUE);
 	return (misc_register(&audio_misc) || misc_register(&audpp_misc));
 }
 

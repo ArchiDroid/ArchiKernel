@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,6 +13,7 @@
 
 #define pr_fmt(fmt)	"%s: " fmt, __func__
 
+#include <linux/export.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -102,6 +103,7 @@ static int pm8xxx_read_config_irq(struct pm_irq_chip *chip, u8 bp, u8 cp, u8 *r)
 		goto bail;
 	}
 
+	cp &= ~PM_IRQF_WRITE;
 	rc = pm8xxx_writeb(chip->dev,
 			SSBI_REG_ADDR_IRQ_CONFIG(chip->base_addr), cp);
 	if (rc)
@@ -127,7 +129,10 @@ static int pm8xxx_write_config_irq(struct pm_irq_chip *chip, u8 bp, u8 cp)
 		pr_err("Failed Selecting Block %d rc=%d\n", bp, rc);
 		goto bail;
 	}
-
+	/*
+	 * Set the write bit here as this could be a unrequested irq
+	 * whose PM_IRQF_WRITE bit is not set
+	 */
 	cp |= PM_IRQF_WRITE;
 	rc = pm8xxx_writeb(chip->dev,
 			SSBI_REG_ADDR_IRQ_CONFIG(chip->base_addr), cp);
@@ -221,6 +226,11 @@ static void pm8xxx_irq_mask(struct irq_data *d)
 	master = block / 8;
 	irq_bit = pmirq % 8;
 
+	if (chip->config[pmirq] == 0) {
+		pr_warn("masking rogue irq=%d pmirq=%d\n", d->irq, pmirq);
+		chip->config[pmirq] = irq_bit << PM_IRQF_BITS_SHIFT;
+	}
+
 	config = chip->config[pmirq] | PM_IRQF_MASK_ALL;
 	pm8xxx_write_config_irq(chip, block, config);
 }
@@ -235,6 +245,11 @@ static void pm8xxx_irq_mask_ack(struct irq_data *d)
 	block = pmirq / 8;
 	master = block / 8;
 	irq_bit = pmirq % 8;
+
+	if (chip->config[pmirq] == 0) {
+		pr_warn("mask acking rogue irq=%d pmirq=%d\n", d->irq, pmirq);
+		chip->config[pmirq] = irq_bit << PM_IRQF_BITS_SHIFT;
+	}
 
 	config = chip->config[pmirq] | PM_IRQF_MASK_ALL | PM_IRQF_CLR;
 	pm8xxx_write_config_irq(chip, block, config);
@@ -284,6 +299,12 @@ static int pm8xxx_irq_set_type(struct irq_data *d, unsigned int flow_type)
 		else
 			chip->config[pmirq] &= ~PM_IRQF_MASK_FE;
 	}
+
+	/*
+	 * The PM_IRQF_WRITE flag serves as an indication that this interrupt
+	 * been requested
+	 */
+	chip->config[pmirq] |= PM_IRQF_WRITE;
 
 	config = chip->config[pmirq] | PM_IRQF_CLR;
 	return pm8xxx_write_config_irq(chip, block, config);
@@ -429,7 +450,7 @@ struct pm_irq_chip *  __devinit pm8xxx_irq_init(struct device *dev,
 	return chip;
 }
 
-int __devexit pm8xxx_irq_exit(struct pm_irq_chip *chip)
+int pm8xxx_irq_exit(struct pm_irq_chip *chip)
 {
 	irq_set_chained_handler(chip->devirq, NULL);
 	kfree(chip);

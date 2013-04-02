@@ -68,11 +68,6 @@
 #define TWL6040_REG_ACCCTL		0x2D
 #define TWL6040_REG_STATUS		0x2E
 
-#define TWL6040_CACHEREGNUM		(TWL6040_REG_STATUS + 1)
-
-#define TWL6040_VIOREGNUM		18
-#define TWL6040_VDDREGNUM		21
-
 /* INTID (0x03) fields */
 
 #define TWL6040_THINT			0x01
@@ -125,33 +120,23 @@
 #define TWL6040_LPLLFIN			0x08
 #define TWL6040_HPLLSEL			0x10
 
-/* HSLCTL (0x10) fields */
+/* HSLCTL/R (0x10/0x11) fields */
 
-#define TWL6040_HSDACMODEL		0x02
-#define TWL6040_HSDRVMODEL		0x08
+#define TWL6040_HSDACENA		(1 << 0)
+#define TWL6040_HSDACMODE		(1 << 1)
+#define TWL6040_HSDRVMODE		(1 << 3)
 
-/* HSRCTL (0x11) fields */
+/* VIBCTLL/R (0x18/0x1A) fields */
 
-#define TWL6040_HSDACMODER		0x02
-#define TWL6040_HSDRVMODER		0x08
+#define TWL6040_VIBENA			(1 << 0)
+#define TWL6040_VIBSEL			(1 << 1)
+#define TWL6040_VIBCTRL			(1 << 2)
+#define TWL6040_VIBCTRL_P		(1 << 3)
+#define TWL6040_VIBCTRL_N		(1 << 4)
 
-/* VIBCTLL (0x18) fields */
-
-#define TWL6040_VIBENAL			0x01
-#define TWL6040_VIBCTRLL		0x04
-#define TWL6040_VIBCTRLLP		0x08
-#define TWL6040_VIBCTRLLN		0x10
-
-/* VIBDATL (0x19) fields */
+/* VIBDATL/R (0x19/0x1B) fields */
 
 #define TWL6040_VIBDAT_MAX		0x64
-
-/* VIBCTLR (0x1A) fields */
-
-#define TWL6040_VIBENAR			0x01
-#define TWL6040_VIBCTRLR		0x04
-#define TWL6040_VIBCTRLRP		0x08
-#define TWL6040_VIBCTRLRN		0x10
 
 /* GPOCTL (0x1E) fields */
 
@@ -164,9 +149,6 @@
 #define TWL6040_I2CSEL			0x01
 #define TWL6040_RESETSPLIT		0x04
 #define TWL6040_INTCLRMODE		0x08
-
-#define TWL6040_SYSCLK_SEL_LPPLL	1
-#define TWL6040_SYSCLK_SEL_HPPLL	2
 
 /* STATUS (0x2E) fields */
 
@@ -188,14 +170,39 @@
 #define TWL6040_IRQ_VIB			4
 #define TWL6040_IRQ_READY		5
 
-enum twl6040_pll_id {
-	TWL6040_NOPLL_ID,
-	TWL6040_LPPLL_ID,
-	TWL6040_HPPLL_ID,
+/* PLL selection */
+#define TWL6040_SYSCLK_SEL_LPPLL	0
+#define TWL6040_SYSCLK_SEL_HPPLL	1
+
+struct twl6040_codec_data {
+	u16 hs_left_step;
+	u16 hs_right_step;
+	u16 hf_left_step;
+	u16 hf_right_step;
 };
+
+struct twl6040_vibra_data {
+	unsigned int vibldrv_res;	/* left driver resistance */
+	unsigned int vibrdrv_res;	/* right driver resistance */
+	unsigned int viblmotor_res;	/* left motor resistance */
+	unsigned int vibrmotor_res;	/* right motor resistance */
+	int vddvibl_uV;			/* VDDVIBL volt, set 0 for fixed reg */
+	int vddvibr_uV;			/* VDDVIBR volt, set 0 for fixed reg */
+};
+
+struct twl6040_platform_data {
+	int audpwron_gpio;	/* audio power-on gpio */
+	unsigned int irq_base;
+
+	struct twl6040_codec_data *codec;
+	struct twl6040_vibra_data *vibra;
+};
+
+struct regmap;
 
 struct twl6040 {
 	struct device *dev;
+	struct regmap *regmap;
 	struct mutex mutex;
 	struct mutex io_mutex;
 	struct mutex irq_mutex;
@@ -205,42 +212,18 @@ struct twl6040 {
 	int audpwron;
 	int power_count;
 	int rev;
+	u8 vibra_ctrl_cache[2];
 
-	enum twl6040_pll_id pll;
+	/* PLL configuration */
+	int pll;
 	unsigned int sysclk;
+	unsigned int mclk;
 
 	unsigned int irq;
 	unsigned int irq_base;
 	u8 irq_masks_cur;
 	u8 irq_masks_cache;
 };
-
-static inline int twl6040_get_rev(struct twl6040 *twl6040)
-{
-	return twl6040->rev;
-}
-
-static inline int twl6040_request_irq(struct twl6040 *twl6040, int irq,
-				      irq_handler_t handler,
-				      unsigned long irqflags,
-				      const char *name,
-				      void *data)
-{
-	if (!twl6040->irq_base)
-		return -EINVAL;
-
-	return request_threaded_irq(twl6040->irq_base + irq, NULL, handler,
-				    irqflags, name, data);
-}
-
-static inline void twl6040_free_irq(struct twl6040 *twl6040, int irq,
-				    void *data)
-{
-	if (!twl6040->irq_base)
-		return;
-
-	free_irq(twl6040->irq_base + irq, data);
-}
 
 int twl6040_reg_read(struct twl6040 *twl6040, unsigned int reg);
 int twl6040_reg_write(struct twl6040 *twl6040, unsigned int reg,
@@ -250,12 +233,19 @@ int twl6040_set_bits(struct twl6040 *twl6040, unsigned int reg,
 int twl6040_clear_bits(struct twl6040 *twl6040, unsigned int reg,
 		       u8 mask);
 int twl6040_power(struct twl6040 *twl6040, int on);
-int twl6040_is_powered(struct twl6040 *twl6040);
-int twl6040_set_pll(struct twl6040 *twl6040, enum twl6040_pll_id id,
+int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 		    unsigned int freq_in, unsigned int freq_out);
-enum twl6040_pll_id twl6040_get_pll(struct twl6040 *twl6040);
+int twl6040_get_pll(struct twl6040 *twl6040);
 unsigned int twl6040_get_sysclk(struct twl6040 *twl6040);
 int twl6040_irq_init(struct twl6040 *twl6040);
 void twl6040_irq_exit(struct twl6040 *twl6040);
+/* Get the combined status of the vibra control register */
+int twl6040_get_vibralr_status(struct twl6040 *twl6040);
+
+static inline int twl6040_get_revid(struct twl6040 *twl6040)
+{
+	return twl6040->rev;
+}
+
 
 #endif  /* End of __TWL6040_CODEC_H__ */

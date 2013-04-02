@@ -10,7 +10,7 @@
  */
 #include <stdarg.h>
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -30,11 +30,11 @@
 #include <linux/uaccess.h>
 #include <linux/random.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/cpuidle.h>
 #include <linux/console.h>
 
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/thread_notify.h>
 #include <asm/stacktrace.h>
 #include <asm/mach/time.h>
@@ -56,11 +56,9 @@ static const char *isa_modes[] = {
   "ARM" , "Thumb" , "Jazelle", "ThumbEE"
 };
 
-extern void setup_mm_for_reboot(char mode);
+extern void setup_mm_for_reboot(void);
 
 static volatile int hlt_counter;
-
-#include <mach/system.h>
 
 #ifdef CONFIG_SMP
 void arch_trigger_all_cpu_backtrace(void)
@@ -103,6 +101,9 @@ static int __init hlt_setup(char *__unused)
 __setup("nohlt", nohlt_setup);
 __setup("hlt", hlt_setup);
 
+extern void call_with_stack(void (*fn)(void *), void *arg, void *sp);
+typedef void (*phys_reset_t)(unsigned long);
+
 #ifdef CONFIG_ARM_FLUSH_CONSOLE_ON_RESTART
 void arm_machine_flush_console(void)
 {
@@ -128,22 +129,21 @@ void arm_machine_flush_console(void)
 }
 #endif
 
-void arm_machine_restart(char mode, const char *cmd)
+/*
+ * A temporary stack to use for CPU reset. This is static so that we
+ * don't clobber it with the identity mapping. When running with this
+ * stack, any references to the current task *will not work* so you
+ * should really do as little as possible before jumping to your reset
+ * code.
+ */
+static u64 soft_restart_stack[16];
+
+static void __soft_restart(void *addr)
 {
-	/* Flush the console to make sure all the relevant messages make it
-	 * out to the console drivers */
-	arm_machine_flush_console();
+	phys_reset_t phys_reset;
 
-	/* Disable interrupts first */
-	local_irq_disable();
-	local_fiq_disable();
-
-	/*
-	 * Tell the mm system that we are going to reboot -
-	 * we may need it to insert some 1:1 mappings so that
-	 * soft boot works.
-	 */
-	setup_mm_for_reboot(mode);
+	/* Take out a flat memory mapping. */
+	setup_mm_for_reboot();
 
 	/* Clean and invalidate caches */
 	flush_cache_all();
@@ -154,21 +154,38 @@ void arm_machine_restart(char mode, const char *cmd)
 	/* Push out any further dirty data, and ensure cache is empty */
 	flush_cache_all();
 
-	/*Push out the dirty data from external caches */
+	/* Push out the dirty data from external caches */
 	outer_disable();
 
-	/*
-	 * Now call the architecture specific reboot code.
-	 */
-	arch_reset(mode, cmd);
+	/* Switch to the identity mapping. */
+	phys_reset = (phys_reset_t)(unsigned long)virt_to_phys(cpu_reset);
+	phys_reset((unsigned long)addr);
 
-	/*
-	 * Whoops - the architecture was unable to reboot.
-	 * Tell the user!
-	 */
-	mdelay(1000);
-	printk("Reboot failed -- System halted\n");
-	while (1);
+	/* Should never get here. */
+	BUG();
+}
+
+void soft_restart(unsigned long addr)
+{
+	u64 *stack = soft_restart_stack + ARRAY_SIZE(soft_restart_stack);
+
+	/* Disable interrupts first */
+	local_irq_disable();
+	local_fiq_disable();
+
+	/* Disable the L2 if we're the last man standing. */
+	if (num_online_cpus() == 1)
+		outer_disable();
+
+	/* Change to the new stack and continue with the reset. */
+	call_with_stack(__soft_restart, (void *)addr, (void *)stack);
+
+	/* Should never get here. */
+	BUG();
+}
+
+static void null_restart(char mode, const char *cmd)
+{
 }
 
 /*
@@ -177,7 +194,7 @@ void arm_machine_restart(char mode, const char *cmd)
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-void (*arm_pm_restart)(char str, const char *cmd) = arm_machine_restart;
+void (*arm_pm_restart)(char str, const char *cmd) = null_restart;
 EXPORT_SYMBOL_GPL(arm_pm_restart);
 
 static void do_nothing(void *unused)
@@ -201,13 +218,18 @@ void cpu_idle_wait(void)
 EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
 /*
- * This is our default idle handler.  We need to disable
- * interrupts here to ensure we don't miss a wakeup call.
+ * This is our default idle handler.
  */
+
+extern void arch_idle(void);
+void (*arm_pm_idle)(void) = arch_idle;
+
 static void default_idle(void)
 {
-	if (!need_resched())
-		arch_idle();
+	if (arm_pm_idle)
+		arm_pm_idle();
+	else
+		cpu_do_idle();
 	local_irq_enable();
 }
 
@@ -226,36 +248,43 @@ void cpu_idle(void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
-		tick_nohz_stop_sched_tick(1);
 		idle_notifier_call_chain(IDLE_START);
+		tick_nohz_idle_enter();
+		rcu_idle_enter();
 		while (!need_resched()) {
 #ifdef CONFIG_HOTPLUG_CPU
 			if (cpu_is_offline(smp_processor_id()))
 				cpu_die();
 #endif
 
+			/*
+			 * We need to disable interrupts here
+			 * to ensure we don't miss a wakeup call.
+			 */
 			local_irq_disable();
+#ifdef CONFIG_PL310_ERRATA_769419
+			wmb();
+#endif
 			if (hlt_counter) {
 				local_irq_enable();
 				cpu_relax();
-			} else {
+			} else if (!need_resched()) {
 				stop_critical_timings();
-				pm_idle();
+				if (cpuidle_idle_call())
+					pm_idle();
 				start_critical_timings();
 				/*
-				 * This will eventually be removed - pm_idle
-				 * functions should always return with IRQs
-				 * enabled.
+				 * pm_idle functions must always
+				 * return with IRQs enabled.
 				 */
 				WARN_ON(irqs_disabled());
+			} else
 				local_irq_enable();
-			}
 		}
-		tick_nohz_restart_sched_tick();
+		rcu_idle_exit();
+		tick_nohz_idle_exit();
 		idle_notifier_call_chain(IDLE_END);
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 	}
 }
 
@@ -292,7 +321,19 @@ void machine_power_off(void)
 void machine_restart(char *cmd)
 {
 	machine_shutdown();
+
+	/* Flush the console to make sure all the relevant messages make it
+	 * out to the console drivers */
+	arm_machine_flush_console();
+
 	arm_pm_restart(reboot_mode, cmd);
+
+	/* Give a grace period for failure to restart of 1s */
+	mdelay(1000);
+
+	/* Whoops - the platform was unable to reboot. Tell the user! */
+	printk("Reboot failed -- System halted\n");
+	while (1);
 }
 
 /*
@@ -370,20 +411,21 @@ void __show_regs(struct pt_regs *regs)
 {
 	unsigned long flags;
 	char buf[64];
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+/*LGE_CHANGE_S : seven.kim@lge.com Demigot Crash Handler*/
 #ifdef CONFIG_LGE_HANDLE_PANIC
 	set_crash_store_enable();
 #endif
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
-	printk("CPU: %d    %s  (%s %.*s)\n",
+/*LGE_CHANGE_E : seven.kim@lge.com Demigot Crash Handler*/
+	printk("CPU:%d,%s,(%s %.*s)\n",
 		raw_smp_processor_id(), print_tainted(),
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
-	print_symbol("PC is at %s\n", instruction_pointer(regs));
-	print_symbol("LR is at %s\n", regs->ARM_lr);
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+	print_symbol("PC: at %s\n", instruction_pointer(regs));
+	print_symbol("LR: at %s\n", regs->ARM_lr);
+/*LGE_CHANGE_S : seven.kim@lge.com Demigot Crash Handler*/
 #ifdef CONFIG_LGE_HANDLE_PANIC
+#ifndef CONFIG_MACH_MSM7X25A_V3
 	printk("pc :%05lx    lr :%05lx    psr:%05lx\n"
 	       "sp :%05lx  ip :%05lx  fp :%05lx\n",
 		regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
@@ -397,7 +439,7 @@ void __show_regs(struct pt_regs *regs)
 	printk("r3 :%05lx r2 :%05lx r1 :%05lx r0 :%05lx\n",
 		regs->ARM_r3, regs->ARM_r2,
 		regs->ARM_r1, regs->ARM_r0);
-
+#endif
 	set_crash_store_disable();
 #else /* qct original code */
 	printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
@@ -414,7 +456,7 @@ void __show_regs(struct pt_regs *regs)
 		regs->ARM_r3, regs->ARM_r2,
 		regs->ARM_r1, regs->ARM_r0);
 #endif
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+/*LGE_CHANGE_E : seven.kim@lge.com Demigot Crash Handler*/
 
 	flags = regs->ARM_cpsr;
 	buf[0] = flags & PSR_N_BIT ? 'N' : 'n';
@@ -458,7 +500,7 @@ void show_regs(struct pt_regs * regs)
 	printk("\n");
 	printk("Pid: %d, comm: %20s\n", task_pid_nr(current), current->comm);
 	__show_regs(regs);
-	__backtrace();
+	dump_stack();
 }
 
 ATOMIC_NOTIFIER_HEAD(thread_notify_head);
@@ -629,22 +671,39 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 #ifdef CONFIG_MMU
 /*
  * The vectors page is always readable from user space for the
- * atomic helpers and the signal restart code.  Let's declare a mapping
- * for it so it is visible through ptrace and /proc/<pid>/mem.
+ * atomic helpers and the signal restart code. Insert it into the
+ * gate_vma so that it is visible through ptrace and /proc/<pid>/mem.
  */
+static struct vm_area_struct gate_vma;
 
-int vectors_user_mapping(void)
+static int __init gate_vma_init(void)
 {
-	struct mm_struct *mm = current->mm;
-	return install_special_mapping(mm, 0xffff0000, PAGE_SIZE,
-				       VM_READ | VM_EXEC |
-				       VM_MAYREAD | VM_MAYEXEC |
-				       VM_ALWAYSDUMP | VM_RESERVED,
-				       NULL);
+	gate_vma.vm_start	= 0xffff0000;
+	gate_vma.vm_end		= 0xffff0000 + PAGE_SIZE;
+	gate_vma.vm_page_prot	= PAGE_READONLY_EXEC;
+	gate_vma.vm_flags	= VM_READ | VM_EXEC |
+				  VM_MAYREAD | VM_MAYEXEC;
+	return 0;
+}
+arch_initcall(gate_vma_init);
+
+struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
+{
+	return &gate_vma;
+}
+
+int in_gate_area(struct mm_struct *mm, unsigned long addr)
+{
+	return (addr >= gate_vma.vm_start) && (addr < gate_vma.vm_end);
+}
+
+int in_gate_area_no_mm(unsigned long addr)
+{
+	return in_gate_area(NULL, addr);
 }
 
 const char *arch_vma_name(struct vm_area_struct *vma)
 {
-	return (vma->vm_start == 0xffff0000) ? "[vectors]" : NULL;
+	return (vma == &gate_vma) ? "[vectors]" : NULL;
 }
 #endif

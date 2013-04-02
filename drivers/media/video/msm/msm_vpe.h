@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,7 +60,8 @@
 #define VPE_SCALE_COEFF_LSP_0_OFFSET          0x50400
 #define VPE_SCALE_COEFF_MSP_0_OFFSET          0x50404
 
-#define VPE_AXI_ARB_2_OFFSET                  0x004C
+#define VPE_AXI_ARB_1_OFFSET                  0x00408
+#define VPE_AXI_ARB_2_OFFSET                  0x0040C
 
 #define VPE_SCALE_COEFF_LSBn(n)	(0x50400 + 8 * (n))
 #define VPE_SCALE_COEFF_MSBn(n)	(0x50404 + 8 * (n))
@@ -91,12 +92,6 @@ enum vpe_state {
 	VPE_STATE_ACTIVE,
 };
 
-struct dis_offset_type {
-	int32_t dis_offset_x;
-	int32_t dis_offset_y;
-	uint32_t frame_id;
-};
-
 struct vpe_ctrl_type {
 	spinlock_t        lock;
 	uint32_t          irq_status;
@@ -105,14 +100,9 @@ struct vpe_ctrl_type {
 	void              *extdata;
 	uint32_t          extlen;
 	struct msm_vpe_callback *resp;
-	uint32_t          in_h_w;
 	uint32_t          out_h;  /* this is BEFORE rotation. */
 	uint32_t          out_w;  /* this is BEFORE rotation. */
-	uint32_t          dis_en;
 	struct timespec   ts;
-	struct dis_offset_type   dis_offset;
-	uint32_t          pcbcr_before_dis;
-	uint32_t          pcbcr_dis_offset;
 	int               output_type;
 	int               frame_pack;
 	uint8_t           pad_2k_bool;
@@ -149,7 +139,7 @@ struct vpe_src_xy_packed {
 
 struct vpe_input_plane_update_type {
 	struct vpe_src_size_packed             src_roi_size;
-	/* DIS updates this set. */
+	/* crop updates this set. */
 	struct vpe_src_xy_packed               src_roi_offset;
 	/* input address*/
 	uint8_t                         *src_p0_addr;
@@ -188,6 +178,14 @@ struct phase_val_t {
 	int32_t phase_step_y;
 };
 
+#define VIDIOC_MSM_VPE_INIT \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 15, struct msm_cam_media_controller *)
+
+#define VIDIOC_MSM_VPE_RELEASE \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 16, struct msm_cam_media_controller *)
+
+#define VIDIOC_MSM_VPE_CFG \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 17, struct msm_mctl_pp_params *)
 
 #endif /*_MSM_VPE_H_*/
 

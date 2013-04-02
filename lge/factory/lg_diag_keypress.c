@@ -91,6 +91,7 @@ EXPORT_SYMBOL(LGF_KeycodeTrans);
 ===========================================================================*/
 extern PACK(void *) diagpkt_alloc (diagpkt_cmd_code_type code, unsigned int length);
 //extern unsigned int LGF_KeycodeTrans(word input);
+/* 2012-10-15 JongWook-Park(blood9874@lge.com) [V3] DIAG Touch Key patch */
 extern void Send_Touch( unsigned int x, unsigned int y);
 /*==========================================================================*/
 
@@ -133,6 +134,30 @@ void LGF_SendKey(word keycode)
 
 EXPORT_SYMBOL(LGF_SendKey);
 
+#ifdef CONFIG_TOUCHSCREEN_MELFAS_MMS100S
+void Send_Touch( unsigned int x, unsigned int y)
+{
+	struct input_dev* idev = NULL;
+
+	idev = get_ats_input_dev();
+
+	if(idev == NULL)
+		printk("%s: input device addr is NULL\n",__func__);
+
+	/* Press */
+        input_report_abs(idev, ABS_MT_TOUCH_MAJOR, 1);
+        input_report_abs(idev, ABS_MT_POSITION_X, x);
+        input_report_abs(idev, ABS_MT_POSITION_Y, y);
+        input_mt_sync(idev);
+        input_sync(idev);
+	/* Release */
+        input_report_abs(idev, ABS_MT_TOUCH_MAJOR, 0);
+        input_report_abs(idev, ABS_MT_POSITION_X, x);
+        input_report_abs(idev, ABS_MT_POSITION_Y, y);
+        input_mt_sync(idev);
+        input_sync(idev);
+}
+#endif
 
 PACK (void *)LGF_KeyPress (
         PACK (void	*)req_pkt_ptr,			/* pointer to request packet  */
@@ -169,6 +194,8 @@ PACK (void *)LGF_KeyPress (
 #ifdef DEBUG_DIAG_KEYPRESS		
 	printk(KERN_INFO "##DIAG_KEYPRESS## %s, line(%d), keycode(%d), hold(%d)\n", __func__, __LINE__, keycode, req_ptr->hold);			  
 #endif
+/* 2012-10-15 JongWook-Park(blood9874@lge.com) [V3] DIAG Touch Key patch [START] */
+#if 1
   switch (keycode){
 	case V_KEY_CALL_LOG:
 	    Send_Touch(CALL_LOG_TOUCH_X, CALL_LOG_TOUCH_Y);
@@ -186,7 +213,8 @@ PACK (void *)LGF_KeyPress (
     	SendKey(keycode , req_ptr->hold);
 		break;
   	}
-  	
+#endif
+/* 2012-10-15 JongWook-Park(blood9874@lge.com) [V3] DIAG Touch Key patch [END] */  	
   return (rsp_ptr);
 }
 

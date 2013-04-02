@@ -18,14 +18,13 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
+#include <linux/clk.h>
 
 #include <mach/msm_iomap.h>
-#include <mach/msm_xo.h>
 
 #include "peripheral-loader.h"
 #include "scm-pas.h"
-
-#define PROXY_VOTE_TIMEOUT		10000
 
 #define RIVA_PMU_A2XB_CFG		0xB8
 #define RIVA_PMU_A2XB_CFG_EN		BIT(0)
@@ -80,32 +79,10 @@
 struct riva_data {
 	void __iomem *base;
 	unsigned long start_addr;
-	struct msm_xo_voter *xo;
-	struct timer_list xo_timer;
+	struct clk *xo;
+	struct regulator *pll_supply;
+	struct pil_device *pil;
 };
-
-static void pil_riva_make_xo_proxy_votes(struct device *dev)
-{
-	struct riva_data *drv = dev_get_drvdata(dev);
-
-	msm_xo_mode_vote(drv->xo, MSM_XO_MODE_ON);
-	mod_timer(&drv->xo_timer, jiffies+msecs_to_jiffies(PROXY_VOTE_TIMEOUT));
-}
-
-static void pil_riva_remove_xo_proxy_votes(unsigned long data)
-{
-	struct riva_data *drv = (struct riva_data *)data;
-
-	msm_xo_mode_vote(drv->xo, MSM_XO_MODE_OFF);
-}
-
-static void pil_riva_remove_xo_proxy_votes_now(struct device *dev)
-{
-	struct riva_data *drv = dev_get_drvdata(dev);
-
-	if (del_timer(&drv->xo_timer))
-		pil_riva_remove_xo_proxy_votes((unsigned long)drv);
-}
 
 static bool cxo_is_needed(struct riva_data *drv)
 {
@@ -114,9 +91,33 @@ static bool cxo_is_needed(struct riva_data *drv)
 		!= RIVA_PMU_CFG_IRIS_XO_MODE_48;
 }
 
-static int nop_verify_blob(struct pil_desc *pil, u32 phy_addr, size_t size)
+static int pil_riva_make_proxy_vote(struct pil_desc *pil)
 {
+	struct riva_data *drv = dev_get_drvdata(pil->dev);
+	int ret;
+
+	ret = regulator_enable(drv->pll_supply);
+	if (ret) {
+		dev_err(pil->dev, "failed to enable pll supply\n");
+		goto err;
+	}
+	ret = clk_prepare_enable(drv->xo);
+	if (ret) {
+		dev_err(pil->dev, "failed to enable xo\n");
+		goto err_clk;
+	}
 	return 0;
+err_clk:
+	regulator_disable(drv->pll_supply);
+err:
+	return ret;
+}
+
+static void pil_riva_remove_proxy_vote(struct pil_desc *pil)
+{
+	struct riva_data *drv = dev_get_drvdata(pil->dev);
+	regulator_disable(drv->pll_supply);
+	clk_disable_unprepare(drv->xo);
 }
 
 static int pil_riva_init_image(struct pil_desc *pil, const u8 *metadata,
@@ -131,20 +132,15 @@ static int pil_riva_init_image(struct pil_desc *pil, const u8 *metadata,
 static int pil_riva_reset(struct pil_desc *pil)
 {
 	u32 reg, sel;
-	bool use_cxo;
 	struct riva_data *drv = dev_get_drvdata(pil->dev);
 	void __iomem *base = drv->base;
 	unsigned long start_addr = drv->start_addr;
+	bool use_cxo = cxo_is_needed(drv);
 
 	/* Enable A2XB bridge */
 	reg = readl_relaxed(base + RIVA_PMU_A2XB_CFG);
 	reg |= RIVA_PMU_A2XB_CFG_EN;
 	writel_relaxed(reg, base + RIVA_PMU_A2XB_CFG);
-
-	/* Proxy-vote for CXO if it's needed */
-	use_cxo = cxo_is_needed(drv);
-	if (use_cxo)
-		pil_riva_make_xo_proxy_votes(pil->dev);
 
 	/* Program PLL 13 to 960 MHz */
 	reg = readl_relaxed(RIVA_PLL_MODE);
@@ -253,16 +249,15 @@ static int pil_riva_shutdown(struct pil_desc *pil)
 	writel_relaxed(0, RIVA_RESET);
 	mb();
 
-	pil_riva_remove_xo_proxy_votes_now(pil->dev);
-
 	return 0;
 }
 
 static struct pil_reset_ops pil_riva_ops = {
 	.init_image = pil_riva_init_image,
-	.verify_blob = nop_verify_blob,
 	.auth_and_reset = pil_riva_reset,
 	.shutdown = pil_riva_shutdown,
+	.proxy_vote = pil_riva_make_proxy_vote,
+	.proxy_unvote = pil_riva_remove_proxy_vote,
 };
 
 static int pil_riva_init_image_trusted(struct pil_desc *pil,
@@ -273,29 +268,20 @@ static int pil_riva_init_image_trusted(struct pil_desc *pil,
 
 static int pil_riva_reset_trusted(struct pil_desc *pil)
 {
-	struct riva_data *drv = dev_get_drvdata(pil->dev);
-
-	/* Proxy-vote for CXO if it's needed */
-	if (cxo_is_needed(drv))
-		pil_riva_make_xo_proxy_votes(pil->dev);
-
 	return pas_auth_and_reset(PAS_RIVA);
 }
 
 static int pil_riva_shutdown_trusted(struct pil_desc *pil)
 {
-	int ret = pas_shutdown(PAS_RIVA);
-
-	pil_riva_remove_xo_proxy_votes_now(pil->dev);
-
-	return ret;
+	return pas_shutdown(PAS_RIVA);
 }
 
 static struct pil_reset_ops pil_riva_ops_trusted = {
 	.init_image = pil_riva_init_image_trusted,
-	.verify_blob = nop_verify_blob,
 	.auth_and_reset = pil_riva_reset_trusted,
 	.shutdown = pil_riva_shutdown_trusted,
+	.proxy_vote = pil_riva_make_proxy_vote,
+	.proxy_unvote = pil_riva_remove_proxy_vote,
 };
 
 static int __devinit pil_riva_probe(struct platform_device *pdev)
@@ -303,6 +289,7 @@ static int __devinit pil_riva_probe(struct platform_device *pdev)
 	struct riva_data *drv;
 	struct resource *res;
 	struct pil_desc *desc;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -321,8 +308,31 @@ static int __devinit pil_riva_probe(struct platform_device *pdev)
 	if (!desc)
 		return -ENOMEM;
 
+	drv->pll_supply = devm_regulator_get(&pdev->dev, "pll_vdd");
+	if (IS_ERR(drv->pll_supply)) {
+		dev_err(&pdev->dev, "failed to get pll supply\n");
+		return PTR_ERR(drv->pll_supply);
+	}
+	if (regulator_count_voltages(drv->pll_supply) > 0) {
+		ret = regulator_set_voltage(drv->pll_supply, 1800000, 1800000);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"failed to set pll supply voltage\n");
+			return ret;
+		}
+
+		ret = regulator_set_optimum_mode(drv->pll_supply, 100000);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"failed to set pll supply optimum mode\n");
+			return ret;
+		}
+	}
+
 	desc->name = "wcnss";
 	desc->dev = &pdev->dev;
+	desc->owner = THIS_MODULE;
+	desc->proxy_timeout = 10000;
 
 	if (pas_supported(PAS_RIVA) > 0) {
 		desc->ops = &pil_riva_ops_trusted;
@@ -332,17 +342,20 @@ static int __devinit pil_riva_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "using non-secure boot\n");
 	}
 
-	setup_timer(&drv->xo_timer, pil_riva_remove_xo_proxy_votes,
-		    (unsigned long)drv);
-	drv->xo = msm_xo_get(MSM_XO_CXO, desc->name);
+	drv->xo = devm_clk_get(&pdev->dev, "cxo");
 	if (IS_ERR(drv->xo))
 		return PTR_ERR(drv->xo);
 
-	return msm_pil_register(desc);
+	drv->pil = msm_pil_register(desc);
+	if (IS_ERR(drv->pil))
+		return PTR_ERR(drv->pil);
+	return 0;
 }
 
 static int __devexit pil_riva_remove(struct platform_device *pdev)
 {
+	struct riva_data *drv = platform_get_drvdata(pdev);
+	msm_pil_unregister(drv->pil);
 	return 0;
 }
 

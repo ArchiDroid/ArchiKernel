@@ -56,7 +56,11 @@ void fat_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	printk("%sFAT-fs (%s): %pV\n", level, sb->s_id, &vaf);
+	if (!strncmp(level, KERN_ERR, sizeof(KERN_ERR)))
+		printk_ratelimited("%sFAT-fs (%s): %pV\n", level,
+				   sb->s_id, &vaf);
+	else
+		printk("%sFAT-fs (%s): %pV\n", level, sb->s_id, &vaf);
 	va_end(args);
 }
 
@@ -134,13 +138,7 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 			fatent_brelse(&fatent);
 		}
 		if (ret < 0)
-		{
-            /* LGE_CHANGE_S [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
-            printk(KERN_ERR "%s(%d): FAT Entry Read Error cluster (%d)\n", __func__, __LINE__, last);
-            /* LGE_CHANGE_E [sunflwr.lee@lge.com] 20120402 : FAT cluster error debug */
-
 			return ret;
-		}	
 //		fat_cache_add(inode, new_fclus, new_dclus);
 	} else {
 		MSDOS_I(inode)->i_start = new_dclus;

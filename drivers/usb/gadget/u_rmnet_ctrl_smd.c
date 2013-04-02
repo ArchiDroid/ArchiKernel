@@ -24,9 +24,9 @@
 
 #include "u_rmnet.h"
 
-#define NR_CTRL_SMD_PORTS	1
+#define NR_CTRL_SMD_PORTS	3
 static int n_rmnet_ctrl_ports;
-static char *rmnet_ctrl_names[] = { "DATA40_CNTL" };
+static char *rmnet_ctrl_names[] = {"DATA40_CNTL", "DATA39_CNTL", "DATA38_CNTL"};
 static struct workqueue_struct *grmnet_ctrl_wq;
 
 #define SMD_CH_MAX_LEN	20
@@ -108,13 +108,16 @@ static void grmnet_ctrl_smd_read_w(struct work_struct *w)
 	void *buf;
 	unsigned long flags;
 
-	while (1) {
+	spin_lock_irqsave(&port->port_lock, flags);
+	while (c->ch) {
 		sz = smd_cur_packet_size(c->ch);
-		if (sz == 0)
+		if (sz <= 0)
 			break;
 
 		if (smd_read_avail(c->ch) < sz)
 			break;
+
+		spin_unlock_irqrestore(&port->port_lock, flags);
 
 		buf = kmalloc(sz, GFP_KERNEL);
 		if (!buf)
@@ -130,8 +133,8 @@ static void grmnet_ctrl_smd_read_w(struct work_struct *w)
 			c->to_host++;
 		}
 		kfree(buf);
-		spin_unlock_irqrestore(&port->port_lock, flags);
 	}
+	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
 static void grmnet_ctrl_smd_write_w(struct work_struct *w)
@@ -143,7 +146,7 @@ static void grmnet_ctrl_smd_write_w(struct work_struct *w)
 	int ret;
 
 	spin_lock_irqsave(&port->port_lock, flags);
-	while (1) {
+	while (c->ch) {
 		if (list_empty(&c->tx_q))
 			break;
 

@@ -21,9 +21,16 @@
 struct msm_psy_batt_pdata {
 	u32 voltage_max_design;
 	u32 voltage_min_design;
+	u32 voltage_fail_safe;
 	u32 avail_chg_sources;
 	u32 batt_technology;
 	u32 (*calculate_capacity)(u32 voltage);
+#ifdef CONFIG_LGE_LOW_VOLTAGE_BATTERY_CHECK
+	void  (*power_off_device)(void);
+#endif
 };
-
+#ifdef CONFIG_LGE_FUEL_GAUGE
+u32 msm_batt_get_vbatt_capacity(void);
+#endif
+u32 msm_batt_get_vbatt_level(void);
 #endif

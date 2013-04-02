@@ -1,7 +1,7 @@
 /* arch/arm/mach-msm/qdsp5/audmgr.h
  *
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2009, 2012 Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -77,6 +77,7 @@ enum rpc_aud_def_codec_type {
 	RPC_AUD_DEF_CODEC_AMR_NB,
 	RPC_AUD_DEF_CODEC_13K,
 	RPC_AUD_DEF_CODEC_EVRC,
+	RPC_AUD_DEF_CODEC_AC3,
 	RPC_AUD_DEF_CODEC_MAX_002,
 };
 
@@ -124,6 +125,9 @@ enum rpc_audmgr_status_type {
 	RPC_AUDMGR_STATUS_VOLUME_CHANGE,
 	RPC_AUDMGR_STATUS_DISABLED,
 	RPC_AUDMGR_STATUS_ERROR,
+	RPC_AUDMGR_STATUS_DEVICE_CONFIG,
+	RPC_AUDMGR_STATUS_DEVICE_INFO
+
 };
 
 struct rpc_audmgr_enable_client_args {
@@ -147,6 +151,7 @@ struct rpc_audmgr_enable_client_args {
 #define AUDMGR_GET_RX_SAMPLE_RATE		8
 #define AUDMGR_GET_TX_SAMPLE_RATE		9
 #define AUDMGR_SET_DEVICE_MODE			10
+#define MIN_RPC_DATA_LENGTH 16
 
 #define AUDMGR_PROG_VERS "rs30000013:0x7feccbff"
 #define AUDMGR_PROG 0x30000013
@@ -154,8 +159,17 @@ struct rpc_audmgr_enable_client_args {
 #define AUDMGR_VERS_COMP 0x00010001
 #define AUDMGR_VERS_COMP_VER2 0x00020001
 #define AUDMGR_VERS_COMP_VER3 0x00030001
+#define AUDMGR_VERS_COMP_VER4 0x00040001
 
-struct rpc_audmgr_cb_func_ptr {
+struct cad_device_info_type {
+	uint32_t rx_device;
+	uint32_t tx_device;
+	uint32_t ear_mute;
+	uint32_t mic_mute;
+	uint32_t volume;
+};
+
+struct rpc_audmgr_cb_common {
 	uint32_t cb_id; /* cb_func */
 	uint32_t status; /* Audmgr status */
 	uint32_t set_to_one;  /* Pointer status (1 = valid, 0  = invalid) */
@@ -164,6 +178,10 @@ struct rpc_audmgr_cb_func_ptr {
 	   disc = AUDMGR_STATUS_CODEC_CONFIG => data = volume
 	   disc = AUDMGR_STATUS_DISABLED => data =status_disabled
 	   disc = AUDMGR_STATUS_VOLUME_CHANGE => data = volume_change */
+};
+
+struct rpc_audmgr_cb_ready {
+	struct rpc_audmgr_cb_common c_data;
 	union {
 		uint32_t handle;
 		uint32_t volume;
@@ -173,18 +191,35 @@ struct rpc_audmgr_cb_func_ptr {
 	uint32_t client_data;
 };
 
+struct rpc_audmgr_cb_device_info {
+	struct rpc_audmgr_cb_common c_data;
+	struct cad_device_info_type d;
+	uint32_t client_data;
+};
+
 #define AUDMGR_CB_FUNC_PTR			1
 #define AUDMGR_OPR_LSTNR_CB_FUNC_PTR		2
 #define AUDMGR_CODEC_LSTR_FUNC_PTR		3
 
-#define AUDMGR_CB_PROG_VERS "rs31000013:0xf8e3e2d9"
-#define AUDMGR_CB_PROG 0x31000013
-#define AUDMGR_CB_VERS 0xf8e3e2d9
+struct dev_evt_msg {
+	struct cad_device_info_type dev_type;
+	uint32_t acdb_id;
+	int session_info;
+	uint32_t sample_rate;
+};
+
+typedef void (*device_info_func)(struct dev_evt_msg *evt_msg, void *private);
+
+struct device_info_callback {
+	device_info_func func;
+	void *private;
+};
 
 struct audmgr {
 	wait_queue_head_t wait;
 	uint32_t handle;
 	int state;
+	struct dev_evt_msg evt;
 };
 
 struct audmgr_config {
@@ -195,72 +230,11 @@ struct audmgr_config {
 	uint32_t snd_method;
 };
 
+int audmgr_register_device_info_callback(struct device_info_callback *dcb);
+int audmgr_deregister_device_info_callback(struct device_info_callback *dcb);
+
 int audmgr_open(struct audmgr *am);
 int audmgr_close(struct audmgr *am);
 int audmgr_enable(struct audmgr *am, struct audmgr_config *cfg);
 int audmgr_disable(struct audmgr *am);
-
-typedef void (*audpp_event_func)(void *private, unsigned id, uint16_t *msg);
-typedef void (*audrec_event_func)(void *private, unsigned id, uint16_t *msg);
-
-/* worst case delay of 1sec for response */
-#define MSM_AUD_DECODER_WAIT_MS 1000
-#define MSM_AUD_MODE_TUNNEL  0x00000100
-#define MSM_AUD_MODE_NONTUNNEL  0x00000200
-#define MSM_AUD_DECODER_MASK  0x0000FFFF
-#define MSM_AUD_OP_MASK  0xFFFF0000
-
-/*Playback mode*/
-#define NON_TUNNEL_MODE_PLAYBACK 1
-#define TUNNEL_MODE_PLAYBACK 0
-
-enum msm_aud_decoder_state {
-	MSM_AUD_DECODER_STATE_NONE = 0,
-	MSM_AUD_DECODER_STATE_FAILURE = 1,
-	MSM_AUD_DECODER_STATE_SUCCESS = 2,
-	MSM_AUD_DECODER_STATE_CLOSE = 3,
-};
-
-int audpp_adec_alloc(unsigned dec_attrb, const char **module_name,
-			unsigned *queueid);
-void audpp_adec_free(int decid);
-
-struct audpp_event_callback {
-	audpp_event_func fn;
-	void *private;
-};
-
-int audpp_register_event_callback(struct audpp_event_callback *eh);
-int audpp_unregister_event_callback(struct audpp_event_callback *eh);
-int is_audpp_enable(void);
-
-int audpp_enable(int id, audpp_event_func func, void *private);
-void audpp_disable(int id, void *private);
-
-int audpp_send_queue1(void *cmd, unsigned len);
-int audpp_send_queue2(void *cmd, unsigned len);
-int audpp_send_queue3(void *cmd, unsigned len);
-
-int audpp_set_volume_and_pan(unsigned id, unsigned volume, int pan);
-int audpp_pause(unsigned id, int pause);
-int audpp_flush(unsigned id);
-void audpp_avsync(int id, unsigned rate);
-unsigned audpp_avsync_sample_count(int id);
-unsigned audpp_avsync_byte_count(int id);
-int audpp_dsp_set_mbadrc(unsigned id, unsigned enable,
-			audpp_cmd_cfg_object_params_mbadrc *mbadrc);
-int audpp_dsp_set_eq(unsigned id, unsigned enable,
-			audpp_cmd_cfg_object_params_eqalizer *eq);
-int audpp_dsp_set_rx_iir(unsigned id, unsigned enable,
-				audpp_cmd_cfg_object_params_pcm *iir);
-int audpp_dsp_set_vol_pan(unsigned id,
-				audpp_cmd_cfg_object_params_volume *vol_pan);
-int audpp_dsp_set_qconcert_plus(unsigned id, unsigned enable,
-			audpp_cmd_cfg_object_params_qconcert *qconcert_plus);
-int audrectask_enable(unsigned enc_type, audrec_event_func func, void *private);
-void audrectask_disable(unsigned enc_type, void *private);
-
-int audrectask_send_cmdqueue(void *cmd, unsigned len);
-int audrectask_send_bitstreamqueue(void *cmd, unsigned len);
-
 #endif

@@ -23,7 +23,12 @@
 #include <linux/gpio.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <mach/board_lge.h>
+#include <linux/wakelock.h>
+#include CONFIG_LGE_BOARD_HEADER_FILE
+
+/* LGE_CHANGE_S [yangwook.lim@lge.com] 2012-02-03 : HOOK KEY ISSUE */
+#include <linux/delay.h>
+/* LGE_CHANGE_E [yangwook.lim@lge.com] 2012-02-03 : HOOK KEY ISSUE */
 
 static LIST_HEAD(switchs);
 
@@ -37,6 +42,7 @@ struct lge_gpio_switch_data {
 	size_t num_gpios;
 	unsigned long irqflags;
 	unsigned int wakeup_flag;
+	struct wake_lock event_wakelock; /* Make sure that event handled in android */
 	struct work_struct work;
 	int (*work_func)(int *value);
 	char *(*print_name)(int state);
@@ -54,31 +60,46 @@ struct lge_gpio_switch_data *lge_switch_data;
 
 static int headset_type;
 
-
 static void gpio_switch_work(struct work_struct *work)
 {
 	int state;
 	int value;
-	int i;
 	struct lge_gpio_switch_data	*data =
 		container_of(work, struct lge_gpio_switch_data, work);
+
+	if (data->wakeup_flag) {
+		if(wake_lock_active(&data->event_wakelock))
+			wake_unlock(&data->event_wakelock);
+		wake_lock_timeout(&data->event_wakelock, 3 * HZ);
+	}
 
 	if (data->work_func) {
 		state = data->work_func(&value);
 		if (state) {
+/* LGE_CHANGE_S :	yangwook.lim@lge.com 2012.02.02, Desc: Earjack 4pole hook key issue when it is clicked twice.  */
+			headset_type = value;
+			input_report_switch(data->ipdev, headset_type, state);
+/* LGE_CHANGE_S [yangwook.lim@lge.com] 2012-03-01 : irq issue */
+#if 0
 			if (value == SW_MICROPHONE_INSERT) {
 				for (i = 0; i < data->num_key_gpios; ++i)
 					enable_irq(gpio_to_irq(data->key_gpios[i]));
 			}
-			headset_type = value;
-			input_report_switch(data->ipdev, headset_type, state);
+#endif
+/* LGE_CHANGE_E [yangwook.lim@lge.com] 2012-03-01 : irq issue */
+
 		} else {
+/* LGE_CHANGE_S [yangwook.lim@lge.com] 2012-03-01 : irq issue */
+#if 0
 			if (headset_type == SW_MICROPHONE_INSERT) {
 				for (i = 0; i < data->num_key_gpios; ++i)
 					disable_irq(gpio_to_irq(data->key_gpios[i]));
 			}
+#endif
+/* LGE_CHANGE_E [yangwook.lim@lge.com] 2012-03-01 : irq issue */
+			headset_type = value;
 			input_report_switch(data->ipdev, headset_type, state);
-			headset_type = 0;
+/* LGE_CHANGE_S :	yangwook.lim@lge.com 2012.02.02, Desc: Earjack 4pole hook key issue when it is clicked twice.  */
 		}
 
 		switch_set_state(&data->sdev, value);
@@ -104,7 +125,7 @@ static void key_gpio_switch_work(struct work_struct *work)
 
 	if (data->key_work_func) {
 		state = data->key_work_func(&value);
-		if (value > 0) {
+		if (value > 0 && headset_type == SW_MICROPHONE_INSERT) {
 			input_report_key(data->ipdev, value, state);
 			input_sync(data->ipdev);
 		}
@@ -115,6 +136,14 @@ static irqreturn_t key_gpio_irq_handler(int irq, void *dev_id)
 {
 	struct lge_gpio_switch_data *switch_data =
 	    (struct lge_gpio_switch_data *)dev_id;
+
+	/*LGE_CHANGE_S : jaewoo1.park@lge.com - hook-key event handled in android on sleep status*/
+        if (switch_data->wakeup_flag) {
+                if(wake_lock_active(&switch_data->event_wakelock))
+                        wake_unlock(&switch_data->event_wakelock);
+                wake_lock_timeout(&switch_data->event_wakelock, 3 * HZ);
+        }
+	/*LGE_CHANGE_E*/
 
 	schedule_work(&switch_data->key_work);
 	return IRQ_HANDLED;
@@ -206,8 +235,10 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 {
 	struct lge_gpio_switch_platform_data *pdata = pdev->dev.platform_data;
 	struct lge_gpio_switch_data *switch_data;
-	int ret = 0;
+	int ret = 0, k = 0;
 	int index;
+
+	printk("lge_gpio_switch_probe :: 1 %d\n", ++k);
 
 	headset_type = 0;
 
@@ -218,6 +249,7 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 	if (!switch_data)
 		return -ENOMEM;
 
+	printk("lge_gpio_switch_probe :: 2 %d\n", ++k);
 	switch_data->dev_id = pdev->id;
 	switch_data->sdev.name = pdata->name;
 	switch_data->gpios = pdata->gpios;
@@ -237,11 +269,13 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 	switch_data->key_work_func = pdata->key_work_func;
 	switch_data->ipdev = input_allocate_device();
 
+	printk("lge_gpio_switch_probe :: 3 %d\n", ++k);
 	list_add_tail(&switch_data->list, &switchs);
 
 	ret = switch_dev_register(&switch_data->sdev);
 	if (ret < 0)
 		goto err_switch_dev_register;
+	printk("lge_gpio_switch_probe :: 4 %d\n", ++k);
 
 	for (index = 0; index < switch_data->num_gpios; index++) {
 		gpio_tlmm_config(GPIO_CFG(switch_data->gpios[index], 0,
@@ -256,7 +290,9 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err_request_gpio;
 	}
+	printk("lge_gpio_switch_probe :: 5 %d\n", ++k);
 
+	wake_lock_init(&switch_data->event_wakelock,WAKE_LOCK_SUSPEND, "lge_gpio_switch");
 	INIT_WORK(&switch_data->work, gpio_switch_work);
 
 	for (index = 0; index < switch_data->num_gpios; index++) {
@@ -276,6 +312,7 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 			irq_set_irq_wake(gpio_to_irq(switch_data->gpios[index]), 1);
 	}
 
+	printk("lge_gpio_switch_probe :: 6 %d\n", ++k);
 	/* especially to address gpio key */
 	for (index = 0; index < switch_data->num_key_gpios; index++) {
 		gpio_tlmm_config(GPIO_CFG(switch_data->key_gpios[index], 0,
@@ -291,7 +328,9 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 			goto err_request_gpio;
 	}
 
+	printk("lge_gpio_switch_probe :: 7 %d\n", ++k);
 	INIT_WORK(&switch_data->key_work, key_gpio_switch_work);
+	printk("lge_gpio_switch_probe :: 8 %d\n", ++k);
 
 	for (index = 0; index < switch_data->num_key_gpios; index++) {
 		if (switch_data->key_gpios[index] < 0) {
@@ -309,14 +348,18 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 		if (switch_data->wakeup_flag)
 			irq_set_irq_wake(gpio_to_irq(switch_data->key_gpios[index]), 1);
 
-		disable_irq(gpio_to_irq(switch_data->key_gpios[index]));
+/*LGE_CHANGE_S : jaewoo1.park@lge.com - remove disable_irq(because occured irq pending problem)*/
+//		disable_irq(gpio_to_irq(switch_data->key_gpios[index]));
+/*LGE_CHANGE_S */
 	}
+	printk("lge_gpio_switch_probe :: 9 %d\n", ++k);
 
 	switch_data->ipdev->name = switch_data->sdev.name;
 	input_set_capability(switch_data->ipdev, EV_SW, SW_HEADPHONE_INSERT);
 	input_set_capability(switch_data->ipdev, EV_SW, SW_MICROPHONE_INSERT);
 	input_set_capability(switch_data->ipdev, EV_KEY, KEY_MEDIA);
 
+	printk("lge_gpio_switch_probe :: 10 %d\n", ++k);
 	ret = input_register_device(switch_data->ipdev);
 	if (ret) {
 		dev_err(&switch_data->ipdev->dev,
@@ -324,6 +367,7 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 		goto err_request_gpio;
 	}
 
+	printk("lge_gpio_switch_probe :: 11 %d\n", ++k);
 	if (switch_data->sysfs_store) {
 		ret = device_create_file(&pdev->dev, &dev_attr_report);
 		if (ret) {
@@ -332,12 +376,15 @@ static int lge_gpio_switch_probe(struct platform_device *pdev)
 		}
 	}
 
+	printk("lge_gpio_switch_probe :: 12 %d\n", ++k);
 	/* additional init for each board */
 	if (pdata->additional_init)
 		pdata->additional_init();
 
+	printk("lge_gpio_switch_probe :: 13 %d\n", ++k);
 	/* Perform initial detection */
 	gpio_switch_work(&switch_data->work);
+	printk("lge_gpio_switch_probe :: 14 %d\n", ++k);
 
 	return 0;
 

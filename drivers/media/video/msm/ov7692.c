@@ -10,6 +10,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
@@ -521,6 +522,8 @@ int ov7692_sensor_config(void __user *argp)
 		break;
 	case CFG_PWR_DOWN:
 		rc = ov7692_power_down();
+		break;
+	case CFG_SET_EFFECT:
 		break;
 	default:
 		rc = -EFAULT;

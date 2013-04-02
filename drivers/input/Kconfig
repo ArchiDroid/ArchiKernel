@@ -3,7 +3,7 @@
 #
 
 menu "Input device support"
-	depends on !S390
+	depends on !S390 && !UML
 
 config INPUT
 	tristate "Generic input layer (needed for keyboard, mouse, ...)" if EXPERT
@@ -24,6 +24,10 @@ config INPUT
 	  module will be called input.
 
 if INPUT
+
+config INPUT_OF_MATRIX_KEYMAP
+	depends on USE_OF
+	bool
 
 config INPUT_FF_MEMLESS
 	tristate "Support for memoryless force-feedback devices"
@@ -180,13 +184,14 @@ source "drivers/input/joystick/Kconfig"
 
 source "drivers/input/tablet/Kconfig"
 
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+source "drivers/input/sensor/Kconfig"
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
+
 source "drivers/input/touchscreen/Kconfig"
 
 source "drivers/input/misc/Kconfig"
 
-#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
-source "drivers/input/sensor/Kconfig"
-#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
 endif
 
 menu "Hardware I/O ports"

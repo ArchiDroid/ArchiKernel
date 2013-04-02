@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>

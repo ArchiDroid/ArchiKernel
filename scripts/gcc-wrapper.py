@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+# Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -40,31 +40,9 @@ import subprocess
 # force LANG to be set to en_US.UTF-8 to get consistent warnings.
 
 allowed_warnings = set([
-    "alignment.c:720",
-    "async.c:122",
-    "async.c:270",
-    "dir.c:43",
-    "dm.c:1053",
-    "dm.c:1080",
-    "dm-table.c:1120",
-    "dm-table.c:1126",
-    "drm_edid.c:1303",
-    "eventpoll.c:1143",
-    "f_mass_storage.c:3368",
-    "inode.c:72",
-    "inode.c:73",
-    "inode.c:74",
-    "msm_sdcc.c:126",
-    "msm_sdcc.c:128",
-    "nf_conntrack_netlink.c:790",
-    "nf_nat_standalone.c:118",
+    "alignment.c:327",
+    "mmu.c:602",
     "return_address.c:62",
-    "soc-core.c:1719",
-    "xt_log.h:50",
-    "vx6953.c:3124",
-    "dma-mapping.c:238",
-    "dma-mapping.c:284",
-    "xt_log.h:50",
  ])
 
 # Capture the name of the object file, can find it.

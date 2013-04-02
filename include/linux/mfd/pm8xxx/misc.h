@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -71,6 +71,28 @@ enum pm8xxx_pon_config {
 	PM8XXX_DISABLE_HARD_RESET = 0,
 	PM8XXX_SHUTDOWN_ON_HARD_RESET,
 	PM8XXX_RESTART_ON_HARD_RESET,
+};
+
+enum pm8xxx_aux_clk_id {
+	CLK_MP3_1,
+	CLK_MP3_2,
+};
+
+enum pm8xxx_aux_clk_div {
+	XO_DIV_NONE,
+	XO_DIV_1,
+	XO_DIV_2,
+	XO_DIV_4,
+	XO_DIV_8,
+	XO_DIV_16,
+	XO_DIV_32,
+	XO_DIV_64,
+};
+
+enum pm8xxx_hsed_bias {
+	PM8XXX_HSED_BIAS0,
+	PM8XXX_HSED_BIAS1,
+	PM8XXX_HSED_BIAS2,
 };
 
 #if defined(CONFIG_MFD_PM8XXX_MISC) || defined(CONFIG_MFD_PM8XXX_MISC_MODULE)
@@ -160,6 +182,48 @@ int pm8xxx_hard_reset_config(enum pm8xxx_pon_config config);
  */
 int pm8xxx_stay_on(void);
 
+/**
+ * pm8xxx_preload_dVdd - preload the dVdd regulator during off state.
+ *
+ * This can help to reduce fluctuations in the dVdd voltage during startup
+ * at the cost of additional off state current draw.
+ *
+ * This API should only be called if dVdd startup issues are suspected.
+ *
+ * RETURNS: an appropriate -ERRNO error value on error, or zero for success.
+ */
+int pm8xxx_preload_dVdd(void);
+
+/**
+ * pm8xxx_usb_id_pullup - Control a pullup for USB ID
+ *
+ * @enable: enable (1) or disable (0) the pullup
+ *
+ * RETURNS: an appropriate -ERRNO error value on error, or zero for success.
+ */
+int pm8xxx_usb_id_pullup(int enable);
+
+/**
+ * pm8xxx_aux_clk_control - Control an auxiliary clock
+ * @clk_id: ID of clock to be programmed, registers of XO_CNTRL2
+ * @divider: divisor to use when configuring desired clock
+ * @enable: enable (1) the designated clock with the supplied division,
+ *		or disable (0) the designated clock
+ *
+ * RETURNS: an appropriate -ERRNO error value on error, or zero for success.
+ */
+int pm8xxx_aux_clk_control(enum pm8xxx_aux_clk_id clk_id,
+				enum pm8xxx_aux_clk_div divider,
+				bool enable);
+
+/**
+ * pm8xxx_hsed_bias_control - Control the HSED_BIAS signal
+ * @bias: the bias line to be controlled (of the 3)
+ * @enable: enable/disable the bias line
+ *
+ * RETURNS: an appropriate -ERRNO error value on error, or zero for success.
+ */
+int pm8xxx_hsed_bias_control(enum pm8xxx_hsed_bias bias, bool enable);
 #else
 
 static inline int pm8xxx_reset_pwr_off(int reset)
@@ -196,6 +260,25 @@ static inline int pm8xxx_stay_on(void)
 {
 	return -ENODEV;
 }
+static inline int pm8xxx_preload_dVdd(void)
+{
+	return -ENODEV;
+}
+static inline int pm8xxx_usb_id_pullup(int enable)
+{
+	return -ENODEV;
+}
+static inline int pm8xxx_aux_clk_control(enum pm8xxx_aux_clk_id clk_id,
+			enum pm8xxx_aux_clk_div divider, bool enable)
+{
+	return -ENODEV;
+}
+static inline int pm8xxx_hsed_bias_control(enum pm8xxx_hsed_bias bias,
+							bool enable)
+{
+	return -ENODEV;
+}
+
 #endif
 
 #endif

@@ -18,6 +18,7 @@
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>

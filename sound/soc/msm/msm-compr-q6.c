@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,16 +25,31 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/control.h>
+#include <sound/q6asm.h>
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
 #include <linux/android_pmem.h>
+#include <sound/timer.h>
 
 #include "msm-compr-q6.h"
 #include "msm-pcm-routing.h"
 
+#define COMPRE_CAPTURE_NUM_PERIODS	16
+/* Allocate the worst case frame size for compressed audio */
+#define COMPRE_CAPTURE_HEADER_SIZE	(sizeof(struct snd_compr_audio_info))
+#define COMPRE_CAPTURE_MAX_FRAME_SIZE	(6144)
+#define COMPRE_CAPTURE_PERIOD_SIZE	(COMPRE_CAPTURE_MAX_FRAME_SIZE + \
+					 COMPRE_CAPTURE_HEADER_SIZE)
+
+struct snd_msm {
+	struct msm_audio *prtd;
+	unsigned volume;
+};
+static struct snd_msm compressed_audio = {NULL, 0x2000} ;
+
 static struct audio_locks the_locks;
 
-static struct snd_pcm_hardware msm_compr_hardware_playback = {
+static struct snd_pcm_hardware msm_compr_hardware_capture = {
 	.info =		 (SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				SNDRV_PCM_INFO_MMAP_VALID |
@@ -45,12 +60,33 @@ static struct snd_pcm_hardware msm_compr_hardware_playback = {
 	.rate_min =	     8000,
 	.rate_max =	     48000,
 	.channels_min =	 1,
+	.channels_max =	 8,
+	.buffer_bytes_max =
+		COMPRE_CAPTURE_PERIOD_SIZE * COMPRE_CAPTURE_NUM_PERIODS ,
+	.period_bytes_min =	COMPRE_CAPTURE_PERIOD_SIZE,
+	.period_bytes_max = COMPRE_CAPTURE_PERIOD_SIZE,
+	.periods_min =	  COMPRE_CAPTURE_NUM_PERIODS,
+	.periods_max =	  COMPRE_CAPTURE_NUM_PERIODS,
+	.fifo_size =	    0,
+};
+
+static struct snd_pcm_hardware msm_compr_hardware_playback = {
+	.info =		 (SNDRV_PCM_INFO_MMAP |
+				SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
+	.formats =	      SNDRV_PCM_FMTBIT_S16_LE,
+	.rates =		SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_KNOT,
+	.rate_min =	     8000,
+	.rate_max =	     48000,
+	.channels_min =	 1,
 	.channels_max =	 2,
 	.buffer_bytes_max =     1200 * 1024 * 2,
-	.period_bytes_min =	60 * 1024,
+	.period_bytes_min =	4800,
 	.period_bytes_max =     1200 * 1024,
 	.periods_min =	  2,
-	.periods_max =	  40,
+	.periods_max =	  512,
 	.fifo_size =	    0,
 };
 
@@ -73,7 +109,9 @@ static void compr_event_handler(uint32_t opcode,
 	struct snd_pcm_substream *substream = prtd->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_aio_write_param param;
+	struct audio_aio_read_param read_param;
 	struct audio_buffer *buf = NULL;
+	uint32_t *ptrmem = (uint32_t *)payload;
 	int i = 0;
 
 	pr_debug("%s opcode =%08x\n", __func__, opcode);
@@ -85,6 +123,9 @@ static void compr_event_handler(uint32_t opcode,
 		prtd->pcm_irq_pos += prtd->pcm_count;
 		if (atomic_read(&prtd->start))
 			snd_pcm_period_elapsed(substream);
+		else
+			if (substream->timer_running)
+				snd_timer_interrupt(substream->timer, 1);
 		atomic_inc(&prtd->out_count);
 		wake_up(&the_locks.write_wait);
 		if (!atomic_read(&prtd->start)) {
@@ -92,7 +133,6 @@ static void compr_event_handler(uint32_t opcode,
 			break;
 		} else
 			atomic_set(&prtd->pending_buffer, 0);
-
 		if (runtime->status->hw_ptr >= runtime->control->appl_ptr)
 			break;
 		buf = prtd->audio_client->port[IN].buf;
@@ -128,9 +168,53 @@ static void compr_event_handler(uint32_t opcode,
 		prtd->cmd_ack = 1;
 		wake_up(&the_locks.eos_wait);
 		break;
+	case ASM_DATA_EVENT_READ_DONE: {
+		pr_debug("ASM_DATA_EVENT_READ_DONE\n");
+		pr_debug("buf = %p, data = 0x%X, *data = %p,\n"
+			 "prtd->pcm_irq_pos = %d\n",
+				prtd->audio_client->port[OUT].buf,
+			 *(uint32_t *)prtd->audio_client->port[OUT].buf->data,
+				prtd->audio_client->port[OUT].buf->data,
+				prtd->pcm_irq_pos);
+
+		memcpy(prtd->audio_client->port[OUT].buf->data +
+			   prtd->pcm_irq_pos, (ptrmem + 2),
+			   COMPRE_CAPTURE_HEADER_SIZE);
+		pr_debug("buf = %p, updated data = 0x%X, *data = %p\n",
+				prtd->audio_client->port[OUT].buf,
+			*(uint32_t *)(prtd->audio_client->port[OUT].buf->data +
+				prtd->pcm_irq_pos),
+				prtd->audio_client->port[OUT].buf->data);
+		if (!atomic_read(&prtd->start))
+			break;
+		pr_debug("frame size=%d, buffer = 0x%X\n", ptrmem[2],
+				ptrmem[1]);
+		if (ptrmem[2] > COMPRE_CAPTURE_MAX_FRAME_SIZE) {
+			pr_err("Frame length exceeded the max length");
+			break;
+		}
+		buf = prtd->audio_client->port[OUT].buf;
+		pr_debug("pcm_irq_pos=%d, buf[0].phys = 0x%X\n",
+				prtd->pcm_irq_pos, (uint32_t)buf[0].phys);
+		read_param.len = prtd->pcm_count - COMPRE_CAPTURE_HEADER_SIZE ;
+		read_param.paddr = (unsigned long)(buf[0].phys) +
+			prtd->pcm_irq_pos + COMPRE_CAPTURE_HEADER_SIZE;
+		prtd->pcm_irq_pos += prtd->pcm_count;
+
+		if (atomic_read(&prtd->start))
+			snd_pcm_period_elapsed(substream);
+
+		q6asm_async_read(prtd->audio_client, &read_param);
+		break;
+	}
 	case APR_BASIC_RSP_RESULT: {
 		switch (payload[0]) {
 		case ASM_SESSION_CMD_RUN: {
+			if (substream->stream
+				!= SNDRV_PCM_STREAM_PLAYBACK) {
+				atomic_set(&prtd->start, 1);
+				break;
+			}
 			if (!atomic_read(&prtd->pending_buffer))
 				break;
 			pr_debug("%s:writing %d bytes"
@@ -179,9 +263,12 @@ static int msm_compr_playback_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct compr_audio *compr = runtime->private_data;
 	struct msm_audio *prtd = &compr->prtd;
+	struct asm_aac_cfg aac_cfg;
+	struct asm_wma_cfg wma_cfg;
+	struct asm_wmapro_cfg wma_pro_cfg;
 	int ret;
 
-	pr_debug("%s\n", __func__);
+	pr_debug("compressed stream prepare\n");
 	prtd->pcm_size = snd_pcm_lib_buffer_bytes(substream);
 	prtd->pcm_count = snd_pcm_lib_period_bytes(substream);
 	prtd->pcm_irq_pos = 0;
@@ -189,14 +276,96 @@ static int msm_compr_playback_prepare(struct snd_pcm_substream *substream)
 	prtd->samp_rate = runtime->rate;
 	prtd->channel_mode = runtime->channels;
 	prtd->out_head = 0;
+	atomic_set(&prtd->out_count, runtime->periods);
+
 	if (prtd->enabled)
 		return 0;
 
-	ret = q6asm_media_format_block(prtd->audio_client, compr->codec);
-	if (ret < 0)
-		pr_info("%s: CMD Format block failed\n", __func__);
-
-	atomic_set(&prtd->out_count, runtime->periods);
+	switch (compr->info.codec_param.codec.id) {
+	case SND_AUDIOCODEC_MP3:
+		ret = q6asm_media_format_block(prtd->audio_client,
+				compr->codec);
+		if (ret < 0)
+			pr_info("%s: CMD Format block failed\n", __func__);
+		break;
+	case SND_AUDIOCODEC_AAC:
+		pr_debug("SND_AUDIOCODEC_AAC\n");
+		memset(&aac_cfg, 0x0, sizeof(struct asm_aac_cfg));
+		aac_cfg.aot = AAC_ENC_MODE_EAAC_P;
+		aac_cfg.format = 0x03;
+		aac_cfg.ch_cfg = runtime->channels;
+		aac_cfg.sample_rate = runtime->rate;
+		ret = q6asm_media_format_block_aac(prtd->audio_client,
+					&aac_cfg);
+		if (ret < 0)
+			pr_err("%s: CMD Format block failed\n", __func__);
+		break;
+	case SND_AUDIOCODEC_AC3_PASS_THROUGH:
+		pr_debug("compressd playback, no need to send"
+			" the decoder params\n");
+		break;
+	case SND_AUDIOCODEC_DTS_PASS_THROUGH:
+		pr_debug("compressd DTS playback,dont send the decoder params\n");
+		break;
+	case SND_AUDIOCODEC_WMA:
+		pr_debug("SND_AUDIOCODEC_WMA\n");
+		memset(&wma_cfg, 0x0, sizeof(struct asm_wma_cfg));
+		wma_cfg.format_tag = compr->info.codec_param.codec.format;
+		wma_cfg.ch_cfg = runtime->channels;
+		wma_cfg.sample_rate = compr->info.codec_param.codec.sample_rate;
+		wma_cfg.avg_bytes_per_sec =
+			compr->info.codec_param.codec.bit_rate/8;
+		wma_cfg.block_align = compr->info.codec_param.codec.align;
+		wma_cfg.valid_bits_per_sample =
+		compr->info.codec_param.codec.options.wma.bits_per_sample;
+		wma_cfg.ch_mask =
+			compr->info.codec_param.codec.options.wma.channelmask;
+		wma_cfg.encode_opt =
+			compr->info.codec_param.codec.options.wma.encodeopt;
+		ret = q6asm_media_format_block_wma(prtd->audio_client,
+					&wma_cfg);
+		if (ret < 0)
+			pr_err("%s: CMD Format block failed\n", __func__);
+		break;
+	case SND_AUDIOCODEC_WMA_PRO:
+		pr_debug("SND_AUDIOCODEC_WMA_PRO\n");
+		memset(&wma_pro_cfg, 0x0, sizeof(struct asm_wmapro_cfg));
+		wma_pro_cfg.format_tag = compr->info.codec_param.codec.format;
+		wma_pro_cfg.ch_cfg = compr->info.codec_param.codec.ch_in;
+		wma_pro_cfg.sample_rate =
+			compr->info.codec_param.codec.sample_rate;
+		wma_pro_cfg.avg_bytes_per_sec =
+			compr->info.codec_param.codec.bit_rate/8;
+		wma_pro_cfg.block_align = compr->info.codec_param.codec.align;
+		wma_pro_cfg.valid_bits_per_sample =
+			compr->info.codec_param.codec\
+				.options.wma.bits_per_sample;
+		wma_pro_cfg.ch_mask =
+			compr->info.codec_param.codec.options.wma.channelmask;
+		wma_pro_cfg.encode_opt =
+			compr->info.codec_param.codec.options.wma.encodeopt;
+		wma_pro_cfg.adv_encode_opt =
+			compr->info.codec_param.codec.options.wma.encodeopt1;
+		wma_pro_cfg.adv_encode_opt2 =
+			compr->info.codec_param.codec.options.wma.encodeopt2;
+		ret = q6asm_media_format_block_wmapro(prtd->audio_client,
+				&wma_pro_cfg);
+		if (ret < 0)
+			pr_err("%s: CMD Format block failed\n", __func__);
+		break;
+	case SND_AUDIOCODEC_DTS:
+	case SND_AUDIOCODEC_DTS_LBR:
+		pr_debug("SND_AUDIOCODEC_DTS\n");
+		ret = q6asm_media_format_block(prtd->audio_client,
+				compr->codec);
+		if (ret < 0) {
+			pr_err("%s: CMD Format block failed\n", __func__);
+			return ret;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	prtd->enabled = 1;
 	prtd->cmd_ack = 0;
@@ -204,10 +373,49 @@ static int msm_compr_playback_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int msm_compr_capture_prepare(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct compr_audio *compr = runtime->private_data;
+	struct msm_audio *prtd = &compr->prtd;
+	struct audio_buffer *buf = prtd->audio_client->port[OUT].buf;
+	struct audio_aio_read_param read_param;
+	int ret = 0;
+	int i;
+	prtd->pcm_size = snd_pcm_lib_buffer_bytes(substream);
+	prtd->pcm_count = snd_pcm_lib_period_bytes(substream);
+	prtd->pcm_irq_pos = 0;
+
+	/* rate and channels are sent to audio driver */
+	prtd->samp_rate = runtime->rate;
+	prtd->channel_mode = runtime->channels;
+
+	if (prtd->enabled)
+		return ret;
+	read_param.len = prtd->pcm_count - COMPRE_CAPTURE_HEADER_SIZE;
+	pr_debug("%s: Samp_rate = %d, Channel = %d, pcm_size = %d,\n"
+			 "pcm_count = %d, periods = %d\n",
+			 __func__, prtd->samp_rate, prtd->channel_mode,
+			 prtd->pcm_size, prtd->pcm_count, runtime->periods);
+
+	for (i = 0; i < runtime->periods; i++) {
+		read_param.uid = i;
+		read_param.paddr = ((unsigned long)(buf[i].phys) +
+					COMPRE_CAPTURE_HEADER_SIZE);
+		q6asm_async_read(prtd->audio_client, &read_param);
+	}
+	prtd->periods = runtime->periods;
+
+	prtd->enabled = 1;
+
+	return ret;
+}
+
 static int msm_compr_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	int ret = 0;
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct compr_audio *compr = runtime->private_data;
 	struct msm_audio *prtd = &compr->prtd;
 
@@ -215,6 +423,21 @@ static int msm_compr_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		prtd->pcm_irq_pos = 0;
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (compr->info.codec_param.codec.id ==
+				SND_AUDIOCODEC_AC3_PASS_THROUGH ||
+					compr->info.codec_param.codec.id ==
+					SND_AUDIOCODEC_DTS_PASS_THROUGH) {
+				msm_pcm_routing_reg_psthr_stream(
+					soc_prtd->dai_link->be_id,
+					prtd->session_id, substream->stream,
+					1);
+			}
+		} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			msm_pcm_routing_reg_psthr_stream(
+				soc_prtd->dai_link->be_id,
+				prtd->session_id, substream->stream, 1);
+		}
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		pr_debug("%s: Trigger start\n", __func__);
@@ -223,6 +446,20 @@ static int msm_compr_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("SNDRV_PCM_TRIGGER_STOP\n");
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (compr->info.codec_param.codec.id ==
+					SND_AUDIOCODEC_AC3_PASS_THROUGH) {
+				msm_pcm_routing_reg_psthr_stream(
+					soc_prtd->dai_link->be_id,
+					prtd->session_id, substream->stream,
+					0);
+			}
+		} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			msm_pcm_routing_reg_psthr_stream(
+				soc_prtd->dai_link->be_id,
+				prtd->session_id, substream->stream,
+				0);
+		}
 		atomic_set(&prtd->start, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -250,20 +487,33 @@ static void populate_codec_list(struct compr_audio *compr,
 	compr->info.compr_cap.min_fragments = runtime->hw.periods_min;
 	compr->info.compr_cap.max_fragments = runtime->hw.periods_max;
 	compr->info.compr_cap.codecs[0] = SND_AUDIOCODEC_MP3;
+	compr->info.compr_cap.codecs[1] = SND_AUDIOCODEC_AAC;
+	compr->info.compr_cap.codecs[2] = SND_AUDIOCODEC_AC3_PASS_THROUGH;
+	compr->info.compr_cap.codecs[3] = SND_AUDIOCODEC_WMA;
+	compr->info.compr_cap.codecs[4] = SND_AUDIOCODEC_WMA_PRO;
+	compr->info.compr_cap.codecs[5] = SND_AUDIOCODEC_DTS;
+	compr->info.compr_cap.codecs[6] = SND_AUDIOCODEC_DTS_LBR;
+	compr->info.compr_cap.codecs[7] = SND_AUDIOCODEC_DTS_PASS_THROUGH;
 	/* Add new codecs here */
 }
 
 static int msm_compr_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct compr_audio *compr;
 	struct msm_audio *prtd;
 	int ret = 0;
-
-	/* Capture path */
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		return -EINVAL;
+	struct asm_softpause_params softpause = {
+		.enable = SOFT_PAUSE_ENABLE,
+		.period = SOFT_PAUSE_PERIOD,
+		.step = SOFT_PAUSE_STEP,
+		.rampingcurve = SOFT_PAUSE_CURVE_LINEAR,
+	};
+	struct asm_softvolume_params softvol = {
+		.period = SOFT_VOLUME_PERIOD,
+		.step = SOFT_VOLUME_STEP,
+		.rampingcurve = SOFT_VOLUME_CURVE_LINEAR,
+	};
 
 	pr_debug("%s\n", __func__);
 	compr = kzalloc(sizeof(struct compr_audio), GFP_KERNEL);
@@ -280,15 +530,18 @@ static int msm_compr_open(struct snd_pcm_substream *substream)
 		kfree(prtd);
 		return -ENOMEM;
 	}
-	runtime->hw = msm_compr_hardware_playback;
 
 	pr_info("%s: session ID %d\n", __func__, prtd->audio_client->session);
 
 	prtd->session_id = prtd->audio_client->session;
-	msm_pcm_routing_reg_phy_stream(soc_prtd->dai_link->be_id,
-			prtd->session_id, substream->stream);
 
-	prtd->cmd_ack = 1;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		runtime->hw = msm_compr_hardware_playback;
+		prtd->cmd_ack = 1;
+	} else {
+		runtime->hw = msm_compr_hardware_capture;
+	}
+
 
 	ret = snd_pcm_hw_constraint_list(runtime, 0,
 			SNDRV_PCM_HW_PARAM_RATE,
@@ -303,11 +556,42 @@ static int msm_compr_open(struct snd_pcm_substream *substream)
 
 	prtd->dsp_cnt = 0;
 	atomic_set(&prtd->pending_buffer, 1);
-	compr->codec = FORMAT_MP3;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		compr->codec = FORMAT_MP3;
 	populate_codec_list(compr, runtime);
 	runtime->private_data = compr;
+	compressed_audio.prtd =  &compr->prtd;
+	ret = compressed_set_volume(compressed_audio.volume);
+	if (ret < 0)
+		pr_err("%s : Set Volume failed : %d", __func__, ret);
+
+	ret = q6asm_set_softpause(compressed_audio.prtd->audio_client,
+								&softpause);
+	if (ret < 0)
+		pr_err("%s: Send SoftPause Param failed ret=%d\n",
+			__func__, ret);
+	ret = q6asm_set_softvolume(compressed_audio.prtd->audio_client,
+								&softvol);
+	if (ret < 0)
+		pr_err("%s: Send SoftVolume Param failed ret=%d\n",
+			__func__, ret);
 
 	return 0;
+}
+
+int compressed_set_volume(unsigned volume)
+{
+	int rc = 0;
+	if (compressed_audio.prtd && compressed_audio.prtd->audio_client) {
+		rc = q6asm_set_volume(compressed_audio.prtd->audio_client,
+								 volume);
+		if (rc < 0) {
+			pr_err("%s: Send Volume command failed"
+					" rc=%d\n", __func__, rc);
+		}
+	}
+	compressed_audio.volume = volume;
+	return rc;
 }
 
 static int msm_compr_playback_close(struct snd_pcm_substream *substream)
@@ -323,13 +607,37 @@ static int msm_compr_playback_close(struct snd_pcm_substream *substream)
 	dir = IN;
 	atomic_set(&prtd->pending_buffer, 0);
 	q6asm_cmd(prtd->audio_client, CMD_CLOSE);
+	compressed_audio.prtd = NULL;
 	q6asm_audio_client_buf_free_contiguous(dir,
 				prtd->audio_client);
-
-	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->be_id,
-	SNDRV_PCM_STREAM_PLAYBACK);
+	if (!(compr->info.codec_param.codec.id ==
+			SND_AUDIOCODEC_AC3_PASS_THROUGH))
+		msm_pcm_routing_dereg_phy_stream(
+			soc_prtd->dai_link->be_id,
+			SNDRV_PCM_STREAM_PLAYBACK);
 	q6asm_audio_client_free(prtd->audio_client);
 	kfree(prtd);
+	return 0;
+}
+
+static int msm_compr_capture_close(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
+	struct compr_audio *compr = runtime->private_data;
+	struct msm_audio *prtd = &compr->prtd;
+	int dir = OUT;
+
+	pr_debug("%s\n", __func__);
+	atomic_set(&prtd->pending_buffer, 0);
+	q6asm_cmd(prtd->audio_client, CMD_CLOSE);
+	q6asm_audio_client_buf_free_contiguous(dir,
+				prtd->audio_client);
+	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->be_id,
+				SNDRV_PCM_STREAM_CAPTURE);
+	q6asm_audio_client_free(prtd->audio_client);
+	kfree(prtd);
+
 	return 0;
 }
 
@@ -340,7 +648,7 @@ static int msm_compr_close(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		ret = msm_compr_playback_close(substream);
 	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		ret = EINVAL;
+		ret = msm_compr_capture_close(substream);
 	return ret;
 }
 static int msm_compr_prepare(struct snd_pcm_substream *substream)
@@ -350,7 +658,7 @@ static int msm_compr_prepare(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		ret = msm_compr_playback_prepare(substream);
 	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		ret = EINVAL;
+		ret = msm_compr_capture_prepare(substream);
 	return ret;
 }
 
@@ -364,7 +672,10 @@ static snd_pcm_uframes_t msm_compr_pointer(struct snd_pcm_substream *substream)
 	if (prtd->pcm_irq_pos >= prtd->pcm_size)
 		prtd->pcm_irq_pos = 0;
 
-	pr_debug("pcm_irq_pos = %d\n", prtd->pcm_irq_pos);
+	pr_debug("%s: pcm_irq_pos = %d, pcm_size = %d, sample_bits = %d,\n"
+			 "frame_bits = %d\n", __func__, prtd->pcm_irq_pos,
+			 prtd->pcm_size, runtime->sample_bits,
+			 runtime->frame_bits);
 	return bytes_to_frames(runtime, (prtd->pcm_irq_pos));
 }
 
@@ -395,6 +706,7 @@ static int msm_compr_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct compr_audio *compr = runtime->private_data;
 	struct msm_audio *prtd = &compr->prtd;
 	struct snd_dma_buffer *dma_buf = &substream->dma_buffer;
@@ -405,12 +717,45 @@ static int msm_compr_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dir = IN;
 	else
-		return -EINVAL;
+		dir = OUT;
 
-	ret = q6asm_open_write(prtd->audio_client, compr->codec);
-	if (ret < 0) {
-		pr_err("%s: Session out open failed\n", __func__);
-		return -ENOMEM;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (compr->info.codec_param.codec.id) {
+		case SND_AUDIOCODEC_AC3_PASS_THROUGH:
+		case SND_AUDIOCODEC_DTS_PASS_THROUGH:
+			ret = q6asm_open_write_compressed(prtd->audio_client,
+					compr->codec);
+
+			if (ret < 0) {
+				pr_err("%s: Session out open failed\n",
+					__func__);
+				return -ENOMEM;
+			}
+			break;
+		default:
+			ret = q6asm_open_write(prtd->audio_client,
+					compr->codec);
+			if (ret < 0) {
+				pr_err("%s: Session out open failed\n",
+					__func__);
+				return -ENOMEM;
+			}
+			msm_pcm_routing_reg_phy_stream(
+				soc_prtd->dai_link->be_id,
+				prtd->session_id, substream->stream);
+
+			break;
+		}
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		ret = q6asm_open_read_compressed(prtd->audio_client,
+					compr->codec);
+
+		if (ret < 0) {
+			pr_err("%s: compressed Session out open failed\n",
+				__func__);
+			return -ENOMEM;
+		}
 	}
 	ret = q6asm_set_io_mode(prtd->audio_client, ASYNC_IO_MODE);
 	if (ret < 0) {
@@ -429,13 +774,17 @@ static int msm_compr_hw_params(struct snd_pcm_substream *substream,
 	}
 	buf = prtd->audio_client->port[dir].buf;
 
-	pr_debug("%s:buf = %p\n", __func__, buf);
 	dma_buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	dma_buf->dev.dev = substream->pcm->card->dev;
 	dma_buf->private_data = NULL;
 	dma_buf->area = buf[0].data;
 	dma_buf->addr =  buf[0].phys;
 	dma_buf->bytes = runtime->hw.buffer_bytes_max;
+
+	pr_debug("%s: buf[%p]dma_buf->area[%p]dma_buf->addr[%p]\n"
+		 "dma_buf->bytes[%d]\n", __func__,
+		 (void *)buf, (void *)dma_buf->area,
+		 (void *)dma_buf->addr, dma_buf->bytes);
 	if (!dma_buf->area)
 		return -ENOMEM;
 
@@ -450,8 +799,34 @@ static int msm_compr_ioctl(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct compr_audio *compr = runtime->private_data;
 	struct msm_audio *prtd = &compr->prtd;
+	uint64_t timestamp;
+	uint64_t temp;
 
 	switch (cmd) {
+	case SNDRV_COMPRESS_TSTAMP: {
+		struct snd_compr_tstamp tstamp;
+		pr_debug("SNDRV_COMPRESS_TSTAMP\n");
+
+		memset(&tstamp, 0x0, sizeof(struct snd_compr_tstamp));
+		timestamp = q6asm_get_session_time(prtd->audio_client);
+		if (timestamp < 0) {
+			pr_err("%s: Get Session Time return value =%lld\n",
+				__func__, timestamp);
+			return -EAGAIN;
+		}
+		temp = (timestamp * 2 * runtime->channels);
+		temp = temp * (runtime->rate/1000);
+		temp = div_u64(temp, 1000);
+		tstamp.sampling_rate = runtime->rate;
+		tstamp.timestamp = timestamp;
+		pr_debug("%s: bytes_consumed:,"
+			"timestamp = %lld,\n", __func__,
+			tstamp.timestamp);
+		if (copy_to_user((void *) arg, &tstamp,
+			sizeof(struct snd_compr_tstamp)))
+				return -EFAULT;
+		return 0;
+	}
 	case SNDRV_COMPRESS_GET_CAPS:
 		pr_debug("SNDRV_COMPRESS_GET_CAPS\n");
 		if (copy_to_user((void *) arg, &compr->info.compr_cap,
@@ -474,6 +849,34 @@ static int msm_compr_ioctl(struct snd_pcm_substream *substream,
 			/* For MP3 we dont need any other parameter */
 			pr_debug("SND_AUDIOCODEC_MP3\n");
 			compr->codec = FORMAT_MP3;
+			break;
+		case SND_AUDIOCODEC_AAC:
+			pr_debug("SND_AUDIOCODEC_AAC\n");
+			compr->codec = FORMAT_MPEG4_AAC;
+			break;
+		case SND_AUDIOCODEC_AC3_PASS_THROUGH:
+			pr_debug("SND_AUDIOCODEC_AC3_PASS_THROUGH\n");
+			compr->codec = FORMAT_AC3;
+			break;
+		case SND_AUDIOCODEC_WMA:
+			pr_debug("SND_AUDIOCODEC_WMA\n");
+			compr->codec = FORMAT_WMA_V9;
+			break;
+		case SND_AUDIOCODEC_WMA_PRO:
+			pr_debug("SND_AUDIOCODEC_WMA_PRO\n");
+			compr->codec = FORMAT_WMA_V10PRO;
+			break;
+		case SND_AUDIOCODEC_DTS_PASS_THROUGH:
+			pr_debug("SND_AUDIOCODEC_DTS_PASS_THROUGH\n");
+			compr->codec = FORMAT_DTS;
+			break;
+		case SND_AUDIOCODEC_DTS:
+			pr_debug("SND_AUDIOCODEC_DTS\n");
+			compr->codec = FORMAT_DTS;
+			break;
+		case SND_AUDIOCODEC_DTS_LBR:
+			pr_debug("SND_AUDIOCODEC_DTS\n");
+			compr->codec = FORMAT_DTS_LBR;
 			break;
 		default:
 			pr_debug("FORMAT_LINEAR_PCM\n");

@@ -22,6 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/msm_adsp.h>
 #include <linux/android_pmem.h>
+#include <linux/export.h>
 #include "adsp.h"
 #include <mach/debug_mm.h>
 #include <linux/slab.h>

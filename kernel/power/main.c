@@ -3,20 +3,23 @@
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
- * 
+ *
  * This file is released under the GPLv2
  *
  */
 
+#include <linux/export.h>
 #include <linux/kobject.h>
 #include <linux/string.h>
 #include <linux/resume-trace.h>
 #include <linux/workqueue.h>
-/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
 #include <linux/debugfs.h>
-#include <linux/seq_file.h> 
-/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
+#include <linux/seq_file.h>
+#include <linux/hrtimer.h>
+
 #include "power.h"
+
+#define MAX_BUF 100
 
 DEFINE_MUTEX(pm_mutex);
 
@@ -25,6 +28,13 @@ DEFINE_MUTEX(pm_mutex);
 /* Routines for PM-transition notifications */
 
 static BLOCKING_NOTIFIER_HEAD(pm_chain_head);
+
+static void touch_event_fn(struct work_struct *work);
+static DECLARE_WORK(touch_event_struct, touch_event_fn);
+
+static struct hrtimer tc_ev_timer;
+static int tc_ev_processed;
+static ktime_t touch_evt_timer_val;
 
 int register_pm_notifier(struct notifier_block *nb)
 {
@@ -40,8 +50,9 @@ EXPORT_SYMBOL_GPL(unregister_pm_notifier);
 
 int pm_notifier_call_chain(unsigned long val)
 {
-	return (blocking_notifier_call_chain(&pm_chain_head, val, NULL)
-			== NOTIFY_BAD) ? -EINVAL : 0;
+	int ret = blocking_notifier_call_chain(&pm_chain_head, val, NULL);
+
+	return notifier_to_errno(ret);
 }
 
 /* If set, devices may be suspended and resumed asynchronously. */
@@ -69,6 +80,81 @@ static ssize_t pm_async_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 power_attr(pm_async);
+
+static ssize_t
+touch_event_show(struct kobject *kobj,
+		 struct kobj_attribute *attr, char *buf)
+{
+	if (tc_ev_processed == 0)
+		return snprintf(buf, strnlen("touch_event", MAX_BUF) + 1,
+				"touch_event");
+	else
+		return snprintf(buf, strnlen("null", MAX_BUF) + 1,
+				"null");
+}
+
+static ssize_t
+touch_event_store(struct kobject *kobj,
+		  struct kobj_attribute *attr,
+		  const char *buf, size_t n)
+{
+
+	hrtimer_cancel(&tc_ev_timer);
+	tc_ev_processed = 0;
+
+	/* set a timer to notify the userspace to stop processing
+	 * touch event
+	 */
+	hrtimer_start(&tc_ev_timer, touch_evt_timer_val, HRTIMER_MODE_REL);
+
+	/* wakeup the userspace poll */
+	sysfs_notify(kobj, NULL, "touch_event");
+
+	return n;
+}
+
+power_attr(touch_event);
+
+static ssize_t
+touch_event_timer_show(struct kobject *kobj,
+		 struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, MAX_BUF, "%lld", touch_evt_timer_val.tv64);
+}
+
+static ssize_t
+touch_event_timer_store(struct kobject *kobj,
+			struct kobj_attribute *attr,
+			const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+
+	touch_evt_timer_val = ktime_set(0, val*1000);
+
+	return n;
+}
+
+power_attr(touch_event_timer);
+
+static void touch_event_fn(struct work_struct *work)
+{
+	/* wakeup the userspace poll */
+	tc_ev_processed = 1;
+	sysfs_notify(power_kobj, NULL, "touch_event");
+
+	return;
+}
+
+static enum hrtimer_restart tc_ev_stop(struct hrtimer *hrtimer)
+{
+
+	schedule_work(&touch_event_struct);
+
+	return HRTIMER_NORESTART;
+}
 
 #ifdef CONFIG_PM_DEBUG
 int pm_test_level = TEST_NONE;
@@ -115,7 +201,7 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
 
-	mutex_lock(&pm_mutex);
+	lock_system_sleep();
 
 	level = TEST_FIRST;
 	for (s = &pm_tests[level]; level <= TEST_MAX; s++, level++)
@@ -125,7 +211,7 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 			break;
 		}
 
-	mutex_unlock(&pm_mutex);
+	unlock_system_sleep();
 
 	return error ? error : n;
 }
@@ -133,9 +219,6 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 power_attr(pm_test);
 #endif /* CONFIG_PM_DEBUG */
 
-#endif /* CONFIG_PM_SLEEP */
-
-/*LGE_CHANGE_S : seven.kim@lge.com create sleep debugfs*/
 #ifdef CONFIG_DEBUG_FS
 static char *suspend_step_name(enum suspend_stat_step step)
 {
@@ -167,16 +250,20 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 	last_errno %= REC_FAILED_NUM;
 	last_step = suspend_stats.last_failed_step + REC_FAILED_NUM - 1;
 	last_step %= REC_FAILED_NUM;
-	seq_printf(s, "%s: %d\n%s: %d\n%s: %d\n%s: %d\n"
-			"%s: %d\n%s: %d\n%s: %d\n%s: %d\n",
+	seq_printf(s, "%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n"
+			"%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n",
 			"success", suspend_stats.success,
 			"fail", suspend_stats.fail,
 			"failed_freeze", suspend_stats.failed_freeze,
 			"failed_prepare", suspend_stats.failed_prepare,
 			"failed_suspend", suspend_stats.failed_suspend,
+			"failed_suspend_late",
+				suspend_stats.failed_suspend_late,
 			"failed_suspend_noirq",
 				suspend_stats.failed_suspend_noirq,
 			"failed_resume", suspend_stats.failed_resume,
+			"failed_resume_early",
+				suspend_stats.failed_resume_early,
 			"failed_resume_noirq",
 				suspend_stats.failed_resume_noirq);
 	seq_printf(s,	"failures:\n  last_failed_dev:\t%-s\n",
@@ -230,7 +317,8 @@ static int __init pm_debugfs_init(void)
 
 late_initcall(pm_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
-/*LGE_CHANGE_E : seven.kim@lge.com create sleep debugfs*/
+
+#endif /* CONFIG_PM_SLEEP */
 
 struct kobject *power_kobj;
 
@@ -241,7 +329,7 @@ struct kobject *power_kobj;
  *	'standby' (Power-On Suspend), 'mem' (Suspend-to-RAM), and
  *	'disk' (Suspend-to-Disk).
  *
- *	store() accepts one of those strings, translates it into the 
+ *	store() accepts one of those strings, translates it into the
  *	proper enumerated value, and initiates a suspend transition.
  */
 static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -287,28 +375,22 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 	/* First, check if we are requested to hibernate */
 	if (len == 4 && !strncmp(buf, "disk", len)) {
 		error = hibernate();
-  goto Exit;
+		goto Exit;
 	}
 
 #ifdef CONFIG_SUSPEND
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
-		if (*s && len == strlen(*s) && !strncmp(buf, *s, len))
-			break;
-	}
-	if (state < PM_SUSPEND_MAX && *s) {     /*LGE_CHANGE : seven.kim@lg.com fix bug in suspend statics update*/
+		if (*s && len == strlen(*s) && !strncmp(buf, *s, len)) {
 #ifdef CONFIG_EARLYSUSPEND
-		if (state == PM_SUSPEND_ON || valid_state(state)) {
-			error = 0;
-			request_suspend_state(state);
-		}
+			if (state == PM_SUSPEND_ON || valid_state(state)) {
+				error = 0;
+				request_suspend_state(state);
+				break;
+			}
 #else
-		error = enter_state(state);
-		if (error) {
-			suspend_stats.fail++;
-			dpm_save_failed_errno(error);
-		} else
-			suspend_stats.success++;
+			error = pm_suspend(state);
 #endif
+		}
 	}
 #endif
 
@@ -419,7 +501,7 @@ power_attr(wake_lock);
 power_attr(wake_unlock);
 #endif
 
-static struct attribute * g[] = {
+static struct attribute *g[] = {
 	&state_attr.attr,
 #ifdef CONFIG_PM_TRACE
 	&pm_trace_attr.attr,
@@ -428,6 +510,8 @@ static struct attribute * g[] = {
 #ifdef CONFIG_PM_SLEEP
 	&pm_async_attr.attr,
 	&wakeup_count_attr.attr,
+	&touch_event_attr.attr,
+	&touch_event_timer_attr.attr,
 #ifdef CONFIG_PM_DEBUG
 	&pm_test_attr.attr,
 #endif
@@ -464,6 +548,13 @@ static int __init pm_init(void)
 		return error;
 	hibernate_image_size_init();
 	hibernate_reserved_size_init();
+
+	touch_evt_timer_val = ktime_set(2, 0);
+	hrtimer_init(&tc_ev_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	tc_ev_timer.function = &tc_ev_stop;
+	tc_ev_processed = 1;
+
+
 	power_kobj = kobject_create_and_add("power", NULL);
 	if (!power_kobj)
 		return -ENOMEM;

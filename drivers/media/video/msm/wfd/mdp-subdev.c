@@ -45,7 +45,7 @@ int mdp_open(struct v4l2_subdev *sd, void *arg)
 		goto exit;
 	}
 
-	/*Tell HDMI daemon to open fb1*/
+	/*Tell HDMI daemon to open fb2*/
 	rc = kobject_uevent(&fbi->dev->kobj, KOBJ_ADD);
 	if (rc) {
 		WFD_MSG_ERR("Failed add to kobj");
@@ -135,8 +135,9 @@ int mdp_q_buffer(struct v4l2_subdev *sd, void *arg)
 	fbdata.priv = (uint32_t)binfo->cookie;
 
 	WFD_MSG_INFO("queue buffer to mdp with offset = %u,"
-			"fd = %u, priv = %u\n",
-			fbdata.offset, fbdata.memory_id, fbdata.priv);
+			"fd = %u, priv = %p, iova = %p\n",
+			fbdata.offset, fbdata.memory_id,
+			(void *)fbdata.priv, (void *)fbdata.iova);
 	rc = msm_fb_writeback_queue_buffer(inst->mdp, &fbdata);
 
 	if (rc)

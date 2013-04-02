@@ -37,6 +37,7 @@ static const char sensorname[] = "sensor";
 #include <linux/freezer.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 
 #include "rmi_drvr.h"

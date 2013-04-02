@@ -34,6 +34,7 @@
 #define __LINUX_USB_CH9_H
 
 #include <linux/types.h>	/* __u8 etc */
+#include <asm/byteorder.h>	/* le16_to_cpu */
 
 /*-------------------------------------------------------------------------*/
 
@@ -133,6 +134,12 @@
 #define	TEST_PACKET	4
 #define	TEST_FORCE_EN	5
 
+/* OTG test mode feature bits
+ * See ECN OTG2.0 spec Table 6-8
+ */
+#define TEST_OTG_SRP_REQD	6
+#define TEST_OTG_HNP_REQD	7
+
 /*
  * New Feature Selectors as added by USB 3.0
  * See USB 3.0 spec Table 9-6
@@ -143,12 +150,20 @@
 #define USB_INTRF_FUNC_SUSPEND	0	/* function suspend */
 
 #define USB_INTR_FUNC_SUSPEND_OPT_MASK	0xFF00
+/*
+ * Suspend Options, Table 9-7 USB 3.0 spec
+ */
+#define USB_INTRF_FUNC_SUSPEND_LP	(1 << (8 + 0))
+#define USB_INTRF_FUNC_SUSPEND_RW	(1 << (8 + 1))
 
 #define USB_ENDPOINT_HALT		0	/* IN/OUT will STALL */
 
-#define OTG_STATUS_SELECTOR	0xF000
-#define THOST_REQ_POLL		2000    /* msec */
-#define HOST_REQUEST_FLAG	0
+#define OTG_STATUS_SELECTOR		0xF000
+#define HOST_REQUEST_FLAG		0
+#define THOST_REQ_POLL			1500    /* msec (1000 - 2000) */
+#define OTG_TTST_SUSP			70	/* msec (0 - 100) */
+
+#define OTG_TTST_VBUS_OFF               1
 
 /* Bit array elements as returned by the USB_REQ_GET_STATUS request. */
 #define USB_DEV_STAT_U1_ENABLED		2	/* transition into U1 state */
@@ -381,18 +396,23 @@ struct usb_endpoint_descriptor {
 #define USB_ENDPOINT_NUMBER_MASK	0x0f	/* in bEndpointAddress */
 #define USB_ENDPOINT_DIR_MASK		0x80
 
-#define USB_ENDPOINT_SYNCTYPE		0x0c
-#define USB_ENDPOINT_SYNC_NONE		(0 << 2)
-#define USB_ENDPOINT_SYNC_ASYNC		(1 << 2)
-#define USB_ENDPOINT_SYNC_ADAPTIVE	(2 << 2)
-#define USB_ENDPOINT_SYNC_SYNC		(3 << 2)
-
 #define USB_ENDPOINT_XFERTYPE_MASK	0x03	/* in bmAttributes */
 #define USB_ENDPOINT_XFER_CONTROL	0
 #define USB_ENDPOINT_XFER_ISOC		1
 #define USB_ENDPOINT_XFER_BULK		2
 #define USB_ENDPOINT_XFER_INT		3
 #define USB_ENDPOINT_MAX_ADJUSTABLE	0x80
+
+#define USB_ENDPOINT_SYNCTYPE		0x0c
+#define USB_ENDPOINT_SYNC_NONE		(0 << 2)
+#define USB_ENDPOINT_SYNC_ASYNC		(1 << 2)
+#define USB_ENDPOINT_SYNC_ADAPTIVE	(2 << 2)
+#define USB_ENDPOINT_SYNC_SYNC		(3 << 2)
+
+#define USB_ENDPOINT_USAGE_MASK		0x30
+#define USB_ENDPOINT_USAGE_DATA		0x00
+#define USB_ENDPOINT_USAGE_FEEDBACK	0x10
+#define USB_ENDPOINT_USAGE_IMPLICIT_FB	0x20	/* Implicit feedback Data endpoint */
 
 /*-------------------------------------------------------------------------*/
 
@@ -574,6 +594,17 @@ static inline int usb_endpoint_is_isoc_out(
 	return usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_out(epd);
 }
 
+/**
+ * usb_endpoint_maxp - get endpoint's max packet size
+ * @epd: endpoint to be checked
+ *
+ * Returns @epd's max packet
+ */
+static inline int usb_endpoint_maxp(const struct usb_endpoint_descriptor *epd)
+{
+	return __le16_to_cpu(epd->wMaxPacketSize);
+}
+
 /*-------------------------------------------------------------------------*/
 
 /* USB_DT_SS_ENDPOINT_COMP: SuperSpeed Endpoint Companion descriptor */
@@ -587,8 +618,26 @@ struct usb_ss_ep_comp_descriptor {
 } __attribute__ ((packed));
 
 #define USB_DT_SS_EP_COMP_SIZE		6
+
 /* Bits 4:0 of bmAttributes if this is a bulk endpoint */
-#define USB_SS_MAX_STREAMS(p)		(1 << ((p) & 0x1f))
+static inline int
+usb_ss_max_streams(const struct usb_ss_ep_comp_descriptor *comp)
+{
+	int		max_streams;
+
+	if (!comp)
+		return 0;
+
+	max_streams = comp->bmAttributes & 0x1f;
+
+	if (!max_streams)
+		return 0;
+
+	max_streams = 1 << max_streams;
+
+	return max_streams;
+}
+
 /* Bits 1:0 of bmAttributes if this is an isoc endpoint */
 #define USB_SS_MULT(p)			(1 + ((p) & 0x3))
 
@@ -617,8 +666,10 @@ struct usb_otg_descriptor {
 	__u8  bDescriptorType;
 
 	__u8  bmAttributes;	/* support for HNP, SRP, etc */
+	__le16 bcdOTG;
 } __attribute__ ((packed));
 
+#define USB_DT_OTG_SIZE		5
 /* from usb_otg_descriptor.bmAttributes */
 #define USB_OTG_SRP		(1 << 0)
 #define USB_OTG_HNP		(1 << 1)	/* swap host/device roles */
@@ -753,6 +804,11 @@ struct usb_ext_cap_descriptor {		/* Link Power Management */
 	__u8  bDevCapabilityType;
 	__le32 bmAttributes;
 #define USB_LPM_SUPPORT			(1 << 1)	/* supports LPM */
+#define USB_BESL_SUPPORT		(1 << 2)	/* supports BESL */
+#define USB_BESL_BASELINE_VALID		(1 << 3)	/* Baseline BESL valid*/
+#define USB_BESL_DEEP_VALID		(1 << 4)	/* Deep BESL valid */
+#define USB_GET_BESL_BASELINE(p)	(((p) & (0xf << 8)) >> 8)
+#define USB_GET_BESL_DEEP(p)		(((p) & (0xf << 12)) >> 12)
 } __attribute__((packed));
 
 #define USB_DT_USB_EXT_CAP_SIZE	7
@@ -854,6 +910,18 @@ enum usb_device_speed {
 	USB_SPEED_WIRELESS,			/* wireless (usb 2.5) */
 	USB_SPEED_SUPER,			/* usb 3.0 */
 };
+
+#ifdef __KERNEL__
+
+/**
+ * usb_speed_string() - Returns human readable-name of the speed.
+ * @speed: The speed to return human-readable name for.  If it's not
+ *   any of the speeds defined in usb_device_speed enum, string for
+ *   USB_SPEED_UNKNOWN will be returned.
+ */
+extern const char *usb_speed_string(enum usb_device_speed speed);
+
+#endif
 
 enum usb_device_state {
 	/* NOTATTACHED isn't in the USB spec, and this state acts

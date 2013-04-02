@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,9 +18,9 @@
 #include <linux/elf.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <mach/msm_iomap.h>
-#include <mach/msm_xo.h>
 
 #include "peripheral-loader.h"
 #include "scm-pas.h"
@@ -47,42 +47,30 @@
 #define PLL8_STATUS			(MSM_CLK_CTL_BASE + 0x3158)
 #define CLK_HALT_MSS_SMPSS_MISC_STATE	(MSM_CLK_CTL_BASE + 0x2FDC)
 
-#define PROXY_VOTE_TIMEOUT		10000
-
 struct modem_data {
 	void __iomem *base;
 	unsigned long start_addr;
-	struct msm_xo_voter *pxo;
-	struct timer_list timer;
+	struct pil_device *pil;
+	struct clk *xo;
 };
 
-static int nop_verify_blob(struct pil_desc *pil, u32 phy_addr, size_t size)
+static int make_modem_proxy_votes(struct pil_desc *pil)
 {
+	int ret;
+	struct modem_data *drv = dev_get_drvdata(pil->dev);
+
+	ret = clk_prepare_enable(drv->xo);
+	if (ret) {
+		dev_err(pil->dev, "Failed to enable XO\n");
+		return ret;
+	}
 	return 0;
 }
 
-static void remove_proxy_votes(unsigned long data)
+static void remove_modem_proxy_votes(struct pil_desc *pil)
 {
-	struct modem_data *drv = (struct modem_data *)data;
-	msm_xo_mode_vote(drv->pxo, MSM_XO_MODE_OFF);
-}
-
-static void make_modem_proxy_votes(struct device *dev)
-{
-	int ret;
-	struct modem_data *drv = dev_get_drvdata(dev);
-
-	ret = msm_xo_mode_vote(drv->pxo, MSM_XO_MODE_ON);
-	if (ret)
-		dev_err(dev, "Failed to enable PXO\n");
-	mod_timer(&drv->timer, jiffies + msecs_to_jiffies(PROXY_VOTE_TIMEOUT));
-}
-
-static void remove_modem_proxy_votes_now(struct modem_data *drv)
-{
-	/* If the proxy vote hasn't been removed yet, remove it immediately. */
-	if (del_timer(&drv->timer))
-		remove_proxy_votes((unsigned long)drv);
+	struct modem_data *drv = dev_get_drvdata(pil->dev);
+	clk_disable_unprepare(drv->xo);
 }
 
 static int modem_init_image(struct pil_desc *pil, const u8 *metadata,
@@ -98,8 +86,6 @@ static int modem_reset(struct pil_desc *pil)
 {
 	u32 reg;
 	const struct modem_data *drv = dev_get_drvdata(pil->dev);
-
-	make_modem_proxy_votes(pil->dev);
 
 	/* Put modem AHB0,1,2 clocks into reset */
 	writel_relaxed(BIT(0) | BIT(1), MAHB0_SFAB_PORT_RESET);
@@ -178,7 +164,6 @@ static int modem_reset(struct pil_desc *pil)
 static int modem_shutdown(struct pil_desc *pil)
 {
 	u32 reg;
-	struct modem_data *drv = dev_get_drvdata(pil->dev);
 
 	/* Put modem into reset */
 	writel_relaxed(0x1, MARM_RESET);
@@ -212,16 +197,15 @@ static int modem_shutdown(struct pil_desc *pil)
 	/* Clear modem's votes for PLLs */
 	writel_relaxed(0x0, PLL_ENA_MARM);
 
-	remove_modem_proxy_votes_now(drv);
-
 	return 0;
 }
 
 static struct pil_reset_ops pil_modem_ops = {
 	.init_image = modem_init_image,
-	.verify_blob = nop_verify_blob,
 	.auth_and_reset = modem_reset,
 	.shutdown = modem_shutdown,
+	.proxy_vote = make_modem_proxy_votes,
+	.proxy_unvote = remove_modem_proxy_votes,
 };
 
 static int modem_init_image_trusted(struct pil_desc *pil, const u8 *metadata,
@@ -232,36 +216,20 @@ static int modem_init_image_trusted(struct pil_desc *pil, const u8 *metadata,
 
 static int modem_reset_trusted(struct pil_desc *pil)
 {
-	int ret;
-	struct modem_data *drv = dev_get_drvdata(pil->dev);
-
-	make_modem_proxy_votes(pil->dev);
-
-	ret = pas_auth_and_reset(PAS_MODEM);
-	if (ret)
-		remove_modem_proxy_votes_now(drv);
-
-	return ret;
+	return pas_auth_and_reset(PAS_MODEM);
 }
 
 static int modem_shutdown_trusted(struct pil_desc *pil)
 {
-	int ret;
-	struct modem_data *drv = dev_get_drvdata(pil->dev);
-
-	ret = pas_shutdown(PAS_MODEM);
-	if (ret)
-		return ret;
-
-	remove_modem_proxy_votes_now(drv);
-	return 0;
+	return pas_shutdown(PAS_MODEM);
 }
 
 static struct pil_reset_ops pil_modem_ops_trusted = {
 	.init_image = modem_init_image_trusted,
-	.verify_blob = nop_verify_blob,
 	.auth_and_reset = modem_reset_trusted,
 	.shutdown = modem_shutdown_trusted,
+	.proxy_vote = make_modem_proxy_votes,
+	.proxy_unvote = remove_modem_proxy_votes,
 };
 
 static int __devinit pil_modem_driver_probe(struct platform_device *pdev)
@@ -283,18 +251,19 @@ static int __devinit pil_modem_driver_probe(struct platform_device *pdev)
 	if (!drv->base)
 		return -ENOMEM;
 
-	drv->pxo = msm_xo_get(MSM_XO_PXO, dev_name(&pdev->dev));
-	if (IS_ERR(drv->pxo))
-		return PTR_ERR(drv->pxo);
+	drv->xo = devm_clk_get(&pdev->dev, "xo");
+	if (IS_ERR(drv->xo))
+		return PTR_ERR(drv->xo);
 
 	desc = devm_kzalloc(&pdev->dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 
-	setup_timer(&drv->timer, remove_proxy_votes, (unsigned long)drv);
 	desc->name = "modem";
 	desc->depends_on = "q6";
 	desc->dev = &pdev->dev;
+	desc->owner = THIS_MODULE;
+	desc->proxy_timeout = 10000;
 
 	if (pas_supported(PAS_MODEM) > 0) {
 		desc->ops = &pil_modem_ops_trusted;
@@ -303,10 +272,9 @@ static int __devinit pil_modem_driver_probe(struct platform_device *pdev)
 		desc->ops = &pil_modem_ops;
 		dev_info(&pdev->dev, "using non-secure boot\n");
 	}
-
-	if (msm_pil_register(desc)) {
-		msm_xo_put(drv->pxo);
-		return -EINVAL;
+	drv->pil = msm_pil_register(desc);
+	if (IS_ERR(drv->pil)) {
+		return PTR_ERR(drv->pil);
 	}
 	return 0;
 }
@@ -314,8 +282,7 @@ static int __devinit pil_modem_driver_probe(struct platform_device *pdev)
 static int __devexit pil_modem_driver_exit(struct platform_device *pdev)
 {
 	struct modem_data *drv = platform_get_drvdata(pdev);
-	del_timer_sync(&drv->timer);
-	msm_xo_put(drv->pxo);
+	msm_pil_unregister(drv->pil);
 	return 0;
 }
 

@@ -235,6 +235,9 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 	struct file *file;
 	s32 buffer_index = -1;
 	enum vdec_picture pic_type;
+	u32 ion_flag = 0;
+	struct ion_handle *buff_handle = NULL;
+	struct vdec_output_frameinfo  *output_frame;
 
 	if (!client_ctx || !vcd_frame_data) {
 		ERR("vid_dec_input_frame_done() NULL pointer\n");
@@ -268,7 +271,6 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 				      &phy_addr, &pmem_fd, &file,
 				      &buffer_index) ||
 		(vcd_frame_data->flags & VCD_FRAME_FLAG_EOS)) {
-
 		/* Buffer address in user space */
 		vdec_msg->vdec_msg_info.msgdata.output_frame.bufferaddr =
 		    (u8 *) user_vaddr;
@@ -328,13 +330,36 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 		}
 		vdec_msg->vdec_msg_info.msgdata.output_frame.pic_type =
 			pic_type;
+		output_frame = &vdec_msg->vdec_msg_info.msgdata.output_frame;
+		output_frame->aspect_ratio_info.aspect_ratio =
+			vcd_frame_data->aspect_ratio_info.aspect_ratio;
+		output_frame->aspect_ratio_info.par_width =
+			vcd_frame_data->aspect_ratio_info.extended_par_width;
+		output_frame->aspect_ratio_info.par_height =
+			vcd_frame_data->aspect_ratio_info.extended_par_height;
 		vdec_msg->vdec_msg_info.msgdatasize =
 		    sizeof(struct vdec_output_frameinfo);
 	} else {
 		ERR("vid_dec_output_frame_done UVA can not be found\n");
 		vdec_msg->vdec_msg_info.status_code = VDEC_S_EFATAL;
 	}
-
+	if (vcd_frame_data->data_len > 0) {
+		ion_flag = vidc_get_fd_info(client_ctx, BUFFER_TYPE_OUTPUT,
+				pmem_fd, kernel_vaddr, buffer_index,
+				&buff_handle);
+		if (ion_flag == CACHED && buff_handle) {
+			DBG("%s: Cache invalidate: vaddr (%p), "\
+				"size %u\n", __func__,
+				(void *)kernel_vaddr,
+				vcd_frame_data->alloc_len);
+			msm_ion_do_cache_op(client_ctx->user_ion_client,
+					buff_handle,
+					(unsigned long *) kernel_vaddr,
+					(unsigned long)vcd_frame_data->\
+					alloc_len,
+					ION_IOC_INV_CACHES);
+		}
+	}
 	mutex_lock(&client_ctx->msg_queue_lock);
 	list_add_tail(&vdec_msg->list, &client_ctx->msg_queue);
 	mutex_unlock(&client_ctx->msg_queue_lock);
@@ -616,6 +641,26 @@ static u32 vid_dec_set_frame_resolution(struct video_client_ctx *client_ctx,
 		return true;
 }
 
+static u32 vid_dec_set_turbo_clk(struct video_client_ctx *client_ctx)
+{
+	struct vcd_property_hdr vcd_property_hdr;
+	u32 vcd_status = VCD_ERR_FAIL;
+	u32 dummy = 0;
+
+	if (!client_ctx)
+		return false;
+	vcd_property_hdr.prop_id = VCD_I_SET_TURBO_CLK;
+	vcd_property_hdr.sz = sizeof(struct vcd_property_frame_size);
+
+	vcd_status = vcd_set_property(client_ctx->vcd_handle,
+				      &vcd_property_hdr, &dummy);
+
+	if (vcd_status)
+		return false;
+	else
+		return true;
+}
+
 static u32 vid_dec_get_frame_resolution(struct video_client_ctx *client_ctx,
 					struct vdec_picsize *video_resoultion)
 {
@@ -804,7 +849,9 @@ static u32 vid_dec_set_h264_mv_buffers(struct video_client_ctx *client_ctx,
 	u32 len = 0, flags = 0;
 	struct file *file;
 	int rc = 0;
-	unsigned long ionflag;
+	unsigned long ionflag = 0;
+	unsigned long buffer_size = 0;
+	unsigned long iova = 0;
 
 	if (!client_ctx || !mv_data)
 		return false;
@@ -831,13 +878,25 @@ static u32 vid_dec_set_h264_mv_buffers(struct video_client_ctx *client_ctx,
 			return false;
 		}
 		put_pmem_file(file);
+		flags = MSM_SUBSYSTEM_MAP_IOVA;
+		mapped_buffer = msm_subsystem_map_buffer(
+			(unsigned long)vcd_h264_mv_buffer->physical_addr, len,
+				flags, vidc_mmu_subsystem,
+				sizeof(vidc_mmu_subsystem)/
+				sizeof(unsigned int));
+		if (IS_ERR(mapped_buffer)) {
+			pr_err("buffer map failed");
+			return false;
+		}
+		vcd_h264_mv_buffer->client_data = (void *) mapped_buffer;
+		vcd_h264_mv_buffer->dev_addr = (u8 *)mapped_buffer->iova[0];
 	} else {
-		client_ctx->h264_mv_ion_handle = ion_import_fd(
+		client_ctx->h264_mv_ion_handle = ion_import_dma_buf(
 					client_ctx->user_ion_client,
 					vcd_h264_mv_buffer->pmem_fd);
-		if (!client_ctx->h264_mv_ion_handle) {
+		if (IS_ERR_OR_NULL(client_ctx->h264_mv_ion_handle)) {
 			ERR("%s(): get_ION_handle failed\n", __func__);
-			goto ion_error;
+			goto import_ion_error;
 		}
 		rc = ion_handle_get_flags(client_ctx->user_ion_client,
 					client_ctx->h264_mv_ion_handle,
@@ -845,7 +904,7 @@ static u32 vid_dec_set_h264_mv_buffers(struct video_client_ctx *client_ctx,
 		if (rc) {
 			ERR("%s():get_ION_flags fail\n",
 					 __func__);
-			goto ion_error;
+			goto import_ion_error;
 		}
 		vcd_h264_mv_buffer->kernel_virtual_addr = (u8 *) ion_map_kernel(
 			client_ctx->user_ion_client,
@@ -854,29 +913,40 @@ static u32 vid_dec_set_h264_mv_buffers(struct video_client_ctx *client_ctx,
 		if (!vcd_h264_mv_buffer->kernel_virtual_addr) {
 			ERR("%s(): get_ION_kernel virtual addr failed\n",
 				 __func__);
-			goto ion_error;
+			goto import_ion_error;
 		}
-		rc = ion_phys(client_ctx->user_ion_client,
+		if (res_trk_check_for_sec_session() ||
+		   (res_trk_get_core_type() == (u32)VCD_CORE_720P)) {
+			rc = ion_phys(client_ctx->user_ion_client,
 				client_ctx->h264_mv_ion_handle,
 				(unsigned long *) (&(vcd_h264_mv_buffer->
 				physical_addr)), &len);
-		if (rc) {
-			ERR("%s():get_ION_kernel physical addr fail\n",
-					 __func__);
-			goto ion_error;
+			if (rc) {
+				ERR("%s():get_ION_kernel physical addr fail\n",
+					__func__);
+				goto ion_map_error;
+			}
+			vcd_h264_mv_buffer->client_data = NULL;
+			vcd_h264_mv_buffer->dev_addr = (u8 *)
+				vcd_h264_mv_buffer->physical_addr;
+		} else {
+			rc = ion_map_iommu(client_ctx->user_ion_client,
+					client_ctx->h264_mv_ion_handle,
+					VIDEO_DOMAIN, VIDEO_MAIN_POOL,
+					SZ_4K, 0, (unsigned long *)&iova,
+					(unsigned long *)&buffer_size,
+					UNCACHED, 0);
+			if (rc || !iova) {
+				ERR(
+				"%s():get_ION_kernel physical addr fail, rc = %d iova = 0x%lx\n",
+					__func__, rc, iova);
+				goto ion_map_error;
+			}
+			vcd_h264_mv_buffer->physical_addr = (u8 *) iova;
+			vcd_h264_mv_buffer->client_data = NULL;
+			vcd_h264_mv_buffer->dev_addr = (u8 *) iova;
 		}
 	}
-	flags = MSM_SUBSYSTEM_MAP_IOVA;
-	mapped_buffer = msm_subsystem_map_buffer(
-		(unsigned long)vcd_h264_mv_buffer->physical_addr, len,
-			flags, vidc_mmu_subsystem,
-			sizeof(vidc_mmu_subsystem)/sizeof(unsigned int));
-	if (IS_ERR(mapped_buffer)) {
-		pr_err("buffer map failed");
-		return false;
-	}
-	vcd_h264_mv_buffer->client_data = (void *) mapped_buffer;
-	vcd_h264_mv_buffer->dev_addr = (u8 *)mapped_buffer->iova[0];
 	DBG("Virt: %p, Phys %p, fd: %d", vcd_h264_mv_buffer->
 		kernel_virtual_addr, vcd_h264_mv_buffer->physical_addr,
 		vcd_h264_mv_buffer->pmem_fd);
@@ -888,13 +958,18 @@ static u32 vid_dec_set_h264_mv_buffers(struct video_client_ctx *client_ctx,
 		return false;
 	else
 		return true;
-ion_error:
-	if (vcd_h264_mv_buffer->kernel_virtual_addr)
+ion_map_error:
+	if (vcd_h264_mv_buffer->kernel_virtual_addr) {
 		ion_unmap_kernel(client_ctx->user_ion_client,
 				client_ctx->h264_mv_ion_handle);
-	if (client_ctx->h264_mv_ion_handle)
+		vcd_h264_mv_buffer->kernel_virtual_addr = NULL;
+	}
+	if (!IS_ERR_OR_NULL(client_ctx->h264_mv_ion_handle)) {
 		ion_free(client_ctx->user_ion_client,
 			client_ctx->h264_mv_ion_handle);
+		 client_ctx->h264_mv_ion_handle = NULL;
+	}
+import_ion_error:
 	return false;
 }
 
@@ -962,11 +1037,19 @@ static u32 vid_dec_free_h264_mv_buffers(struct video_client_ctx *client_ctx)
 	vcd_status = vcd_set_property(client_ctx->vcd_handle,
 				      &vcd_property_hdr, &h264_mv_buffer_size);
 
-	if (client_ctx->h264_mv_ion_handle != NULL) {
+	if (!IS_ERR_OR_NULL(client_ctx->h264_mv_ion_handle)) {
 		ion_unmap_kernel(client_ctx->user_ion_client,
 					client_ctx->h264_mv_ion_handle);
+		if (!res_trk_check_for_sec_session() &&
+		   (res_trk_get_core_type() != (u32)VCD_CORE_720P)) {
+			ion_unmap_iommu(client_ctx->user_ion_client,
+				client_ctx->h264_mv_ion_handle,
+				VIDEO_DOMAIN,
+				VIDEO_MAIN_POOL);
+		}
 		ion_free(client_ctx->user_ion_client,
 					client_ctx->h264_mv_ion_handle);
+		 client_ctx->h264_mv_ion_handle = NULL;
 	}
 
 	if (vcd_status)
@@ -1034,7 +1117,6 @@ static u32 vid_dec_set_buffer(struct video_client_ctx *client_ctx,
 		    __func__, buffer_info->buffer.bufferaddr);
 		return false;
 	}
-
 	vcd_status = vcd_set_buffer(client_ctx->vcd_handle,
 		buffer, (u8 *) kernel_vaddr,
 		buffer_info->buffer.buffer_len);
@@ -1180,6 +1262,8 @@ static u32 vid_dec_decode_frame(struct video_client_ctx *client_ctx,
 	struct file *file;
 	s32 buffer_index = -1;
 	u32 vcd_status = VCD_ERR_FAIL;
+	u32 ion_flag = 0;
+	struct ion_handle *buff_handle = NULL;
 
 	if (!client_ctx || !input_frame_info)
 		return false;
@@ -1207,7 +1291,21 @@ static u32 vid_dec_decode_frame(struct video_client_ctx *client_ctx,
 		vcd_input_buffer.flags = input_frame_info->flags;
 		vcd_input_buffer.desc_buf = desc_buf;
 		vcd_input_buffer.desc_size = desc_size;
-
+		if (vcd_input_buffer.data_len > 0) {
+			ion_flag = vidc_get_fd_info(client_ctx,
+						BUFFER_TYPE_INPUT,
+						pmem_fd,
+						kernel_vaddr,
+						buffer_index,
+						&buff_handle);
+			if (ion_flag == CACHED && buff_handle) {
+				msm_ion_do_cache_op(client_ctx->user_ion_client,
+				buff_handle,
+				(unsigned long *)kernel_vaddr,
+				(unsigned long) vcd_input_buffer.data_len,
+				ION_IOC_CLEAN_CACHES);
+			}
+		}
 		vcd_status = vcd_decode_frame(client_ctx->vcd_handle,
 					      &vcd_input_buffer);
 		if (!vcd_status)
@@ -1232,6 +1330,7 @@ static u32 vid_dec_fill_output_buffer(struct video_client_ctx *client_ctx,
 	struct file *file;
 	s32 buffer_index = -1;
 	u32 vcd_status = VCD_ERR_FAIL;
+	struct ion_handle *buff_handle = NULL;
 
 	struct vcd_frame_data vcd_frame;
 
@@ -1250,7 +1349,12 @@ static u32 vid_dec_fill_output_buffer(struct video_client_ctx *client_ctx,
 		vcd_frame.virtual = (u8 *) kernel_vaddr;
 		vcd_frame.frm_clnt_data = (u32) fill_buffer_cmd->client_data;
 		vcd_frame.alloc_len = fill_buffer_cmd->buffer.buffer_len;
-
+		vcd_frame.ion_flag = vidc_get_fd_info(client_ctx,
+						 BUFFER_TYPE_OUTPUT,
+						pmem_fd, kernel_vaddr,
+						buffer_index,
+						&buff_handle);
+		vcd_frame.buff_ion_handle = buff_handle;
 		vcd_status = vcd_fill_output_buffer(client_ctx->vcd_handle,
 						    &vcd_frame);
 		if (!vcd_status)
@@ -1606,6 +1710,11 @@ static long vid_dec_ioctl(struct file *file,
 		}
 		break;
 	}
+	case VDEC_IOCTL_SET_PERF_CLK:
+	{
+		vid_dec_set_turbo_clk(client_ctx);
+		break;
+	}
 	case VDEC_IOCTL_FILL_OUTPUT_BUFFER:
 	{
 		struct vdec_fillbuffer_cmd fill_buffer_cmd;
@@ -1684,7 +1793,7 @@ static long vid_dec_ioctl(struct file *file,
 			}
 			put_pmem_file(pmem_file);
 		} else {
-			client_ctx->seq_hdr_ion_handle = ion_import_fd(
+			client_ctx->seq_hdr_ion_handle = ion_import_dma_buf(
 				client_ctx->user_ion_client,
 				seq_header.pmem_fd);
 			if (!client_ctx->seq_hdr_ion_handle) {

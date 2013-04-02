@@ -11,7 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
 #include <linux/delay.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 void __raw_spin_lock_init(raw_spinlock_t *lock, const char *name,
 			  struct lock_class_key *key)
@@ -49,25 +49,30 @@ void __rwlock_init(rwlock_t *lock, const char *name,
 
 EXPORT_SYMBOL(__rwlock_init);
 
-static void spin_bug(raw_spinlock_t *lock, const char *msg)
+static void spin_dump(raw_spinlock_t *lock, const char *msg)
 {
 	struct task_struct *owner = NULL;
-
-	if (!debug_locks_off())
-		return;
 
 	if (lock->owner && lock->owner != SPINLOCK_OWNER_INIT)
 		owner = lock->owner;
 	printk(KERN_EMERG "BUG: spinlock %s on CPU#%d, %s/%d\n",
 		msg, raw_smp_processor_id(),
 		current->comm, task_pid_nr(current));
-	printk(KERN_EMERG " lock: %p, .magic: %08x, .owner: %s/%d, "
+	printk(KERN_EMERG " lock: %ps, .magic: %08x, .owner: %s/%d, "
 			".owner_cpu: %d\n",
 		lock, lock->magic,
 		owner ? owner->comm : "<none>",
 		owner ? task_pid_nr(owner) : -1,
 		lock->owner_cpu);
 	dump_stack();
+}
+
+static void spin_bug(raw_spinlock_t *lock, const char *msg)
+{
+	if (!debug_locks_off())
+		return;
+
+	spin_dump(lock, msg);
 }
 
 #define SPIN_BUG_ON(cond, lock, msg) if (unlikely(cond)) spin_bug(lock, msg)
@@ -114,10 +119,10 @@ static void __spin_lock_debug(raw_spinlock_t *lock)
 		if (print_once) {
 			print_once = 0;
 			printk(KERN_EMERG "BUG: spinlock lockup on CPU#%d, "
-					"%s/%d, %p\n",
+					"%s/%d, %ps\n",
 				raw_smp_processor_id(), current->comm,
 				task_pid_nr(current), lock);
-			dump_stack();
+			spin_dump(lock, "lockup");
 #ifdef CONFIG_SMP
 			trigger_all_cpu_backtrace();
 #endif

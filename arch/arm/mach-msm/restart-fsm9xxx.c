@@ -18,11 +18,11 @@
 #include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 
 #define FEMTO_GPIO_PS_HOLD 161
 
-void arch_reset(char mode, const char *cmd)
+void fsm_restart(char mode, const char *cmd)
 {
 	pr_notice("Going down for restart now\n");
 	msleep(3000);

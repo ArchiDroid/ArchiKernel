@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -220,7 +220,7 @@ static int snddev_ecodec_open(struct msm_snddev_info *dev_info)
 		goto err_clk;
 	}
 
-	clk_enable(drv->ecodec_clk);
+	clk_prepare_enable(drv->ecodec_clk);
 
 	clk_reset(drv->ecodec_clk, CLK_RESET_DEASSERT);
 
@@ -260,7 +260,7 @@ int snddev_ecodec_close(struct msm_snddev_info *dev_info)
 
 		pr_info("%s: closing all devices\n", __func__);
 
-		clk_disable(drv->ecodec_clk);
+		clk_disable_unprepare(drv->ecodec_clk);
 		aux_pcm_gpios_free();
 
 		afe_close(PCM_RX);
@@ -344,7 +344,7 @@ int __init snddev_ecodec_init(void)
 	mutex_init(&drv->dev_lock);
 	drv->ref_cnt = 0;
 
-	drv->ecodec_clk = clk_get(NULL, "pcm_clk");
+	drv->ecodec_clk = clk_get_sys(NULL, "pcm_clk");
 	if (IS_ERR(drv->ecodec_clk)) {
 		pr_err("%s: could not get pcm_clk\n", __func__);
 		return PTR_ERR(drv->ecodec_clk);

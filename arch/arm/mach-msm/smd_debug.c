@@ -95,6 +95,61 @@ static int debug_f3(char *buf, int max)
 	return max;
 }
 
+static int debug_int_stats(char *buf, int max)
+{
+	int i = 0;
+	int subsys;
+	struct interrupt_stat *stats = interrupt_stats;
+	const char *subsys_name;
+
+	i += scnprintf(buf + i, max - i,
+		"   Subsystem    |     In    | Out (Hardcoded) |"
+		" Out (Configured) |\n");
+
+	for (subsys = 0; subsys < NUM_SMD_SUBSYSTEMS; ++subsys) {
+		subsys_name = smd_pid_to_subsystem(subsys);
+		if (subsys_name) {
+			i += scnprintf(buf + i, max - i,
+				"%-10s %4s | %9u |       %9u |        %9u |\n",
+				smd_pid_to_subsystem(subsys), "smd",
+				stats->smd_in_count,
+				stats->smd_out_hardcode_count,
+				stats->smd_out_config_count);
+
+			i += scnprintf(buf + i, max - i,
+				"%-10s %4s | %9u |       %9u |        %9u |\n",
+				smd_pid_to_subsystem(subsys), "smsm",
+				stats->smsm_in_count,
+				stats->smsm_out_hardcode_count,
+				stats->smsm_out_config_count);
+		}
+		++stats;
+	}
+
+	return i;
+}
+
+static int debug_int_stats_reset(char *buf, int max)
+{
+	int i = 0;
+	int subsys;
+	struct interrupt_stat *stats = interrupt_stats;
+
+	i += scnprintf(buf + i, max - i, "Resetting interrupt stats.\n");
+
+	for (subsys = 0; subsys < NUM_SMD_SUBSYSTEMS; ++subsys) {
+		stats->smd_in_count = 0;
+		stats->smd_out_hardcode_count = 0;
+		stats->smd_out_config_count = 0;
+		stats->smsm_in_count = 0;
+		stats->smsm_out_hardcode_count = 0;
+		stats->smsm_out_config_count = 0;
+		++stats;
+	}
+
+	return i;
+}
+
 static int debug_diag(char *buf, int max)
 {
 	int i = 0;
@@ -193,8 +248,9 @@ static int debug_read_diag_msg(char *buf, int max)
 }
 
 static int dump_ch(char *buf, int max, int n,
-		  struct smd_half_channel *s,
-		   struct smd_half_channel *r,
+		   void *half_ch_s,
+		   void *half_ch_r,
+		   struct smd_half_channel_access *half_ch_funcs,
 		   unsigned size)
 {
 	return scnprintf(
@@ -202,24 +258,28 @@ static int dump_ch(char *buf, int max, int n,
 		"ch%02d:"
 		" %8s(%04d/%04d) %c%c%c%c%c%c%c%c <->"
 		" %8s(%04d/%04d) %c%c%c%c%c%c%c%c : %5x\n", n,
-		chstate(s->state), s->tail, s->head,
-		s->fDSR ? 'D' : 'd',
-		s->fCTS ? 'C' : 'c',
-		s->fCD ? 'C' : 'c',
-		s->fRI ? 'I' : 'i',
-		s->fHEAD ? 'W' : 'w',
-		s->fTAIL ? 'R' : 'r',
-		s->fSTATE ? 'S' : 's',
-		s->fBLOCKREADINTR ? 'B' : 'b',
-		chstate(r->state), r->tail, r->head,
-		r->fDSR ? 'D' : 'd',
-		r->fCTS ? 'R' : 'r',
-		r->fCD ? 'C' : 'c',
-		r->fRI ? 'I' : 'i',
-		r->fHEAD ? 'W' : 'w',
-		r->fTAIL ? 'R' : 'r',
-		r->fSTATE ? 'S' : 's',
-		r->fBLOCKREADINTR ? 'B' : 'b',
+		chstate(half_ch_funcs->get_state(half_ch_s)),
+		half_ch_funcs->get_tail(half_ch_s),
+		half_ch_funcs->get_head(half_ch_s),
+		half_ch_funcs->get_fDSR(half_ch_s) ? 'D' : 'd',
+		half_ch_funcs->get_fCTS(half_ch_s) ? 'C' : 'c',
+		half_ch_funcs->get_fCD(half_ch_s) ? 'C' : 'c',
+		half_ch_funcs->get_fRI(half_ch_s) ? 'I' : 'i',
+		half_ch_funcs->get_fHEAD(half_ch_s) ? 'W' : 'w',
+		half_ch_funcs->get_fTAIL(half_ch_s) ? 'R' : 'r',
+		half_ch_funcs->get_fSTATE(half_ch_s) ? 'S' : 's',
+		half_ch_funcs->get_fBLOCKREADINTR(half_ch_s) ? 'B' : 'b',
+		chstate(half_ch_funcs->get_state(half_ch_r)),
+		half_ch_funcs->get_tail(half_ch_r),
+		half_ch_funcs->get_head(half_ch_r),
+		half_ch_funcs->get_fDSR(half_ch_r) ? 'D' : 'd',
+		half_ch_funcs->get_fCTS(half_ch_r) ? 'C' : 'c',
+		half_ch_funcs->get_fCD(half_ch_r) ? 'C' : 'c',
+		half_ch_funcs->get_fRI(half_ch_r) ? 'I' : 'i',
+		half_ch_funcs->get_fHEAD(half_ch_r) ? 'W' : 'w',
+		half_ch_funcs->get_fTAIL(half_ch_r) ? 'R' : 'r',
+		half_ch_funcs->get_fSTATE(half_ch_r) ? 'S' : 's',
+		half_ch_funcs->get_fBLOCKREADINTR(half_ch_r) ? 'B' : 'b',
 		size
 		);
 }
@@ -487,19 +547,33 @@ static int debug_read_ch(char *buf, int max)
 {
 	void *shared;
 	int n, i = 0;
+	struct smd_alloc_elm *ch_tbl;
+	unsigned ch_type;
+	unsigned shared_size;
+
+	ch_tbl = smem_find(ID_CH_ALLOC_TBL, sizeof(*ch_tbl) * 64);
+	if (!ch_tbl)
+		goto fail;
 
 	for (n = 0; n < SMD_CHANNELS; n++) {
+		ch_type = SMD_CHANNEL_TYPE(ch_tbl[n].type);
+		if (is_word_access_ch(ch_type))
+			shared_size =
+				sizeof(struct smd_half_channel_word_access);
+		else
+			shared_size = sizeof(struct smd_half_channel);
 		shared = smem_find(ID_SMD_CHANNELS + n,
-				   2 * (sizeof(struct smd_half_channel) +
-					SMD_BUF_SIZE));
+				2 * shared_size + SMD_BUF_SIZE);
 
 		if (shared == 0)
 			continue;
 		i += dump_ch(buf + i, max - i, n, shared,
-			     (shared + sizeof(struct smd_half_channel) +
-			      SMD_BUF_SIZE), SMD_BUF_SIZE);
+			     (shared + shared_size +
+			     SMD_BUF_SIZE), get_half_ch_funcs(ch_type),
+			     SMD_BUF_SIZE);
 	}
 
+fail:
 	return i;
 }
 #else
@@ -508,10 +582,23 @@ static int debug_read_ch(char *buf, int max)
 	void *shared, *buffer;
 	unsigned buffer_sz;
 	int n, i = 0;
+	struct smd_alloc_elm *ch_tbl;
+	unsigned ch_type;
+	unsigned shared_size;
+
+	ch_tbl = smem_find(ID_CH_ALLOC_TBL, sizeof(*ch_tbl) * 64);
+	if (!ch_tbl)
+		goto fail;
 
 	for (n = 0; n < SMD_CHANNELS; n++) {
-		shared = smem_find(ID_SMD_CHANNELS + n,
-				   2 * sizeof(struct smd_half_channel));
+		ch_type = SMD_CHANNEL_TYPE(ch_tbl[n].type);
+		if (is_word_access_ch(ch_type))
+			shared_size =
+				sizeof(struct smd_half_channel_word_access);
+		else
+			shared_size = sizeof(struct smd_half_channel);
+
+		shared = smem_find(ID_SMD_CHANNELS + n, 2 * shared_size);
 
 		if (shared == 0)
 			continue;
@@ -522,10 +609,12 @@ static int debug_read_ch(char *buf, int max)
 			continue;
 
 		i += dump_ch(buf + i, max - i, n, shared,
-			     (shared + sizeof(struct smd_half_channel)),
+			     (shared + shared_size),
+			     get_half_ch_funcs(ch_type),
 			     buffer_sz / 2);
 	}
 
+fail:
 	return i;
 }
 #endif
@@ -659,18 +748,12 @@ static ssize_t debug_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, count, ppos, debug_buffer, bsize);
 }
 
-static int debug_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static const struct file_operations debug_ops = {
 	.read = debug_read,
-	.open = debug_open,
+	.open = simple_open,
 };
 
-static void debug_create(const char *name, mode_t mode,
+static void debug_create(const char *name, umode_t mode,
 			 struct dentry *dent,
 			 int (*fill)(char *buf, int max))
 {
@@ -694,6 +777,8 @@ static int __init smd_debugfs_init(void)
 	debug_create("modem_err_f3", 0444, dent, debug_modem_err_f3);
 	debug_create("print_diag", 0444, dent, debug_diag);
 	debug_create("print_f3", 0444, dent, debug_f3);
+	debug_create("int_stats", 0444, dent, debug_int_stats);
+	debug_create("int_stats_reset", 0444, dent, debug_int_stats_reset);
 
 	/* NNV: this is google only stuff */
 	debug_create("build", 0444, dent, debug_read_build_id);

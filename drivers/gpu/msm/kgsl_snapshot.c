@@ -10,6 +10,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/export.h>
 #include <linux/time.h>
 #include <linux/sysfs.h>
 #include <linux/utsname.h>

@@ -14,5 +14,10 @@ obj-$(CONFIG_LGE_FACTORY) += userDataBackUpDiag.o
 obj-$(CONFIG_LGE_FACTORY) += lge_diag_eri.o
 obj-$(CONFIG_LGE_FACTORY) += lg_diag_dload.o
 
-obj-$(CONFIG_LGE_BOARD_SUPPORT) += devices_lge.o
-obj-$(CONFIG_LGE_ERROR_HANDLER) += lge_test.o
+obj-$(CONFIG_LGE_DIAGTEST) += lg_fw_helper.o
+
+#[jinseok.choi@lge.com]2012-11-22 U0 emmc access via kernel [START]
+obj-$(CONFIG_LGE_FW_HELPER) += lg_fw_helper_u0.o
+#[jinseok.choi@lge.com]2012-11-22 U0 emmc access via kernel [END]
+
+#obj-$(CONFIG_LGE_BOARD_SUPPORT) += devices_lge.o

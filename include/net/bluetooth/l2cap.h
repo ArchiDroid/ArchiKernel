@@ -51,7 +51,7 @@
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
 #define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
-#define L2CAP_MOVE_TIMEOUT		(2*HZ)  /*  2 seconds */
+#define L2CAP_MOVE_TIMEOUT		(4*HZ)  /*  4 seconds */
 #define L2CAP_MOVE_ERTX_TIMEOUT		(60*HZ) /* 60 seconds */
 
 /* L2CAP socket address */
@@ -294,8 +294,6 @@ struct l2cap_conf_ext_fs {
 
 struct l2cap_conf_prm {
 	__u8       fcs;
-	__le16     retrans_timeout;
-	__le16     monitor_timeout;
 	__le32     flush_to;
 };
 
@@ -491,6 +489,7 @@ struct l2cap_pinfo {
 	__u8		fixed_channel;
 	__u8		num_conf_req;
 	__u8		num_conf_rsp;
+	__u8		incoming;
 
 	__u8		fcs;
 	__u8		sec_level;
@@ -535,6 +534,7 @@ struct l2cap_pinfo {
 
 	__u16		tx_win;
 	__u16		tx_win_max;
+	__u16		ack_win;
 	__u8		max_tx;
 	__u8		amp_pref;
 	__u16		remote_tx_win;
@@ -650,15 +650,18 @@ struct l2cap_pinfo {
 #define L2CAP_AMP_STATE_RESEGMENT		12
 
 #define L2CAP_ATT_ERROR				0x01
+#define L2CAP_ATT_MTU_REQ			0x02
+#define L2CAP_ATT_MTU_RSP			0x03
 #define L2CAP_ATT_RESPONSE_BIT			0x01
 #define L2CAP_ATT_INDICATE			0x1D
+#define L2CAP_ATT_CONFIRM			0x1E
 #define L2CAP_ATT_NOT_SUPPORTED			0x06
 
 #define __delta_seq(x, y, pi) ((x) >= (y) ? (x) - (y) : \
 				(pi)->tx_win_max + 1 - (y) + (x))
 #define __next_seq(x, pi) ((x + 1) & ((pi)->tx_win_max))
 
-extern int disable_ertm;
+extern bool disable_ertm;
 extern const struct proto_ops l2cap_sock_ops;
 extern struct bt_sock_list l2cap_sk_list;
 
@@ -684,6 +687,7 @@ int l2cap_strm_tx(struct sock *sk, struct sk_buff_head *skbs);
 int l2cap_ertm_tx(struct sock *sk, struct bt_l2cap_control *control,
 			struct sk_buff_head *skbs, u8 event);
 
+int l2cap_sock_le_params_valid(struct bt_le_params *le_params);
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
 void l2cap_sock_clear_timer(struct sock *sk);
 void __l2cap_sock_close(struct sock *sk, int reason);
@@ -691,6 +695,8 @@ void l2cap_sock_kill(struct sock *sk);
 void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
+struct sock *l2cap_find_sock_by_fixed_cid_and_dir(__le16 cid, bdaddr_t *src,
+						bdaddr_t *dst, int server);
 void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int err);
 void l2cap_chan_del(struct sock *sk, int err);
 int l2cap_do_connect(struct sock *sk);

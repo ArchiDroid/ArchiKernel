@@ -1,10 +1,12 @@
+ifeq ($(CONFIG_FB_MSM_MDSS),y)
+obj-y += mdss/
+else
 obj-y := msm_fb.o
 
 obj-$(CONFIG_FB_MSM_LOGO) += logo.o
 obj-$(CONFIG_FB_BACKLIGHT) += msm_fb_bl.o
 
 ifeq ($(CONFIG_FB_MSM_MDP_HW),y)
-
 # MDP
 obj-y += mdp.o
 
@@ -58,6 +60,9 @@ obj-$(CONFIG_FB_MSM_EBI2) += ebi2_lcd.o
 # LCDC
 obj-$(CONFIG_FB_MSM_LCDC) += lcdc.o
 
+# LVDS
+obj-$(CONFIG_FB_MSM_LVDS) += lvds.o
+
 # MDDI
 msm_mddi-objs := mddi.o mddihost.o mddihosti.o
 obj-$(CONFIG_FB_MSM_MDDI) += msm_mddi.o
@@ -76,13 +81,19 @@ obj-$(CONFIG_FB_MSM_MIPI_DSI_NOVATEK) += mipi_novatek.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_ORISE) += mipi_orise.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_RENESAS) += mipi_renesas.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TRULY) += mipi_truly.o
-#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
-obj-$(CONFIG_FB_MSM_MIPI_DSI_R61529) += mipi_r61529.o
-obj-$(CONFIG_FB_MSM_MIPI_DSI_ILI9486) += mipi_ili9486.o
-obj-$(CONFIG_FB_MSM_MIPI_DSI_LG4572B) += mipi_lg4572b.o
-obj-$(CONFIG_FB_MSM_MIPI_DSI_LG4573B) += mipi_lg4573b.o
-#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+obj-$(CONFIG_FB_MSM_MIPI_DSI_NT35510) += mipi_NT35510.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_NT35516) += mipi_truly_tft540960_1_e.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_SIMULATOR) += mipi_simulator.o
+#LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
+obj-$(CONFIG_FB_MSM_MIPI_DSI_LG4573B) += mipi_lg4573b.o
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
+#LGE_CHANGE_S : sohyun.nam@lge.com ,2012-10-17
+obj-$(CONFIG_FB_MSM_MIPI_DSI_ILI9486) += mipi_ili9486.o
+#LGE_CHANGE_E : sohyun.nam@lge.com ,2012-10-17
+#LGE_CHANGE_S : sohyun.nam@lge.com ,2012-12-20
+obj-$(CONFIG_FB_MSM_MIPI_DSI_HX8379A) += mipi_hx8379a.o
+#LGE_CHANGE_E : sohyun.nam@lge.com ,2012-12-20
+
 # MIPI Bridge
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TC358764_DSI2LVDS) += mipi_tc358764_dsi2lvds.o
 
@@ -96,6 +107,7 @@ endif
 obj-y += msm_fb_panel.o
 obj-$(CONFIG_FB_MSM_EBI2_TMD_QVGA_EPSON_QCIF) += ebi2_tmd20.o
 obj-$(CONFIG_FB_MSM_EBI2_TMD_QVGA_EPSON_QCIF) += ebi2_l2f.o
+obj-$(CONFIG_FB_MSM_EBI2_TOVIS_QVGA) += ebi2_tovis.o
 
 ifeq ($(CONFIG_FB_MSM_MDDI_AUTO_DETECT),y)
 obj-y += mddi_prism.o
@@ -122,9 +134,8 @@ obj-y += mipi_toshiba_video_wvga_pt.o mipi_toshiba_video_wsvga_pt.o mipi_toshiba
 obj-y += mipi_novatek_video_qhd_pt.o mipi_novatek_cmd_qhd_pt.o
 obj-y += mipi_orise_video_720p_pt.o mipi_orise_cmd_720p_pt.o
 obj-y += mipi_renesas_video_fwvga_pt.o mipi_renesas_cmd_fwvga_pt.o
-#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
-obj-y += mipi_r61529_video_hvga_pt.o mipi_r61529_cmd_hvga_pt.o
-#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+obj-y += mipi_NT35510_video_wvga_pt.o mipi_NT35510_cmd_wvga_pt.o
+obj-y += mipi_truly_tft540960_1_e_video_qhd_pt.o mipi_truly_tft540960_1_e_cmd_qhd_pt.o
 obj-y += mipi_chimei_wxga_pt.o
 obj-y += mipi_chimei_wuxga.o
 obj-y += mipi_truly_video_wvga_pt.o
@@ -138,20 +149,25 @@ obj-$(CONFIG_FB_MSM_MIPI_ORISE_CMD_720P_PT) += mipi_orise_cmd_720p_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_NOVATEK_CMD_QHD_PT) += mipi_novatek_cmd_qhd_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT) += mipi_renesas_video_fwvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_RENESAS_CMD_FWVGA_PT) += mipi_renesas_cmd_fwvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_RENESAS_VIDEO_FWVGA_PT) += mipi_renesas_video_fwvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_TRULY_VIDEO_WVGA_PT) += mipi_truly_video_wvga_pt.o
-#LGE_CHANGE_S, [youngbae.choi@lge.com] , 2011-12-08
-obj-$(CONFIG_FB_MSM_MIPI_R61529_VIDEO_HVGA_PT) += mipi_r61529_video_hvga_pt.o
-obj-$(CONFIG_FB_MSM_MIPI_R61529_CMD_HVGA_PT) += mipi_r61529_cmd_hvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_NT35510_CMD_WVGA_PT) += mipi_NT35510_cmd_wvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_NT35510_VIDEO_WVGA_PT) += mipi_NT35510_video_wvga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_NT35516_CMD_QHD_PT) += mipi_truly_tft540960_1_e_cmd_qhd_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_NT35516_VIDEO_QHD_PT) += mipi_truly_tft540960_1_e_video_qhd_pt.o
+#LGE_CHANGE_S : sohyun.nam@lge.com ,2012-10-17
 obj-$(CONFIG_FB_MSM_MIPI_ILI9486_VIDEO_HVGA_PT) += mipi_ili9486_video_hvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_ILI9486_CMD_HVGA_PT) += mipi_ili9486_cmd_hvga_pt.o
-#LGE_CHANGE_E, [youngbae.choi@lge.com] , 2011-12-08
+#LGE_CHANGE_E : sohyun.nam@lge.com ,2012-10-17
 obj-$(CONFIG_FB_MSM_MIPI_SIMULATOR_VIDEO) += mipi_simulator_video.o
 obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WXGA) += mipi_chimei_wxga_pt.o
+obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WUXGA) += mipi_chimei_wuxga.o
 #LGE_CHANGE_S : seven.kim@lge.com kernel3.0 porting
-obj-$(CONFIG_FB_MSM_MIPI_LG4572B_CMD_WVGA_PT) += mipi_lg4572b_cmd_wvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_LG4573B_VIDEO_WVGA_PT) += mipi_lg4573b_video_wvga_pt.o
 #LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
-obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WUXGA) += mipi_chimei_wuxga.o
+#LGE_CHANGE_S : sohyun.nam@lge.com ,2012-12-20
+obj-$(CONFIG_FB_MSM_MIPI_HX8379A_VIDEO_WVGA_PT) += mipi_hx8379a_video_wvga_pt.o
+#LGE_CHANGE_S : sohyun.nam@lge.com ,2012-12-20
 endif
 
 obj-$(CONFIG_FB_MSM_LCDC_PANEL) += lcdc_panel.o
@@ -170,25 +186,33 @@ obj-$(CONFIG_FB_MSM_LCDC_AUO_WVGA) += lcdc_auo_wvga.o
 obj-$(CONFIG_FB_MSM_LCDC_SAMSUNG_OLED_PT) += lcdc_samsung_oled_pt.o
 obj-$(CONFIG_FB_MSM_HDMI_ADV7520_PANEL) += adv7520.o
 obj-$(CONFIG_FB_MSM_LCDC_ST15_WXGA) += lcdc_st15.o
+obj-$(CONFIG_FB_MSM_LVDS_CHIMEI_WXGA) += lvds_chimei_wxga.o
+obj-$(CONFIG_FB_MSM_LVDS_FRC_FHD) += lvds_frc_fhd.o
 obj-$(CONFIG_FB_MSM_HDMI_MSM_PANEL) += hdmi_msm.o
 obj-$(CONFIG_FB_MSM_EXT_INTERFACE_COMMON) += external_common.o
+obj-$(CONFIG_FB_MSM_LCDC_TRULY_HVGA_IPS3P2335) += lcdc_truly_ips3p2335.o
 
 obj-$(CONFIG_FB_MSM_TVOUT) += tvout_msm.o
+
+ccflags-y := -I$(src)/mhl
+obj-$(CONFIG_FB_MSM_HDMI_MHL_8334) += mhl-8334.o
+mhl-8334-objs  += mhl/mhl_8334.o
+mhl-8334-objs  += mhl/mhl_i2c_utils.o
 
 obj-$(CONFIG_FB_MSM_EXTMDDI_SVGA) += mddi_ext_lcd.o
 
 obj-$(CONFIG_FB_MSM_WRITEBACK_MSM_PANEL) += mdp4_wfd_writeback_panel.o
 obj-$(CONFIG_FB_MSM_WRITEBACK_MSM_PANEL) += mdp4_wfd_writeback.o
 obj-$(CONFIG_FB_MSM_WRITEBACK_MSM_PANEL) += mdp4_overlay_writeback.o
-
-obj-$(CONFIG_MSM_VIDC_1080P) += vidc/
-obj-$(CONFIG_MSM_VIDC_720P) += vidc/
 else
 obj-$(CONFIG_FB_MSM_EBI2) += ebi2_host.o
 obj-$(CONFIG_FB_MSM_EBI2) += ebi2_lcd.o
 obj-y += msm_fb_panel.o
 obj-$(CONFIG_FB_MSM_EBI2_EPSON_S1D_QVGA_PANEL) += ebi2_epson_s1d_qvga.o
 endif
+endif
 
+obj-$(CONFIG_MSM_VIDC_1080P) += vidc/
+obj-$(CONFIG_MSM_VIDC_720P) += vidc/
 clean:
 	rm *.o .*cmd

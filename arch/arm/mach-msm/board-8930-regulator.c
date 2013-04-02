@@ -30,6 +30,9 @@ VREG_CONSUMERS(L2) = {
 	REGULATOR_SUPPLY("8038_l2",		NULL),
 	REGULATOR_SUPPLY("iris_vdddig",		"wcnss_wlan.0"),
 	REGULATOR_SUPPLY("dsi_vdda",		"mipi_dsi.1"),
+	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.0"),
+	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.1"),
+	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.2"),
 };
 VREG_CONSUMERS(L3) = {
 	REGULATOR_SUPPLY("8038_l3",		NULL),
@@ -42,9 +45,11 @@ VREG_CONSUMERS(L4) = {
 };
 VREG_CONSUMERS(L5) = {
 	REGULATOR_SUPPLY("8038_l5",		NULL),
+	REGULATOR_SUPPLY("sdc_vdd",		"msm_sdcc.1"),
 };
 VREG_CONSUMERS(L6) = {
 	REGULATOR_SUPPLY("8038_l6",		NULL),
+	REGULATOR_SUPPLY("sdc_vdd",		"msm_sdcc.3"),
 };
 VREG_CONSUMERS(L7) = {
 	REGULATOR_SUPPLY("8038_l7",		NULL),
@@ -57,6 +62,16 @@ VREG_CONSUMERS(L9) = {
 	REGULATOR_SUPPLY("8038_l9",		NULL),
 	REGULATOR_SUPPLY("vdd_ana",		"3-004a"),
 	REGULATOR_SUPPLY("vdd",			"3-0024"),
+	REGULATOR_SUPPLY("cam_vana",		"4-001a"),
+	REGULATOR_SUPPLY("cam_vana",		"4-006c"),
+	REGULATOR_SUPPLY("cam_vana",		"4-0048"),
+	REGULATOR_SUPPLY("cam_vaf",		"4-001a"),
+	REGULATOR_SUPPLY("cam_vaf",		"4-006c"),
+	REGULATOR_SUPPLY("cam_vaf",		"4-0048"),
+	REGULATOR_SUPPLY("cam_vana",            "4-0020"),
+	REGULATOR_SUPPLY("cam_vaf",             "4-0020"),
+	REGULATOR_SUPPLY("vdd",			"12-0018"),
+	REGULATOR_SUPPLY("vdd",			"12-0068"),
 };
 VREG_CONSUMERS(L10) = {
 	REGULATOR_SUPPLY("8038_l10",		NULL),
@@ -67,12 +82,26 @@ VREG_CONSUMERS(L11) = {
 	REGULATOR_SUPPLY("vdd_dig",		"3-004a"),
 	REGULATOR_SUPPLY("iris_vddio",		"wcnss_wlan.0"),
 	REGULATOR_SUPPLY("riva_vddpx",		"wcnss_wlan.0"),
+	REGULATOR_SUPPLY("sdc_vdd_io",		"msm_sdcc.1"),
+	REGULATOR_SUPPLY("VDDIO_CDC",		"sitar-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_TX",		"sitar-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_RX",		"sitar-slim"),
+	REGULATOR_SUPPLY("VDDIO_CDC",		"sitar1p1-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_TX",		"sitar1p1-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_RX",		"sitar1p1-slim"),
+	REGULATOR_SUPPLY("vddp",		"0-0048"),
+	REGULATOR_SUPPLY("mhl_iovcc18",		"0-0039"),
 };
 VREG_CONSUMERS(L12) = {
 	REGULATOR_SUPPLY("8038_l12",		NULL),
+	REGULATOR_SUPPLY("cam_vdig",		"4-001a"),
+	REGULATOR_SUPPLY("cam_vdig",		"4-006c"),
+	REGULATOR_SUPPLY("cam_vdig",		"4-0048"),
+	REGULATOR_SUPPLY("cam_vdig",            "4-0020"),
 };
 VREG_CONSUMERS(L14) = {
 	REGULATOR_SUPPLY("8038_l14",		NULL),
+	REGULATOR_SUPPLY("pa_therm",		"pm8xxx-adc"),
 };
 VREG_CONSUMERS(L15) = {
 	REGULATOR_SUPPLY("8038_l15",		NULL),
@@ -93,18 +122,27 @@ VREG_CONSUMERS(L19) = {
 };
 VREG_CONSUMERS(L20) = {
 	REGULATOR_SUPPLY("8038_l20",		NULL),
+	REGULATOR_SUPPLY("VDDD_CDC_D",		"sitar-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_A_1P2V",	"sitar-slim"),
+	REGULATOR_SUPPLY("VDDD_CDC_D",		"sitar1p1-slim"),
+	REGULATOR_SUPPLY("CDC_VDDA_A_1P2V",	"sitar1p1-slim"),
+	REGULATOR_SUPPLY("mhl_avcc12",		"0-0039"),
 };
 VREG_CONSUMERS(L21) = {
 	REGULATOR_SUPPLY("8038_l21",		NULL),
 };
 VREG_CONSUMERS(L22) = {
 	REGULATOR_SUPPLY("8038_l22",		NULL),
+	REGULATOR_SUPPLY("sdc_vdd_io",		"msm_sdcc.3"),
 };
 VREG_CONSUMERS(L23) = {
 	REGULATOR_SUPPLY("8038_l23",		NULL),
 	REGULATOR_SUPPLY("dsi_vddio",		"mipi_dsi.1"),
 	REGULATOR_SUPPLY("hdmi_avdd",		"hdmi_msm.0"),
 	REGULATOR_SUPPLY("hdmi_vcc",		"hdmi_msm.0"),
+	REGULATOR_SUPPLY("pll_vdd",		"pil_riva"),
+	REGULATOR_SUPPLY("pll_vdd",		"pil_qdsp6v4.1"),
+	REGULATOR_SUPPLY("pll_vdd",		"pil_qdsp6v4.2"),
 };
 VREG_CONSUMERS(L24) = {
 	REGULATOR_SUPPLY("8038_l24",		NULL),
@@ -119,7 +157,6 @@ VREG_CONSUMERS(L27) = {
 };
 VREG_CONSUMERS(S1) = {
 	REGULATOR_SUPPLY("8038_s1",		NULL),
-	REGULATOR_SUPPLY("HSUSB_VDDCX",		"msm_otg"),
 	REGULATOR_SUPPLY("riva_vddcx",		"wcnss_wlan.0"),
 };
 VREG_CONSUMERS(S2) = {
@@ -130,31 +167,48 @@ VREG_CONSUMERS(S3) = {
 };
 VREG_CONSUMERS(S4) = {
 	REGULATOR_SUPPLY("8038_s4",		NULL),
+	REGULATOR_SUPPLY("CDC_VDD_CP",		"sitar-slim"),
+	REGULATOR_SUPPLY("CDC_VDD_CP",		"sitar1p1-slim"),
 };
 VREG_CONSUMERS(S5) = {
 	REGULATOR_SUPPLY("8038_s5",		NULL),
-	REGULATOR_SUPPLY("krait0",		NULL),
+	REGULATOR_SUPPLY("krait0",		"acpuclk-8627"),
+	REGULATOR_SUPPLY("krait0",		"acpuclk-8930"),
+	REGULATOR_SUPPLY("krait0",		"acpuclk-8930aa"),
 };
 VREG_CONSUMERS(S6) = {
 	REGULATOR_SUPPLY("8038_s6",		NULL),
-	REGULATOR_SUPPLY("krait1",		NULL),
+	REGULATOR_SUPPLY("krait1",		"acpuclk-8627"),
+	REGULATOR_SUPPLY("krait1",		"acpuclk-8930"),
+	REGULATOR_SUPPLY("krait1",		"acpuclk-8930aa"),
 };
 VREG_CONSUMERS(LVS1) = {
 	REGULATOR_SUPPLY("8038_lvs1",		NULL),
+	REGULATOR_SUPPLY("cam_vio",		"4-001a"),
+	REGULATOR_SUPPLY("cam_vio",		"4-006c"),
+	REGULATOR_SUPPLY("cam_vio",		"4-0048"),
+	REGULATOR_SUPPLY("cam_vio",             "4-0020"),
 };
 VREG_CONSUMERS(LVS2) = {
 	REGULATOR_SUPPLY("8038_lvs2",		NULL),
 	REGULATOR_SUPPLY("vcc_i2c",		"3-004a"),
 	REGULATOR_SUPPLY("vcc_i2c",		"3-0024"),
-	REGULATOR_SUPPLY("vddp",		"12-0048"),
+	REGULATOR_SUPPLY("vcc_i2c",		"0-0048"),
+	REGULATOR_SUPPLY("vddio",		"12-0018"),
+	REGULATOR_SUPPLY("vlogic",		"12-0068"),
 };
 VREG_CONSUMERS(EXT_5V) = {
 	REGULATOR_SUPPLY("ext_5v",		NULL),
 	REGULATOR_SUPPLY("hdmi_mvs",		"hdmi_msm.0"),
+	REGULATOR_SUPPLY("mhl_usb_hs_switch",	"msm_otg"),
 };
 VREG_CONSUMERS(EXT_OTG_SW) = {
 	REGULATOR_SUPPLY("ext_otg_sw",		NULL),
 	REGULATOR_SUPPLY("vbus_otg",		"msm_otg"),
+};
+VREG_CONSUMERS(VDD_DIG_CORNER) = {
+	REGULATOR_SUPPLY("vdd_dig_corner",	NULL),
+	REGULATOR_SUPPLY("hsusb_vdd_dig",	"msm_otg"),
 };
 
 #define PM8XXX_VREG_INIT(_id, _name, _min_uV, _max_uV, _modes, _ops, \
@@ -252,6 +306,113 @@ VREG_CONSUMERS(EXT_OTG_SW) = {
 		.pin_ctrl	= _pin_ctrl, \
 	}
 
+#define RPM_INIT(_id, _min_uV, _max_uV, _modes, _ops, _apply_uV, _default_uV, \
+		 _peak_uA, _avg_uA, _pull_down, _pin_ctrl, _freq, _pin_fn, \
+		 _force_mode, _sleep_set_force_mode, _power_mode, _state, \
+		 _sleep_selectable, _always_on, _supply_regulator, _system_uA) \
+	{ \
+		.init_data = { \
+			.constraints = { \
+				.valid_modes_mask	= _modes, \
+				.valid_ops_mask		= _ops, \
+				.min_uV			= _min_uV, \
+				.max_uV			= _max_uV, \
+				.input_uV		= _min_uV, \
+				.apply_uV		= _apply_uV, \
+				.always_on		= _always_on, \
+			}, \
+			.num_consumer_supplies	= \
+					ARRAY_SIZE(vreg_consumers_##_id), \
+			.consumer_supplies	= vreg_consumers_##_id, \
+			.supply_regulator	= _supply_regulator, \
+		}, \
+		.id			= RPM_VREG_ID_PM8038_##_id, \
+		.default_uV		= _default_uV, \
+		.peak_uA		= _peak_uA, \
+		.avg_uA			= _avg_uA, \
+		.pull_down_enable	= _pull_down, \
+		.pin_ctrl		= _pin_ctrl, \
+		.freq			= RPM_VREG_FREQ_##_freq, \
+		.pin_fn			= _pin_fn, \
+		.force_mode		= _force_mode, \
+		.sleep_set_force_mode	= _sleep_set_force_mode, \
+		.power_mode		= _power_mode, \
+		.state			= _state, \
+		.sleep_selectable	= _sleep_selectable, \
+		.system_uA		= _system_uA, \
+	}
+
+#define RPM_LDO(_id, _always_on, _pd, _sleep_selectable, _min_uV, _max_uV, \
+		_supply_regulator, _system_uA, _init_peak_uA) \
+	RPM_INIT(_id, _min_uV, _max_uV, REGULATOR_MODE_NORMAL \
+		 | REGULATOR_MODE_IDLE, REGULATOR_CHANGE_VOLTAGE \
+		 | REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_MODE \
+		 | REGULATOR_CHANGE_DRMS, 0, _max_uV, _init_peak_uA, 0, _pd, \
+		 RPM_VREG_PIN_CTRL_NONE, NONE, RPM_VREG_PIN_FN_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_NONE, RPM_VREG_POWER_MODE_8930_PWM, \
+		 RPM_VREG_STATE_OFF, _sleep_selectable, _always_on, \
+		 _supply_regulator, _system_uA)
+
+#define RPM_SMPS(_id, _always_on, _pd, _sleep_selectable, _min_uV, _max_uV, \
+		 _supply_regulator, _system_uA, _freq, _force_mode, \
+		 _sleep_set_force_mode) \
+	RPM_INIT(_id, _min_uV, _max_uV, REGULATOR_MODE_NORMAL \
+		 | REGULATOR_MODE_IDLE, REGULATOR_CHANGE_VOLTAGE \
+		 | REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_MODE \
+		 | REGULATOR_CHANGE_DRMS, 0, _min_uV, _system_uA, 0, _pd, \
+		 RPM_VREG_PIN_CTRL_NONE, _freq, RPM_VREG_PIN_FN_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_##_force_mode, \
+		 RPM_VREG_FORCE_MODE_8930_##_sleep_set_force_mode, \
+		 RPM_VREG_POWER_MODE_8930_PWM, RPM_VREG_STATE_OFF, \
+		 _sleep_selectable, _always_on, _supply_regulator, _system_uA)
+
+#define RPM_VS(_id, _always_on, _pd, _sleep_selectable, _supply_regulator) \
+	RPM_INIT(_id, 0, 0, 0, REGULATOR_CHANGE_STATUS, 0, 0, 1000, 1000, _pd, \
+		 RPM_VREG_PIN_CTRL_NONE, NONE, RPM_VREG_PIN_FN_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_NONE, RPM_VREG_POWER_MODE_8930_PWM, \
+		 RPM_VREG_STATE_OFF, _sleep_selectable, _always_on, \
+		 _supply_regulator, 0)
+
+#define RPM_NCP(_id, _always_on, _sleep_selectable, _min_uV, _max_uV, \
+		_supply_regulator, _freq) \
+	RPM_INIT(_id, _min_uV, _max_uV, 0, REGULATOR_CHANGE_VOLTAGE \
+		 | REGULATOR_CHANGE_STATUS, 0, _max_uV, 1000, 1000, 0, \
+		 RPM_VREG_PIN_CTRL_NONE, _freq, RPM_VREG_PIN_FN_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_NONE, RPM_VREG_POWER_MODE_8930_PWM, \
+		 RPM_VREG_STATE_OFF, _sleep_selectable, _always_on, \
+		 _supply_regulator, 0)
+
+#define RPM_CORNER(_id, _always_on, _sleep_selectable, _min_uV, _max_uV, \
+		_supply_regulator) \
+	RPM_INIT(_id, _min_uV, _max_uV, 0, REGULATOR_CHANGE_VOLTAGE \
+		 | REGULATOR_CHANGE_STATUS, 0, _max_uV, 0, 0, 0, \
+		 RPM_VREG_PIN_CTRL_NONE, NONE, RPM_VREG_PIN_FN_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_NONE, \
+		 RPM_VREG_FORCE_MODE_8930_NONE, RPM_VREG_POWER_MODE_8930_PWM, \
+		 RPM_VREG_STATE_OFF, _sleep_selectable, _always_on, \
+		 _supply_regulator, 0)
+
+/* Pin control initialization */
+#define RPM_PC_INIT(_id, _always_on, _pin_fn, _pin_ctrl, _supply_regulator) \
+	{ \
+		.init_data = { \
+			.constraints = { \
+				.valid_ops_mask	= REGULATOR_CHANGE_STATUS, \
+				.always_on	= _always_on, \
+			}, \
+			.num_consumer_supplies	= \
+					ARRAY_SIZE(vreg_consumers_##_id##_PC), \
+			.consumer_supplies	= vreg_consumers_##_id##_PC, \
+			.supply_regulator	= _supply_regulator, \
+		}, \
+		.id	  = RPM_VREG_ID_PM8038_##_id##_PC, \
+		.pin_fn	  = RPM_VREG_PIN_FN_8930_##_pin_fn, \
+		.pin_ctrl = _pin_ctrl, \
+	}
+
 #define GPIO_VREG(_id, _reg_name, _gpio_label, _gpio, _supply_regulator) \
 	[MSM8930_GPIO_VREG_ID_##_id] = { \
 		.init_data = { \
@@ -302,60 +463,99 @@ msm8930_pm8038_regulator_pdata[] __devinitdata = {
 	 *	    ID  name always_on pd min_uV   max_uV   en_t supply
 	 *	system_uA reg_ID
 	 */
-	PM8XXX_SMPS(S1, "8038_s1", 1, 1,  1150000, 1150000, 500, NULL, 100000,
-		26),
-	PM8XXX_SMPS(S2, "8038_s2", 1, 1,  1400000, 1400000, 500, NULL, 100000,
-		27),
-	PM8XXX_SMPS(S3, "8038_s3", 0, 1,  1150000, 1150000, 500, NULL, 0, 28),
-	PM8XXX_SMPS(S4, "8038_s4", 1, 1,  2200000, 2200000, 500, NULL, 100000,
-		29),
-
-	PM8XXX_NLDO1200(L1, "8038_l1",  0, 1, 1300000, 1300000, 200, "8038_s2",
+	PM8XXX_NLDO1200(L16, "8038_l16", 0, 1, 375000, 1050000, 200, "8038_s3",
+		0, 0),
+	PM8XXX_NLDO1200(L19, "8038_l19", 0, 1, 375000, 1050000, 200, "8038_s3",
 		0, 1),
-	PM8XXX_LDO(L2,  "8038_l2",  0, 1, 1200000, 1200000, 200, "8038_s2", 0,
-		2),
-	PM8XXX_LDO(L3,  "8038_l3",  0, 1, 3075000, 3075000, 200, NULL, 0, 3),
-	PM8XXX_LDO(L4,  "8038_l4",  1, 1, 1800000, 1800000, 200, NULL, 10000,
-		4),
-	PM8XXX_LDO(L5,  "8038_l5",  0, 1, 2950000, 2950000, 200, NULL, 0, 5),
-	PM8XXX_LDO(L6,  "8038_l6",  0, 1, 2950000, 2950000, 200, NULL, 0, 6),
-	PM8XXX_LDO(L7,  "8038_l7",  0, 1, 2050000, 2050000, 200, "8038_s4", 0,
-		7),
-	PM8XXX_LDO(L8,  "8038_l8",  0, 1, 2800000, 2800000, 200, NULL, 0, 8),
-	PM8XXX_LDO(L9,  "8038_l9",  0, 1, 2850000, 2850000, 200, NULL, 0, 9),
-	PM8XXX_LDO(L10, "8038_l10", 0, 1, 2900000, 2900000, 200, NULL, 0, 10),
-	PM8XXX_LDO(L11, "8038_l11", 1, 1, 1800000, 1800000, 200, "8038_s4",
-		10000, 11),
-	PM8XXX_LDO(L12, "8038_l12", 0, 1, 1200000, 1200000, 200, "8038_s2", 0,
-		12),
-	PM8XXX_LDO(L14, "8038_l14", 0, 1, 1800000, 1800000, 200, NULL, 0, 13),
-	PM8XXX_LDO(L15, "8038_l15", 0, 1, 1800000, 2950000, 200, NULL, 0, 14),
-	PM8XXX_NLDO1200(L16, "8038_l16", 0, 1, 1050000, 1050000, 200, "8038_s3",
-		0, 15),
-	PM8XXX_LDO(L17, "8038_l17", 0, 1, 1800000, 2950000, 200, NULL, 0, 16),
-	PM8XXX_LDO(L18, "8038_l18", 0, 1, 1800000, 1800000, 200, NULL, 0, 17),
-	PM8XXX_NLDO1200(L19, "8038_l19", 0, 1, 1050000, 1050000, 200, "8038_s3",
-		0, 18),
-	PM8XXX_NLDO1200(L20, "8038_l20", 1, 1, 1200000, 1200000, 200, "8038_s2",
-		10000, 19),
-	PM8XXX_LDO(L21, "8038_l21", 0, 1, 1900000, 1900000, 200, "8038_s4", 0,
-		20),
-	PM8XXX_LDO(L22, "8038_l22", 1, 1, 2950000, 2950000, 200, NULL, 10000,
-		21),
-	PM8XXX_LDO(L23, "8038_l23", 0, 1, 1800000, 1800000, 200, "8038_s4", 0,
-		22),
-	PM8XXX_NLDO1200(L24, "8038_l24", 1, 1, 1150000, 1150000, 200, "8038_s2",
-		10000, 23),
-	PM8XXX_LDO(L26, "8038_l26", 1, 1, 1050000, 1050000, 200, "8038_s2",
-		10000, 24),
-	PM8XXX_NLDO1200(L27, "8038_l27", 0, 1, 1050000, 1050000, 200, "8038_s3",
-		0, 25),
+	PM8XXX_NLDO1200(L27, "8038_l27", 0, 1, 375000, 1050000, 200, "8038_s3",
+		0, 2),
+};
 
-	/*	  ID	name  always_on pd		   en_t supply reg_ID */
-	PM8XXX_VS(LVS1, "8038_lvs1", 0, 1,		     0, "8038_l11", 32),
-	PM8XXX_VS(LVS2, "8038_lvs2", 0, 1,		     0, "8038_l11", 33),
+static struct rpm_regulator_init_data
+msm8930_rpm_regulator_init_data[] __devinitdata = {
+	/*	ID a_on pd ss min_uV   max_uV  supply sys_uA  freq  fm  ss_fm */
+	RPM_SMPS(S1, 0, 1, 1,  500000, 1150000, NULL, 100000, 4p80, AUTO, LPM),
+	RPM_SMPS(S2, 1, 1, 1, 1400000, 1400000, NULL, 100000, 1p60, AUTO, LPM),
+	RPM_SMPS(S3, 0, 1, 1, 1150000, 1150000, NULL, 100000, 3p20, AUTO, LPM),
+	RPM_SMPS(S4, 1, 1, 1, 1950000, 2200000, NULL, 100000, 1p60, AUTO, LPM),
 
+	/*	ID     a_on pd ss min_uV   max_uV  supply  sys_uA init_ip */
+	RPM_LDO(L1,	 0, 1, 0, 1300000, 1300000, "8038_s2", 0, 0),
+	RPM_LDO(L2,	 0, 1, 0, 1200000, 1200000, "8038_s2", 0, 0),
+	RPM_LDO(L3,	 0, 1, 0, 3075000, 3075000, NULL,      0, 0),
+	RPM_LDO(L4,	 1, 1, 0, 1800000, 1800000, NULL,      10000, 10000),
+	RPM_LDO(L5,	 0, 1, 0, 2950000, 2950000, NULL,      0, 0),
+	RPM_LDO(L6,	 0, 1, 0, 2950000, 2950000, NULL,      0, 0),
+	RPM_LDO(L7,	 0, 1, 0, 2050000, 2050000, "8038_s4", 0, 0),
+	RPM_LDO(L8,	 0, 1, 0, 2800000, 2800000, NULL,      0, 0),
+	RPM_LDO(L9,	 0, 1, 0, 2850000, 2850000, NULL,      0, 0),
+	RPM_LDO(L10,	 0, 1, 0, 2900000, 2900000, NULL,      0, 0),
+	RPM_LDO(L11,	 1, 1, 0, 1800000, 1800000, "8038_s4", 10000, 10000),
+	RPM_LDO(L12,	 0, 1, 0, 1200000, 1200000, "8038_s2", 0, 0),
+	RPM_LDO(L14,	 0, 1, 0, 1800000, 1800000, NULL,      0, 0),
+	RPM_LDO(L15,	 0, 1, 0, 1800000, 2950000, NULL,      0, 0),
+	RPM_LDO(L17,	 0, 1, 0, 1800000, 2950000, NULL,      0, 0),
+	RPM_LDO(L18,	 0, 1, 0, 1800000, 1800000, NULL,      0, 0),
+	RPM_LDO(L20,	 1, 1, 0, 1250000, 1250000, "8038_s2", 10000, 10000),
+	RPM_LDO(L21,	 0, 1, 0, 1900000, 1900000, "8038_s4", 0, 0),
+	RPM_LDO(L22,	 1, 1, 0, 1850000, 2950000, NULL,      10000, 10000),
+	RPM_LDO(L23,	 1, 1, 1, 1800000, 1800000, "8038_s4", 0, 0),
+	RPM_LDO(L24,	 0, 1, 1,  500000, 1150000, "8038_s2", 10000, 10000),
+	RPM_LDO(L26,     1, 1, 0, 1050000, 1050000, "8038_s2", 10000, 10000),
+
+	/*	ID     a_on pd ss		    supply */
+	RPM_VS(LVS1,	 0, 1, 0,		    "8038_l11"),
+	RPM_VS(LVS2,	 0, 1, 0,		    "8038_l11"),
+
+	/*	   ID            a_on ss min_corner  max_corner  supply */
+	RPM_CORNER(VDD_DIG_CORNER, 0, 1, RPM_VREG_CORNER_NONE,
+		RPM_VREG_CORNER_HIGH, NULL),
 };
 
 int msm8930_pm8038_regulator_pdata_len __devinitdata =
 	ARRAY_SIZE(msm8930_pm8038_regulator_pdata);
+
+#define RPM_REG_MAP(_id, _sleep_also, _voter, _supply, _dev_name) \
+	{ \
+		.vreg_id = RPM_VREG_ID_PM8038_##_id, \
+		.sleep_also = _sleep_also, \
+		.voter = _voter, \
+		.supply = _supply, \
+		.dev_name = _dev_name, \
+	}
+static struct rpm_regulator_consumer_mapping
+	      msm_rpm_regulator_consumer_mapping[] __devinitdata = {
+	RPM_REG_MAP(L23,            0, 1, "krait0_hfpll", "acpuclk-8930"),
+	RPM_REG_MAP(L23,            0, 2, "krait1_hfpll", "acpuclk-8930"),
+	RPM_REG_MAP(L23,            0, 6, "l2_hfpll",     "acpuclk-8930"),
+	RPM_REG_MAP(L24,            0, 1, "krait0_mem",   "acpuclk-8930"),
+	RPM_REG_MAP(L24,            0, 2, "krait1_mem",   "acpuclk-8930"),
+	RPM_REG_MAP(VDD_DIG_CORNER, 0, 1, "krait0_dig",   "acpuclk-8930"),
+	RPM_REG_MAP(VDD_DIG_CORNER, 0, 2, "krait1_dig",   "acpuclk-8930"),
+
+	RPM_REG_MAP(L23,            0, 1, "krait0_hfpll", "acpuclk-8627"),
+	RPM_REG_MAP(L23,            0, 2, "krait1_hfpll", "acpuclk-8627"),
+	RPM_REG_MAP(L23,            0, 6, "l2_hfpll",     "acpuclk-8627"),
+	RPM_REG_MAP(L24,            0, 1, "krait0_mem",   "acpuclk-8627"),
+	RPM_REG_MAP(L24,            0, 2, "krait1_mem",   "acpuclk-8627"),
+	RPM_REG_MAP(VDD_DIG_CORNER, 0, 1, "krait0_dig",   "acpuclk-8627"),
+	RPM_REG_MAP(VDD_DIG_CORNER, 0, 2, "krait1_dig",   "acpuclk-8627"),
+
+	RPM_REG_MAP(L23,            0, 1, "krait0_hfpll", "acpuclk-8930aa"),
+	RPM_REG_MAP(L23,            0, 2, "krait1_hfpll", "acpuclk-8930aa"),
+	RPM_REG_MAP(L23,            0, 6, "l2_hfpll",     "acpuclk-8930aa"),
+	RPM_REG_MAP(L24,            0, 1, "krait0_mem",   "acpuclk-8930aa"),
+	RPM_REG_MAP(L24,            0, 2, "krait1_mem",   "acpuclk-8930aa"),
+	RPM_REG_MAP(VDD_DIG_CORNER, 0, 1, "krait0_dig",   "acpuclk-8930aa"),
+	RPM_REG_MAP(VDD_DIG_CORNER, 0, 2, "krait1_dig",   "acpuclk-8930aa"),
+};
+
+struct rpm_regulator_platform_data msm8930_rpm_regulator_pdata __devinitdata = {
+	.init_data		= msm8930_rpm_regulator_init_data,
+	.num_regulators		= ARRAY_SIZE(msm8930_rpm_regulator_init_data),
+	.version		= RPM_VREG_VERSION_8930,
+	.vreg_id_vdd_mem	= RPM_VREG_ID_PM8038_L24,
+	.vreg_id_vdd_dig	= RPM_VREG_ID_PM8038_VDD_DIG_CORNER,
+	.consumer_map		= msm_rpm_regulator_consumer_mapping,
+	.consumer_map_len = ARRAY_SIZE(msm_rpm_regulator_consumer_mapping),
+};

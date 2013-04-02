@@ -8,7 +8,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -16,145 +16,17 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
-#include <linux/err.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
+#include <asm/memblock.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/mmc.h>
-#include <mach/gpio.h>
 #include <plat/menelaus.h>
-#include <plat/mcbsp.h>
-#include <plat/mcpdm.h>
 #include <plat/omap44xx.h>
-
-#include <sound/omap-abe-dsp.h>
-
-/*-------------------------------------------------------------------------*/
-
-#if defined(CONFIG_OMAP_MCBSP) || defined(CONFIG_OMAP_MCBSP_MODULE)
-
-static struct platform_device **omap_mcbsp_devices;
-
-void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
-			struct omap_mcbsp_platform_data *config, int size)
-{
-	int i;
-
-	omap_mcbsp_devices = kzalloc(size * sizeof(struct platform_device *),
-				     GFP_KERNEL);
-	if (!omap_mcbsp_devices) {
-		printk(KERN_ERR "Could not register McBSP devices\n");
-		return;
-	}
-
-	for (i = 0; i < size; i++) {
-		struct platform_device *new_mcbsp;
-		int ret;
-
-		new_mcbsp = platform_device_alloc("omap-mcbsp", i + 1);
-		if (!new_mcbsp)
-			continue;
-		platform_device_add_resources(new_mcbsp, &res[i * res_count],
-					res_count);
-		new_mcbsp->dev.platform_data = &config[i];
-		ret = platform_device_add(new_mcbsp);
-		if (ret) {
-			platform_device_put(new_mcbsp);
-			continue;
-		}
-		omap_mcbsp_devices[i] = new_mcbsp;
-	}
-}
-
-#else
-void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
-			struct omap_mcbsp_platform_data *config, int size)
-{  }
-#endif
-
-/*-------------------------------------------------------------------------*/
-
-#if defined(CONFIG_SND_OMAP_SOC_DMIC) || \
-    defined(CONFIG_SND_OMAP_SOC_DMIC_MODULE)
-
-static struct omap_device_pm_latency omap_dmic_latency[] = {
-	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
-static void omap_init_dmic(void)
-{
-	struct omap_hwmod *oh;
-	struct omap_device *od;
-
-	oh = omap_hwmod_lookup("dmic");
-	if (!oh) {
-		printk(KERN_ERR "Could not look up dmic hw_mod\n");
-		return;
-	}
-
-	od = omap_device_build("omap-dmic-dai", -1, oh, NULL, 0,
-				omap_dmic_latency,
-				ARRAY_SIZE(omap_dmic_latency), 0);
-	if (IS_ERR(od))
-		printk(KERN_ERR "Could not build omap_device for omap-dmic-dai\n");
-}
-#else
-static inline void omap_init_dmic(void) {}
-#endif
-
-/*-------------------------------------------------------------------------*/
-
-#if defined(CONFIG_SND_OMAP_SOC_MCPDM) || \
-		defined(CONFIG_SND_OMAP_SOC_MCPDM_MODULE)
-
-static struct omap_device_pm_latency omap_mcpdm_latency[] = {
-	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
-static void omap_init_mcpdm(void)
-{
-	struct omap_hwmod *oh;
-	struct omap_device *od;
-	struct omap_mcpdm_platform_data *pdata;
-
-	oh = omap_hwmod_lookup("mcpdm");
-	if (!oh) {
-		printk(KERN_ERR "Could not look up mcpdm hw_mod\n");
-		return;
-	}
-
-	pdata = kzalloc(sizeof(struct omap_mcpdm_platform_data), GFP_KERNEL);
-	if (!pdata) {
-		printk(KERN_ERR "Could not allocate platform data\n");
-		return;
-	}
-
-	od = omap_device_build("omap-mcpdm", -1, oh, pdata,
-				sizeof(struct omap_mcpdm_platform_data),
-				omap_mcpdm_latency,
-				ARRAY_SIZE(omap_mcpdm_latency), 0);
-	if (IS_ERR(od))
-		printk(KERN_ERR "Could not build omap_device for omap-mcpdm-dai\n");
-}
-#else
-static inline void omap_init_mcpdm(void) {}
-#endif
-
-/*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE) || \
 	defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
@@ -206,55 +78,6 @@ fail:
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_SND_OMAP_SOC_ABE_DSP) || \
-	defined(CONFIG_SND_OMAP_SOC_ABE_DSP_MODULE)
-
-static struct omap_device_pm_latency omap_aess_latency[] = {
-	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
-static void omap_init_aess(void)
-{
-	struct omap_hwmod *oh;
-	struct omap_device *od;
-	struct omap4_abe_dsp_pdata *pdata;
-
-	oh = omap_hwmod_lookup("aess");
-	if (!oh) {
-		printk (KERN_ERR "Could not look up aess hw_mod\n");
-		return;
-	}
-
-	pdata = kzalloc(sizeof(struct omap4_abe_dsp_pdata), GFP_KERNEL);
-	if (!pdata) {
-		printk(KERN_ERR "Could not allocate platform data\n");
-		return;
-	}
-
-	/* FIXME: Add correct context loss counter */
-	//pdata->get_context_loss_count = omap_pm_get_dev_context_loss_count;
-
-	od = omap_device_build("aess", -1, oh, pdata,
-				sizeof(struct omap4_abe_dsp_pdata),
-				omap_aess_latency,
-				ARRAY_SIZE(omap_aess_latency), 0);
-
-	kfree(pdata);
-
-	if (IS_ERR(od))
-		printk(KERN_ERR "Could not build omap_device for omap-aess-audio\n");
-}
-#else
-static inline void omap_init_aess(void) {}
-#endif
-
-
-/*-------------------------------------------------------------------------*/
-
 #if defined(CONFIG_HW_RANDOM_OMAP) || defined(CONFIG_HW_RANDOM_OMAP_MODULE)
 
 #ifdef CONFIG_ARCH_OMAP2
@@ -285,6 +108,8 @@ static void omap_init_rng(void)
 #else
 static inline void omap_init_rng(void) {}
 #endif
+
+/*-------------------------------------------------------------------------*/
 
 /* Numbering for the SPI-capable controllers when used for SPI:
  * spi		= 1
@@ -340,14 +165,12 @@ void __init omap_dsp_reserve_sdram_memblock(void)
 	if (!size)
 		return;
 
-	paddr = memblock_alloc(size, SZ_1M);
+	paddr = arm_memblock_steal(size, SZ_1M);
 	if (!paddr) {
 		pr_err("%s: failed to reserve %x bytes\n",
 				__func__, size);
 		return;
 	}
-	memblock_free(paddr, size);
-	memblock_remove(paddr, size);
 
 	omap_dsp_phys_mempool_base = paddr;
 }
@@ -385,9 +208,6 @@ static int __init omap_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_rng();
-	omap_init_dmic();
-	omap_init_mcpdm();
-	omap_init_aess();
 	omap_init_uwire();
 	return 0;
 }

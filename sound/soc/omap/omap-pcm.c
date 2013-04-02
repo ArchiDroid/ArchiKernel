@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008 Nokia Corporation
  *
- * Contact: Jarkko Nikula <jhnikula@gmail.com>
+ * Contact: Jarkko Nikula <jarkko.nikula@bitmer.com>
  *          Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -198,6 +199,14 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 			      OMAP_DMA_LAST_IRQ | OMAP_DMA_BLOCK_IRQ);
 	else if (!substream->runtime->no_period_wakeup)
 		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ);
+	else {
+		/*
+		 * No period wakeup:
+		 * we need to disable BLOCK_IRQ, which is enabled by the omap
+		 * dma core at request dma time.
+		 */
+		omap_disable_dma_irq(prtd->dma_ch, OMAP_DMA_BLOCK_IRQ);
+	}
 
 	if (!(cpu_class_is_omap1())) {
 		omap_set_dma_src_burst_mode(prtd->dma_ch,
@@ -235,11 +244,6 @@ static int omap_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		prtd->period_index = -1;
 		omap_stop_dma(prtd->dma_ch);
-		/* Since we are using self linking, there is a
-		   chance that the DMA as re-enabled the channel
-		   just after disabling it */
-		while (omap_get_dma_active_status(prtd->dma_ch))
-			omap_stop_dma(prtd->dma_ch);
 		break;
 	default:
 		ret = -EINVAL;
@@ -285,15 +289,6 @@ static int omap_pcm_open(struct snd_pcm_substream *substream)
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0)
 		goto out;
-	if (cpu_is_omap44xx()) {
-		/* ABE needs a step of 24 * 4 data bits, and HDMI 32 * 4
-		 * Ensure buffer size satisfies both constraints.
-		 */
-		ret = snd_pcm_hw_constraint_step(runtime, 0,
-					 SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 384);
-		if (ret < 0)
-			goto out;
-	}
 
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (prtd == NULL) {
@@ -383,7 +378,6 @@ static void omap_pcm_free_dma_buffers(struct snd_pcm *pcm)
 static int omap_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
@@ -392,14 +386,14 @@ static int omap_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(64);
 
-	if (dai->driver->playback.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = omap_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
-	if (dai->driver->capture.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		ret = omap_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -407,6 +401,10 @@ static int omap_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	}
 
 out:
+	/* free preallocated buffers in case of error */
+	if (ret)
+		omap_pcm_free_dma_buffers(pcm);
+
 	return ret;
 }
 
@@ -438,18 +436,8 @@ static struct platform_driver omap_pcm_driver = {
 	.remove = __devexit_p(omap_pcm_remove),
 };
 
-static int __init snd_omap_pcm_init(void)
-{
-	return platform_driver_register(&omap_pcm_driver);
-}
-module_init(snd_omap_pcm_init);
+module_platform_driver(omap_pcm_driver);
 
-static void __exit snd_omap_pcm_exit(void)
-{
-	platform_driver_unregister(&omap_pcm_driver);
-}
-module_exit(snd_omap_pcm_exit);
-
-MODULE_AUTHOR("Jarkko Nikula <jhnikula@gmail.com>");
+MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
 MODULE_DESCRIPTION("OMAP PCM DMA module");
 MODULE_LICENSE("GPL");

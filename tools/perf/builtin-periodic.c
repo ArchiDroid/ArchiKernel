@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -194,6 +194,8 @@ static int create_perf_counter(struct perf_setup_s *p)
 	if (p == NULL)
 		return PERF_PERIODIC_ERROR;
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
+		if (((1 << cpu) & cpumask) == 0)
+			continue;
 		p->perf_fd[cpu] = sys_perf_event_open(p->attr, target_pid, cpu,
 					-1, 0);
 		if (p->perf_fd[cpu] < 0)
@@ -274,7 +276,7 @@ static const char * const periodic_usage[] = {
 static const struct option options[] = {
 	OPT_CALLBACK('e', "event", &evsel_list, "event",
 	"event selector. use 'perf list' to list available events",
-	 parse_events),
+	 parse_events_option),
 	OPT_STRING('m', "math-operations", &operations, "nnnnnn",
 	"math operation to perform on values collected asmd in order"),
 	OPT_STRING('r', "readpipe", &rfifo_name, "xxbadFiFo",

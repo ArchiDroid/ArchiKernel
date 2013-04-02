@@ -12,6 +12,7 @@
 
 #define DEBUG
 
+#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -24,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/termios.h>
 #include <linux/debugfs.h>
+#include <linux/moduleparam.h>
 
 #include <mach/sdio_al.h>
 #include <mach/sdio_cmux.h>

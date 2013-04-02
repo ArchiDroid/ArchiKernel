@@ -96,8 +96,8 @@ static u32 vcd_encode_start_in_open(struct vcd_clnt_ctxt *cctxt)
 		 cctxt->in_buf_pool.validated != cctxt->in_buf_pool.count) ||
 	    cctxt->out_buf_pool.validated !=
 	    cctxt->out_buf_pool.count) {
-		VCD_MSG_ERROR("Buffer pool is not completely setup yet");
-		return VCD_ERR_BAD_STATE;
+		VCD_MSG_HIGH("%s: Buffer pool is not completely setup yet",
+			__func__);
 	}
 
 	rc = vcd_sched_add_client(cctxt);
@@ -342,6 +342,7 @@ static u32 vcd_flush_in_flushing
 static u32 vcd_flush_in_eos(struct vcd_clnt_ctxt *cctxt,
 	u32 mode)
 {
+	u32 rc = VCD_S_SUCCESS;
 	VCD_MSG_LOW("vcd_flush_in_eos:");
 
 	if (mode > VCD_FLUSH_ALL || !mode) {
@@ -351,10 +352,18 @@ static u32 vcd_flush_in_eos(struct vcd_clnt_ctxt *cctxt,
 	}
 
 	VCD_MSG_MED("Flush mode requested %d", mode);
+	if (!(cctxt->status.frame_submitted) &&
+		(!cctxt->decoding)) {
+		rc = vcd_flush_buffers(cctxt, mode);
+		if (!VCD_FAILED(rc)) {
+			VCD_MSG_HIGH("All buffers are flushed");
+			cctxt->status.mask |= (mode & VCD_FLUSH_ALL);
+			vcd_send_flush_done(cctxt, VCD_S_SUCCESS);
+		}
+	} else
+		cctxt->status.mask |= (mode & VCD_FLUSH_ALL);
 
-	cctxt->status.mask |= (mode & VCD_FLUSH_ALL);
-
-	return VCD_S_SUCCESS;
+	return rc;
 }
 
 static u32 vcd_flush_in_invalid(struct vcd_clnt_ctxt *cctxt,
@@ -493,7 +502,12 @@ static u32 vcd_set_property_cmn
 	}
 
 	rc = ddl_set_property(cctxt->ddl_handle, prop_hdr, prop_val);
-	VCD_FAILED_RETURN(rc, "Failed: ddl_set_property");
+	if (rc) {
+		/* Some properties aren't known to ddl that we can handle */
+		if (prop_hdr->prop_id != VCD_I_VOP_TIMING_CONSTANT_DELTA)
+			VCD_FAILED_RETURN(rc, "Failed: ddl_set_property");
+	}
+
 	switch (prop_hdr->prop_id) {
 	case VCD_I_META_BUFFER_MODE:
 		{
@@ -527,13 +541,37 @@ static u32 vcd_set_property_cmn
 			}
 			break;
 		}
+	case VCD_I_SET_TURBO_CLK:
+	{
+		if (cctxt->sched_clnt_hdl)
+			rc = vcd_set_perf_turbo_level(cctxt);
+		break;
+	}
 	case VCD_I_INTRA_PERIOD:
-	   {
-		  struct vcd_property_i_period *iperiod =
-			 (struct vcd_property_i_period *)prop_val;
-		  cctxt->bframe = iperiod->b_frames;
-		  break;
-	   }
+		{
+			struct vcd_property_i_period *iperiod =
+				(struct vcd_property_i_period *)prop_val;
+			cctxt->bframe = iperiod->b_frames;
+			break;
+		}
+	case VCD_REQ_PERF_LEVEL:
+		rc = vcd_req_perf_level(cctxt,
+				(struct vcd_property_perf_level *)prop_val);
+		break;
+	case VCD_I_VOP_TIMING_CONSTANT_DELTA:
+		{
+			struct vcd_property_vop_timing_constant_delta *delta =
+				prop_val;
+
+			if (delta->constant_delta > 0) {
+				cctxt->time_frame_delta = delta->constant_delta;
+				rc = VCD_S_SUCCESS;
+			} else {
+				VCD_MSG_ERROR("Frame delta must be positive");
+				rc = VCD_ERR_ILLEGAL_PARM;
+			}
+			break;
+		}
 	default:
 		{
 			break;
@@ -546,6 +584,7 @@ static u32 vcd_get_property_cmn
     (struct vcd_clnt_ctxt *cctxt,
      struct vcd_property_hdr *prop_hdr, void *prop_val)
 {
+	int rc;
 	VCD_MSG_LOW("vcd_get_property_cmn in %d:", cctxt->clnt_state.state);
 	VCD_MSG_LOW("property Id = %d", prop_hdr->prop_id);
 	if (!prop_hdr->sz || !prop_hdr->prop_id) {
@@ -553,7 +592,24 @@ static u32 vcd_get_property_cmn
 
 		return VCD_ERR_ILLEGAL_PARM;
 	}
-	return ddl_get_property(cctxt->ddl_handle, prop_hdr, prop_val);
+	rc = ddl_get_property(cctxt->ddl_handle, prop_hdr, prop_val);
+	if (rc) {
+		/* Some properties aren't known to ddl that we can handle */
+		if (prop_hdr->prop_id != VCD_I_VOP_TIMING_CONSTANT_DELTA)
+			VCD_FAILED_RETURN(rc, "Failed: ddl_set_property");
+	}
+
+	switch (prop_hdr->prop_id) {
+	case VCD_I_VOP_TIMING_CONSTANT_DELTA:
+	{
+		struct vcd_property_vop_timing_constant_delta *delta =
+			(struct vcd_property_vop_timing_constant_delta *)
+			prop_val;
+		delta->constant_delta = cctxt->time_frame_delta;
+		rc = VCD_S_SUCCESS;
+	}
+	}
+	return rc;
 }
 
 static u32 vcd_set_buffer_requirements_cmn

@@ -432,7 +432,7 @@ struct cdrom_fsg_common {
 
 	struct fsg_buffhd	*next_buffhd_to_fill;
 	struct fsg_buffhd	*next_buffhd_to_drain;
-	struct fsg_buffhd	buffhds[FSG_NUM_BUFFERS];
+	struct fsg_buffhd	buffhds[fsg_num_buffers];
 
 	int			cmnd_size;
 	u8			cmnd[MAX_COMMAND_SIZE];
@@ -539,8 +539,13 @@ static struct miscdevice autorun_device = {
 	.fops = &autorun_fops,
 };
 char *envp_ack[2] = { "AUTORUN=ACK", NULL };
+/* LGE_CNANGE_S lbh.lee@lge.com USB autorun uevent add */
+static char *envp_mode[2] = {"AUTORUN=change_mode", NULL};
+
 static unsigned int user_mode = SUB_ACK_STATUS_CGO;
-/* LGE_CHANGE_S : USB Autorun function. */
+static unsigned int already_acked;
+/* LGE_CNANGE_E lbh.lee@lge.com USB autorun uevent add */
+
 
 static inline int __cdrom_fsg_is_set(struct cdrom_fsg_common *common,
 			       const char *func, unsigned line)
@@ -713,7 +718,7 @@ static int cdrom_fsg_setup(struct usb_function *f,
 
 	switch (ctrl->bRequest) {
 
-	case USB_BULK_RESET_REQUEST:
+	case US_BULK_RESET_REQUEST:
 		if (ctrl->bRequestType !=
 		    (USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 			break;
@@ -726,7 +731,7 @@ static int cdrom_fsg_setup(struct usb_function *f,
 		cdrom_raise_exception(fsg->common, FSG_STATE_RESET);
 		return DELAYED_STATUS;
 
-	case USB_BULK_GET_MAX_LUN_REQUEST:
+	case US_BULK_GET_MAX_LUN:
 		if (ctrl->bRequestType !=
 		    (USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 			break;
@@ -1153,12 +1158,12 @@ write_error:
 				 * yet from the host. So there is no point in
 				 * csw right away without the complete data.
 				 */
-				for (i = 0; i < FSG_NUM_BUFFERS; i++) {
+				for (i = 0; i < fsg_num_buffers; i++) {
 					if (common->buffhds[i].state ==
 							BUF_STATE_BUSY)
 						break;
 				}
-				if (!amount_left_to_req && i == FSG_NUM_BUFFERS) {
+				if (!amount_left_to_req && i == fsg_num_buffers) {
 					csw_hack_sent = 1;
 					cdrom_send_status(common);
 				}
@@ -1524,6 +1529,12 @@ static int cdrom_do_read_toc(struct cdrom_fsg_common *common, struct fsg_buffhd 
 	int		msf = common->cmnd[1] & 0x02;
 	int		start_track = common->cmnd[6];
 	u8		*buf = (u8 *) bh->buf;
+/*2012-11-01 Byungho-LEE(lbh.lee@lge.com) [td:NA] support hybrid ISO image for MAX OS-X. [START]*/
+#ifdef CONFIG_LGE_USB_ANDROID_CDROM_MAC_SUPPORT
+	u8              format;
+       int             ret;
+#endif
+
 
 	if ((common->cmnd[1] & ~0x02) != 0 ||	/* Mask away MSF */
 			start_track > 1) {
@@ -1531,6 +1542,22 @@ static int cdrom_do_read_toc(struct cdrom_fsg_common *common, struct fsg_buffhd 
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_LGE_USB_ANDROID_CDROM_MAC_SUPPORT
+	format = common->cmnd[2] & 0xf;
+
+	if (format == 0)
+		format = (common->cmnd[9] >> 6) & 0x3;
+
+	ret = fsg_get_toc(curlun, msf, format, buf);
+
+	if (ret < 0) {
+		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
+		return -EINVAL;
+	}
+
+	return ret;
+
+#else
 	memset(buf, 0, 20);
 	buf[1] = (20-2);		/* TOC data length */
 	buf[2] = 1;			/* First track number */
@@ -1543,6 +1570,9 @@ static int cdrom_do_read_toc(struct cdrom_fsg_common *common, struct fsg_buffhd 
 	buf[14] = 0xAA;			/* Lead-out track number */
 	store_cdrom_address(&buf[16], msf, curlun->num_sectors);
 	return 20;
+#endif
+/*2012-11-01 Byungho-LEE(lbh.lee@lge.com) [td:NA] support hybrid ISO image for MAX OS-X. [END]*/
+
 }
 
 
@@ -1967,7 +1997,7 @@ static int cdrom_send_status(struct cdrom_fsg_common *common)
 	struct fsg_buffhd	*bh;
 	struct bulk_cs_wrap	*csw;
 	int			rc;
-	u8			status = USB_STATUS_PASS;
+	u8			status = US_BULK_STAT_OK;
 	u32			sd, sdinfo = 0;
 
 	/* Wait for the next buffer to become available */
@@ -1988,11 +2018,11 @@ static int cdrom_send_status(struct cdrom_fsg_common *common)
 
 	if (common->phase_error) {
 		DBG(common, "sending phase-error status\n");
-		status = USB_STATUS_PHASE_ERROR;
+		status = US_BULK_STAT_PHASE;
 		sd = SS_INVALID_COMMAND;
 	} else if (sd != SS_NO_SENSE) {
 		DBG(common, "sending command-failure status\n");
-		status = USB_STATUS_FAIL;
+		status = US_BULK_STAT_FAIL;
 		VDBG(common, "  sense data: SK x%02x, ASC x%02x, ASCQ x%02x;"
 				"  info x%x\n",
 				SK(sd), ASC(sd), ASCQ(sd), sdinfo);
@@ -2001,7 +2031,7 @@ static int cdrom_send_status(struct cdrom_fsg_common *common)
 	/* Store and send the Bulk-only CSW */
 	csw = (void *)bh->buf;
 
-	csw->Signature = cpu_to_le32(USB_BULK_CS_SIG);
+	csw->Signature = cpu_to_le32(US_BULK_CS_SIGN);
 	csw->Tag = common->tag;
 	csw->Residue = cpu_to_le32(common->residue);
 #ifdef CONFIG_USB_CSW_HACK
@@ -2019,7 +2049,7 @@ static int cdrom_send_status(struct cdrom_fsg_common *common)
 #endif
 	csw->Status = status;
 
-	bh->inreq->length = USB_BULK_CS_WRAP_LEN;
+	bh->inreq->length = US_BULK_CS_WRAP_LEN;
 	bh->inreq->zero = 0;
 	CDROM_START_TRANSFER_OR(common, bulk_in, bh->inreq,
 			  &bh->inreq_busy, &bh->state)
@@ -2243,8 +2273,14 @@ static int cdrom_do_scsi_command(struct cdrom_fsg_common *common)
 				//pr_debug("%s: SC_LGE_MODE - %d\n", __func__, common->mode_state);
 				printk(KERN_INFO "%s: SC_LGE_MODE - %d\n", __func__, common->mode_state);
 				/* LGE_CHANGE_S : USB Autorun function. hyunjin2.lim@lge.com */
-				kobject_uevent_env(&autorun_device.this_device->kobj, KOBJ_CHANGE, envp_ack);
+		//		kobject_uevent_env(&autorun_device.this_device->kobj, KOBJ_CHANGE, envp_ack);
 				/* LGE_CHANGE_E : USB Autorun function. */
+				
+				/* LGE_CNANGE_S lbh.lee@lge.com USB autorun uevent add */
+				kobject_uevent_env(&autorun_device.this_device->kobj,KOBJ_CHANGE, envp_mode);
+				already_acked = 0;
+				/* LGE_CNANGE_E lbh.lee@lge.com USB autorun uevent add */
+				
 				reply = 0;
 				break;
 			case SUB_CODE_GET_VALUE:
@@ -2268,6 +2304,13 @@ static int cdrom_do_scsi_command(struct cdrom_fsg_common *common)
 										(7<<1), 1, check_str[user_mode])) == 0)
 							reply=cdrom_do_ack_status(common, bh, user_mode);
 
+						/* LGE_CNANGE_S lbh.lee@lge.com USB autorun uevent add */
+						if (!already_acked) { //lbh.lee@lge.com fot autorun Uevent add
+								kobject_uevent_env(&autorun_device.this_device->kobj,
+										KOBJ_CHANGE, envp_ack);
+								already_acked = 1;
+						}
+						/* LGE_CNANGE_E lbh.lee@lge.com USB autorun uevent add */
 						/* For reseting Autorun App watchdog timer */
 						//switch_set_state(&the_fsg->sdev, common->mode_state); ??????
 						break;
@@ -2415,9 +2458,19 @@ static int cdrom_do_scsi_command(struct cdrom_fsg_common *common)
 			goto unknown_cmnd;
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
+		
+/*2012-11-01 Byungho-LEE(lbh.lee@lge.com) [td:NA] support hybrid ISO image for MAX OS-X. [START]*/
+#ifdef CONFIG_LGE_USB_ANDROID_CDROM_MAC_SUPPORT
+		reply = cdrom_check_command(common, 10, DATA_DIR_TO_HOST,
+								(0xf<<6) | (1<<1), 1,
+								"READ TOC");
+#else
 		reply = cdrom_check_command(common, 10, DATA_DIR_TO_HOST,
 				      (7<<6) | (1<<1), 1,
 				      "READ TOC");
+#endif
+/*2012-11-01 Byungho-LEE(lbh.lee@lge.com) [td:NA] support hybrid ISO image for MAX OS-X. [END]*/
+
 		if (reply == 0)
 			reply = cdrom_do_read_toc(common, bh);
 		break;
@@ -2553,7 +2606,7 @@ unknown_cmnd:
 static int cdrom_received_cbw(struct cdrom_fsg_dev *fsg, struct fsg_buffhd *bh)
 {
 	struct usb_request	*req = bh->outreq;
-	struct fsg_bulk_cb_wrap	*cbw = req->buf;
+	struct bulk_cb_wrap	*cbw = req->buf;
 	struct cdrom_fsg_common	*common = fsg->common;
 
 	/* Was this a real packet?  Should it be ignored? */
@@ -2561,9 +2614,9 @@ static int cdrom_received_cbw(struct cdrom_fsg_dev *fsg, struct fsg_buffhd *bh)
 		return -EINVAL;
 
 	/* Is the CBW valid? */
-	if (req->actual != USB_BULK_CB_WRAP_LEN ||
+	if (req->actual != US_BULK_CB_WRAP_LEN ||
 			cbw->Signature != cpu_to_le32(
-				USB_BULK_CB_SIG)) {
+				US_BULK_CB_SIGN)) {
 		DBG(fsg, "invalid CBW: len %u sig 0x%x\n",
 				req->actual,
 				le32_to_cpu(cbw->Signature));
@@ -2583,7 +2636,7 @@ static int cdrom_received_cbw(struct cdrom_fsg_dev *fsg, struct fsg_buffhd *bh)
 	}
 
 	/* Is the CBW meaningful? */
-	if (cbw->Lun >= FSG_MAX_LUNS || cbw->Flags & ~USB_BULK_IN_FLAG ||
+	if (cbw->Lun >= FSG_MAX_LUNS || cbw->Flags & ~US_BULK_FLAG_IN ||
 			cbw->Length <= 0 || cbw->Length > MAX_COMMAND_SIZE) {
 		DBG(fsg, "non-meaningful CBW: lun = %u, flags = 0x%x, "
 				"cmdlen %u\n",
@@ -2601,7 +2654,7 @@ static int cdrom_received_cbw(struct cdrom_fsg_dev *fsg, struct fsg_buffhd *bh)
 	/* Save the command for later */
 	common->cmnd_size = cbw->Length;
 	memcpy(common->cmnd, cbw->CDB, common->cmnd_size);
-	if (cbw->Flags & USB_BULK_IN_FLAG)
+	if (cbw->Flags & US_BULK_FLAG_IN)
 		common->data_dir = DATA_DIR_TO_HOST;
 	else
 		common->data_dir = DATA_DIR_FROM_HOST;
@@ -2628,7 +2681,7 @@ static int cdrom_get_next_command(struct cdrom_fsg_common *common)
 	}
 
 	/* Queue a request to read a Bulk-only CBW */
-	cdrom_set_bulk_out_req_length(common, bh, USB_BULK_CB_WRAP_LEN);
+	cdrom_set_bulk_out_req_length(common, bh, US_BULK_CB_WRAP_LEN);
 	bh->outreq->short_not_ok = 1;
 	CDROM_START_TRANSFER_OR(common, bulk_out, bh->outreq,
 			  &bh->outreq_busy, &bh->state)
@@ -2655,17 +2708,21 @@ static int cdrom_get_next_command(struct cdrom_fsg_common *common)
 
 /*-------------------------------------------------------------------------*/
 
+/* 2012-10-11 Byungho-LEE(lbh.lee@lge.com) [td:NA] cdrom fsg endpoint enable for support cdrom [START] */
+
 static int cdrom_enable_endpoint(struct cdrom_fsg_common *common, struct usb_ep *ep,
 		const struct usb_endpoint_descriptor *d)
 {
 	int	rc;
 
 	ep->driver_data = common;
-	rc = usb_ep_enable(ep, d);
+	ep->desc = d;
+	rc = usb_ep_enable(ep);//, d);
 	if (rc)
 		ERROR(common, "can't enable %s, result %d\n", ep->name, rc);
 	return rc;
 }
+/* 2012-10-11 Byungho-LEE(lbh.lee@lge.com) [td:NA] cdrom fsg endpoint enable for support cdrom [END] */
 
 static int cdrom_alloc_request(struct cdrom_fsg_common *common, struct usb_ep *ep,
 		struct usb_request **preq)
@@ -2691,7 +2748,7 @@ reset:
 	if (common->fsg) {
 		fsg = common->fsg;
 
-		for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
+		for (i = 0; i < fsg_num_buffers; ++i) {
 			struct fsg_buffhd *bh = &common->buffhds[i];
 
 			if (bh->inreq) {
@@ -2718,7 +2775,7 @@ reset:
 
 
 	/* Allocate the requests */
-	for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
+	for (i = 0; i < fsg_num_buffers; ++i) {
 		struct fsg_buffhd	*bh = &common->buffhds[i];
 
 		rc = cdrom_alloc_request(common, fsg->bulk_in, &bh->inreq);
@@ -2747,27 +2804,58 @@ static int cdrom_fsg_set_alt(struct usb_function *f, unsigned intf, unsigned alt
 {
 	struct cdrom_fsg_dev *fsg = cdrom_fsg_from_func(f);
 	struct cdrom_fsg_common *common = fsg->common;
+
+/* 2012-10-11 Byungho-LEE(lbh.lee@lge.com) [td:NA] cdrom fsg endpoint enable for support cdrom [START] */
+
+#ifndef CONFIG_LGE_USB_GADGET_DRIVER
 	const struct usb_endpoint_descriptor *d;
+#endif
 	int rc;
 
 	/* Enable the endpoints */
+
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	rc = config_ep_by_speed(common->gadget, &(fsg->function), fsg->bulk_in);
+		 if (rc)
+		 	return rc;
+	 rc = cdrom_enable_endpoint(common, fsg->bulk_in,  fsg->bulk_in->desc);
+#else
 	d = fsg_ep_desc(common->gadget,
-			&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc);
+			&fsg_fs_bulk_in_desc, &fsg_hs_bulk_in_desc,NUL);
 	rc = cdrom_enable_endpoint(common, fsg->bulk_in, d);
+#endif
+
 	if (rc)
 		return rc;
 	fsg->bulk_in_enabled = 1;
 
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	rc = config_ep_by_speed(common->gadget, &(fsg->function), fsg->bulk_out);
+	if (rc)
+		return rc;
+	rc = cdrom_enable_endpoint(common, fsg->bulk_out, fsg->bulk_out->desc);
+#else
+
 	d = fsg_ep_desc(common->gadget,
-			&fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc);
+			 &fsg_fs_bulk_out_desc, &fsg_hs_bulk_out_desc,NULL);
 	rc = cdrom_enable_endpoint(common, fsg->bulk_out, d);
+#endif
+
 	if (rc) {
 		usb_ep_disable(fsg->bulk_in);
 		fsg->bulk_in_enabled = 0;
 		return rc;
 	}
 	fsg->bulk_out_enabled = 1;
+	
+#ifdef CONFIG_LGE_USB_GADGET_DRIVER
+	common->bulk_out_maxpacket =usb_endpoint_maxp(fsg->bulk_out->desc);
+#else
 	common->bulk_out_maxpacket = le16_to_cpu(d->wMaxPacketSize);
+#endif
+
+/* 2012-10-11 Byungho-LEE(lbh.lee@lge.com) [td:NA] cdrom fsg endpoint enable for support cdrom [END] */
+
 	clear_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags);
 	fsg->common->new_fsg = fsg;
 	cdrom_raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
@@ -2826,7 +2914,7 @@ static void cdrom_handle_exception(struct cdrom_fsg_common *common)
 
 	/* Cancel all the pending transfers */
 	if (likely(common->fsg)) {
-		for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
+		for (i = 0; i < fsg_num_buffers; ++i) {
 			bh = &common->buffhds[i];
 			if (bh->inreq_busy)
 				usb_ep_dequeue(common->fsg->bulk_in, bh->inreq);
@@ -2838,7 +2926,7 @@ static void cdrom_handle_exception(struct cdrom_fsg_common *common)
 		/* Wait until everything is idle */
 		for (;;) {
 			int num_active = 0;
-			for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
+			for (i = 0; i < fsg_num_buffers; ++i) {
 				bh = &common->buffhds[i];
 				num_active += bh->inreq_busy + bh->outreq_busy;
 			}
@@ -2859,7 +2947,7 @@ static void cdrom_handle_exception(struct cdrom_fsg_common *common)
 	 * state, and the exception.  Then invoke the handler. */
 	spin_lock_irq(&common->lock);
 
-	for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
+	for (i = 0; i < fsg_num_buffers; ++i) {
 		bh = &common->buffhds[i];
 		bh->state = BUF_STATE_EMPTY;
 	}
@@ -3196,7 +3284,7 @@ static struct cdrom_fsg_common *cdrom_fsg_common_init(struct cdrom_fsg_common *c
 
 	/* Data buffers cyclic list */
 	bh = common->buffhds;
-	i = FSG_NUM_BUFFERS;
+	i = fsg_num_buffers;
 	goto buffhds_first_it;
 	do {
 		bh->next = bh + 1;
@@ -3355,7 +3443,7 @@ static void cdrom_fsg_common_release(struct kref *ref)
 
 	{
 		struct fsg_buffhd *bh = common->buffhds;
-		unsigned i = FSG_NUM_BUFFERS;
+		unsigned i = fsg_num_buffers;
 		do {
 			kfree(bh->buf);
 		} while (++bh, --i);

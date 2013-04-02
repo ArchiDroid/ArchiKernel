@@ -1,32 +1,10 @@
-EXTRA_CFLAGS += -Iarch/arm/mach-msm
-obj-$(CONFIG_LGE_PROC_COMM) += lge_proc_comm.o
+subdir-ccflags-$(CONFIG_ARCH_MSM) += -Iarch/arm/mach-msm
 
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-input.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-misc.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-mmc.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-sound.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-panel.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-camera.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-pm.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-usb.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-connectivity.o
-obj-$(CONFIG_MACH_MSM7X27A_U0) += board-u0-nfc.o
+-include $(src)/Makefile.board
 
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-input.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-misc.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-mmc.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-sound.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-panel.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-camera.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-pm.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-usb.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-connectivity.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += board-m4eu-nfc.o
-obj-$(CONFIG_MACH_MSM7X25A_M4) += lge_gpio_h2w.o
-
-
-obj-$(CONFIG_MACH_LGE) += devices_lge.o
+obj-$(CONFIG_MACH_LGE) += devices-lge.o
 obj-$(CONFIG_LGE_HANDLE_PANIC) += lge_handle_panic.o
-obj-$(CONFIG_LGE_SUSPEND_AUTOTEST) += lge_suspend_autotest.o
+obj-$(CONFIG_LGE_PROC_COMM) += lge_proc_comm.o
+obj-$(CONFIG_LGE_BOOT_MODE) += lge_boot_mode.o
+#obj-$(CONFIG_LGE_SUSPEND_AUTOTEST) += lge_suspend_autotest.o
+obj-$(CONFIG_LGE_BLOCKING_MONITOR) += lge_blocking_monitor.o

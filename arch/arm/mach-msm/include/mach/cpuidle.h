@@ -15,7 +15,7 @@
 #define __ARCH_ARM_MACH_MSM_CPUIDLE_H
 
 #include <linux/notifier.h>
-#include <mach/pm.h>
+#include "../../pm.h"
 
 struct msm_cpuidle_state {
 	unsigned int cpu;
@@ -25,17 +25,16 @@ struct msm_cpuidle_state {
 	enum msm_pm_sleep_mode mode_nr;
 };
 
-#ifdef CONFIG_CPU_IDLE
-void msm_cpuidle_set_states(struct msm_cpuidle_state *states,
-	int nr_states, struct msm_pm_platform_data *pm_data);
+#ifdef CONFIG_PM
+s32 msm_cpuidle_get_deep_idle_latency(void);
+#else
+static inline s32 msm_cpuidle_get_deep_idle_latency(void) { return 0; }
+#endif
 
+#ifdef CONFIG_CPU_IDLE
 int msm_cpuidle_init(void);
 #else
-static inline void msm_cpuidle_set_states(struct msm_cpuidle_state *states,
-	int nr_states, struct msm_pm_platform_data *pm_data) {}
-
-static inline int msm_cpuidle_init(void)
-{ return -ENOSYS; }
+static inline int msm_cpuidle_init(void) { return -ENOSYS; }
 #endif
 
 #ifdef CONFIG_MSM_SLEEP_STATS

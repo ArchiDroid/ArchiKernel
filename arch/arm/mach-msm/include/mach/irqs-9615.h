@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +21,7 @@
  * 32+:   SPI (shared peripheral interrupts)
  */
 
+#define FIQ_START     16
 #define GIC_PPI_START 16
 #define GIC_SPI_START 32
 
@@ -179,11 +180,15 @@
 #define TLMM_MSM_DIR_CONN_IRQ_21		(GIC_SPI_START + 224)
 #define MSM_SPARE0_IRQ				(GIC_SPI_START + 225)
 #define PMIC_SEC_IRQ_N				(GIC_SPI_START + 226)
+#define USB_HSIC_BAM_IRQ			(GIC_SPI_START + 231)
+#define USB_HSIC_IRQ				(GIC_SPI_START + 232)
 
-#define NR_MSM_IRQS 256
+#define NR_MSM_IRQS 288
 #define NR_GPIO_IRQS 88
 #define NR_PM8018_IRQS 256
-#define NR_BOARD_IRQS NR_PM8018_IRQS
+#define NR_WCD9XXX_IRQS 49
+#define NR_TABLA_IRQS NR_WCD9XXX_IRQS
+#define NR_BOARD_IRQS (NR_PM8018_IRQS + NR_WCD9XXX_IRQS)
 #define NR_TLMM_MSM_DIR_CONN_IRQ 8 /*Need to Verify this Count*/
 #define NR_MSM_GPIOS NR_GPIO_IRQS
 

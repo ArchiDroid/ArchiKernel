@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,6 +26,7 @@
 #include <linux/pmic8058-xoadc.h>
 #include <linux/slab.h>
 #include <linux/semaphore.h>
+#include <linux/module.h>
 
 #include <mach/dal.h>
 
@@ -40,6 +41,9 @@
 #define MSM_ADC_DALRPC_CMD_INPUT_PROP	11
 
 #define MSM_ADC_DALRC_CONV_TIMEOUT	(5 * HZ)  /* 5 seconds */
+
+#define MSM_8x25_ADC_DEV_ID		0
+#define MSM_8x25_CHAN_ID		16
 
 enum dal_error {
 	DAL_ERROR_INVALID_DEVICE_IDX = 1,
@@ -1094,6 +1098,10 @@ static int __devinit msm_rpc_adc_device_init_hwmon(struct platform_device *pdev,
 	int i, rc, num_chans = transl->hwmon_end - transl->hwmon_start + 1;
 	const char prefix[] = "curr", postfix[] = "_input";
 	char tmpbuf[5];
+#if defined(CONFIG_MACH_MSM8X25_V7)
+	struct msm_adc_platform_data *pdata = pdev->dev.platform_data;
+	struct msm_adc_channel_names *channel_names = pdata->chan_names;
+#endif
 
 	adc_dev->fnames = kzalloc(num_chans * MSM_ADC_MAX_FNAME +
 				  num_chans * sizeof(char *), GFP_KERNEL);
@@ -1113,11 +1121,19 @@ static int __devinit msm_rpc_adc_device_init_hwmon(struct platform_device *pdev,
 	for (i = 0; i < num_chans; i++) {
 		adc_dev->fnames[i] = (char *)adc_dev->fnames +
 			i * MSM_ADC_MAX_FNAME + num_chans * sizeof(char *);
+
+#if defined(CONFIG_MACH_MSM8X25_V7)
+	  if(NULL != channel_names[i].name){
+	  	strcpy(adc_dev->fnames[i], channel_names[i].name);
+	  }
+	  else
+#endif
+          {
 		strcpy(adc_dev->fnames[i], prefix);
 		sprintf(tmpbuf, "%d", transl->hwmon_start + i);
 		strcat(adc_dev->fnames[i], tmpbuf);
 		strcat(adc_dev->fnames[i], postfix);
-
+	  }
 		msm_rpc_adc_curr_in_attr.index = transl->hwmon_start + i;
 		msm_rpc_adc_curr_in_attr.dev_attr.attr.name =
 					adc_dev->fnames[i];
@@ -1171,18 +1187,26 @@ static int __devinit msm_rpc_adc_device_init(struct platform_device *pdev)
 			goto dev_init_err;
 		}
 
-		/* DAL device lookup */
-		rc = msm_adc_getinputproperties(msm_adc, adc_dev->name,
+		if (!pdata->target_hw == MSM_8x25) {
+			/* DAL device lookup */
+			rc = msm_adc_getinputproperties(msm_adc, adc_dev->name,
 								&target);
-		if (rc) {
-			dev_err(&pdev->dev, "No such DAL device[%s]\n",
+			if (rc) {
+				dev_err(&pdev->dev, "No such DAL device[%s]\n",
 							adc_dev->name);
-			goto dev_init_err;
+				goto dev_init_err;
+			}
+
+			adc_dev->transl.dal_dev_idx = target.dal.dev_idx;
+			adc_dev->nchans = target.dal.chan_idx;
+		} else {
+			/* On targets prior to MSM7x30 the remote driver has
+			   only the channel list and no device id. */
+			adc_dev->transl.dal_dev_idx = MSM_8x25_ADC_DEV_ID;
+			adc_dev->nchans = MSM_8x25_CHAN_ID;
 		}
 
-		adc_dev->transl.dal_dev_idx = target.dal.dev_idx;
 		adc_dev->transl.hwmon_dev_idx = i;
-		adc_dev->nchans = target.dal.chan_idx;
 		adc_dev->transl.hwmon_start = hwmon_cntr;
 		adc_dev->transl.hwmon_end = hwmon_cntr + adc_dev->nchans - 1;
 		hwmon_cntr += adc_dev->nchans;
@@ -1380,7 +1404,7 @@ static struct platform_driver msm_adc_rpcrouter_remote_driver = {
 	},
 };
 
-static int msm_adc_probe(struct platform_device *pdev)
+static int __devinit msm_adc_probe(struct platform_device *pdev)
 {
 	struct msm_adc_platform_data *pdata = pdev->dev.platform_data;
 	struct msm_adc_drv *msm_adc;

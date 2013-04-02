@@ -13,7 +13,8 @@ config MSM_SSBI
 config SPS
 	bool "SPS support"
 	depends on (HAS_IOMEM && (ARCH_MSM8960 || ARCH_MSM8X60 \
-			|| ARCH_APQ8064 || ARCH_MSM9615 || ARCH_MSMCOPPER))
+			|| ARCH_APQ8064 || ARCH_MSM9615 \
+			|| ARCH_MSM9625 || ARCH_MSM8974))
 	select GENERIC_ALLOCATOR
 	default n
 	help
@@ -48,5 +49,15 @@ config SPS_SUPPORT_NDP_BAM
 	default n
 	help
 	  No-Data-Path BAM is used to improve BAM performance.
+
+config QPNP_PWM
+	depends on SPMI
+	depends on OF_SPMI
+        tristate "Qualcomm QPNP LPG/PWM support"
+        help
+          This driver supports PWM/LPG devices in Qualcomm PMIC chips which
+          comply with QPNP.  QPNP is a SPMI based PMIC implementation.  These
+          devices support Pulse Width Modulation output with user generated
+          patterns. They share a lookup table with size of 64 entries.
 
 endmenu

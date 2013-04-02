@@ -65,7 +65,6 @@ TRACE_EVENT(machine_suspend,
 	TP_printk("state=%lu", (unsigned long)__entry->state)
 );
 
-/* This code will be removed after deprecation time exceeded (2.6.41) */
 #ifdef CONFIG_EVENT_POWER_TRACING_DEPRECATED
 
 /*
@@ -151,6 +150,8 @@ enum {
    events get removed */
 static inline void trace_power_start(u64 type, u64 state, u64 cpuid) {};
 static inline void trace_power_end(u64 cpuid) {};
+static inline void trace_power_start_rcuidle(u64 type, u64 state, u64 cpuid) {};
+static inline void trace_power_end_rcuidle(u64 cpuid) {};
 static inline void trace_power_frequency(u64 type, u64 state, u64 cpuid) {};
 #endif /* _PWR_EVENT_AVOID_DOUBLE_DEFINING_DEPRECATED */
 
@@ -201,6 +202,25 @@ DEFINE_EVENT(clock, clock_set_rate,
 	TP_PROTO(const char *name, unsigned int state, unsigned int cpu_id),
 
 	TP_ARGS(name, state, cpu_id)
+);
+
+TRACE_EVENT(clock_set_parent,
+
+	TP_PROTO(const char *name, const char *parent_name),
+
+	TP_ARGS(name, parent_name),
+
+	TP_STRUCT__entry(
+		__string(       name,           name            )
+		__string(       parent_name,    parent_name     )
+	),
+
+	TP_fast_assign(
+		__assign_str(name, name);
+		__assign_str(parent_name, parent_name);
+	),
+
+	TP_printk("%s parent=%s", __get_str(name), __get_str(parent_name))
 );
 
 /*

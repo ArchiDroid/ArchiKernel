@@ -16,6 +16,7 @@ obj-$(CONFIG_KEYBOARD_EP93XX)		+= ep93xx_keypad.o
 obj-$(CONFIG_KEYBOARD_GPIO)		+= gpio_keys.o
 obj-$(CONFIG_KEYBOARD_GPIO_POLLED)	+= gpio_keys_polled.o
 obj-$(CONFIG_KEYBOARD_TCA6416)		+= tca6416-keypad.o
+obj-$(CONFIG_KEYBOARD_TCA8418)		+= tca8418_keypad.o
 obj-$(CONFIG_KEYBOARD_HIL)		+= hil_kbd.o
 obj-$(CONFIG_KEYBOARD_HIL_OLD)		+= hilkbd.o
 obj-$(CONFIG_KEYBOARD_IMX)		+= imx_keypad.o
@@ -53,6 +54,3 @@ obj-$(CONFIG_KEYBOARD_XTKBD)		+= xtkbd.o
 obj-$(CONFIG_KEYBOARD_QCIKBD)       += qci_kbd.o
 obj-$(CONFIG_KEYBOARD_W90P910)		+= w90p910_keypad.o
 obj-$(CONFIG_KEYBOARD_PMIC8058)		+= pmic8058-keypad.o
-#LGE_CHANGE_S : kernel3.0 porting
-obj-$(CONFIG_KEYBOARD_PP2106)		+= pp2106-keypad.o
-#LGE_CHANGE_E : kernel3.0 porting

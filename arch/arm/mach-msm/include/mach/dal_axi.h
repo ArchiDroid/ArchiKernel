@@ -17,5 +17,9 @@
 int set_grp2d_async(void);
 int set_grp3d_async(void);
 int set_grp_xbar_async(void);
-
+int axi_allocate(int mode);
+int axi_free(int mode);
+int axi_halt(int port);
+#define AXI_FLOW_VIEWFINDER_HI	243
+#define AXI_HALT_PORT_VFE	7
 #endif  /* _DAL_AXI_H */

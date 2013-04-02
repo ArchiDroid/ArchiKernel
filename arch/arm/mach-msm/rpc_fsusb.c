@@ -11,6 +11,7 @@
  *
  */
 #include <linux/err.h>
+#include <linux/module.h>
 #include <mach/rpc_hsusb.h>
 #include <mach/msm_hsusb.h>
 #include <mach/msm_rpcrouter.h>

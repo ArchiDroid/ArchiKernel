@@ -1,0 +1,23 @@
+config MACH_MSM7X25A_V1
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A V1"
+    help
+        Support for the LG Electronics MSM7x25AB V1.
+
+config MACH_MSM7X25A_V1_DS
+    depends on ARCH_MSM7X27A
+    depends on !MSM_STACKED_MEMORY
+    select MACH_LGE
+    bool "MSM7x25A V1"
+    help
+        Support for the LG Electronics MSM7x25AB V1.
+
+config LGE_BATTERY_SUSPEND_RESUME
+    depends on ARCH_MSM7X27A
+    select MACH_LGE
+    bool "MSM7x25A V1"
+    help
+        Support for the LG Electronics Power.  		
+        

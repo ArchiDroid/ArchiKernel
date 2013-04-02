@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,6 +14,7 @@
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -230,6 +231,30 @@ static struct mfd_cell leds_cell __devinitdata = {
 	.id		= -1,
 };
 
+static const struct resource thermal_alarm_cell_resources[] __devinitconst = {
+	SINGLE_IRQ_RESOURCE("pm8018_tempstat_irq", PM8018_TEMPSTAT_IRQ),
+	SINGLE_IRQ_RESOURCE("pm8018_overtemp_irq", PM8018_OVERTEMP_IRQ),
+};
+
+static struct pm8xxx_tm_core_data thermal_alarm_cdata = {
+	.adc_channel =			CHANNEL_DIE_TEMP,
+	.adc_type =			PM8XXX_TM_ADC_PM8XXX_ADC,
+	.reg_addr_temp_alarm_ctrl =	REG_TEMP_ALARM_CTRL,
+	.reg_addr_temp_alarm_pwm =	REG_TEMP_ALARM_PWM,
+	.tm_name =			"pm8018_tz",
+	.irq_name_temp_stat =		"pm8018_tempstat_irq",
+	.irq_name_over_temp =		"pm8018_overtemp_irq",
+};
+
+static struct mfd_cell thermal_alarm_cell __devinitdata = {
+	.name		= PM8XXX_TM_DEV_NAME,
+	.id		= -1,
+	.resources	= thermal_alarm_cell_resources,
+	.num_resources	= ARRAY_SIZE(thermal_alarm_cell_resources),
+	.platform_data	= &thermal_alarm_cdata,
+	.pdata_size	= sizeof(struct pm8xxx_tm_core_data),
+};
+
 static struct pm8xxx_vreg regulator_data[] = {
 	/*   name	     pc_name	    ctrl   test   hpm_min */
 	PLDO("8018_l2",      "8018_l2_pc",  0x0B0, 0x0B1, LDO_50),
@@ -253,14 +278,14 @@ static struct pm8xxx_vreg regulator_data[] = {
 	SMPS("8018_s4", "8018_s4_pc", 0x1E8, 0x1ED, 0x00C, 0x1EA, SMPS_1500),
 	SMPS("8018_s5", "8018_s5_pc", 0x1F0, 0x1F5, 0x00D, 0x1F2, SMPS_1500),
 
-	/* name		     pc_name	     ctrl */
-	VS("8018_lvs1",      "8018_lvs1_pc", 0x060),
+	/* name		     pc_name	     ctrl   test */
+	VS("8018_lvs1",      "8018_lvs1_pc", 0x060, 0x061),
 };
 
 #define MAX_NAME_COMPARISON_LEN 32
 
 static int __devinit match_regulator(
-	struct pm8xxx_regulator_core_platform_data *core_data, char *name)
+	struct pm8xxx_regulator_core_platform_data *core_data, const char *name)
 {
 	int found = 0;
 	int i;
@@ -475,6 +500,12 @@ pm8018_add_subdevices(const struct pm8018_platform_data *pdata,
 		}
 	}
 
+	ret = mfd_add_devices(pmic->dev, 0, &thermal_alarm_cell, 1, NULL,
+				irq_base);
+	if (ret) {
+		pr_err("Failed to add thermal alarm subdevice, ret=%d\n", ret);
+		goto bail;
+	}
 
 	return 0;
 bail:
@@ -499,8 +530,8 @@ static const char * const pm8018_restart_reason[] = {
 static const char * const pm8018_rev_names[] = {
 	[PM8XXX_REVISION_8018_TEST]	= "test",
 	[PM8XXX_REVISION_8018_1p0]	= "1.0",
-	[PM8XXX_REVISION_8018_1p1]	= "1.1",
 	[PM8XXX_REVISION_8018_2p0]	= "2.0",
+	[PM8XXX_REVISION_8018_2p1]	= "2.1",
 };
 
 static int __devinit pm8018_probe(struct platform_device *pdev)

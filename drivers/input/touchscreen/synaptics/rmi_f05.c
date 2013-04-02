@@ -30,6 +30,7 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/input/rmi_platformdata.h>
+#include <linux/module.h>
 
 #include "rmi.h"
 #include "rmi_drvr.h"

@@ -3,7 +3,7 @@
  * MSM architecture cpufreq driver
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2007-2012, Code Aurora Forum. All rights reserved.
  * Author: Mike A. Chan <mikechan@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -19,6 +19,7 @@
 
 #include <linux/earlysuspend.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/cpufreq.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
@@ -27,6 +28,7 @@
 #include <linux/sched.h>
 #include <linux/suspend.h>
 #include <mach/socinfo.h>
+#include <mach/cpufreq.h>
 
 #include "acpuclock.h"
 
@@ -50,21 +52,36 @@ struct cpufreq_suspend_t {
 
 static DEFINE_PER_CPU(struct cpufreq_suspend_t, cpufreq_suspend);
 
-static int override_cpu;
+struct cpu_freq {
+	uint32_t max;
+	uint32_t min;
+	uint32_t allowed_max;
+	uint32_t allowed_min;
+	uint32_t limits_init;
+};
+
+static DEFINE_PER_CPU(struct cpu_freq, cpu_freq_info);
 
 static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 {
 	int ret = 0;
 	struct cpufreq_freqs freqs;
+	struct cpu_freq *limit = &per_cpu(cpu_freq_info, policy->cpu);
+
+	if (limit->limits_init) {
+		if (new_freq > limit->allowed_max) {
+			new_freq = limit->allowed_max;
+			pr_debug("max: limiting freq to %d\n", new_freq);
+		}
+
+		if (new_freq < limit->allowed_min) {
+			new_freq = limit->allowed_min;
+			pr_debug("min: limiting freq to %d\n", new_freq);
+		}
+	}
 
 	freqs.old = policy->cur;
-	if (override_cpu) {
-		if (policy->cur == policy->max)
-			return 0;
-		else
-			freqs.new = policy->max;
-	} else
-		freqs.new = new_freq;
+	freqs.new = new_freq;
 	freqs.cpu = policy->cpu;
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	ret = acpuclk_set_rate(policy->cpu, new_freq, SETRATE_CPUFREQ);
@@ -166,6 +183,72 @@ static int msm_cpufreq_verify(struct cpufreq_policy *policy)
 	return 0;
 }
 
+static unsigned int msm_cpufreq_get_freq(unsigned int cpu)
+{
+	return acpuclk_get_rate(cpu);
+}
+
+static inline int msm_cpufreq_limits_init(void)
+{
+	int cpu = 0;
+	int i = 0;
+	struct cpufreq_frequency_table *table = NULL;
+	uint32_t min = (uint32_t) -1;
+	uint32_t max = 0;
+	struct cpu_freq *limit = NULL;
+
+	for_each_possible_cpu(cpu) {
+		limit = &per_cpu(cpu_freq_info, cpu);
+		table = cpufreq_frequency_get_table(cpu);
+		if (table == NULL) {
+			pr_err("%s: error reading cpufreq table for cpu %d\n",
+					__func__, cpu);
+			continue;
+		}
+		for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
+			if (table[i].frequency > max)
+				max = table[i].frequency;
+			if (table[i].frequency < min)
+				min = table[i].frequency;
+		}
+		limit->allowed_min = min;
+		limit->allowed_max = max;
+		limit->min = min;
+		limit->max = max;
+		limit->limits_init = 1;
+	}
+
+	return 0;
+}
+
+int msm_cpufreq_set_freq_limits(uint32_t cpu, uint32_t min, uint32_t max)
+{
+	struct cpu_freq *limit = &per_cpu(cpu_freq_info, cpu);
+
+	if (!limit->limits_init)
+		msm_cpufreq_limits_init();
+
+	if ((min != MSM_CPUFREQ_NO_LIMIT) &&
+		min >= limit->min && min <= limit->max)
+		limit->allowed_min = min;
+	else
+		limit->allowed_min = limit->min;
+
+
+	if ((max != MSM_CPUFREQ_NO_LIMIT) &&
+		max <= limit->max && max >= limit->min)
+		limit->allowed_max = max;
+	else
+		limit->allowed_max = limit->max;
+
+	pr_debug("%s: Limiting cpu %d min = %d, max = %d\n",
+			__func__, cpu,
+			limit->allowed_min, limit->allowed_max);
+
+	return 0;
+}
+EXPORT_SYMBOL(msm_cpufreq_set_freq_limits);
+
 static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int cur_freq;
@@ -175,10 +258,18 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	struct cpufreq_work_struct *cpu_work = NULL;
 #endif
 
-	if (cpu_is_apq8064())
-		return -ENODEV;
 
 	table = cpufreq_frequency_get_table(policy->cpu);
+	if (table == NULL)
+		return -ENODEV;
+	/*
+	 * In 8625 both cpu core's frequency can not
+	 * be changed independently. Each cpu is bound to
+	 * same frequency. Hence set the cpumask to all cpu.
+	 */
+	if (cpu_is_msm8625())
+		cpumask_setall(policy->cpus);
+
 	if (cpufreq_frequency_table_cpuinfo(policy, table)) {
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 		policy->cpuinfo.min_freq = CONFIG_MSM_CPU_FREQ_MIN;
@@ -263,25 +354,6 @@ static int msm_cpufreq_pm_event(struct notifier_block *this,
 	}
 }
 
-static ssize_t store_mfreq(struct sysdev_class *class,
-			struct sysdev_class_attribute *attr,
-			const char *buf, size_t count)
-{
-	u64 val;
-
-	if (strict_strtoull(buf, 0, &val) < 0) {
-		pr_err("Invalid parameter to mfreq\n");
-		return 0;
-	}
-	if (val)
-		override_cpu = 1;
-	else
-		override_cpu = 0;
-	return count;
-}
-
-static SYSDEV_CLASS_ATTR(mfreq, 0200, NULL, store_mfreq);
-
 static struct freq_attr *msm_freq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
@@ -293,6 +365,7 @@ static struct cpufreq_driver msm_cpufreq_driver = {
 	.init		= msm_cpufreq_init,
 	.verify		= msm_cpufreq_verify,
 	.target		= msm_cpufreq_target,
+	.get		= msm_cpufreq_get_freq,
 	.name		= "msm",
 	.attr		= msm_freq_attr,
 };
@@ -304,11 +377,6 @@ static struct notifier_block msm_cpufreq_pm_notifier = {
 static int __init msm_cpufreq_register(void)
 {
 	int cpu;
-
-	int err = sysfs_create_file(&cpu_sysdev_class.kset.kobj,
-			&attr_mfreq.attr);
-	if (err)
-		pr_err("Failed to create sysfs mfreq\n");
 
 	for_each_possible_cpu(cpu) {
 		mutex_init(&(per_cpu(cpufreq_suspend, cpu).suspend_mutex));
@@ -324,4 +392,3 @@ static int __init msm_cpufreq_register(void)
 }
 
 late_initcall(msm_cpufreq_register);
-

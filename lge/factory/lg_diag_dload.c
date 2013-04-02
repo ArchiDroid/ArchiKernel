@@ -318,8 +318,8 @@ void webdload_common_cmd
 	    rsp_ptr->rsp_data.meid[1] = ((status_info_type*)si_page_buffer)->meid[1];
 	    break;
 
-	case 0x30:	case 0x61:		/* We don't use command But other device use command, so we don't delete command.  */
-	    break;
+	//case 0x30:	case 0x61:		/* We don't use command But other device use command, so we don't delete command.  */
+	//    break;
 	case WEBDLOAD_MODEL_NAME:
 		{
 			diag_webdload_name_req_type* name_req_ptr;

@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/sched.h>
 #include <linux/stringify.h>
 #include <linux/delay.h>
 #include <linux/module.h>

@@ -53,7 +53,14 @@ int32_t msm_camera_i2c_txdata(struct msm_camera_i2c_client *dev_client,
 	rc = i2c_transfer(dev_client->client->adapter, msg, 1);
 	if (rc < 0)
 		S_I2C_DBG("msm_camera_i2c_txdata faild 0x%x\n", saddr);
+/*LGE_CHANGE_S change to return current state for V3 hong.junki@lge.com 2012-12-28 */
+#ifdef CONFIG_HI351
+	return rc;
+#else
 	return 0;
+#endif
+/*LGE_CHANGE_E change to return current state for V3 hong.junki@lge.com 2012-12-28 */
+
 }
 
 int32_t msm_camera_i2c_write(struct msm_camera_i2c_client *client,
@@ -165,6 +172,31 @@ int32_t msm_camera_i2c_set_mask(struct msm_camera_i2c_client *client,
 
 	return rc;
 }
+int32_t msm_camera_i2c_set_write_mask_data(struct msm_camera_i2c_client *client,
+	uint16_t addr, uint16_t data, int16_t mask,
+	enum msm_camera_i2c_data_type data_type)
+{
+	int32_t rc;
+	uint16_t reg_data;
+	CDBG("%s\n", __func__);
+	if (mask == -1)
+		return 0;
+	if (mask == 0)
+		rc = msm_camera_i2c_write(client, addr, data, data_type);
+	else{
+		rc = msm_camera_i2c_read(client, addr, &reg_data, data_type);
+		if (rc < 0) {
+			CDBG("%s read fail\n", __func__);
+			return rc;
+		}
+		reg_data  = reg_data & mask;
+		reg_data  = (reg_data | (data & (~mask)));
+		rc = msm_camera_i2c_write(client, addr, reg_data, data_type);
+		if (rc < 0)
+			CDBG("%s write fail\n", __func__);
+	}
+	return rc;
+}
 
 int32_t msm_camera_i2c_compare(struct msm_camera_i2c_client *client,
 	uint16_t addr, uint16_t data,
@@ -252,7 +284,7 @@ int32_t msm_camera_i2c_write_tbl(struct msm_camera_i2c_client *client,
 		enum msm_camera_i2c_data_type dt;
 		if (reg_conf_tbl->cmd_type == MSM_CAMERA_I2C_CMD_POLL) {
 			rc = msm_camera_i2c_poll(client, reg_conf_tbl->reg_addr,
-				reg_conf_tbl->reg_addr, reg_conf_tbl->dt);
+				reg_conf_tbl->reg_data, reg_conf_tbl->dt);
 		} else {
 			if (reg_conf_tbl->dt == 0)
 				dt = data_type;
@@ -290,6 +322,13 @@ int32_t msm_camera_i2c_write_tbl(struct msm_camera_i2c_client *client,
 					reg_conf_tbl->reg_addr,
 					reg_conf_tbl->reg_data,
 					MSM_CAMERA_I2C_WORD_DATA, 0);
+				break;
+			case MSM_CAMERA_I2C_SET_BYTE_WRITE_MASK_DATA:
+				rc = msm_camera_i2c_set_write_mask_data(client,
+					reg_conf_tbl->reg_addr,
+					reg_conf_tbl->reg_data,
+					reg_conf_tbl->mask,
+					MSM_CAMERA_I2C_BYTE_DATA);
 				break;
 			default:
 				pr_err("%s: Unsupport data type: %d\n",
@@ -402,7 +441,6 @@ int32_t msm_sensor_write_enum_conf_array(struct msm_camera_i2c_client *client,
 
 	if (i >= conf->num_index)
 		return rc;
-
 	rc = msm_sensor_write_all_conf_array(client,
 		&conf->conf[i*conf->num_conf], conf->num_conf);
 
@@ -426,4 +464,29 @@ int32_t msm_sensor_write_all_conf_array(struct msm_camera_i2c_client *client,
 	return rc;
 }
 
-
+#if 1//def CONFIG_MT9E013_LGIT
+int32_t msm_camera_i2c_rxdata_manual(struct i2c_adapter *adapter, uint16_t saddr,
+	unsigned char *rxdata, int data_length)
+{
+	int32_t rc = 0;
+	//uint16_t saddr = dev_client->client->addr >> 1;
+	struct i2c_msg msgs[] = {
+		{
+			.addr  = saddr,
+			.flags = 0,
+			.len   = data_length, //dev_client->addr_type,
+			.buf   = rxdata,
+		},
+		{
+			.addr  = saddr,
+			.flags = I2C_M_RD,
+			.len   = data_length,
+			.buf   = rxdata,
+		},
+	};
+	rc = i2c_transfer(adapter, msgs, 2);
+	if (rc < 0)
+		S_I2C_DBG("msm_camera_i2c_rxdata failed 0x%x\n", saddr);
+	return rc;
+}
+#endif

@@ -36,6 +36,9 @@
 #define US_SET_DETECTION _IOWR(USF_IOCTL_MAGIC, 8, \
 				struct us_detect_info_type)
 
+#define US_GET_VERSION  _IOWR(USF_IOCTL_MAGIC, 9, \
+				struct us_version_info_type)
+
 /* Special timeout values */
 #define USF_NO_WAIT_TIMEOUT	0x00000000
 /* Infinitive */
@@ -65,12 +68,32 @@ enum us_detect_mode_enum {
 #define USF_POINT_EPOS_FORMAT	0
 #define USF_RAW_FORMAT		1
 
+/* Indexes of event types, produced by the calculators */
+#define USF_TSC_EVENT_IND      0
+#define USF_TSC_PTR_EVENT_IND  1
+#define USF_MOUSE_EVENT_IND    2
+#define USF_KEYBOARD_EVENT_IND 3
+#define USF_MAX_EVENT_IND      4
+
 /* Types of events, produced by the calculators */
 #define USF_NO_EVENT 0
-#define USF_TSC_EVENT 1
-#define USF_MOUSE_EVENT 2
-#define USF_KEYBOARD_EVENT 4
-#define USF_ALL_EVENTS (USF_TSC_EVENT | USF_MOUSE_EVENT | USF_KEYBOARD_EVENT)
+#define USF_TSC_EVENT      (1 << USF_TSC_EVENT_IND)
+#define USF_TSC_PTR_EVENT  (1 << USF_TSC_PTR_EVENT_IND)
+#define USF_MOUSE_EVENT    (1 << USF_MOUSE_EVENT_IND)
+#define USF_KEYBOARD_EVENT (1 << USF_KEYBOARD_EVENT_IND)
+#define USF_ALL_EVENTS         (USF_TSC_EVENT |\
+				USF_TSC_PTR_EVENT |\
+				USF_MOUSE_EVENT |\
+				USF_KEYBOARD_EVENT)
+
+/* min, max array dimension */
+#define MIN_MAX_DIM 2
+
+/* coordinates (x,y,z) array dimension */
+#define COORDINATES_DIM 3
+
+/* tilts (x,y) array dimension */
+#define TILTS_DIM 2
 
 /* Max size of the client name */
 #define USF_MAX_CLIENT_NAME_SIZE	20
@@ -102,17 +125,29 @@ struct us_xx_info_type {
 	uint8_t *params_data;
 };
 
+/* Input events sources */
+enum us_input_event_src_type {
+	US_INPUT_SRC_PEN,
+	US_INPUT_SRC_FINGER,
+	US_INPUT_SRC_UNDEF
+};
+
 struct us_input_info_type {
 	/* Touch screen dimensions: min & max;for input module */
-	int tsc_x_dim[2];
-	int tsc_y_dim[2];
-    /* Touch screen fuzz; for input module */
-	int tsc_x_fuzz;
-	int tsc_y_fuzz;
+	int tsc_x_dim[MIN_MAX_DIM];
+	int tsc_y_dim[MIN_MAX_DIM];
+	int tsc_z_dim[MIN_MAX_DIM];
+	/* Touch screen tilt dimensions: min & max;for input module */
+	int tsc_x_tilt[MIN_MAX_DIM];
+	int tsc_y_tilt[MIN_MAX_DIM];
 	/* Touch screen pressure limits: min & max; for input module */
-	int tsc_pressure[2];
+	int tsc_pressure[MIN_MAX_DIM];
 	/* Bitmap of types of events (USF_X_EVENT), produced by calculator */
 	uint16_t event_types;
+	/* Input event source */
+	enum us_input_event_src_type event_src;
+	/* Bitmap of types of events from devs, conflicting with USF */
+	uint16_t conflicting_event_types;
 };
 
 struct us_tx_info_type {
@@ -128,18 +163,13 @@ struct us_rx_info_type {
 	/* Info specific for RX*/
 };
 
-
-#define	USF_PIX_COORDINATE  0 /* unit is pixel */
-#define	USF_CMM_COORDINATE  1 /* unit is 0.01 mm */
 struct point_event_type {
-/* Pen coordinates (x, y) in units, defined by <coordinates_type>  */
-	int coordinates[2];
-/* {x;y}  in degrees [-90; 90] */
-	uint32_t inclinations[2];
+/* Pen coordinates (x, y, z) in units, defined by <coordinates_type>  */
+	int coordinates[COORDINATES_DIM];
+	/* {x;y}  in transparent units */
+	int inclinations[TILTS_DIM];
 /* [0-1023] (10bits); 0 - pen up */
 	uint32_t pressure;
-/* 0 - mapped in the display pixel. 1 - raw in 0.01 mm (only for log); */
-	uint8_t coordinates_type;
 };
 
 /* Mouse buttons, supported by USF */
@@ -148,7 +178,7 @@ struct point_event_type {
 #define USF_BUTTON_RIGHT_MASK  4
 struct mouse_event_type {
 /* The mouse relative movement (dX, dY, dZ) */
-	int rels[3];
+	int rels[COORDINATES_DIM];
 /* Bitmap of mouse buttons states: 1 - down, 0 - up; */
 	uint16_t buttons_states;
 };
@@ -165,8 +195,8 @@ struct usf_event_type {
 	uint32_t seq_num;
 /* Event generation system time */
 	uint32_t timestamp;
-/* Destination input event type (e.g. touch screen, mouse, key) */
-	uint16_t event_type;
+/* Destination input event type index (e.g. touch screen, mouse, key) */
+	uint16_t event_type_ind;
 	union {
 		struct point_event_type point_event;
 		struct mouse_event_type mouse_event;
@@ -186,6 +216,8 @@ struct us_tx_update_info_type {
 /* Time (sec) to wait for data or special values: */
 /* USF_NO_WAIT_TIMEOUT, USF_INFINITIVE_TIMEOUT, USF_DEFAULT_TIMEOUT */
 	uint32_t timeout;
+/* Events (from conflicting devs) to be disabled/enabled */
+	uint16_t event_filters;
 
 /* Input  transparent data: */
 /* Parameters size */
@@ -230,6 +262,13 @@ struct us_detect_info_type {
 	uint32_t detect_timeout;
 /* Out parameter: US presence */
 	bool is_us;
+};
+
+struct us_version_info_type {
+/* Size of memory for the version string */
+	uint16_t buf_size;
+/* Pointer to the memory for the version string */
+	char *pbuf;
 };
 
 #endif /* __USF_H__ */

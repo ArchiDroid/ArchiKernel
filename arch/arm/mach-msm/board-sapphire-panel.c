@@ -27,10 +27,10 @@
 #include <mach/msm_fb.h>
 #include <mach/vreg.h>
 #include <mach/htc_pwrsink.h>
+#include <mach/proc_comm.h>
 
 #include "gpio_chip.h"
 #include "board-sapphire.h"
-#include "proc_comm.h"
 #include "devices.h"
 
 #define DEBUG_SAPPHIRE_PANEL 0

@@ -34,6 +34,7 @@
 #include <linux/sysfs.h>
 #include <linux/param.h>
 #include <linux/input/rmi_platformdata.h>
+#include <linux/module.h>
 
 #include "rmi.h"
 #include "rmi_drvr.h"

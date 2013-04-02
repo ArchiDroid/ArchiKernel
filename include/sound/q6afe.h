@@ -21,6 +21,11 @@
 #define MSM_AFE_6CHANNELS   6
 #define MSM_AFE_8CHANNELS   8
 
+#define MSM_AFE_I2S_FORMAT_LPCM		0
+#define MSM_AFE_I2S_FORMAT_COMPR		1
+#define MSM_AFE_I2S_FORMAT_IEC60958_LPCM	2
+#define MSM_AFE_I2S_FORMAT_IEC60958_COMPR	3
+
 #define MSM_AFE_PORT_TYPE_RX 0
 #define MSM_AFE_PORT_TYPE_TX 1
 
@@ -63,12 +68,15 @@ enum {
 	IDX_INT_FM_TX = 29,
 	IDX_RT_PROXY_PORT_001_RX = 30,
 	IDX_RT_PROXY_PORT_001_TX = 31,
+	IDX_SECONDARY_PCM_RX = 32,
+	IDX_SECONDARY_PCM_TX = 33,
 	AFE_MAX_PORTS
 };
 
 int afe_open(u16 port_id, union afe_port_config *afe_config, int rate);
 int afe_close(int port_id);
 int afe_loopback(u16 enable, u16 rx_port, u16 tx_port);
+int afe_loopback_cfg(u16 enable, u16 dst_port, u16 src_port, u16 mode);
 int afe_sidetone(u16 tx_port_id, u16 rx_port_id, u16 enable, uint16_t gain);
 int afe_loopback_gain(u16 port_id, u16 volume);
 int afe_validate_port(u16 port_id);
@@ -87,8 +95,7 @@ int afe_register_get_events(u16 port_id,
 int afe_unregister_get_events(u16 port_id);
 int afe_rt_proxy_port_write(u32 buf_addr_p, int bytes);
 int afe_rt_proxy_port_read(u32 buf_addr_p, int bytes);
-int afe_port_start_nowait(u16 port_id, union afe_port_config *afe_config,
-	u32 rate);
+int afe_port_start(u16 port_id, union afe_port_config *afe_config, u32 rate);
 int afe_port_stop_nowait(int port_id);
 int afe_apply_gain(u16 port_id, u16 gain);
 int afe_q6_interface_prepare(void);

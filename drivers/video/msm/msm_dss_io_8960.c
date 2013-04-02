@@ -11,6 +11,7 @@
  *
  */
 #include <linux/clk.h>
+#include <mach/clk.h>
 #include "msm_fb.h"
 #include "mdp.h"
 #include "mdp4.h"
@@ -525,8 +526,11 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info,
 	int i, off;
 
 	MIPI_OUTP(MIPI_DSI_BASE + 0x128, 0x0001);/* start phy sw reset */
-	msleep(100);
+	wmb();
+	usleep(1);
 	MIPI_OUTP(MIPI_DSI_BASE + 0x128, 0x0000);/* end phy w reset */
+	wmb();
+	usleep(1);
 	MIPI_OUTP(MIPI_DSI_BASE + 0x500, 0x0003);/* regulator_ctrl_0 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x504, 0x0001);/* regulator_ctrl_1 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x508, 0x0001);/* regulator_ctrl_2 */
@@ -743,10 +747,13 @@ void hdmi_phy_reset(void)
 
 void hdmi_msm_reset_core(void)
 {
-	hdmi_msm_set_mode(FALSE);
 	hdmi_msm_clk(0);
 	udelay(5);
 	hdmi_msm_clk(1);
+
+	clk_reset(hdmi_msm_state->hdmi_app_clk, CLK_RESET_ASSERT);
+	udelay(20);
+	clk_reset(hdmi_msm_state->hdmi_app_clk, CLK_RESET_DEASSERT);
 }
 
 void hdmi_msm_init_phy(int video_format)

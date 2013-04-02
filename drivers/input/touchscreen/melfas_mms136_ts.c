@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h> 
-#include <mach/board_lge.h>
+#include CONFIG_LGE_BOARD_HEADER_FILE
 
 /*LGE_CHANGE_S : seven.kim@lge.com touch firmware manual download using ADB */
 #include <linux/miscdevice.h>
@@ -1029,7 +1029,7 @@ static int melfas_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		goto err_input_dev_alloc_failed;
 	}
 
-	ts->input_dev->name = "melfas-ts" ;
+	ts->input_dev->name = "<MELFAS> melfas-ts" ;
 
 	set_bit(EV_ABS, ts->input_dev->evbit);
 	set_bit(EV_KEY, ts->input_dev->evbit);
@@ -1318,7 +1318,13 @@ static struct i2c_driver melfas_ts_driver = {
 
 static int __devinit melfas_ts_init(void)
 {
-	return i2c_add_driver(&melfas_ts_driver);
+	int i2c_add_driver_result;
+	printk("<MELFAS> melfas_ts_init start \n");
+	i2c_add_driver_result = i2c_add_driver(&melfas_ts_driver);
+
+	printk("<MELFAS> melfas_ts_init i2c_add_driver_result = %d \n", i2c_add_driver_result);
+
+	return i2c_add_driver_result;
 }
 
 static void __exit melfas_ts_exit(void)
@@ -1331,5 +1337,5 @@ MODULE_AUTHOR("MinSang, Kim <kimms@melfas.com>");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
 
-late_initcall(melfas_ts_init);
+module_init(melfas_ts_init);
 module_exit(melfas_ts_exit);

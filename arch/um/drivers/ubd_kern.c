@@ -19,42 +19,26 @@
 
 #define UBD_SHIFT 4
 
-#include "linux/kernel.h"
-#include "linux/module.h"
-#include "linux/blkdev.h"
-#include "linux/ata.h"
-#include "linux/hdreg.h"
-#include "linux/init.h"
-#include "linux/cdrom.h"
-#include "linux/proc_fs.h"
-#include "linux/seq_file.h"
-#include "linux/ctype.h"
-#include "linux/capability.h"
-#include "linux/mm.h"
-#include "linux/slab.h"
-#include "linux/vmalloc.h"
-#include "linux/mutex.h"
-#include "linux/blkpg.h"
-#include "linux/genhd.h"
-#include "linux/spinlock.h"
-#include "linux/platform_device.h"
-#include "linux/scatterlist.h"
-#include "asm/segment.h"
-#include "asm/uaccess.h"
-#include "asm/irq.h"
-#include "asm/types.h"
-#include "asm/tlbflush.h"
-#include "mem_user.h"
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/blkdev.h>
+#include <linux/ata.h>
+#include <linux/hdreg.h>
+#include <linux/cdrom.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/ctype.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
+#include <linux/platform_device.h>
+#include <linux/scatterlist.h>
+#include <asm/tlbflush.h>
 #include "kern_util.h"
-#include "kern.h"
 #include "mconsole_kern.h"
 #include "init.h"
-#include "irq_user.h"
 #include "irq_kern.h"
-#include "ubd_user.h"
+#include "ubd.h"
 #include "os.h"
-#include "mem.h"
-#include "mem_kern.h"
 #include "cow.h"
 
 enum ubd_req { UBD_READ, UBD_WRITE };
@@ -513,8 +497,37 @@ __uml_exitcall(kill_io_thread);
 static inline int ubd_file_size(struct ubd *ubd_dev, __u64 *size_out)
 {
 	char *file;
+	int fd;
+	int err;
 
-	file = ubd_dev->cow.file ? ubd_dev->cow.file : ubd_dev->file;
+	__u32 version;
+	__u32 align;
+	char *backing_file;
+	time_t mtime;
+	unsigned long long size;
+	int sector_size;
+	int bitmap_offset;
+
+	if (ubd_dev->file && ubd_dev->cow.file) {
+		file = ubd_dev->cow.file;
+
+		goto out;
+	}
+
+	fd = os_open_file(ubd_dev->file, global_openflags, 0);
+	if (fd < 0)
+		return fd;
+
+	err = read_cow_header(file_reader, &fd, &version, &backing_file, \
+		&mtime, &size, &sector_size, &align, &bitmap_offset);
+	os_close_file(fd);
+
+	if(err == -EINVAL)
+		file = ubd_dev->file;
+	else
+		file = backing_file;
+
+out:
 	return os_file_size(file, size_out);
 }
 
@@ -1088,7 +1101,7 @@ static int __init ubd_driver_init(void){
 		return 0;
 	}
 	err = um_request_irq(UBD_IRQ, thread_fd, IRQ_READ, ubd_intr,
-			     IRQF_DISABLED, "ubd", ubd_devs);
+			     0, "ubd", ubd_devs);
 	if(err != 0)
 		printk(KERN_ERR "um_request_irq failed - errno = %d\n", -err);
 	return 0;

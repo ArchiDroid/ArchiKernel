@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,10 +29,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
-/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
-/*Print UTC Time  in smem log*/	
-#include <linux/rtc.h>
-/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
+
 #include <mach/msm_iomap.h>
 #include <mach/smem_log.h>
 
@@ -62,10 +59,20 @@ do { \
 #define D(x...) do {} while (0)
 #endif
 
+/*
+ * Legacy targets use the 32KHz hardware timer and new targets will use
+ * the scheduler timer scaled to a 32KHz tick count.
+ *
+ * As testing on legacy targets permits, we will move them to use
+ * sched_clock() and eventually remove the conditiona compilation.
+ */
 #if defined(CONFIG_ARCH_MSM7X30) || defined(CONFIG_ARCH_MSM8X60) \
 	|| defined(CONFIG_ARCH_FSM9XXX)
 #define TIMESTAMP_ADDR (MSM_TMR_BASE + 0x08)
-#else
+#elif defined(CONFIG_ARCH_APQ8064) || defined(CONFIG_ARCH_MSM7X01A) || \
+	defined(CONFIG_ARCH_MSM7x25) || defined(CONFIG_ARCH_MSM7X27) || \
+	defined(CONFIG_ARCH_MSM7X27A) || defined(CONFIG_ARCH_MSM8960) || \
+	defined(CONFIG_ARCH_MSM9615) || defined(CONFIG_ARCH_QSD8X50)
 #define TIMESTAMP_ADDR (MSM_TMR_BASE + 0x04)
 #endif
 
@@ -136,6 +143,7 @@ struct sym id_syms[] = {
 	{ SMEM_LOG_PROC_ID_MODEM, "MODM" },
 	{ SMEM_LOG_PROC_ID_Q6, "QDSP" },
 	{ SMEM_LOG_PROC_ID_APPS, "APPS" },
+	{ SMEM_LOG_PROC_ID_WCNSS, "WCNSS" },
 };
 
 struct sym base_syms[] = {
@@ -625,6 +633,8 @@ static char *find_sym(uint32_t id, uint32_t val)
 static void init_syms(void) {}
 #endif
 
+#ifdef TIMESTAMP_ADDR
+/* legacy timestamp using 32.768KHz clock */
 static inline unsigned int read_timestamp(void)
 {
 	unsigned int tick = 0;
@@ -639,6 +649,18 @@ static inline unsigned int read_timestamp(void)
 
 	return tick;
 }
+#else
+static inline unsigned int read_timestamp(void)
+{
+	unsigned long long val;
+
+	/* SMEM LOG uses a 32.768KHz timestamp */
+	val = sched_clock() * 32768U;
+	do_div(val, 1000000000U);
+
+	return (unsigned int)val;
+}
+#endif
 
 static void smem_log_event_from_user(struct smem_log_inst *inst,
 				     const char __user *buf, int size, int num)
@@ -650,6 +672,11 @@ static void smem_log_event_from_user(struct smem_log_inst *inst,
 	uint32_t timetick = 0;
 	int first = 1;
 	int ret;
+
+	if (!inst->idx) {
+		pr_err("%s: invalid write index\n", __func__);
+		return;
+	}
 
 	remote_spin_lock_irqsave(inst->remote_spinlock, flags);
 
@@ -706,30 +733,12 @@ static void _smem_log_event(
 	uint32_t idx;
 	uint32_t next_idx;
 	unsigned long flags;
-/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
-	/*Print UTC Time  in smem log*/	
-	struct timespec ts;
-	struct rtc_time tm;
-	getnstimeofday(&ts);
-	rtc_time_to_tm(ts.tv_sec, &tm);
-/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 
 	item.timetick = read_timestamp();
 	item.identifier = id;
 	item.data1 = data1;
 	item.data2 = data2;
 	item.data3 = data3;
-/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
-	/*Print UTC Time  in smem log*/
-	if (item.identifier )
-	{
-		item.timetick = (tm.tm_sec & 0xFF);
-		tm.tm_min = tm.tm_min << 8;
-		item.timetick |= (tm.tm_min & 0xFF00);
-		tm.tm_hour = tm.tm_hour << 16;
-		item.timetick |= (tm.tm_hour & 0xFF0000);
-	}		
-/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 
 	remote_spin_lock_irqsave(lock, flags);
 
@@ -841,9 +850,9 @@ static int _smem_log_init(void)
 
 	inst[GEN].which_log = GEN;
 	inst[GEN].events =
-		(struct smem_log_item *)smem_alloc(SMEM_SMEM_LOG_EVENTS,
+		(struct smem_log_item *)smem_alloc2(SMEM_SMEM_LOG_EVENTS,
 						  SMEM_LOG_EVENTS_SIZE);
-	inst[GEN].idx = (uint32_t *)smem_alloc(SMEM_SMEM_LOG_IDX,
+	inst[GEN].idx = (uint32_t *)smem_alloc2(SMEM_SMEM_LOG_IDX,
 					     sizeof(uint32_t));
 	if (!inst[GEN].events || !inst[GEN].idx)
 		pr_info("%s: no log or log_idx allocated\n", __func__);
@@ -857,9 +866,9 @@ static int _smem_log_init(void)
 	inst[STA].which_log = STA;
 	inst[STA].events =
 		(struct smem_log_item *)
-		smem_alloc(SMEM_SMEM_STATIC_LOG_EVENTS,
+		smem_alloc2(SMEM_SMEM_STATIC_LOG_EVENTS,
 			   SMEM_STATIC_LOG_EVENTS_SIZE);
-	inst[STA].idx = (uint32_t *)smem_alloc(SMEM_SMEM_STATIC_LOG_IDX,
+	inst[STA].idx = (uint32_t *)smem_alloc2(SMEM_SMEM_STATIC_LOG_IDX,
 						     sizeof(uint32_t));
 	if (!inst[STA].events || !inst[STA].idx)
 		pr_info("%s: no static log or log_idx allocated\n", __func__);
@@ -873,9 +882,9 @@ static int _smem_log_init(void)
 	inst[POW].which_log = POW;
 	inst[POW].events =
 		(struct smem_log_item *)
-		smem_alloc(SMEM_SMEM_LOG_POWER_EVENTS,
+		smem_alloc2(SMEM_SMEM_LOG_POWER_EVENTS,
 			   SMEM_POWER_LOG_EVENTS_SIZE);
-	inst[POW].idx = (uint32_t *)smem_alloc(SMEM_SMEM_LOG_POWER_IDX,
+	inst[POW].idx = (uint32_t *)smem_alloc2(SMEM_SMEM_LOG_POWER_IDX,
 						     sizeof(uint32_t));
 	if (!inst[POW].events || !inst[POW].idx)
 		pr_info("%s: no power log or log_idx allocated\n", __func__);
@@ -917,6 +926,9 @@ static ssize_t smem_log_read_bin(struct file *fp, char __user *buf,
 	struct smem_log_inst *local_inst;
 
 	local_inst = fp->private_data;
+
+	if (!local_inst->idx)
+		return -ENODEV;
 
 	remote_spin_lock_irqsave(local_inst->remote_spinlock, flags);
 
@@ -967,6 +979,8 @@ static ssize_t smem_log_read(struct file *fp, char __user *buf,
 	struct smem_log_inst *inst;
 
 	inst = fp->private_data;
+	if (!inst->idx)
+		return -ENODEV;
 
 	remote_spin_lock_irqsave(inst->remote_spinlock, flags);
 
@@ -1205,8 +1219,10 @@ static int update_read_avail(struct smem_log_inst *inst)
 	int curr_read_avail;
 	unsigned long flags = 0;
 
-	remote_spin_lock_irqsave(inst->remote_spinlock, flags);
+	if (!inst->idx)
+		return 0;
 
+	remote_spin_lock_irqsave(inst->remote_spinlock, flags);
 	curr_read_avail = (*inst->idx - inst->read_idx);
 	if (curr_read_avail < 0)
 		curr_read_avail = inst->num - inst->read_idx + *inst->idx;
@@ -1335,10 +1351,6 @@ static int _debug_dump_sym(int log, char *buf, int max, uint32_t cont)
 	uint32_t data1 = 0;
 	uint32_t data2 = 0;
 	uint32_t data3 = 0;
-/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
-/*Print UTC Time  in smem log*/
-	uint32_t utc_hr,utc_min,utc_sec,temp_time_tick;
-/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/
 
 	if (!inst[log].events)
 		return 0;
@@ -1396,28 +1408,9 @@ static int _debug_dump_sym(int log, char *buf, int max, uint32_t cont)
 						       PROC &
 						       inst[log].events[idx].
 						       identifier);
-/*LGE_CHANGE_S: yoonsoo.kim@lge.com  28/03/2012*/
-/*Print UTC Time  in smem log*/
-				utc_hr = 0;
-				utc_min = 0;
-				utc_sec = 0;
-				temp_time_tick = inst[log].events[idx].timetick;
-					
-				utc_sec =  temp_time_tick & 0xFF;
-				temp_time_tick = temp_time_tick >> 8;
-				utc_min =  temp_time_tick & 0xFF;
-				temp_time_tick = temp_time_tick >> 8;
-				utc_hr =  temp_time_tick & 0xFF;
 
-				if ( 0 == proc_val)
 				i += scnprintf(buf + i, max - i, "%10u ",
 					       inst[log].events[idx].timetick);
-				else
-					i += scnprintf(buf + i, max - i, " %02d:%02d:%2d	",
-					       utc_hr,utc_min,utc_sec);
-
-/*LGE_CHANGE_E: yoonsoo.kim@lge.com  28/03/2012*/	
-
 
 				sub = find_sym(BASE_SYM, sub_val);
 
@@ -1737,6 +1730,10 @@ static int _debug_dump_sym(int log, char *buf, int max, uint32_t cont)
 static int debug_dump(char *buf, int max, uint32_t cont)
 {
 	int r;
+
+	if (!inst[GEN].idx || !inst[GEN].events)
+		return -ENODEV;
+
 	while (cont) {
 		update_read_avail(&inst[GEN]);
 		r = wait_event_interruptible_timeout(inst[GEN].read_wait,
@@ -1757,6 +1754,10 @@ static int debug_dump(char *buf, int max, uint32_t cont)
 static int debug_dump_sym(char *buf, int max, uint32_t cont)
 {
 	int r;
+
+	if (!inst[GEN].idx || !inst[GEN].events)
+		return -ENODEV;
+
 	while (cont) {
 		update_read_avail(&inst[GEN]);
 		r = wait_event_interruptible_timeout(inst[GEN].read_wait,
@@ -1777,6 +1778,10 @@ static int debug_dump_sym(char *buf, int max, uint32_t cont)
 static int debug_dump_static(char *buf, int max, uint32_t cont)
 {
 	int r;
+
+	if (!inst[STA].idx || !inst[STA].events)
+		return -ENODEV;
+
 	while (cont) {
 		update_read_avail(&inst[STA]);
 		r = wait_event_interruptible_timeout(inst[STA].read_wait,
@@ -1797,6 +1802,10 @@ static int debug_dump_static(char *buf, int max, uint32_t cont)
 static int debug_dump_static_sym(char *buf, int max, uint32_t cont)
 {
 	int r;
+
+	if (!inst[STA].idx || !inst[STA].events)
+		return -ENODEV;
+
 	while (cont) {
 		update_read_avail(&inst[STA]);
 		r = wait_event_interruptible_timeout(inst[STA].read_wait,
@@ -1817,6 +1826,10 @@ static int debug_dump_static_sym(char *buf, int max, uint32_t cont)
 static int debug_dump_power(char *buf, int max, uint32_t cont)
 {
 	int r;
+
+	if (!inst[POW].idx || !inst[POW].events)
+		return -ENODEV;
+
 	while (cont) {
 		update_read_avail(&inst[POW]);
 		r = wait_event_interruptible_timeout(inst[POW].read_wait,
@@ -1837,6 +1850,10 @@ static int debug_dump_power(char *buf, int max, uint32_t cont)
 static int debug_dump_power_sym(char *buf, int max, uint32_t cont)
 {
 	int r;
+
+	if (!inst[POW].idx || !inst[POW].events)
+		return -ENODEV;
+
 	while (cont) {
 		update_read_avail(&inst[POW]);
 		r = wait_event_interruptible_timeout(inst[POW].read_wait,
@@ -1865,10 +1882,15 @@ static ssize_t debug_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	int r;
-	static int bsize;
+	int bsize = 0;
 	int (*fill)(char *, int, uint32_t) = file->private_data;
-	if (!(*ppos))
+	if (!(*ppos)) {
 		bsize = fill(debug_buffer, EVENTS_PRINT_SIZE, 0);
+
+		if (bsize < 0)
+			bsize = scnprintf(debug_buffer,
+				EVENTS_PRINT_SIZE, "Log not available\n");
+	}
 	DBG("%s: count %d ppos %d\n", __func__, count, (unsigned int)*ppos);
 	r =  simple_read_from_buffer(buf, count, ppos, debug_buffer,
 				     bsize);
@@ -1883,12 +1905,21 @@ static ssize_t debug_read_cont(struct file *file, char __user *buf,
 	int bsize;
 	if (!buffer)
 		return -ENOMEM;
+
 	bsize = fill(buffer, count, 1);
+	if (bsize < 0) {
+		if (*ppos == 0)
+			bsize = scnprintf(buffer, count, "Log not available\n");
+		else
+			bsize = 0;
+	}
+
 	DBG("%s: count %d bsize %d\n", __func__, count, bsize);
 	if (copy_to_user(buf, buffer, bsize)) {
 		kfree(buffer);
 		return -EFAULT;
 	}
+	*ppos += bsize;
 	kfree(buffer);
 	return bsize;
 }
@@ -1977,28 +2008,25 @@ static int smem_log_initialize(void)
 	return ret;
 }
 
-static int modem_notifier(struct notifier_block *this,
-			  unsigned long code,
-			  void *_cmd)
+static int smsm_driver_state_notifier(struct notifier_block *this,
+				      unsigned long code,
+				      void *_cmd)
 {
-	switch (code) {
-	case MODEM_NOTIFIER_SMSM_INIT:
+	int ret = 0;
+	if (code & SMSM_INIT) {
 		if (!smem_log_initialized)
-			smem_log_initialize();
-		break;
-	default:
-		break;
+			ret = smem_log_initialize();
 	}
-	return NOTIFY_DONE;
+	return ret;
 }
 
 static struct notifier_block nb = {
-	.notifier_call = modem_notifier,
+	.notifier_call = smsm_driver_state_notifier,
 };
 
 static int __init smem_log_init(void)
 {
-	return modem_register_notifier(&nb);
+	return smsm_driver_state_notifier_register(&nb);
 }
 
 

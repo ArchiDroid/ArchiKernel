@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011,2012 Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,6 +13,12 @@
 #define _MSM_PCM_VOICE_H
 #include <sound/apr_audio.h>
 
+enum {
+	VOICE_SESSION_INDEX,
+	VOLTE_SESSION_INDEX,
+	SGLTE_SESSION_INDEX,
+	VOICE_SESSION_INDEX_MAX,
+};
 
 struct msm_voice {
 	struct snd_pcm_substream *playback_substream;

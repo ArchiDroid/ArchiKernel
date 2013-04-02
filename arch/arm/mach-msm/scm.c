@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -173,6 +173,9 @@ static u32 smc(u32 cmd_addr)
 			__asmeq("%1", "r0")
 			__asmeq("%2", "r1")
 			__asmeq("%3", "r2")
+#ifdef REQUIRES_SEC
+			".arch_extension sec\n"
+#endif
 			"smc	#0	@ switch to secure world\n"
 			: "=r" (r0)
 			: "r" (r0), "r" (r1), "r" (r2)
@@ -294,6 +297,9 @@ s32 scm_call_atomic1(u32 svc, u32 cmd, u32 arg1)
 		__asmeq("%1", "r0")
 		__asmeq("%2", "r1")
 		__asmeq("%3", "r2")
+#ifdef REQUIRES_SEC
+			".arch_extension sec\n"
+#endif
 		"smc	#0	@ switch to secure world\n"
 		: "=r" (r0)
 		: "r" (r0), "r" (r1), "r" (r2)
@@ -326,12 +332,50 @@ s32 scm_call_atomic2(u32 svc, u32 cmd, u32 arg1, u32 arg2)
 		__asmeq("%2", "r1")
 		__asmeq("%3", "r2")
 		__asmeq("%4", "r3")
+#ifdef REQUIRES_SEC
+			".arch_extension sec\n"
+#endif
 		"smc	#0	@ switch to secure world\n"
 		: "=r" (r0)
 		: "r" (r0), "r" (r1), "r" (r2), "r" (r3));
 	return r0;
 }
 EXPORT_SYMBOL(scm_call_atomic2);
+
+s32 scm_call_atomic4_3(u32 svc, u32 cmd, u32 arg1, u32 arg2,
+		u32 arg3, u32 arg4, u32 *ret1, u32 *ret2)
+{
+	int ret;
+	int context_id;
+	register u32 r0 asm("r0") = SCM_ATOMIC(svc, cmd, 4);
+	register u32 r1 asm("r1") = (u32)&context_id;
+	register u32 r2 asm("r2") = arg1;
+	register u32 r3 asm("r3") = arg2;
+	register u32 r4 asm("r4") = arg3;
+	register u32 r5 asm("r5") = arg4;
+
+	asm volatile(
+		__asmeq("%0", "r0")
+		__asmeq("%1", "r1")
+		__asmeq("%2", "r2")
+		__asmeq("%3", "r0")
+		__asmeq("%4", "r1")
+		__asmeq("%5", "r2")
+		__asmeq("%6", "r3")
+#ifdef REQUIRES_SEC
+			".arch_extension sec\n"
+#endif
+		"smc	#0	@ switch to secure world\n"
+		: "=r" (r0), "=r" (r1), "=r" (r2)
+		: "r" (r0), "r" (r1), "r" (r2), "r" (r3), "r" (r4), "r" (r5));
+	ret = r0;
+	if (ret1)
+		*ret1 = r1;
+	if (ret2)
+		*ret2 = r2;
+	return r0;
+}
+EXPORT_SYMBOL(scm_call_atomic4_3);
 
 u32 scm_get_version(void)
 {
@@ -353,6 +397,9 @@ u32 scm_get_version(void)
 			__asmeq("%1", "r1")
 			__asmeq("%2", "r0")
 			__asmeq("%3", "r1")
+#ifdef REQUIRES_SEC
+			".arch_extension sec\n"
+#endif
 			"smc	#0	@ switch to secure world\n"
 			: "=r" (r0), "=r" (r1)
 			: "r" (r0), "r" (r1)
@@ -381,6 +428,19 @@ int scm_is_call_available(u32 svc_id, u32 cmd_id)
 	return ret_val;
 }
 EXPORT_SYMBOL(scm_is_call_available);
+
+#define GET_FEAT_VERSION_CMD	3
+int scm_get_feat_version(u32 feat)
+{
+	if (scm_is_call_available(SCM_SVC_INFO, GET_FEAT_VERSION_CMD)) {
+		u32 version;
+		if (!scm_call(SCM_SVC_INFO, GET_FEAT_VERSION_CMD, &feat,
+				sizeof(feat), &version, sizeof(version)))
+			return version;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(scm_get_feat_version);
 
 static int scm_init(void)
 {

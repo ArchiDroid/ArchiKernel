@@ -1,9 +1,9 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc_linux.c,v 1.8.6.2 2011-02-01 18:38:36 Exp $
+ * $Id: bcmsdh_sdmmc_linux.c 312783 2012-02-03 22:53:56Z $
  */
 
 #include <typedefs.h>
@@ -55,13 +55,26 @@
 #if !defined(SDIO_DEVICE_ID_BROADCOM_4319)
 #define SDIO_DEVICE_ID_BROADCOM_4319	0x4319
 #endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4319) */
+#if !defined(SDIO_DEVICE_ID_BROADCOM_4330)
+#define SDIO_DEVICE_ID_BROADCOM_4330	0x4330
+#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4330) */
+#if !defined(SDIO_DEVICE_ID_BROADCOM_4334)
+#define SDIO_DEVICE_ID_BROADCOM_4334    0x4334
+#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4334) */
+#if !defined(SDIO_DEVICE_ID_BROADCOM_4324)
+#define SDIO_DEVICE_ID_BROADCOM_4324    0x4324
+#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4324) */
+#if !defined(SDIO_DEVICE_ID_BROADCOM_43239)
+#define SDIO_DEVICE_ID_BROADCOM_43239    43239
+#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_43239) */
+
 
 #include <bcmsdh_sdmmc.h>
 
 #include <dhd_dbg.h>
 
 #ifdef WL_CFG80211
-extern void wl_cfg80211_set_sdio_func(void *func);
+extern void wl_cfg80211_set_parent_dev(void *dev);
 #endif
 
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
@@ -89,7 +102,6 @@ PBCMSDH_SDMMC_INSTANCE gInstance;
 
 extern int bcmsdh_probe(struct device *dev);
 extern int bcmsdh_remove(struct device *dev);
-
 extern volatile bool dhd_mmc_suspend;
 
 static int bcmsdh_sdmmc_probe(struct sdio_func *func,
@@ -118,7 +130,7 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 
 	if (func->num == 2) {
 #ifdef WL_CFG80211
-		wl_cfg80211_set_sdio_func(func);
+		wl_cfg80211_set_parent_dev(&func->dev);
 #endif
 		sd_trace(("F2 found, calling bcmsdh_probe...\n"));
 		ret = bcmsdh_probe(&func->dev);
@@ -153,6 +165,10 @@ static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4325) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4319) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4330) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4334) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4324) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_43239) },
 	{ SDIO_DEVICE_CLASS(SDIO_CLASS_NONE)		},
 	{ /* end: all zeroes */				},
 };
@@ -163,14 +179,32 @@ MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
 static int bcmsdh_sdmmc_suspend(struct device *pdev)
 {
 	struct sdio_func *func = dev_to_sdio_func(pdev);
+	mmc_pm_flag_t sdio_flags;
+	int ret;
 
 	if (func->num != 2)
 		return 0;
+
+	sd_trace(("%s Enter\n", __FUNCTION__));
+
 	if (dhd_os_check_wakelock(bcmsdh_get_drvdata()))
 		return -EBUSY;
+	sdio_flags = sdio_get_host_pm_caps(func);
+
+	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
+		sd_err(("%s: can't keep power while host is suspended\n", __FUNCTION__));
+		return  -EINVAL;
+	}
+
+	/* keep power while host suspended */
+	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	if (ret) {
+		sd_err(("%s: error while trying to keep power\n", __FUNCTION__));
+		return ret;
+	}
 #if defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(0);
-#endif
+#endif	/* defined(OOB_INTR_ONLY) */
 	dhd_mmc_suspend = TRUE;
 	smp_mb();
 
@@ -179,15 +213,16 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 
 static int bcmsdh_sdmmc_resume(struct device *pdev)
 {
+#if defined(OOB_INTR_ONLY)
 	struct sdio_func *func = dev_to_sdio_func(pdev);
-
-	if (func->num != 2)
-		return 0;
+#endif
+	sd_trace(("%s Enter\n", __FUNCTION__));
 	dhd_mmc_suspend = FALSE;
 #if defined(OOB_INTR_ONLY)
-	if (dhd_os_check_if_up(bcmsdh_get_drvdata()))
+	if ((func->num == 2) && dhd_os_check_if_up(bcmsdh_get_drvdata()))
 		bcmsdh_oob_intr_set(1);
-#endif
+#endif /* (OOB_INTR_ONLY) */
+
 	smp_mb();
 	return 0;
 }
@@ -196,7 +231,42 @@ static const struct dev_pm_ops bcmsdh_sdmmc_pm_ops = {
 	.suspend	= bcmsdh_sdmmc_suspend,
 	.resume		= bcmsdh_sdmmc_resume,
 };
-#endif
+#endif  /* (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM) */
+
+#if defined(BCMLXSDMMC)
+static struct semaphore *notify_semaphore = NULL;
+
+static int dummy_probe(struct sdio_func *func,
+                              const struct sdio_device_id *id)
+{
+	if (notify_semaphore)
+		up(notify_semaphore);
+	return 0;
+}
+
+static void dummy_remove(struct sdio_func *func)
+{
+}
+
+static struct sdio_driver dummy_sdmmc_driver = {
+	.probe		= dummy_probe,
+	.remove		= dummy_remove,
+	.name		= "dummy_sdmmc",
+	.id_table	= bcmsdh_sdmmc_ids,
+	};
+
+int sdio_func_reg_notify(void* semaphore)
+{
+	notify_semaphore = semaphore;
+	return sdio_register_driver(&dummy_sdmmc_driver);
+}
+
+void sdio_func_unreg_notify(void)
+{
+	sdio_unregister_driver(&dummy_sdmmc_driver);
+}
+
+#endif /* defined(BCMLXSDMMC) */
 
 static struct sdio_driver bcmsdh_sdmmc_driver = {
 	.probe		= bcmsdh_sdmmc_probe,
@@ -205,10 +275,10 @@ static struct sdio_driver bcmsdh_sdmmc_driver = {
 	.id_table	= bcmsdh_sdmmc_ids,
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM)
 	.drv = {
-		.pm	= &bcmsdh_sdmmc_pm_ops,
+	.pm	= &bcmsdh_sdmmc_pm_ops,
 	},
-#endif
-};
+#endif /* (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM) */
+	};
 
 struct sdos_info {
 	sdioh_info_t *sd;

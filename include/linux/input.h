@@ -114,20 +114,50 @@ struct input_keymap_entry {
 #define EVIOCGUNIQ(len)		_IOC(_IOC_READ, 'E', 0x08, len)		/* get unique identifier */
 #define EVIOCGPROP(len)		_IOC(_IOC_READ, 'E', 0x09, len)		/* get device properties */
 
+/**
+ * EVIOCGMTSLOTS(len) - get MT slot values
+ *
+ * The ioctl buffer argument should be binary equivalent to
+ *
+ * struct input_mt_request_layout {
+ *	__u32 code;
+ *	__s32 values[num_slots];
+ * };
+ *
+ * where num_slots is the (arbitrary) number of MT slots to extract.
+ *
+ * The ioctl size argument (len) is the size of the buffer, which
+ * should satisfy len = (num_slots + 1) * sizeof(__s32).  If len is
+ * too small to fit all available slots, the first num_slots are
+ * returned.
+ *
+ * Before the call, code is set to the wanted ABS_MT event type. On
+ * return, values[] is filled with the slot values for the specified
+ * ABS_MT code.
+ *
+ * If the request code is not an ABS_MT value, -EINVAL is returned.
+ */
+#define EVIOCGMTSLOTS(len)	_IOC(_IOC_READ, 'E', 0x0a, len)
+
 #define EVIOCGKEY(len)		_IOC(_IOC_READ, 'E', 0x18, len)		/* get global key state */
 #define EVIOCGLED(len)		_IOC(_IOC_READ, 'E', 0x19, len)		/* get all LEDs */
 #define EVIOCGSND(len)		_IOC(_IOC_READ, 'E', 0x1a, len)		/* get all sounds status */
 #define EVIOCGSW(len)		_IOC(_IOC_READ, 'E', 0x1b, len)		/* get all switch states */
 
-#define EVIOCGBIT(ev,len)	_IOC(_IOC_READ, 'E', 0x20 + ev, len)	/* get event bits */
-#define EVIOCGABS(abs)		_IOR('E', 0x40 + abs, struct input_absinfo)	/* get abs value/limits */
-#define EVIOCSABS(abs)		_IOW('E', 0xc0 + abs, struct input_absinfo)	/* set abs value/limits */
+#define EVIOCGBIT(ev,len)	_IOC(_IOC_READ, 'E', 0x20 + (ev), len)	/* get event bits */
+#define EVIOCGABS(abs)		_IOR('E', 0x40 + (abs), struct input_absinfo)	/* get abs value/limits */
+#define EVIOCSABS(abs)		_IOW('E', 0xc0 + (abs), struct input_absinfo)	/* set abs value/limits */
 
 #define EVIOCSFF		_IOC(_IOC_WRITE, 'E', 0x80, sizeof(struct ff_effect))	/* send a force effect to a force feedback device */
 #define EVIOCRMFF		_IOW('E', 0x81, int)			/* Erase a force effect */
 #define EVIOCGEFFECTS		_IOR('E', 0x84, int)			/* Report number of effects playable at the same time */
 
 #define EVIOCGRAB		_IOW('E', 0x90, int)			/* Grab/Release device */
+
+#define EVIOCGSUSPENDBLOCK	_IOR('E', 0x91, int)			/* get suspend block enable */
+#define EVIOCSSUSPENDBLOCK	_IOW('E', 0x91, int)			/* set suspend block enable */
+
+#define EVIOCSCLOCKID		_IOW('E', 0xa0, int)			/* Set clockid to be used for timestamps */
 
 /*
  * Device properties and quirks
@@ -409,8 +439,8 @@ struct input_keymap_entry {
 #define KEY_BRIGHTNESSUP	225
 #define KEY_MEDIA		226
 
-#define KEY_SWITCHVIDEOMODE	227	/* Cycle between available video
-					   outputs (Monitor/LCD/TV-out/etc) */
+#define KEY_SWITCHVIDEOMODE	227	/* Cycle between available video outputs (Monitor/LCD/TV-out/etc) */
+#define KEY_SIM_SWITCH		228	/* LGE add for Multi Sim */
 #define KEY_KBDILLUMTOGGLE	228
 #define KEY_KBDILLUMDOWN	229
 #define KEY_KBDILLUMUP		230
@@ -437,6 +467,8 @@ struct input_keymap_entry {
 
 #define KEY_WIMAX		246
 #define KEY_RFKILL		247	/* Key that controls all radios */
+
+#define KEY_MICMUTE		248	/* Mute / unmute the microphone */
 
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
@@ -503,6 +535,7 @@ struct input_keymap_entry {
 #define BTN_TOOL_FINGER		0x145
 #define BTN_TOOL_MOUSE		0x146
 #define BTN_TOOL_LENS		0x147
+#define BTN_TOOL_QUINTTAP	0x148	/* Five fingers on trackpad */
 #define BTN_TOUCH		0x14a
 #define BTN_STYLUS		0x14b
 #define BTN_STYLUS2		0x14c
@@ -812,9 +845,11 @@ struct input_keymap_entry {
 #define SW_KEYPAD_SLIDE		0x0a  /* set = keypad slide out */
 #define SW_FRONT_PROXIMITY	0x0b  /* set = front proximity sensor active */
 #define SW_ROTATE_LOCK		0x0c  /* set = rotate locked/disabled */
-#define SW_HPHL_OVERCURRENT	0x0d  /* set = over current on left hph */
-#define SW_HPHR_OVERCURRENT	0x0e  /* set = over current on right hph */
-#define SW_MAX			0x0f
+#define SW_LINEIN_INSERT	0x0d  /* set = inserted */
+#define SW_HPHL_OVERCURRENT    0x0e  /* set = over current on left hph */
+#define SW_HPHR_OVERCURRENT    0x0f  /* set = over current on right hph */
+#define SW_UNSUPPORT_INSERT	0x10  /* set = unsupported device inserted */
+#define SW_MAX			0x20
 #define SW_CNT			(SW_MAX+1)
 
 /*
@@ -1473,9 +1508,37 @@ int input_flush_device(struct input_handle *handle, struct file *file);
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 
+#if defined(CONFIG_MACH_MSM7X25A_M4)||defined(CONFIG_MACH_MSM7X25A_V3) ||defined(CONFIG_MACH_MSM8X25_V7) || defined(CONFIG_MACH_MSM7X25A_V1)
+	extern int LGF_TestModeGetDisableInputDevices(void);
+#endif
 static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)
 {
-	input_event(dev, EV_KEY, code, !!value);
+#if defined(CONFIG_MACH_MSM7X25A_M4)||defined(CONFIG_MACH_MSM7X25A_V3) ||defined(CONFIG_MACH_MSM8X25_V7) || defined(CONFIG_MACH_MSM7X25A_V1)
+	if(LGF_TestModeGetDisableInputDevices()){
+		if(code==0x6b)
+#if defined(CONFIG_MACH_MSM8X25_V7)
+			input_event(dev, EV_KEY, code, value);
+#else
+			input_event(dev, EV_KEY, code, !!value);
+#endif
+		else
+              ;      
+	}	
+	else 
+#endif		
+	{
+#if defined(CONFIG_MACH_MSM8X25_V7)
+			input_event(dev, EV_KEY, code, value);
+#else
+/* LGE_CHANGE_S homin.jeon@lge.com 2013-02-07 TD(302390) issue fixed(ghost finger)*/
+#if defined(CONFIG_MACH_MSM7X27A_U0)
+        input_event(dev, EV_KEY, code, value);
+#else
+        input_event(dev, EV_KEY, code, !!value);
+#endif
+/* LGE_CHANGE_E homin.jeon@lge.com 2013-02-07 TD(302390) issue fixed*/
+#endif
+	}
 }
 
 static inline void input_report_rel(struct input_dev *dev, unsigned int code, int value)
@@ -1485,6 +1548,11 @@ static inline void input_report_rel(struct input_dev *dev, unsigned int code, in
 
 static inline void input_report_abs(struct input_dev *dev, unsigned int code, int value)
 {
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+	if(LGF_TestModeGetDisableInputDevices())
+		;
+	else
+#endif		
 	input_event(dev, EV_ABS, code, value);
 }
 
@@ -1505,6 +1573,11 @@ static inline void input_sync(struct input_dev *dev)
 
 static inline void input_mt_sync(struct input_dev *dev)
 {
+#if defined(CONFIG_MACH_MSM7X25A_M4)
+	if(LGF_TestModeGetDisableInputDevices())
+		;
+	else
+#endif		
 	input_event(dev, EV_SYN, SYN_MT_REPORT, 0);
 }
 
@@ -1609,7 +1682,7 @@ struct ff_device {
 	struct file *effect_owners[];
 };
 
-int input_ff_create(struct input_dev *dev, int max_effects);
+int input_ff_create(struct input_dev *dev, unsigned int max_effects);
 void input_ff_destroy(struct input_dev *dev);
 
 int input_ff_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);

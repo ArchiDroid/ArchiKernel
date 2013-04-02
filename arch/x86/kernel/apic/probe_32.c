@@ -92,6 +92,7 @@ static struct apic apic_default = {
 	.name				= "default",
 	.probe				= probe_default,
 	.acpi_madt_oem_check		= NULL,
+	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= default_apic_id_registered,
 
 	.irq_delivery_mode		= dest_LowestPrio,
@@ -200,14 +201,8 @@ void __init default_setup_apic_routing(void)
 	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
 	 */
 
-	if (!cmdline_apic && apic == &apic_default) {
-		struct apic *bigsmp = generic_bigsmp_probe();
-		if (bigsmp) {
-			apic = bigsmp;
-			printk(KERN_INFO "Overriding APIC driver with %s\n",
-			       apic->name);
-		}
-	}
+	if (!cmdline_apic && apic == &apic_default)
+		generic_bigsmp_probe();
 #endif
 
 	if (apic->setup_apic_routing)

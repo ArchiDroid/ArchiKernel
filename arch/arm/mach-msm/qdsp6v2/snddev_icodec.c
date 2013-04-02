@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,12 +20,17 @@
 #include <linux/pmic8058-othc.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
+#include <linux/moduleparam.h>
+#include <linux/pm_qos.h>
+
 #include <asm/uaccess.h>
 #include <mach/qdsp6v2/audio_dev_ctl.h>
 #include <mach/qdsp6v2/audio_acdb.h>
 #include <mach/vreg.h>
 #include <mach/pmic.h>
 #include <mach/debug_mm.h>
+#include <mach/cpuidle.h>
+
 #include <sound/q6afe.h>
 #include <sound/apr_audio.h>
 #include "snddev_icodec.h"
@@ -43,7 +48,7 @@
 #define SNDDEV_VREG_LOW_POWER_LOAD (36000)
 #define SNDDEV_VREG_HIGH_POWER_LOAD (56000)
 
-int msm_codec_i2s_slave_mode;
+bool msm_codec_i2s_slave_mode;
 
 /* Context for each internal codec sound device */
 struct snddev_icodec_state {
@@ -65,8 +70,8 @@ struct snddev_icodec_drv_state {
 	struct clk *tx_osrclk;
 	struct clk *tx_bitclk;
 
-	struct wake_lock rx_idlelock;
-	struct wake_lock tx_idlelock;
+	struct pm_qos_request rx_pm_qos_req;
+	struct pm_qos_request tx_pm_qos_req;
 
 	/* handle to pmic8058 regulator smps4 */
 	struct regulator *snddev_vreg;
@@ -296,7 +301,8 @@ static int snddev_icodec_open_rx(struct snddev_icodec_state *icodec)
 	union afe_port_config afe_config;
 	struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;
 
-	wake_lock(&drv->rx_idlelock);
+	pm_qos_update_request(&drv->rx_pm_qos_req,
+			      msm_cpuidle_get_deep_idle_latency());
 
 	if (drv->snddev_vreg) {
 		if (!strcmp(icodec->data->name, "headset_stereo_rx"))
@@ -308,7 +314,7 @@ static int snddev_icodec_open_rx(struct snddev_icodec_state *icodec)
 	}
 	msm_snddev_rx_mclk_request();
 
-	drv->rx_osrclk = clk_get(0, "i2s_spkr_osr_clk");
+	drv->rx_osrclk = clk_get_sys(NULL, "i2s_spkr_osr_clk");
 	if (IS_ERR(drv->rx_osrclk))
 		pr_err("%s master clock Error\n", __func__);
 
@@ -319,8 +325,8 @@ static int snddev_icodec_open_rx(struct snddev_icodec_state *icodec)
 		goto error_invalid_freq;
 	}
 
-	clk_enable(drv->rx_osrclk);
-	drv->rx_bitclk = clk_get(0, "i2s_spkr_bit_clk");
+	clk_prepare_enable(drv->rx_osrclk);
+	drv->rx_bitclk = clk_get_sys(NULL, "i2s_spkr_bit_clk");
 	if (IS_ERR(drv->rx_bitclk))
 		pr_err("%s clock Error\n", __func__);
 
@@ -339,7 +345,7 @@ static int snddev_icodec_open_rx(struct snddev_icodec_state *icodec)
 		pr_err("ERROR setting m clock1\n");
 		goto error_adie;
 	}
-	clk_enable(drv->rx_bitclk);
+	clk_prepare_enable(drv->rx_bitclk);
 
 	if (icodec->data->voltage_on)
 		icodec->data->voltage_on();
@@ -367,6 +373,7 @@ static int snddev_icodec_open_rx(struct snddev_icodec_state *icodec)
 	afe_config.mi2s.channel = afe_channel_mode;
 	afe_config.mi2s.bitwidth = 16;
 	afe_config.mi2s.line = 1;
+	afe_config.mi2s.format = MSM_AFE_I2S_FORMAT_LPCM;
 	if (msm_codec_i2s_slave_mode)
 		afe_config.mi2s.ws = 0;
 	else
@@ -400,17 +407,17 @@ static int snddev_icodec_open_rx(struct snddev_icodec_state *icodec)
 
 	icodec->enabled = 1;
 
-	wake_unlock(&drv->rx_idlelock);
+	pm_qos_update_request(&drv->rx_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	return 0;
 
 error_pamp:
 error_adie:
-	clk_disable(drv->rx_osrclk);
+	clk_disable_unprepare(drv->rx_osrclk);
 error_invalid_freq:
 
 	pr_err("%s: encounter error\n", __func__);
 
-	wake_unlock(&drv->rx_idlelock);
+	pm_qos_update_request(&drv->rx_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	return -ENODEV;
 }
 
@@ -421,7 +428,8 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 	union afe_port_config afe_config;
 	struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;;
 
-	wake_lock(&drv->tx_idlelock);
+	pm_qos_update_request(&drv->tx_pm_qos_req,
+			      msm_cpuidle_get_deep_idle_latency());
 
 	if (drv->snddev_vreg)
 		vreg_mode_vote(drv->snddev_vreg, 1, SNDDEV_HIGH_POWER_MODE);
@@ -436,7 +444,7 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 
 	msm_snddev_tx_mclk_request();
 
-	drv->tx_osrclk = clk_get(0, "i2s_mic_osr_clk");
+	drv->tx_osrclk = clk_get_sys(NULL, "i2s_mic_osr_clk");
 	if (IS_ERR(drv->tx_osrclk))
 		pr_err("%s master clock Error\n", __func__);
 
@@ -447,8 +455,8 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 		goto error_invalid_freq;
 	}
 
-	clk_enable(drv->tx_osrclk);
-	drv->tx_bitclk = clk_get(0, "i2s_mic_bit_clk");
+	clk_prepare_enable(drv->tx_osrclk);
+	drv->tx_bitclk = clk_get_sys(NULL, "i2s_mic_bit_clk");
 	if (IS_ERR(drv->tx_bitclk))
 		pr_err("%s clock Error\n", __func__);
 
@@ -463,7 +471,7 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 	} else
 		trc =  clk_set_rate(drv->tx_bitclk, 8);
 
-	clk_enable(drv->tx_bitclk);
+	clk_prepare_enable(drv->tx_bitclk);
 
 	/* Enable ADIE */
 	trc = adie_codec_open(icodec->data->profile, &icodec->adie_path);
@@ -485,6 +493,7 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 	afe_config.mi2s.channel = afe_channel_mode;
 	afe_config.mi2s.bitwidth = 16;
 	afe_config.mi2s.line = 1;
+	afe_config.mi2s.format = MSM_AFE_I2S_FORMAT_LPCM;
 	if (msm_codec_i2s_slave_mode)
 		afe_config.mi2s.ws = 0;
 	else
@@ -506,7 +515,7 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 
 	icodec->enabled = 1;
 
-	wake_unlock(&drv->tx_idlelock);
+	pm_qos_update_request(&drv->tx_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	return 0;
 
 error_invalid_freq:
@@ -516,7 +525,7 @@ error_invalid_freq:
 
 	pr_err("%s: encounter error\n", __func__);
 error_pamp:
-	wake_unlock(&drv->tx_idlelock);
+	pm_qos_update_request(&drv->tx_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	return -ENODEV;
 }
 
@@ -548,7 +557,8 @@ static int snddev_icodec_close_rx(struct snddev_icodec_state *icodec)
 {
 	struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;
 
-	wake_lock(&drv->rx_idlelock);
+	pm_qos_update_request(&drv->rx_pm_qos_req,
+			      msm_cpuidle_get_deep_idle_latency());
 
 	if (drv->snddev_vreg)
 		vreg_mode_vote(drv->snddev_vreg, 0, SNDDEV_HIGH_POWER_MODE);
@@ -570,14 +580,14 @@ static int snddev_icodec_close_rx(struct snddev_icodec_state *icodec)
 	if (icodec->data->voltage_off)
 		icodec->data->voltage_off();
 
-	clk_disable(drv->rx_bitclk);
-	clk_disable(drv->rx_osrclk);
+	clk_disable_unprepare(drv->rx_bitclk);
+	clk_disable_unprepare(drv->rx_osrclk);
 
 	msm_snddev_rx_mclk_free();
 
 	icodec->enabled = 0;
 
-	wake_unlock(&drv->rx_idlelock);
+	pm_qos_update_request(&drv->rx_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	return 0;
 }
 
@@ -585,7 +595,8 @@ static int snddev_icodec_close_tx(struct snddev_icodec_state *icodec)
 {
 	struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;
 
-	wake_lock(&drv->tx_idlelock);
+	pm_qos_update_request(&drv->tx_pm_qos_req,
+			      msm_cpuidle_get_deep_idle_latency());
 
 	if (drv->snddev_vreg)
 		vreg_mode_vote(drv->snddev_vreg, 0, SNDDEV_HIGH_POWER_MODE);
@@ -600,8 +611,8 @@ static int snddev_icodec_close_tx(struct snddev_icodec_state *icodec)
 
 	afe_close(icodec->data->copp_id);
 
-	clk_disable(drv->tx_bitclk);
-	clk_disable(drv->tx_osrclk);
+	clk_disable_unprepare(drv->tx_bitclk);
+	clk_disable_unprepare(drv->tx_osrclk);
 
 	msm_snddev_tx_mclk_free();
 
@@ -611,7 +622,7 @@ static int snddev_icodec_close_tx(struct snddev_icodec_state *icodec)
 
 	icodec->enabled = 0;
 
-	wake_unlock(&drv->tx_idlelock);
+	pm_qos_update_request(&drv->tx_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	return 0;
 }
 
@@ -1072,10 +1083,10 @@ static int __init snddev_icodec_init(void)
 	icodec_drv->tx_active = 0;
 	icodec_drv->snddev_vreg = vreg_init();
 
-	wake_lock_init(&icodec_drv->tx_idlelock, WAKE_LOCK_IDLE,
-			"snddev_tx_idle");
-	wake_lock_init(&icodec_drv->rx_idlelock, WAKE_LOCK_IDLE,
-			"snddev_rx_idle");
+	pm_qos_add_request(&icodec_drv->tx_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+				PM_QOS_DEFAULT_VALUE);
+	pm_qos_add_request(&icodec_drv->rx_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+				PM_QOS_DEFAULT_VALUE);
 	return 0;
 error_msm_icodec_gpio_driver:
 	platform_driver_unregister(&msm_cdcclk_ctl_driver);

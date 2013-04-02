@@ -32,10 +32,31 @@ endmenu
 
 menu "HSIC support for DIAG"
 
-config DIAG_HSIC_PIPE
+config DIAG_BRIDGE_CODE
 	depends on USB_QCOM_DIAG_BRIDGE
 	default y
-	bool "Enable 9K DIAG traffic over HSIC"
+	bool "Enable QSC/9K DIAG traffic over SMUX/HSIC"
 	help
-	 HSIC Transport Layer for DIAG Router
+	 SMUX/HSIC Transport Layer for DIAG Router
 endmenu
+
+menu "LGE DIAG MTS Daemon Support"
+
+config LGE_MTS
+	bool "LGE Diag MTS Daemon Support"
+	default n
+	depends on MACH_LGE
+	help
+	 LGE DIAG MTS Support
+endmenu
+
+menu "LGE MTS char device"
+
+config LGE_MTS_CHAR
+        bool "LGE MTS char device"
+        default n
+        depends on MACH_LGE
+        help
+         LGE MTS Support
+endmenu
+

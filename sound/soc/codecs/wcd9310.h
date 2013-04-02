@@ -10,29 +10,37 @@
  * GNU General Public License for more details.
  */
 #include <sound/soc.h>
-
-#define TABLA_VERSION_1_0	0
-#define TABLA_VERSION_1_1	1
-#define TABLA_VERSION_2_0	2
+#include <sound/jack.h>
+#include <linux/mfd/wcd9xxx/wcd9xxx-slimslave.h>
 
 #define TABLA_NUM_REGISTERS 0x400
 #define TABLA_MAX_REGISTER (TABLA_NUM_REGISTERS-1)
 #define TABLA_CACHE_SIZE TABLA_NUM_REGISTERS
+#define TABLA_1_X_ONLY_REGISTERS 3
+#define TABLA_2_HIGHER_ONLY_REGISTERS 3
 
 #define TABLA_REG_VAL(reg, val)		{reg, 0, val}
 
-
+#define DEFAULT_DCE_STA_WAIT 55
 #define DEFAULT_DCE_WAIT 60000
 #define DEFAULT_STA_WAIT 5000
+#define VDDIO_MICBIAS_MV 1800
 
 #define STA 0
 #define DCE 1
 
+#define TABLA_JACK_BUTTON_MASK (SND_JACK_BTN_0 | SND_JACK_BTN_1 | \
+				SND_JACK_BTN_2 | SND_JACK_BTN_3 | \
+				SND_JACK_BTN_4 | SND_JACK_BTN_5 | \
+				SND_JACK_BTN_6 | SND_JACK_BTN_7)
+
 extern const u8 tabla_reg_readable[TABLA_CACHE_SIZE];
+extern const u32 tabla_1_reg_readable[TABLA_1_X_ONLY_REGISTERS];
+extern const u32 tabla_2_reg_readable[TABLA_2_HIGHER_ONLY_REGISTERS];
 extern const u8 tabla_reg_defaults[TABLA_CACHE_SIZE];
 
 enum tabla_micbias_num {
-	TABLA_MICBIAS1,
+	TABLA_MICBIAS1 = 0,
 	TABLA_MICBIAS2,
 	TABLA_MICBIAS3,
 	TABLA_MICBIAS4,
@@ -66,7 +74,7 @@ enum tabla_mbhc_analog_pwr_cfg {
 enum tabla_mbhc_btn_det_mem {
 	TABLA_BTN_DET_V_BTN_LOW,
 	TABLA_BTN_DET_V_BTN_HIGH,
-	TABLA_BTN_DET_V_N_READY,
+	TABLA_BTN_DET_N_READY,
 	TABLA_BTN_DET_N_CIC,
 	TABLA_BTN_DET_GAIN
 };
@@ -149,19 +157,39 @@ struct tabla_mbhc_imped_detect_cfg {
 	u16 _beta[3];
 } __packed;
 
+struct tabla_mbhc_config {
+	struct snd_soc_jack *headset_jack;
+	struct snd_soc_jack *button_jack;
+	bool read_fw_bin;
+	/* void* calibration contains:
+	 *  struct tabla_mbhc_general_cfg generic;
+	 *  struct tabla_mbhc_plug_detect_cfg plug_det;
+	 *  struct tabla_mbhc_plug_type_cfg plug_type;
+	 *  struct tabla_mbhc_btn_detect_cfg btn_det;
+	 *  struct tabla_mbhc_imped_detect_cfg imped_det;
+	 * Note: various size depends on btn_det->num_btn
+	 */
+	void *calibration;
+	enum tabla_micbias_num micbias;
+	int (*mclk_cb_fn) (struct snd_soc_codec*, int, bool);
+	unsigned int mclk_rate;
+	unsigned int gpio;
+	unsigned int gpio_irq;
+	int gpio_level_insert;
+	/* swap_gnd_mic returns true if extern GND/MIC swap switch toggled */
+	bool (*swap_gnd_mic) (struct snd_soc_codec *);
+};
+
 extern int tabla_hs_detect(struct snd_soc_codec *codec,
-			   struct snd_soc_jack *headset_jack,
-			   struct snd_soc_jack *button_jack,
-			   void *calibration, enum tabla_micbias_num micbis,
-			   int (*mclk_cb_fn) (struct snd_soc_codec*, int),
-			   int read_fw_bin, u32 mclk_rate);
+			   const struct tabla_mbhc_config *cfg);
 
 struct anc_header {
 	u32 reserved[3];
 	u32 num_anc_slots;
 };
 
-extern int tabla_mclk_enable(struct snd_soc_codec *codec, int mclk_enable);
+extern int tabla_mclk_enable(struct snd_soc_codec *codec, int mclk_enable,
+			     bool dapm);
 
 extern void *tabla_mbhc_cal_btn_det_mp(const struct tabla_mbhc_btn_detect_cfg
 				       *btn_det,

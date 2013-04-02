@@ -34,6 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 
 #include <asm/uaccess.h>
 
@@ -2033,6 +2034,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	mxt_debug(DEBUG_INFO, "maXTouch driver setting abs parameters\n");
 	
 	set_bit(BTN_TOUCH, input->keybit);
+	set_bit(INPUT_PROP_DIRECT, input->propbit);
 
 	/* Single touch */
 	input_set_abs_params(input, ABS_X, mxt->min_x_val,

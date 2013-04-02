@@ -197,6 +197,8 @@ static void vid_enc_output_frame_done(struct video_client_ctx *client_ctx,
 	int pmem_fd;
 	struct file *file;
 	s32 buffer_index = -1;
+	u32 ion_flag = 0;
+	struct ion_handle *buff_handle = NULL;
 
 	if (!client_ctx || !vcd_frame_data) {
 		ERR("vid_enc_input_frame_done() NULL pointer\n");
@@ -250,6 +252,8 @@ static void vid_enc_output_frame_done(struct video_client_ctx *client_ctx,
 		/* Timestamp pass-through from input frame */
 		venc_msg->venc_msg_info.buf.timestamp =
 			vcd_frame_data->time_stamp;
+		venc_msg->venc_msg_info.buf.sz =
+			vcd_frame_data->alloc_len;
 
 		/* Decoded picture width and height */
 		venc_msg->venc_msg_info.msgdata_size =
@@ -259,7 +263,18 @@ static void vid_enc_output_frame_done(struct video_client_ctx *client_ctx,
 		venc_msg->venc_msg_info.statuscode =
 			VEN_S_EFATAL;
 	}
-
+	if (venc_msg->venc_msg_info.buf.len > 0) {
+		ion_flag = vidc_get_fd_info(client_ctx, BUFFER_TYPE_OUTPUT,
+					pmem_fd, kernel_vaddr, buffer_index,
+					&buff_handle);
+		if (ion_flag == CACHED && buff_handle) {
+			msm_ion_do_cache_op(client_ctx->user_ion_client,
+				buff_handle,
+				(unsigned long *) kernel_vaddr,
+				(unsigned long)venc_msg->venc_msg_info.buf.sz,
+				ION_IOC_CLEAN_INV_CACHES);
+		}
+	}
 	mutex_lock(&client_ctx->msg_queue_lock);
 	list_add_tail(&venc_msg->list, &client_ctx->msg_queue);
 	mutex_unlock(&client_ctx->msg_queue_lock);
@@ -1301,26 +1316,28 @@ static long vid_enc_ioctl(struct file *file,
 	}
 	case VEN_IOCTL_GET_SEQUENCE_HDR:
 	{
-		struct venc_seqheader seq_header, seq_header_user;
+		struct venc_seqheader seq_header;
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 
-		DBG("VEN_IOCTL_GET_SEQUENCE_HDR\n");
-		if (copy_from_user(&seq_header_user, venc_msg.in,
-			sizeof(seq_header_user)))
+		if (copy_from_user(&seq_header, venc_msg.in,
+			sizeof(seq_header)))
 			return -EFAULT;
-		seq_header.hdrbufptr = NULL;
+
+		DBG("VEN_IOCTL_GET_SEQUENCE_HDR\n");
 		result = vid_enc_get_sequence_header(client_ctx,
 				&seq_header);
-		if (result && ((copy_to_user(seq_header_user.hdrbufptr,
-			seq_header.hdrbufptr, seq_header.hdrlen)) ||
-			(copy_to_user(&seq_header_user.hdrlen,
-			&seq_header.hdrlen,
-			sizeof(seq_header.hdrlen)))))
-				result = false;
-		kfree(seq_header.hdrbufptr);
-		if (!result)
+		if (!result) {
+			ERR("get sequence header failed\n");
 			return -EIO;
+		}
+		DBG("seq_header: buf=%x, sz=%d, hdrlen=%d\n",
+			(int)seq_header.hdrbufptr,
+			(int)seq_header.bufsize,
+			(int)seq_header.hdrlen);
+		if (copy_to_user(venc_msg.out, &seq_header,
+			sizeof(seq_header)))
+			return -EFAULT;
 		break;
 	}
 	case VEN_IOCTL_CMD_REQUEST_IFRAME:
@@ -1589,6 +1606,20 @@ static long vid_enc_ioctl(struct file *file,
 		}
 		if (!result) {
 			ERR("setting VEN_IOCTL_(G)SET_LIVE_MODE failed\n");
+		}
+		break;
+	}
+	case VEN_IOCTL_SET_SLICE_DELIVERY_MODE:
+	{
+		struct vcd_property_hdr vcd_property_hdr;
+		u32 vcd_status = VCD_ERR_FAIL;
+		u32 enable = true;
+		vcd_property_hdr.prop_id = VCD_I_SLICE_DELIVERY_MODE;
+		vcd_property_hdr.sz = sizeof(u32);
+		vcd_status = vcd_set_property(client_ctx->vcd_handle,
+						&vcd_property_hdr, &enable);
+		if (vcd_status) {
+			pr_err(" Setting slice delivery mode failed");
 			return -EIO;
 		}
 		break;

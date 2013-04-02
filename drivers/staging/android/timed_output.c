@@ -49,19 +49,19 @@ static ssize_t enable_store(
 	return size;
 }
 
-/* LGE_CHANGE,
- * Add voltage node for tunning vibarator operation
- * 2011-08-20, sangwoo2.park@lge.com
-*/
+static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, enable_show, enable_store);
+
 static ssize_t voltage_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct timed_output_dev *tdev = dev_get_drvdata(dev);
-	int remaining = tdev->get_time(tdev);
-	return sprintf(buf, "%d\n", remaining);
+	int vol = tdev->get_voltage(tdev);
+
+	return sprintf(buf, "%d\n", vol);
 }
 
-static ssize_t voltage_store(struct device *dev, struct device_attribute *attr,
+static ssize_t voltage_store(
+		struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t size)
 {
 	struct timed_output_dev *tdev = dev_get_drvdata(dev);
@@ -71,12 +71,12 @@ static ssize_t voltage_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	tdev->voltage(tdev, value);
+
 	return size;
 }
 
 static DEVICE_ATTR(voltage, S_IRUGO | S_IWUSR, voltage_show, voltage_store);
-/* LGE_CHANGE End */
-static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, enable_show, enable_store);
+
 
 static int create_timed_output_class(void)
 {
@@ -93,11 +93,8 @@ static int create_timed_output_class(void)
 int timed_output_dev_register(struct timed_output_dev *tdev)
 {
 	int ret;
-/* LGE_CHANGE,
- * Add voltage node for tunning vibarator operation
- * 2011-08-20, sangwoo2.park@lge.com
-*/
-	if (!tdev || !tdev->name || !tdev->enable || !tdev->voltage || !tdev->get_time)
+
+	if (!tdev || !tdev->name || !tdev->enable || !tdev->get_time)
 		return -EINVAL;
 
 	ret = create_timed_output_class();
@@ -113,10 +110,12 @@ int timed_output_dev_register(struct timed_output_dev *tdev)
 	ret = device_create_file(tdev->dev, &dev_attr_enable);
 	if (ret < 0)
 		goto err_create_file;
+
+	/*Vibrator Voltage Regist*/
 	ret = device_create_file(tdev->dev, &dev_attr_voltage);
 	if (ret < 0)
 		goto err_create_file;
-/* LGE_CHANGE End */
+
 	dev_set_drvdata(tdev->dev, tdev);
 	tdev->state = 0;
 	return 0;
@@ -133,12 +132,6 @@ EXPORT_SYMBOL_GPL(timed_output_dev_register);
 void timed_output_dev_unregister(struct timed_output_dev *tdev)
 {
 	device_remove_file(tdev->dev, &dev_attr_enable);
-/* LGE_CHANGE,
- * Add voltage node for tunning vibarator operation
- * 2011-08-20, sangwoo2.park@lge.com
-*/
-	device_remove_file(tdev->dev, &dev_attr_voltage);
-/* LGE_CHANGE End */
 	device_destroy(timed_output_class, MKDEV(0, tdev->index));
 	dev_set_drvdata(tdev->dev, NULL);
 }

@@ -24,7 +24,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/usb.h>
 
 #include <mach/board-zoom.h>
@@ -105,21 +105,20 @@ static struct twl4030_keypad_data zoom_kp_twl4030_data = {
 	.rep		= 1,
 };
 
-static struct regulator_consumer_supply zoom_vmmc1_supply = {
-	.supply		= "vmmc",
+static struct regulator_consumer_supply zoom_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply zoom_vsim_supply = {
-	.supply		= "vmmc_aux",
+static struct regulator_consumer_supply zoom_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply zoom_vmmc2_supply = {
-	.supply		= "vmmc",
+static struct regulator_consumer_supply zoom_vmmc2_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
-static struct regulator_consumer_supply zoom_vmmc3_supply = {
-	.supply		= "vmmc",
-	.dev_name	= "omap_hsmmc.2",
+static struct regulator_consumer_supply zoom_vmmc3_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2"),
 };
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
@@ -133,8 +132,8 @@ static struct regulator_init_data zoom_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &zoom_vmmc1_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(zoom_vmmc1_supply),
+	.consumer_supplies      = zoom_vmmc1_supply,
 };
 
 /* VMMC2 for MMC2 card */
@@ -148,8 +147,8 @@ static struct regulator_init_data zoom_vmmc2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &zoom_vmmc2_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(zoom_vmmc2_supply),
+	.consumer_supplies      = zoom_vmmc2_supply,
 };
 
 /* VSIM for OMAP VDD_MMC1A (i/o for DAT4..DAT7) */
@@ -163,16 +162,16 @@ static struct regulator_init_data zoom_vsim = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &zoom_vsim_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(zoom_vsim_supply),
+	.consumer_supplies      = zoom_vsim_supply,
 };
 
 static struct regulator_init_data zoom_vmmc3 = {
 	.constraints = {
 		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies = &zoom_vmmc3_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(zoom_vmmc3_supply),
+	.consumer_supplies	= zoom_vmmc3_supply,
 };
 
 static struct fixed_voltage_config zoom_vwlan = {
@@ -194,7 +193,6 @@ static struct platform_device omap_vwlan_device = {
 };
 
 static struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
-	.irq = OMAP_GPIO_IRQ(OMAP_ZOOM_WLAN_IRQ_GPIO),
 	/* ZOOM ref clock is 26 MHz */
 	.board_ref_clock = 1,
 };
@@ -206,6 +204,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_wp	= -EINVAL,
 		.power_saving	= true,
+		.deferred	= true,
 	},
 	{
 		.name		= "internal",
@@ -234,14 +233,7 @@ static int zoom_twl_gpio_setup(struct device *dev,
 
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
-
-	/* link regulators to MMC adapters ... we "know" the
-	 * regulators will be set up only *after* we return.
-	*/
-	zoom_vmmc1_supply.dev = mmc[0].dev;
-	zoom_vsim_supply.dev = mmc[0].dev;
-	zoom_vmmc2_supply.dev = mmc[1].dev;
+	omap_hsmmc_late_init(mmc);
 
 	ret = gpio_request_one(LCD_PANEL_ENABLE_GPIO, GPIOF_OUT_INIT_LOW,
 			       "lcd enable");
@@ -304,9 +296,15 @@ static void enable_board_wakeup_source(void)
 
 void __init zoom_peripherals_init(void)
 {
-	if (wl12xx_set_platform_data(&omap_zoom_wlan_data))
-		pr_err("error setting wl12xx data\n");
+	int ret;
 
+	omap_zoom_wlan_data.irq = gpio_to_irq(OMAP_ZOOM_WLAN_IRQ_GPIO);
+	ret = wl12xx_set_platform_data(&omap_zoom_wlan_data);
+
+	if (ret)
+		pr_err("error setting wl12xx data: %d\n", ret);
+
+	omap_hsmmc_init(mmc);
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);

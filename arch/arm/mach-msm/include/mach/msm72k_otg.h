@@ -110,7 +110,7 @@
 #define OTG_ID_POLL_MS	1000
 
 struct msm_otg {
-	struct otg_transceiver otg;
+	struct usb_phy phy;
 
 	/* usb clocks */
 	struct clk		*alt_core_clk;
@@ -134,9 +134,9 @@ struct msm_otg {
 
 	void (*start_host)	(struct usb_bus *bus, int suspend);
 	/* Enable/disable the clocks */
-	int (*set_clk)		(struct otg_transceiver *otg, int on);
+	int (*set_clk)		(struct usb_phy *phy, int on);
 	/* Reset phy and link */
-	void (*reset)		(struct otg_transceiver *otg, int phy_reset);
+	void (*reset)		(struct usb_phy *phy, int phy_reset);
 	/* pmic notfications apis */
 	u8 pmic_vbus_notif_supp;
 	u8 pmic_id_notif_supp;
@@ -154,6 +154,7 @@ struct msm_otg {
 	struct work_struct otg_resume_work;
 	struct notifier_block usbdev_nb;
 	struct msm_xo_voter *xo_handle; /*handle to vote for TCXO D1 buffer*/
+	unsigned curr_power;
 #ifdef CONFIG_USB_MSM_ACA
 	struct timer_list	id_timer;	/* drives id_status polling */
 	unsigned		b_max_power;	/* ACA: max power of accessory*/

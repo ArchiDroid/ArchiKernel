@@ -55,7 +55,7 @@ EXPORT_SYMBOL(of_find_device_by_node);
 #include <asm/dcr.h>
 #endif
 
-#if !defined(CONFIG_SPARC)
+#ifdef CONFIG_OF_ADDRESS
 /*
  * The following routines scan a subtree and registers a device for
  * each applicable node.
@@ -162,7 +162,7 @@ struct platform_device *of_device_alloc(struct device_node *np,
 	}
 
 	dev->dev.of_node = of_node_get(np);
-#if defined(CONFIG_PPC) || defined(CONFIG_MICROBLAZE)
+#if defined(CONFIG_MICROBLAZE)
 	dev->dev.dma_mask = &dev->archdata.dma_mask;
 #endif
 	dev->dev.parent = parent;
@@ -201,7 +201,7 @@ struct platform_device *of_platform_device_create_pdata(
 	if (!dev)
 		return NULL;
 
-#if defined(CONFIG_PPC) || defined(CONFIG_MICROBLAZE)
+#if defined(CONFIG_MICROBLAZE)
 	dev->archdata.dma_mask = 0xffffffffUL;
 #endif
 	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
@@ -253,7 +253,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	if (!of_device_is_available(node))
 		return NULL;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = amba_device_alloc(NULL, 0, 0);
 	if (!dev)
 		return NULL;
 
@@ -283,14 +283,14 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	if (ret)
 		goto err_free;
 
-	ret = amba_device_register(dev, &iomem_resource);
+	ret = amba_device_add(dev, &iomem_resource);
 	if (ret)
 		goto err_free;
 
 	return dev;
 
 err_free:
-	kfree(dev);
+	amba_device_put(dev);
 	return NULL;
 }
 #else /* CONFIG_ARM_AMBA */
@@ -310,18 +310,21 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
 				 struct device_node *np)
 {
 	struct resource res;
-	if (lookup) {
-		for(; lookup->name != NULL; lookup++) {
-			if (!of_device_is_compatible(np, lookup->compatible))
-				continue;
-			if (of_address_to_resource(np, 0, &res))
-				continue;
-			if (res.start != lookup->phys_addr)
-				continue;
-			pr_debug("%s: devname=%s\n", np->full_name, lookup->name);
-			return lookup;
-		}
+
+	if (!lookup)
+		return NULL;
+
+	for(; lookup->compatible != NULL; lookup++) {
+		if (!of_device_is_compatible(np, lookup->compatible))
+			continue;
+		if (of_address_to_resource(np, 0, &res))
+			continue;
+		if (res.start != lookup->phys_addr)
+			continue;
+		pr_debug("%s: devname=%s\n", np->full_name, lookup->name);
+		return lookup;
 	}
+
 	return NULL;
 }
 
@@ -329,8 +332,9 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
  * of_platform_bus_create() - Create a device for a node and its children.
  * @bus: device node of the bus to instantiate
  * @matches: match table for bus nodes
- * disallow recursive creation of child buses
+ * @lookup: auxdata table for matching id and platform_data with device nodes
  * @parent: parent for new device, or NULL for top level.
+ * @strict: require compatible property
  *
  * Creates a platform_device for the provided device_node, and optionally
  * recursively create devices for all the child nodes.
@@ -458,4 +462,4 @@ int of_platform_populate(struct device_node *root,
 	of_node_put(root);
 	return rc;
 }
-#endif /* !CONFIG_SPARC */
+#endif /* CONFIG_OF_ADDRESS */

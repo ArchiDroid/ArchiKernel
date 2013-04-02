@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,20 +19,17 @@
 #include <linux/elf.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <mach/msm_bus.h>
 #include <mach/msm_iomap.h>
-#include <mach/msm_xo.h>
 
 #include "peripheral-loader.h"
 #include "pil-q6v4.h"
 #include "scm-pas.h"
 
-#define PROXY_VOTE_TIMEOUT	40000
-
 #define QDSP6SS_RST_EVB		0x0
 #define QDSP6SS_RESET		0x04
-#define QDSP6SS_CGC_OVERRIDE	0x18
 #define QDSP6SS_STRAP_TCM	0x1C
 #define QDSP6SS_STRAP_AHB	0x20
 #define QDSP6SS_GFMUX_CTL	0x30
@@ -61,16 +58,16 @@
 
 #define Q6SS_CLK_ENA		BIT(1)
 #define Q6SS_SRC_SWITCH_CLK_OVR	BIT(8)
-#define Q6SS_AXIS_ACLK_EN	BIT(9)
 
 struct q6v4_data {
 	void __iomem *base;
 	void __iomem *modem_base;
 	unsigned long start_addr;
 	struct regulator *vreg;
+	struct regulator *pll_supply;
 	bool vreg_enabled;
-	struct msm_xo_voter *xo;
-	struct timer_list xo_timer;
+	struct clk *xo;
+	struct pil_device *pil;
 };
 
 static int pil_q6v4_init_image(struct pil_desc *pil, const u8 *metadata,
@@ -82,32 +79,36 @@ static int pil_q6v4_init_image(struct pil_desc *pil, const u8 *metadata,
 	return 0;
 }
 
-static int nop_verify_blob(struct pil_desc *pil, u32 phy_addr, size_t size)
+static int pil_q6v4_make_proxy_votes(struct pil_desc *pil)
 {
+	const struct q6v4_data *drv = dev_get_drvdata(pil->dev);
+	int ret;
+
+	ret = clk_prepare_enable(drv->xo);
+	if (ret) {
+		dev_err(pil->dev, "Failed to enable XO\n");
+		goto err;
+	}
+	if (drv->pll_supply) {
+		ret = regulator_enable(drv->pll_supply);
+		if (ret) {
+			dev_err(pil->dev, "Failed to enable pll supply\n");
+			goto err_regulator;
+		}
+	}
 	return 0;
+err_regulator:
+	clk_disable_unprepare(drv->xo);
+err:
+	return ret;
 }
 
-static void pil_q6v4_make_xo_proxy_votes(struct device *dev)
+static void pil_q6v4_remove_proxy_votes(struct pil_desc *pil)
 {
-	struct q6v4_data *drv = dev_get_drvdata(dev);
-
-	msm_xo_mode_vote(drv->xo, MSM_XO_MODE_ON);
-	mod_timer(&drv->xo_timer, jiffies+msecs_to_jiffies(PROXY_VOTE_TIMEOUT));
-}
-
-static void pil_q6v4_remove_xo_proxy_votes(unsigned long data)
-{
-	struct q6v4_data *drv = (struct q6v4_data *)data;
-
-	msm_xo_mode_vote(drv->xo, MSM_XO_MODE_OFF);
-}
-
-static void pil_q6v4_remove_xo_proxy_votes_now(struct device *dev)
-{
-	struct q6v4_data *drv = dev_get_drvdata(dev);
-
-	if (del_timer(&drv->xo_timer))
-		pil_q6v4_remove_xo_proxy_votes((unsigned long)drv);
+	const struct q6v4_data *drv = dev_get_drvdata(pil->dev);
+	if (drv->pll_supply)
+		regulator_disable(drv->pll_supply);
+	clk_disable_unprepare(drv->xo);
 }
 
 static int pil_q6v4_power_up(struct device *dev)
@@ -115,19 +116,26 @@ static int pil_q6v4_power_up(struct device *dev)
 	int err;
 	struct q6v4_data *drv = dev_get_drvdata(dev);
 
-	err = regulator_set_voltage(drv->vreg, 1050000, 1050000);
+	err = regulator_set_voltage(drv->vreg, 375000, 375000);
 	if (err) {
-		dev_err(dev, "Failed to set regulator's voltage.\n");
-		return err;
-	}
-	err = regulator_set_optimum_mode(drv->vreg, 100000);
-	if (err < 0) {
-		dev_err(dev, "Failed to set regulator's mode.\n");
+		dev_err(dev, "Failed to set regulator's voltage step.\n");
 		return err;
 	}
 	err = regulator_enable(drv->vreg);
 	if (err) {
 		dev_err(dev, "Failed to enable regulator.\n");
+		return err;
+	}
+
+	/*
+	 * Q6 hardware requires a two step voltage ramp-up.
+	 * Delay between the steps.
+	 */
+	udelay(100);
+
+	err = regulator_set_voltage(drv->vreg, 1050000, 1050000);
+	if (err) {
+		dev_err(dev, "Failed to set regulator's voltage.\n");
 		return err;
 	}
 	drv->vreg_enabled = true;
@@ -180,11 +188,9 @@ static void pil_q6v4_shutdown_modem(void)
 
 static int pil_q6v4_reset(struct pil_desc *pil)
 {
-	u32 reg, err = 0;
+	u32 reg, err;
 	const struct q6v4_data *drv = dev_get_drvdata(pil->dev);
 	const struct pil_q6v4_pdata *pdata = pil->dev->platform_data;
-
-	pil_q6v4_make_xo_proxy_votes(pil->dev);
 
 	err = pil_q6v4_power_up(pil->dev);
 	if (err)
@@ -199,15 +205,6 @@ static int pil_q6v4_reset(struct pil_desc *pil)
 	err = msm_bus_axi_portunhalt(pdata->bus_port);
 	if (err)
 		dev_err(pil->dev, "Failed to unhalt bus port\n");
-
-	/*
-	 * Assert AXIS_ACLK_EN override to allow for correct updating of the
-	 * QDSP6_CORE_STATE status bit. This is mandatory only for the SW Q6
-	 * in 8960v1 and optional elsewhere.
-	 */
-	reg = readl_relaxed(drv->base + QDSP6SS_CGC_OVERRIDE);
-	reg |= Q6SS_AXIS_ACLK_EN;
-	writel_relaxed(reg, drv->base + QDSP6SS_CGC_OVERRIDE);
 
 	/* Deassert Q6SS_SS_ARES */
 	reg = readl_relaxed(drv->base + QDSP6SS_RESET);
@@ -258,16 +255,6 @@ static int pil_q6v4_reset(struct pil_desc *pil)
 	/* Bring Q6 core out of reset and start execution. */
 	writel_relaxed(0x0, drv->base + QDSP6SS_RESET);
 
-	/*
-	 * Re-enable auto-gating of AXIS_ACLK at lease one AXI clock cycle
-	 * after resets are de-asserted.
-	 */
-	mb();
-	usleep_range(1, 10);
-	reg = readl_relaxed(drv->base + QDSP6SS_CGC_OVERRIDE);
-	reg &= ~Q6SS_AXIS_ACLK_EN;
-	writel_relaxed(reg, drv->base + QDSP6SS_CGC_OVERRIDE);
-
 	return 0;
 }
 
@@ -300,16 +287,15 @@ static int pil_q6v4_shutdown(struct pil_desc *pil)
 		drv->vreg_enabled = false;
 	}
 
-	pil_q6v4_remove_xo_proxy_votes_now(pil->dev);
-
 	return 0;
 }
 
 static struct pil_reset_ops pil_q6v4_ops = {
 	.init_image = pil_q6v4_init_image,
-	.verify_blob = nop_verify_blob,
 	.auth_and_reset = pil_q6v4_reset,
 	.shutdown = pil_q6v4_shutdown,
+	.proxy_vote = pil_q6v4_make_proxy_votes,
+	.proxy_unvote = pil_q6v4_remove_proxy_votes,
 };
 
 static int pil_q6v4_init_image_trusted(struct pil_desc *pil,
@@ -323,8 +309,6 @@ static int pil_q6v4_reset_trusted(struct pil_desc *pil)
 {
 	const struct pil_q6v4_pdata *pdata = pil->dev->platform_data;
 	int err;
-
-	pil_q6v4_make_xo_proxy_votes(pil->dev);
 
 	err = pil_q6v4_power_up(pil->dev);
 	if (err)
@@ -355,16 +339,15 @@ static int pil_q6v4_shutdown_trusted(struct pil_desc *pil)
 		drv->vreg_enabled = false;
 	}
 
-	pil_q6v4_remove_xo_proxy_votes_now(pil->dev);
-
 	return ret;
 }
 
 static struct pil_reset_ops pil_q6v4_ops_trusted = {
 	.init_image = pil_q6v4_init_image_trusted,
-	.verify_blob = nop_verify_blob,
 	.auth_and_reset = pil_q6v4_reset_trusted,
 	.shutdown = pil_q6v4_shutdown_trusted,
+	.proxy_vote = pil_q6v4_make_proxy_votes,
+	.proxy_unvote = pil_q6v4_remove_proxy_votes,
 };
 
 static int __devinit pil_q6v4_driver_probe(struct platform_device *pdev)
@@ -373,6 +356,7 @@ static int __devinit pil_q6v4_driver_probe(struct platform_device *pdev)
 	struct q6v4_data *drv;
 	struct resource *res;
 	struct pil_desc *desc;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -396,12 +380,31 @@ static int __devinit pil_q6v4_driver_probe(struct platform_device *pdev)
 	}
 
 	desc = devm_kzalloc(&pdev->dev, sizeof(*desc), GFP_KERNEL);
-	if (!drv)
+	if (!desc)
 		return -ENOMEM;
+
+	drv->pll_supply = devm_regulator_get(&pdev->dev, "pll_vdd");
+	if (IS_ERR(drv->pll_supply)) {
+		drv->pll_supply = NULL;
+	} else {
+		ret = regulator_set_voltage(drv->pll_supply, 1800000, 1800000);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to set pll voltage\n");
+			return ret;
+		}
+
+		ret = regulator_set_optimum_mode(drv->pll_supply, 100000);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to set pll optimum mode\n");
+			return ret;
+		}
+	}
 
 	desc->name = pdata->name;
 	desc->depends_on = pdata->depends;
 	desc->dev = &pdev->dev;
+	desc->owner = THIS_MODULE;
+	desc->proxy_timeout = 10000;
 
 	if (pas_supported(pdata->pas_id) > 0) {
 		desc->ops = &pil_q6v4_ops_trusted;
@@ -411,27 +414,30 @@ static int __devinit pil_q6v4_driver_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "using non-secure boot\n");
 	}
 
-	drv->vreg = regulator_get(&pdev->dev, "core_vdd");
+	drv->vreg = devm_regulator_get(&pdev->dev, "core_vdd");
 	if (IS_ERR(drv->vreg))
 		return PTR_ERR(drv->vreg);
 
-	setup_timer(&drv->xo_timer, pil_q6v4_remove_xo_proxy_votes,
-		    (unsigned long)drv);
-	drv->xo = msm_xo_get(pdata->xo_id, pdata->name);
+	ret = regulator_set_optimum_mode(drv->vreg, 100000);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to set regulator's mode.\n");
+		return ret;
+	}
+
+	drv->xo = devm_clk_get(&pdev->dev, "xo");
 	if (IS_ERR(drv->xo))
 		return PTR_ERR(drv->xo);
 
-	if (msm_pil_register(desc)) {
-		regulator_put(drv->vreg);
-		return -EINVAL;
-	}
+	drv->pil = msm_pil_register(desc);
+	if (IS_ERR(drv->pil))
+		return PTR_ERR(drv->pil);
 	return 0;
 }
 
 static int __devexit pil_q6v4_driver_exit(struct platform_device *pdev)
 {
 	struct q6v4_data *drv = platform_get_drvdata(pdev);
-	regulator_put(drv->vreg);
+	msm_pil_unregister(drv->pil);
 	return 0;
 }
 

@@ -25,6 +25,20 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 
+#include <linux/crc16.h>
+#include <linux/string.h>
+#include CONFIG_LGE_BOARD_HEADER_FILE
+//LGE_CHANGE_S FTM boot mode
+#include <mach/lge/board_v1.h>
+#include <mach/proc_comm.h>
+#include <lg_diag_testmode.h>
+#if (defined (CONFIG_MACH_MSM7X25A_V3) && !defined (CONFIG_MACH_MSM7X25A_M4)) || defined (CONFIG_MACH_MSM8X25_V7) || defined(CONFIG_MACH_MSM7X25A_V1)
+#include <mach/proc_comm.h>
+#include <mach/lge/lge_proc_comm.h>
+#include <lg_diag_testmode.h>
+#endif
+//LGE_CHANGE_E FTM boot mode
+
 /* BEGIN: 0013860 jihoon.lee@lge.com 20110111 */
 /* ADD 0013860: [FACTORY RESET] ERI file save */
 #ifdef CONFIG_LGE_ERI_DOWNLOAD
@@ -83,6 +97,39 @@
 #define MMC_XCALBACKUP_TYPE 0x6E
 // END: 0010090 sehyuny.kim@lge.com 2010-10-21
 
+/*LGE_CHANGE_S 2012-10-26 khyun.kim@lge.com [V7] misc partition FS API for LGE*/
+#ifdef CONFIG_MACH_MSM8X25_V7
+#define LG_MISC_DATA
+#endif
+#ifdef LG_MISC_DATA
+#define LG_MISC_DATA_PAGE_SIZE 2048
+#define LG_MISC_DATA_SIZE 2040
+#define LG_MISC_DATA_MAGIC 0xBEEF
+typedef struct{
+	unsigned int misc_magic;
+	unsigned int misc_crc;
+	char* misc_data;
+}lg_misc_data_type;
+
+typedef enum{
+	LG_MISC_IO_RESERVED1,				/* DO NOT USE*/
+	LG_MISC_IO_RESERVED2,				/* DO NOT USE*/
+	LG_MISC_IO_RESERVED3,				/* DO NOT USE*/
+	LG_MISC_IO_RESERVED4,				/* DO NOT USE*/
+	LG_MISC_IO_RESERVED5,				/* DO NOT USE*/
+	LG_MISC_IO_FRST_FLAG,				/* 5 */
+	LG_MISC_IO_DEVICETEST_RESULT,
+	LG_MISC_IO_AAT_RESULT,
+	LG_MISC_IO_AATSET,
+	LG_MISC_IO_SILENT_RESET,
+	LG_MISC_IO_TEST_REGION,			/* 10 */
+	LG_MISC_IO_DISPLAY_KCAL,
+	LG_MISC_IO_BOOT_REASON_CARVING,
+	LG_MISC_IO_ITEM_MAX,	
+}misc_io_allocation;
+
+#endif
+/*LGE_CHANGE_E 2012-10-26 khyun.kim@lge.com [V7] misc partition FS API for LGE*/
 
 typedef struct MmcPartition MmcPartition;
 
@@ -128,10 +175,17 @@ typedef struct {
 #define MMC_DEVICENAME "/dev/block/mmcblk0"
 
 // LGE_CHANGE_S, sohyun.nam@lge.com 
-#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE
+#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
 #define LCD_K_CAL_SIZE 13
 static unsigned char lcd_buf[LCD_K_CAL_SIZE]={0,};
-#endif /* CONFIG_FB_MSM_MDP_LUT_ENABLE */
+#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
+// LGE_CHANGE_S, sohyun.nam@lge.com 
+
+/*LGE_CHANGE_S, 2012-06-29, sohyun.nam@lge.com add silence reset to enable controling in hidden menu*/
+#ifdef CONFIG_LGE_SILENCE_RESET
+#define SILENT_RESET_SIZE 2
+static unsigned char silent_reset_buf[SILENT_RESET_SIZE]={0,};
+#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
 // LGE_CHANGE_S, sohyun.nam@lge.com 
 
 /* BEGIN: 0013860 jihoon.lee@lge.com 20110111 */
@@ -152,7 +206,7 @@ static void eri_dload_func(struct work_struct *work);
 /* END: 0013860 jihoon.lee@lge.com 20110111 */
 
 
-
+#ifdef CONFIG_LGE_DID_BACKUP   
 //DID BACKUP
 static struct workqueue_struct *did_dload_wq;
 struct __did_data {
@@ -162,9 +216,22 @@ struct __did_data {
 static struct __did_data did_dload_data;
 
 static void did_dload_func(struct work_struct *work);
+#endif
 
+#if 1//!defined(CONFIG_MACH_MSM7X27A_U0)
+/*LGE_CHANGE_S 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+//LG_SW_VERSION
+extern char* remote_get_sw_version(void);
+void swv_get_func(struct work_struct *work);
+static struct workqueue_struct *swv_dload_wq;
+struct work_struct swv_work;
+/*LGE_CHANGE_E 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+#endif
 
-
+#ifdef LG_MISC_DATA
+int lge_emmc_misc_write_crc(unsigned int blockNo, unsigned int magickey, const char* buffer, unsigned int size, int pos);
+int lge_emmc_misc_read_crc(unsigned int blockNo, char* buffer, int size);
+#endif
 int lge_erase_block(int secnum, size_t size);
 int lge_write_block(unsigned int secnum, unsigned char *buf, size_t size);
 int lge_read_block(unsigned int secnum, unsigned char *buf, size_t size);
@@ -202,17 +269,25 @@ static int boot_info_write(const char *val, struct kernel_param *kp)
 module_param_call(boot_info, boot_info_write, param_get_int, &boot_info, S_IWUSR | S_IRUGO);
 //[END] LGE_BOOTCOMPLETE_INFO
 
+/* ys.seong@lge.com nfc boot compelete check [start] */
+#ifdef CONFIG_LGE_NFC
+int boot_info_nfc = 0;
+module_param(boot_info_nfc, int, S_IWUSR | S_IRUGO);
+#endif //CONFIG_LGE_NFC
+/* ys.seong@lge.com nfc boot compelete check [end] */
+
+
 // LGE_CHANGE_S, myunghwan.kim@lge.com
 int is_factory=0;
-int android_lge_is_factory_cable(int *type);
+//int android_lge_is_factory_cable(int *type);
 static int get_is_factory(char *buffer, struct kernel_param *kp)
 {
-	is_factory = android_lge_is_factory_cable(NULL);
+	//is_factory = android_lge_is_factory_cable(NULL);
 	return sprintf(buffer, "%s", is_factory ? "yes" : "no");
 }
 module_param_call(is_factory, NULL, get_is_factory, &is_factory, 0444);
 // LGE_CHANGE_E, myunghwan.kim@lge.com
-
+#if 0
 // LGE_CHANGE_S, myunghwan.kim@lge.com, miniOS controller
 static int is_miniOS = -1;
 unsigned lge_get_is_miniOS(void);
@@ -229,6 +304,7 @@ static int get_is_miniOS(char *buffer, struct kernel_param *kp)
 }
 module_param_call(is_miniOS, update_is_miniOS, get_is_miniOS, &is_miniOS, 0644);
 // LGE_CHANGE_E, myunghwan.kim@lge.com
+#endif
 
 int db_integrity_ready = 0;
 module_param(db_integrity_ready, int, S_IWUSR | S_IRUGO);
@@ -256,7 +332,13 @@ static char *fota_id_read = "fail";
 module_param(fota_id_read, charp, S_IWUSR | S_IRUGO);
 
 // LGE_UPDATE_FOTA_E M3 bryan.oh@lge.com 2011/10/18
+#ifdef LG_MISC_DATA
+int misc_io_blk_no = 0;
+module_param(misc_io_blk_no, int, S_IWUSR | S_IRUGO);
 
+int misc_io_size = 0;
+module_param(misc_io_size, int, S_IWUSR | S_IRUGO);
+#endif
 
 testmode_rsp_from_diag_type integrity_ret;
 static int integrity_ret_write(const char *val, struct kernel_param *kp)
@@ -304,6 +386,7 @@ int lge_erase_block(int bytes_pos, size_t erase_size)
 	return written;
 }
 EXPORT_SYMBOL(lge_erase_block);
+
 
 /* BEGIN: 0014570 jihoon.lee@lge.com 20110122 */
 /* MOD 0014570: [FACTORY RESET] change system call to filp function for handling the flag */
@@ -688,11 +771,12 @@ int lge_mmc_scan_partitions(void) {
 }
 EXPORT_SYMBOL(lge_mmc_scan_partitions);
 
-// LGE_CHANGE_S, sohyun.nam@lge.com
-#ifdef CONFIG_FB_MSM_MDP_LUT_ENABLE
 int lge_emmc_misc_write(unsigned int blockNo, const char* buffer, int size);
+int lge_emmc_misc_write_pos(unsigned int blockNo, const char* buffer, int size, int pos);
 int lge_emmc_misc_read(unsigned int blockNo, char* buffer, int size);
 
+// LGE_CHANGE_S, sohyun.nam@lge.com
+#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
 static int write_lcd_k_cal(const char *val, struct kernel_param *kp)
 {
 	int size;
@@ -701,8 +785,11 @@ static int write_lcd_k_cal(const char *val, struct kernel_param *kp)
 	memcpy(lcd_buf+9, "cal", 4);
 	lcd_buf[LCD_K_CAL_SIZE-1] = '\0';
 	printk("write_lcd_k_cal :[%s] - [%s]:\n", val, lcd_buf);
-
+#if 0//def LG_MISC_DATA
+	size = lge_emmc_misc_write_crc(LG_MISC_IO_DISPLAY_KCAL,LG_MISC_DATA_MAGIC, lcd_buf, LCD_K_CAL_SIZE,0);
+#else
 	size = lge_emmc_misc_write(44, lcd_buf, LCD_K_CAL_SIZE);
+#endif
 	if (size == LCD_K_CAL_SIZE)
 		printk("<6>" "write %d block\n", size);
 	else
@@ -713,16 +800,175 @@ static int write_lcd_k_cal(const char *val, struct kernel_param *kp)
 
 static int read_lcd_k_cal(char *buf, struct kernel_param *kp)
 {
+#if 0//def LG_MISC_DATA
+	int size = lge_emmc_misc_read_crc(LG_MISC_IO_DISPLAY_KCAL, buf, LCD_K_CAL_SIZE);
+#else
 	int size = lge_emmc_misc_read(44, buf, LCD_K_CAL_SIZE);
+#endif
 	buf[LCD_K_CAL_SIZE-1] = '\0';
 	return size;
 }
 module_param_call(lcd_k_cal, write_lcd_k_cal, read_lcd_k_cal, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);  
-#endif /* CONFIG_FB_MSM_MDP_LUT_ENABLE */
+#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
 // LGE_CHANGE_E, sohyun.nam@lge.com
+
+/*LGE_CHANGE_S, 2012-06-29, sohyun.nam@lge.com add silence reset to enable controling in hidden menu*/
+#ifdef CONFIG_LGE_SILENCE_RESET
+int lge_emmc_misc_write(unsigned int blockNo, const char* buffer, int size);
+int lge_emmc_misc_read(unsigned int blockNo, char* buffer, int size);
+
+static int write_SilentReset_flag(const char *val, struct kernel_param *kp)
+{
+	int size;
+
+	memcpy(silent_reset_buf, val, SILENT_RESET_SIZE);
+	silent_reset_buf[SILENT_RESET_SIZE-1] = '\0';
+	printk("%s val[%s] -> silent_reset_buf[%s] \n", __func__, val, silent_reset_buf);
+#if 0//def LG_MISC_DATA
+	size = lge_emmc_misc_write_crc(LG_MISC_IO_SILENT_RESET,LG_MISC_DATA_MAGIC, silent_reset_buf, SILENT_RESET_SIZE);
+#else
+	size = lge_emmc_misc_write(36, silent_reset_buf, SILENT_RESET_SIZE);
+#endif
+	if (size == SILENT_RESET_SIZE)
+		printk("<6>" "write %d block\n", size);
+	else
+		printk("<6>" "write fail (%d)\n", size);
+
+	if(silent_reset_buf[0] == '1'){
+		set_kernel_silencemode(0);
+		lge_silence_reset_f(0);
+	}
+	else{
+		set_kernel_silencemode(1);
+		lge_silence_reset_f(1);
+	}
+
+	printk("%s,lge_silent_reset_flag=%d \n", __func__, get_kernel_silencemode());
+	return 0;
+}
+
+static int read_SilentReset_flag(char *buf, struct kernel_param *kp)
+{
+	printk("%s,lge_silent_reset_flag=%d \n", __func__, get_kernel_silencemode());
+
+	if(get_kernel_silencemode() == 0)
+		sprintf(buf, "1"); // panic display mode
+	else	
+		sprintf(buf, "0"); // silence reset mode		
+		
+	return strlen(buf)+1;
+}
+module_param_call(silent_reset, write_SilentReset_flag, read_SilentReset_flag, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);  
+#endif 
+/*LGE_CHANGE_S, 2012-06-29, sohyun.nam@lge.com add silence reset to enable controling in hidden menu*/
+
+
+static int write_SMPL_flag(const char *val, struct kernel_param *kp)
+{
+	lge_smpl_counter_f(0);
+	return 0;
+}
+
+static int read_SMPL_flag(char *buf, struct kernel_param *kp)
+{
+	sprintf(buf, "%d", lge_smpl_counter_f(-1));
+	return strlen(buf)+1;
+}
+module_param_call(smpl_counter, write_SMPL_flag, read_SMPL_flag, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);  
+
+
+//LGE_CHANGE_S FTM boot mode
+#if (defined (CONFIG_MACH_MSM7X25A_V3) && !defined (CONFIG_MACH_MSM7X25A_M4)) || defined (CONFIG_MACH_MSM8X25_V7) || defined(CONFIG_MACH_MSM7X25A_V1)
+extern unsigned lge_nv_manual_f(int val);
+extern void send_to_arm9( void * pReq, void * pRsp);
+test_mode_req_type manual;
+void ManualTestOn_Local(int manual_mode)
+{
+           DIAG_TEST_MODE_F_req_type req_ptr;
+           DIAG_TEST_MODE_F_rsp_type resp;
+
+           manual.test_manual_mode = (test_mode_req_manual_test_mode_type)manual_mode;
+           req_ptr.sub_cmd_code = TEST_MODE_MANUAL_TEST_MODE;
+           req_ptr.test_mode_req = manual;
+
+           send_to_arm9((void*) &req_ptr, (void*) &resp);
+           if (resp.ret_stat_code != TEST_OK_S) {
+                     printk(" *** LGF_TestModeManualTestMode return error \n");
+                     return;
+           }
+}
+EXPORT_SYMBOL(ManualTestOn_Local);
+
+static int write_ftm_boot_mode(const char *val, struct kernel_param *kp)
+{
+	if(*val == '1')
+	{
+		printk(KERN_INFO"[FTM] writing write_ftm_boot_mode [1] \n");
+		ManualTestOn_Local(MANUAL_TEST_ON);
+		return 0;
+	}
+	else
+	{
+		printk(KERN_INFO"[FTM] writing write_ftm_boot_mode [0] \n");
+		ManualTestOn_Local(MANUAL_TEST_OFF);
+		return 0;
+	}
+	return 0;
+}
+
+static int read_ftm_boot_mode(char *buf, struct kernel_param *kp)
+{
+	sprintf(buf, "%d", lge_nv_manual_f(-1));
+	return strlen(buf)+1;
+}
+module_param_call(ftm_boot_mode, write_ftm_boot_mode, read_ftm_boot_mode, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+#endif
+//LGE_CHANGE_E FTM boot mode
+
+static int write_ChargingBypassBoot_flag(const char *val, struct kernel_param *kp)
+{
+	if (*val == '1')
+	{
+		lge_charging_bypass_boot_f(1);
+	}
+	else
+	{
+		lge_charging_bypass_boot_f(0);
+	}
+	return 0;
+}
+
+static int read_ChargingBypassBoot_flag(char *buf, struct kernel_param *kp)
+{
+	sprintf(buf, "%d", lge_charging_bypass_boot_f(-1));
+	return strlen(buf)+1;
+}
+module_param_call(charging_bypass_boot, write_ChargingBypassBoot_flag, read_ChargingBypassBoot_flag, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);  
+
+static int write_PseudoBatteryMode_flag(const char *val, struct kernel_param *kp)
+{
+	if(*val == '1')
+	{
+		lge_pseudo_battery_mode_f(1);
+	}
+	else
+	{
+		lge_pseudo_battery_mode_f(0);
+	}
+	return 0;
+}
+
+static int read_PseudoBatteryMode_flag(char *buf, struct kernel_param *kp)
+{
+	sprintf(buf, "%d", lge_pseudo_battery_mode_f(-1));
+	return strlen(buf)+1;
+}
+module_param_call(pseudo_battery_mode, write_PseudoBatteryMode_flag, read_PseudoBatteryMode_flag, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);  
 
 int lge_get_frst_flag(void);
 int lge_set_frst_flag(int flag);
+int lge_get_esd_flag(void);
+int lge_set_esd_flag(int flag);
 
 int frst_write_block(const char *buf, struct kernel_param *kp)
 {
@@ -774,6 +1020,8 @@ int frst_read_block(char *buf, struct kernel_param *kp)
 }
 module_param_call(frst_flag, frst_write_block, frst_read_block, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IROTH);
 
+
+#if !defined(CONFIG_MACH_MSM7X27A_U0)//#[jinseok.choi@lge.com]2012-11-22 U0 emmc access via kernel [START]
 //[LGE_UPDATE_S] 20120215 minwoo.jung
 int HiddenMenu_FactoryReset(void);
 
@@ -785,7 +1033,7 @@ int do_hiddenmenu_frst(char *buf, struct kernel_param *kp)
 }
 module_param_call(hiddenmenu_factory_reset, NULL, do_hiddenmenu_frst, NULL, S_IRUSR | S_IRGRP );
 //[LGE_UPDATE_E] 20120215 minwoo.jung
-
+#endif
 // Begin: hyechan.lee 2011-04-06
 // 0018768: [fota]Fix an issue that when VZW logo is displayed, remove battery it won¡¯t enter recovery mode 
 static int fota_write_block(const char *val, struct kernel_param *kp)
@@ -843,7 +1091,7 @@ module_param_call(fota_recovery_reboot, fota_write_block, param_get_bool, &dummy
 
 // end: 0018768
 
-//#ifndef CONFIG_LGE_ERI_DOWNLOAD
+#ifdef CONFIG_LGE_DID_BACKUP   
 extern void remote_did_rpc(void);
 static void
 did_dload_func(struct work_struct *work)
@@ -851,18 +1099,14 @@ did_dload_func(struct work_struct *work)
 	printk(KERN_INFO "%s, flag : %ld\n", __func__, did_dload_data.flag);	
 	//printk("%s [WQ] pressed: %d, keycode: %d\n", __func__, eta_gpio_matrix_data.pressed, eta_gpio_matrix_data.keycode);
 #ifdef CONFIG_LGE_SUPPORT_RAPI 
-	remote_did_rpc();
+	//remote_did_rpc();
 #endif
 	return;
 }
-//#endif
-
-
+#endif
 
 /* BEGIN: 0013860 jihoon.lee@lge.com 20110111 */
 /* ADD 0013860: [FACTORY RESET] ERI file save */
-
-
 #ifdef CONFIG_LGE_ERI_DOWNLOAD
 static void
 eri_dload_func(struct work_struct *work)
@@ -870,14 +1114,14 @@ eri_dload_func(struct work_struct *work)
 	printk(KERN_INFO "%s, flag : %ld\n", __func__, eri_dload_data.flag);	
 	//printk("%s [WQ] pressed: %d, keycode: %d\n", __func__, eta_gpio_matrix_data.pressed, eta_gpio_matrix_data.keycode);
 #ifdef CONFIG_LGE_SUPPORT_RAPI
-	remote_eri_rpc();
+	//remote_eri_rpc();
 #endif
 	return;
 }
 #endif
 /* END: 0013860 jihoon.lee@lge.com 20110111 */
 
-int lge_emmc_misc_write(unsigned int blockNo, const char* buffer, int size)
+int lge_emmc_misc_write_pos(unsigned int blockNo, const char* buffer, int size, int pos)
 {
 	struct file *fp_misc = NULL;
 	mm_segment_t old_fs;
@@ -893,13 +1137,13 @@ int lge_emmc_misc_write(unsigned int blockNo, const char* buffer, int size)
 	set_fs(get_ds());
 
 	// try to open
-	fp_misc = filp_open("/dev/block/mmcblk0p8", O_WRONLY | O_SYNC, 0);
+	fp_misc = filp_open("/dev/block/platform/msm_sdcc.3/by-num/p8", O_WRONLY | O_SYNC, 0);
 	if (IS_ERR(fp_misc)) {
 		printk(KERN_ERR "%s, Can not access MISC\n", __func__);
 		goto misc_write_fail;
 	}
 
-	fp_misc->f_pos = (loff_t) (512 * blockNo);
+	fp_misc->f_pos = (loff_t) (512 * blockNo + pos);
 	write_bytes = fp_misc->f_op->write(fp_misc, buffer, size, &fp_misc->f_pos);
 
 	if (write_bytes <= 0) {
@@ -913,6 +1157,12 @@ misc_write_fail:
 
 	set_fs(old_fs);	
 	return write_bytes;
+}
+EXPORT_SYMBOL(lge_emmc_misc_write_pos);
+
+int lge_emmc_misc_write(unsigned int blockNo, const char* buffer, int size)
+{
+	return lge_emmc_misc_write_pos(blockNo, buffer, size, 0);
 }
 EXPORT_SYMBOL(lge_emmc_misc_write);
 
@@ -932,7 +1182,7 @@ int lge_emmc_misc_read(unsigned int blockNo, char* buffer, int size)
 	set_fs(get_ds());
 
 	// try to open
-	fp_misc = filp_open("/dev/block/mmcblk0p8", O_RDONLY | O_SYNC, 0);
+	fp_misc = filp_open("/dev/block/platform/msm_sdcc.3/by-num/p8", O_RDONLY | O_SYNC, 0);
 	if(IS_ERR(fp_misc)) {
 		printk(KERN_ERR "%s, Can not access MISC\n", __func__);
 		goto misc_read_fail;
@@ -958,12 +1208,17 @@ EXPORT_SYMBOL(lge_emmc_misc_read);
 int lge_get_frst_flag(void)
 {
 	unsigned char buffer[16]={0,};
-
+#if 0 //def LG_MISC_DATA
+	if (lge_emmc_misc_read_crc(LG_MISC_IO_FRST_FLAG, buffer, sizeof(buffer)) <= 0) {
+		pr_info(" *** (MISC) FRST Flag read fail\n");
+		return -1;
+	}
+#else
 	if (lge_emmc_misc_read(8, buffer, sizeof(buffer)) <= 0) {
 		pr_info(" *** (MISC) FRST Flag read fail\n");
 		return -1;
 	}
-
+#endif
 	if (buffer[0] == 0xff || buffer[0] == 0)
 		buffer[0] = '0';
 
@@ -983,18 +1238,456 @@ int lge_set_frst_flag(int flag)
 		return -1;
 
 	buffer[0] = '0' + flag;
-
+#if 0 //def LG_MISC_DATA
+	if (lge_emmc_misc_write_crc(LG_MISC_IO_FRST_FLAG, LG_MISC_DATA_MAGIC, buffer, sizeof(buffer),0) <= 0)
+		return -1;
+#else
 	if (lge_emmc_misc_write(8, buffer, sizeof(buffer)) <= 0)
 		return -1;
-
+#endif
 	pr_info(" *** (MISC) FRST Flag write: %c\n", buffer[0]);
 	return 0;
 }
 EXPORT_SYMBOL(lge_set_frst_flag);
 
+int lge_get_esd_flag(void)
+{
+	unsigned char buffer[8]={0,};
+
+	if (lge_emmc_misc_read(36, buffer, sizeof(buffer)) <= 0) {
+		pr_info(" *** (MISC) lge_get_esd_flag read fail\n");
+		return -1;
+	}
+
+	pr_info(" *** (MISC) lge_get_esd_flag: %d\n", buffer[0]-'0');
+	return buffer[5] - '0';
+}
+EXPORT_SYMBOL(lge_get_esd_flag);
+
+int lge_set_esd_flag(int flag)
+{
+	char buffer[8]={0,};	
+
+	buffer[0] = '0' + flag;
+	if (lge_emmc_misc_write_pos(36, buffer, sizeof(buffer), 5) <= 0)
+		return -1;
+
+	pr_info(" *** (MISC) lge_set_esd_flag write: %c\n", buffer[0]);
+	return 0;
+}
+EXPORT_SYMBOL(lge_set_esd_flag);
+// LGE_START 20121101 seonbeom.lee [Security] porting security code.
+
+int lge_emmc_wallpaper_write_pos(unsigned int blockNo, const char* buffer, int size, int pos)
+{
+	struct file *fp_wallpaper = NULL;
+	mm_segment_t old_fs;
+	int write_bytes = -1;
+
+	// exception handling
+	if ((buffer == NULL) || size <= 0) {
+		printk(KERN_ERR "%s, NULL buffer or NULL size : %d\n", __func__, size);
+		return -1;
+	}
+
+	old_fs=get_fs();
+	set_fs(get_ds());
+
+	// try to open
+	fp_wallpaper = filp_open("/dev/block/mmcblk0p6", O_RDWR | O_SYNC, 0);
+	if (IS_ERR(fp_wallpaper)) {
+		printk(KERN_ERR "%s, Can not access WALLPAPER\n", __func__);
+		goto wallpaper_write_fail;
+	}
+
+	fp_wallpaper->f_pos = (loff_t) (512 * blockNo + pos);
+	write_bytes = fp_wallpaper->f_op->write(fp_wallpaper, buffer, size, &fp_wallpaper->f_pos);
+
+	if (write_bytes <= 0) {
+		printk(KERN_ERR "[sunny], write_bytes = [%d]\n", write_bytes );
+		printk(KERN_ERR "%s, Can not write (WALLPAPER) \n", __func__);
+		goto wallpaper_write_fail;
+	}
+
+wallpaper_write_fail:
+	if (!IS_ERR(fp_wallpaper))
+		filp_close(fp_wallpaper, NULL);
+
+	set_fs(old_fs);	
+	return write_bytes;
+}
+EXPORT_SYMBOL(lge_emmc_wallpaper_write_pos);
+
+
+int lge_emmc_wallpaper_write(unsigned int blockNo, const char* buffer, int size)
+{
+	return lge_emmc_wallpaper_write_pos(blockNo, buffer, size, 0);
+}
+EXPORT_SYMBOL(lge_emmc_wallpaper_write);
+
+// LGE_END 20121101 seonbeom.lee [Security] porting security code.
+
+/*LGE_CHANGE_S 2012-10-26 khyun.kim@lge.com [V7] misc partition FS API for LGE*/
+#ifdef LG_MISC_DATA
+extern u16 crc16(u16 crc, u8 const *buffer, size_t len);
+
+int lge_emmc_misc_write_crc(unsigned int blockNo, unsigned int magickey, const char* buffer, unsigned int size, int pos)
+{
+	struct file *fp_misc = NULL;
+	mm_segment_t old_fs;
+	int write_bytes = -1;
+	lg_misc_data_type misc_type;
+
+	//debug
+	printk(KERN_ERR "%s, blockno = %d, magickey = %d,size = %d\n", __func__, blockNo, magickey, size);
+	// exception handling
+	if ((buffer == NULL) || size <= 0) {
+		printk(KERN_ERR "%s, NULL buffer or NULL size : %d\n", __func__, size);
+		return -1;
+	}
+
+	//magic key
+	misc_type.misc_magic = magickey;
+	if (misc_type.misc_magic != LG_MISC_DATA_MAGIC)
+	{
+		printk(KERN_ERR "%s, MAGIC key is not matched. key = %x\n", __func__,misc_type.misc_magic);
+		return -1;
+	}
+	
+	//data
+	misc_type.misc_data = kmalloc(LG_MISC_DATA_SIZE,GFP_KERNEL);
+	memset(misc_type.misc_data,0x00,LG_MISC_DATA_SIZE);
+	memcpy(misc_type.misc_data,buffer,size);
+
+	//CRC
+	misc_type.misc_crc = crc16(0,misc_type.misc_data,LG_MISC_DATA_SIZE);
+	printk(KERN_ERR "%s, CRC = %x\n", __func__, misc_type.misc_crc);
+	
+	old_fs=get_fs();
+	set_fs(get_ds());
+
+	// try to open
+	fp_misc = filp_open("/dev/block/platform/msm_sdcc.3/by-num/p8", O_WRONLY | O_SYNC, 0);
+	if (IS_ERR(fp_misc)) {
+		printk(KERN_ERR "%s, Can not access MISC\n", __func__);
+		goto misc_io_write_fail;
+	}
+
+	fp_misc->f_pos = (loff_t) (LG_MISC_DATA_PAGE_SIZE * blockNo + pos);
+	write_bytes = fp_misc->f_op->write(fp_misc, (char*)&misc_type, 8, &fp_misc->f_pos);
+	write_bytes += fp_misc->f_op->write(fp_misc, misc_type.misc_data, LG_MISC_DATA_SIZE, &fp_misc->f_pos);
+	
+	if (write_bytes <= 0) {
+		printk(KERN_ERR "%s, Can not write (MISC) \n", __func__);
+		goto misc_io_write_fail;
+	}
+	
+	if (write_bytes == LG_MISC_DATA_PAGE_SIZE)
+	{
+		write_bytes = size;
+	}
+	else
+	{
+		printk(KERN_ERR "PAGE write fail!, written bytes are %d bytes.\n",write_bytes );
+		kfree(misc_type.misc_data);
+		return write_bytes;
+	}
+
+misc_io_write_fail:
+	if (!IS_ERR(fp_misc))
+		filp_close(fp_misc, NULL);
+
+	kfree(misc_type.misc_data);
+	
+	set_fs(old_fs);	
+	return write_bytes;
+}
+EXPORT_SYMBOL(lge_emmc_misc_write_crc);
+
+int lge_emmc_misc_read_crc(unsigned int blockNo, char* buffer, int size)
+{
+	struct file *fp_misc = NULL;
+	mm_segment_t old_fs;
+	int read_bytes = -1;
+	unsigned int m_magic = 0;
+	unsigned int m_crc = 0;
+	unsigned int c_crc = 0;
+	char* read_for_c;
+	
+	//debug
+	printk(KERN_ERR "%s, blockno = %d, size = %d\n", __func__, blockNo, size);
+	// exception handling
+	if ((buffer == NULL) || size <= 0) {
+		printk(KERN_ERR "%s, NULL buffer or NULL size : %d\n", __func__, size);
+		return 0;
+	}
+
+	old_fs=get_fs();
+	set_fs(get_ds());
+
+	read_for_c = kzalloc(LG_MISC_DATA_PAGE_SIZE,GFP_KERNEL);
+	// try to open
+	fp_misc = filp_open("/dev/block/platform/msm_sdcc.3/by-num/p8", O_RDONLY | O_SYNC, 0);
+	if(IS_ERR(fp_misc)) {
+		printk(KERN_ERR "%s, Can not access MISC\n", __func__);
+		goto misc_io_read_fail;
+	}
+
+	fp_misc->f_pos = (loff_t) (LG_MISC_DATA_PAGE_SIZE * blockNo);
+	read_bytes = fp_misc->f_op->read(fp_misc, read_for_c, LG_MISC_DATA_PAGE_SIZE, &fp_misc->f_pos);
+
+	if (read_bytes <= 0) {
+		printk(KERN_ERR "%s, Can not read (MISC) \n", __func__);
+		goto misc_io_read_fail;
+	}
+
+	if (read_bytes == LG_MISC_DATA_PAGE_SIZE)
+		{
+			read_bytes = size;
+		}
+	else
+		{
+			printk(KERN_ERR "PAGE read fail!, readed bytes are %d bytes.\n",read_bytes );
+			kfree(read_for_c);
+			return read_bytes;
+		}
+		
+	
+	//magic key check
+	memcpy(&m_magic,read_for_c,sizeof(unsigned int));
+	if ((m_magic != LG_MISC_DATA_MAGIC) && (m_magic != 0))
+	{
+		printk(KERN_ERR "%s, MAGIC key is not matched. key = %x\n", __func__,m_magic);
+		kfree(read_for_c);
+		return -1;
+	}
+
+	//crc check
+	memcpy(&m_crc,read_for_c+(sizeof(unsigned int)),sizeof(unsigned int));
+	c_crc = crc16(0,read_for_c+(2*sizeof(unsigned int)),LG_MISC_DATA_SIZE);
+	if (m_crc != c_crc)
+	{
+		printk(KERN_ERR "%s, CRC is not matched. saved CRC = %x, caculated CRC = %x\n", __func__,m_crc,c_crc);
+		kfree(read_for_c);
+		return -1;
+	}
+
+	memcpy(buffer,read_for_c+8,size);
+
+misc_io_read_fail:
+	if (!IS_ERR(fp_misc))
+		filp_close(fp_misc, NULL);
+	
+	kfree(read_for_c);
+	set_fs(old_fs);	
+	return read_bytes;
+}
+EXPORT_SYMBOL(lge_emmc_misc_read_crc);
+
+/*
+If you want to write data to misc partition(by using the below funtion), must chagne values of following specific sysfs files.
+misc_io_blk_no, misc_io_size.
+These function for misc partition accessing by user space.
+*/
+int lge_emmc_misc_io_write(const char *val, struct kernel_param *kp)
+{
+	unsigned int m_blkno = misc_io_blk_no;
+	unsigned int m_size = misc_io_size;
+	unsigned int m_magic = LG_MISC_DATA_MAGIC;
+	printk(KERN_ERR "%s, blockno = %d, size = %d\n", __func__, misc_io_blk_no,misc_io_size);
+	return lge_emmc_misc_write_crc(m_blkno,m_magic,val,m_size,0);
+}
+
+int lge_emmc_misc_io_read(char *buf, struct kernel_param *kp)
+{
+	int size = 0;
+	printk(KERN_ERR "%s, blockno = %d, size = %d\n", __func__, misc_io_blk_no, misc_io_size);
+	size = lge_emmc_misc_read_crc(misc_io_blk_no,buf,misc_io_size);
+	return size;
+}
+
+module_param_call(misc_io, lge_emmc_misc_io_write, lge_emmc_misc_io_read, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IROTH);
+
+#endif
+/*LGE_CHANGE_E 2012-10-26 khyun.kim@lge.com [V7] misc partition FS API for LGE*/
+/* LGE_CHANGE_S  : adiyoung.lee, FTM Mode and ManualModeCkeckComplete on RPC, 2012-12-12 */
+#if !defined(CONFIG_MACH_MSM7X25A_M4) && (defined (CONFIG_MACH_MSM7X25A_V3) || defined (CONFIG_MACH_MSM8X25_V7) || defined(CONFIG_MACH_MSM7X25A_V1))
+extern void send_to_arm9( void * pReq, void * pRsp);
+test_mode_req_type manual;
+void AAT_Local(int manual_mode)
+{
+       DIAG_TEST_MODE_F_req_type req_ptr;
+       DIAG_TEST_MODE_F_rsp_type resp;
+
+       manual.test_manual_mode = (test_mode_req_manual_test_mode_type)manual_mode;
+       req_ptr.sub_cmd_code = TEST_MODE_MANUAL_TEST_MODE;
+       req_ptr.test_mode_req = manual;
+
+       send_to_arm9((void*) &req_ptr, (void*) &resp);
+       if (resp.ret_stat_code != TEST_OK_S) {
+                 printk(" *** AAT_Local return error \n");
+                 return;
+       }
+}
+EXPORT_SYMBOL(AAT_Local);
+
+static int write_aat_partial(const char *val, struct kernel_param *kp)
+{
+
+    if (*val == '1')
+    {
+        lge_aat_partial_f(1);
+        AAT_Local(MANUAL_EFS_SYNC);
+    }
+    else
+    {
+        lge_aat_partial_f(0);
+        AAT_Local(MANUAL_EFS_SYNC);
+    }
+
+	return 0;
+}
+
+static int read_aat_partial(char *buf, struct kernel_param *kp)
+{
+	sprintf(buf, "%d", lge_aat_partial_f(-1));
+	return strlen(buf)+1;
+}
+module_param_call(aat_partial, write_aat_partial, read_aat_partial, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+
+
+static int write_aat_full(const char *val, struct kernel_param *kp)
+{
+	if (*val == '1')
+	{
+		lge_aat_full_f(1);
+        AAT_Local(MANUAL_EFS_SYNC);
+	}
+	else
+	{
+		lge_aat_full_f(0);
+        AAT_Local(MANUAL_EFS_SYNC);
+	}
+
+    return 0;
+}
+
+static int read_aat_full(char *buf, struct kernel_param *kp)
+{
+	sprintf(buf, "%d", lge_aat_full_f(-1));
+	return strlen(buf)+1;
+}
+module_param_call(aat_full, write_aat_full, read_aat_full, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+
+
+static int write_aat_partial_or_full(const char *val, struct kernel_param *kp)
+{
+	if (*val == '1')
+	{
+		lge_aat_partial_or_full_f(1);
+        AAT_Local(MANUAL_EFS_SYNC);
+	}
+	else
+	{
+		lge_aat_partial_or_full_f(0);
+        AAT_Local(MANUAL_EFS_SYNC);
+	}
+    return 0;
+}
+
+static int read_aat_partial_or_full(char *buf, struct kernel_param *kp)
+{
+	sprintf(buf, "%d", lge_aat_partial_or_full_f(-1));
+	return strlen(buf)+1;
+}
+module_param_call(aat_partial_or_full, write_aat_partial_or_full, read_aat_partial_or_full, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+#endif
+/* LGE_CHANGE_E  : adiyoung.lee, FTM Mode and ManualModeCkeckComplete on RPC, 2012-12-12 */
+
+#if 1//!defined(CONFIG_MACH_MSM7X27A_U0)
+/*LGE_CHANGE_S 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+extern unsigned char swv_buff[100];
+void swv_get_func(struct work_struct *work)
+{
+	char *envp[] = {
+		"HOME=/",
+		"TERM=linux",
+		NULL,
+	};
+
+	unsigned* swv_buffer;
+	char fac_version[50];
+	char sw_version[50];
+	unsigned ret;
+	swv_buffer = kzalloc(100, GFP_KERNEL);
+
+	remote_get_sw_version();
+
+	memcpy(&sw_version[0],swv_buff,50);
+	//printk(KERN_INFO "sw_version VALUE = %s\n",sw_version);
+	memcpy(&fac_version[0],(&swv_buff[0])+50,50);
+	//printk(KERN_INFO "fac_version VALUE = %s\n",fac_version);
+	sw_version[49] = '\0';
+	fac_version[49] = '\0';
+	{
+		char *argv[] = {
+		"setprop",
+		"lge.version.factorysw",
+		fac_version,
+		NULL,
+		};
+		if ((ret = call_usermodehelper("/system/bin/setprop", argv, envp, UMH_WAIT_PROC)) != 0) {
+			printk(KERN_ERR "%s lge.version.factorysw set failed to run \": %i\n",__func__, ret);
+		}
+		else{
+			printk(KERN_INFO "%s lge.version.factorysw set execute ok\n", __func__);
+		}
+	}
+	{
+		char *argv[] = {
+		"setprop",
+		"ro.lge.factoryversion",
+		fac_version,
+		NULL,
+		};
+		if ((ret = call_usermodehelper("/system/bin/setprop", argv, envp, UMH_WAIT_PROC)) != 0) {
+			printk(KERN_ERR "%s ro.lge.factoryversion set failed to run \": %i\n",__func__, ret);
+		}
+		else{
+			printk(KERN_INFO "%s ro.lge.factoryversion set execute ok\n", __func__);
+		}
+	}	{
+		char *argv[] = {
+		"setprop",
+		"lge.version.sw",
+		sw_version,
+		NULL,
+		};
+		if ((ret = call_usermodehelper("/system/bin/setprop", argv, envp, UMH_WAIT_PROC)) != 0) {
+			printk(KERN_ERR "%s lge.version.sw set failed to run \": %i\n",__func__, ret);
+		}
+		else{
+			printk(KERN_INFO "%s  lge.version.sw set execute ok\n", __func__);
+		}
+	}
+	kfree(swv_buffer);
+}
+
+int lge_sw_version_read(const char *val, struct kernel_param *kp)
+{
+	printk(KERN_INFO"%s: started\n", __func__);
+	
+	queue_work(swv_dload_wq, &swv_work);
+
+	return 0;
+}
+module_param_call(lge_swv,lge_sw_version_read, NULL, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IROTH);
+/*LGE_CHANGE_E 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+#endif
+
 static int __init lge_emmc_direct_access_init(void)
 {
-	printk(KERN_INFO"%s: finished\n", __func__);
+	printk(KERN_INFO"%s: started\n", __func__);
 
 /* BEGIN: 0013860 jihoon.lee@lge.com 20110111 */
 /* ADD 0013860: [FACTORY RESET] ERI file save */
@@ -1005,10 +1698,22 @@ static int __init lge_emmc_direct_access_init(void)
 /* END: 0013860 jihoon.lee@lge.com 20110111 */
 
 //kabjoo.choi 20110806
-//#ifndef CONFIG_LGE_DID_BACKUP   
+#ifdef CONFIG_LGE_DID_BACKUP   
 	did_dload_wq = create_singlethread_workqueue("did_dload_wq");
 	INIT_WORK(&did_dload_data.work, did_dload_func);
-//#endif
+#endif
+
+#if 1//!defined(CONFIG_MACH_MSM7X27A_U0)
+/*LGE_CHANGE_S 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+	swv_dload_wq = create_singlethread_workqueue("swv_dload_wq");
+	if (swv_dload_wq == NULL)
+	{
+		printk(KERN_INFO"%s: swv wq error\n", __func__);
+	}
+	INIT_WORK(&swv_work,swv_get_func);
+	printk(KERN_INFO"%s: finished\n", __func__);
+/*LGE_CHANGE_E 2012-11-28 khyun.kim@lge.com sw_version's value set to property via rapi.*/
+#endif
 	return 0;
 }
 

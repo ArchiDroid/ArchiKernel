@@ -9,7 +9,7 @@
 #include <linux/i2c.h>
 #include <asm/gpio.h>
 
-#include <mach/board_lge.h>
+#include CONFIG_LGE_BOARD_HEADER_FILE
 
 #define LM3528_I2C_NAME		"lm3528bl"
 #define LM3528_I2C_ADDR		0x36

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,8 +18,10 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/clk.h>
+#include <linux/module.h>
+#include <mach/socinfo.h>
+#include <mach/proc_comm.h>
 #include "footswitch.h"
-#include "proc_comm.h"
 
 /* PCOM power rail IDs */
 #define PCOM_FS_GRP		8
@@ -40,7 +42,6 @@
  * @init_data: Regulator platform data
  * @pcom_id: Proc-comm ID of the footswitch
  * @is_enabled: Flag set when footswitch is enabled
- * @is_manual: Flag set when footswitch is in manual proc-comm mode
  * @has_ahb_clk: Flag set if footswitched core has an ahb_clk
  * @has_src_clk: Flag set if footswitched core has a src_clk
  * @src_clk: Controls the core clock's rate
@@ -55,7 +56,6 @@ struct footswitch {
 	struct regulator_init_data		init_data;
 	unsigned				pcom_id;
 	bool					is_enabled;
-	bool					is_manual;
 	struct clk				*src_clk;
 	struct clk				*core_clk;
 	struct clk				*ahb_clk;
@@ -92,10 +92,10 @@ static int enable_clocks(struct footswitch *fs)
 	fs->is_rate_set = !!(clk_get_rate(fs->src_clk));
 	if (!fs->is_rate_set)
 		clk_set_rate(fs->src_clk, fs->src_clk_init_rate);
-	clk_enable(fs->core_clk);
+	clk_prepare_enable(fs->core_clk);
 
 	if (fs->ahb_clk)
-		clk_enable(fs->ahb_clk);
+		clk_prepare_enable(fs->ahb_clk);
 
 	return 0;
 }
@@ -103,8 +103,8 @@ static int enable_clocks(struct footswitch *fs)
 static void disable_clocks(struct footswitch *fs)
 {
 	if (fs->ahb_clk)
-		clk_disable(fs->ahb_clk);
-	clk_disable(fs->core_clk);
+		clk_disable_unprepare(fs->ahb_clk);
+	clk_disable_unprepare(fs->core_clk);
 }
 
 static int footswitch_is_enabled(struct regulator_dev *rdev)
@@ -204,14 +204,14 @@ static int get_clocks(struct device *dev, struct footswitch *fs)
 		fs->src_clk = clk_get(dev, "core_clk");
 	}
 	if (IS_ERR(fs->src_clk)) {
-		pr_err("clk_get(src_clk) failed\n");
+		pr_err("%s clk_get(src_clk) failed\n", fs->desc.name);
 		rc = PTR_ERR(fs->src_clk);
 		goto err_src_clk;
 	}
 
 	fs->core_clk = clk_get(dev, "core_clk");
 	if (IS_ERR(fs->core_clk)) {
-		pr_err("clk_get(core_clk) failed\n");
+		pr_err("%s clk_get(core_clk) failed\n", fs->desc.name);
 		rc = PTR_ERR(fs->core_clk);
 		goto err_core_clk;
 	}
@@ -219,7 +219,7 @@ static int get_clocks(struct device *dev, struct footswitch *fs)
 	if (fs->has_ahb_clk) {
 		fs->ahb_clk = clk_get(dev, "iface_clk");
 		if (IS_ERR(fs->ahb_clk)) {
-			pr_err("clk_get(iface_clk) failed\n");
+			pr_err("%s clk_get(iface_clk) failed\n", fs->desc.name);
 			rc = PTR_ERR(fs->ahb_clk);
 			goto err_ahb_clk;
 		}
@@ -254,18 +254,26 @@ static int footswitch_probe(struct platform_device *pdev)
 	if (pdev->id >= MAX_FS)
 		return -ENODEV;
 
-	fs = &footswitches[pdev->id];
-	if (!fs->is_manual) {
-		pr_err("%s is not in manual mode\n", fs->desc.name);
-		return -EINVAL;
-	}
 	init_data = pdev->dev.platform_data;
+	fs = &footswitches[pdev->id];
+
+	/*
+	 * Enable footswitch in manual mode (ie. not controlled along
+	 * with pcom clocks).
+	 */
+	rc = set_rail_state(fs->pcom_id, PCOM_CLKCTL_RPC_RAIL_ENABLE);
+	if (rc)
+		return rc;
+	rc = set_rail_mode(fs->pcom_id, PCOM_RAIL_MODE_MANUAL);
+	if (rc)
+		return rc;
 
 	rc = get_clocks(&pdev->dev, fs);
 	if (rc)
 		return rc;
 
-	fs->rdev = regulator_register(&fs->desc, &pdev->dev, init_data, fs);
+	fs->rdev = regulator_register(&fs->desc, &pdev->dev,
+							init_data, fs, NULL);
 	if (IS_ERR(fs->rdev)) {
 		pr_err("regulator_register(%s) failed\n", fs->desc.name);
 		rc = PTR_ERR(fs->rdev);
@@ -302,21 +310,6 @@ static struct platform_driver footswitch_driver = {
 
 static int __init footswitch_init(void)
 {
-	struct footswitch *fs;
-	int ret;
-
-	/*
-	 * Enable all footswitches in manual mode (ie. not controlled along
-	 * with pcom clocks).
-	 */
-	for (fs = footswitches; fs < footswitches + ARRAY_SIZE(footswitches);
-	     fs++) {
-		set_rail_state(fs->pcom_id, PCOM_CLKCTL_RPC_RAIL_ENABLE);
-		ret = set_rail_mode(fs->pcom_id, PCOM_RAIL_MODE_MANUAL);
-		if (!ret)
-			fs->is_manual = 1;
-	}
-
 	return platform_driver_register(&footswitch_driver);
 }
 subsys_initcall(footswitch_init);

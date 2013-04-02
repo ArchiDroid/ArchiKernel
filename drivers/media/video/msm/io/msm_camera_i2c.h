@@ -42,6 +42,10 @@ enum msm_camera_i2c_data_type {
 	MSM_CAMERA_I2C_UNSET_BYTE_MASK,
 	MSM_CAMERA_I2C_SET_WORD_MASK,
 	MSM_CAMERA_I2C_UNSET_WORD_MASK,
+	MSM_CAMERA_I2C_SET_BYTE_WRITE_MASK_DATA,
+//LGE_CHANGE_S: V3 HI351 Camera Bringup I2C speed up burst mode - hong.junki@lge.com 2012/10/05
+	MSM_CAMERA_I2C_BURST_DATA,
+//LGE_CHANGE_E: V3 HI351 Camera Bringup I2C speed up burst mode - hong.junki@lge.com 2012/10/05
 };
 
 enum msm_camera_i2c_cmd_type {
@@ -54,6 +58,7 @@ struct msm_camera_i2c_reg_conf {
 	uint16_t reg_data;
 	enum msm_camera_i2c_data_type dt;
 	enum msm_camera_i2c_cmd_type cmd_type;
+	int16_t mask;
 };
 
 struct msm_camera_i2c_conf_array {
@@ -117,4 +122,9 @@ int32_t msm_sensor_write_enum_conf_array(struct msm_camera_i2c_client *client,
 
 int32_t msm_sensor_write_all_conf_array(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_conf_array *array, uint16_t size);
+#endif
+
+#if 1//def CONFIG_MT9E013_LGIT
+int32_t msm_camera_i2c_rxdata_manual(struct i2c_adapter *adapter, uint16_t saddr,
+	unsigned char *rxdata, int data_length);
 #endif

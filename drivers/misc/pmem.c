@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/fs.h>
@@ -24,6 +25,7 @@
 #include <linux/debugfs.h>
 #include <linux/android_pmem.h>
 #include <linux/mempolicy.h>
+#include <linux/sched.h>
 #include <linux/kobject.h>
 #include <linux/pm_runtime.h>
 #include <linux/memory_alloc.h>
@@ -2564,8 +2566,7 @@ static void ioremap_pmem(int id)
 			type = get_mem_type(MT_DEVICE);
 		DLOG("PMEMDEBUG: Remap phys %lx to virt %lx on %s\n",
 			pmem[id].base, addr, pmem[id].name);
-		if (ioremap_page_range(addr, addr + pmem[id].size,
-			pmem[id].base, __pgprot(type->prot_pte))) {
+		if (ioremap_pages(addr, pmem[id].base,  pmem[id].size, type)) {
 				pr_err("pmem: Failed to map pages\n");
 				BUG();
 		}
@@ -2785,7 +2786,8 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 	pmem[id].dev.name = pdata->name;
 	pmem[id].dev.minor = id;
 	pmem[id].dev.fops = &pmem_fops;
-	pr_info("pmem: Initializing %s (user-space) as %s\n",
+	pmem[id].reusable = pdata->reusable;
+	pr_info("pmem: Initializing %s as %s\n",
 		pdata->name, pdata->cached ? "cached" : "non-cached");
 
 	if (misc_register(&pmem[id].dev)) {
@@ -2793,24 +2795,23 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 		goto err_cant_register_device;
 	}
 
-	pmem[id].base = allocate_contiguous_memory_nomap(pmem[id].size,
-		pmem[id].memory_type, PAGE_SIZE);
-	if (!pmem[id].base) {
-		pr_err("pmem: Cannot allocate from reserved memory for %s\n",
-		 pdata->name);
-		goto err_misc_deregister;
+	if (!pmem[id].reusable) {
+		pmem[id].base = allocate_contiguous_memory_nomap(pmem[id].size,
+			pmem[id].memory_type, PAGE_SIZE);
+		if (!pmem[id].base) {
+			pr_err("pmem: Cannot allocate from reserved memory for %s\n",
+				pdata->name);
+			goto err_misc_deregister;
+		}
 	}
 
-	pr_info("allocating %lu bytes at %p (%lx physical) for %s\n",
-		pmem[id].size, pmem[id].vbase, pmem[id].base, pmem[id].name);
-
-	pmem[id].reusable = pdata->reusable;
 	/* reusable pmem requires map on demand */
 	pmem[id].map_on_demand = pdata->map_on_demand || pdata->reusable;
 	if (pmem[id].map_on_demand) {
 		if (pmem[id].reusable) {
 			const struct fmem_data *fmem_info = fmem_get_info();
 			pmem[id].area = fmem_info->area;
+			pmem[id].base = fmem_info->phys;
 		} else {
 			pmem_vma = get_vm_area(pmem[id].size, VM_IOREMAP);
 			if (!pmem_vma) {
@@ -2844,12 +2845,17 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 	if (pdata->release_region)
 		pmem[id].mem_release = pdata->release_region;
 
+	pr_info("allocating %lu bytes at %lx physical for %s\n",
+		pmem[id].size, pmem[id].base, pmem[id].name);
+
 	return 0;
 
 cleanup_vm:
-	remove_vm_area(pmem_vma);
+	if (!pmem[id].reusable)
+		remove_vm_area(pmem_vma);
 err_free:
-	free_contiguous_memory_by_paddr(pmem[id].base);
+	if (!pmem[id].reusable)
+		free_contiguous_memory_by_paddr(pmem[id].base);
 err_misc_deregister:
 	misc_deregister(&pmem[id].dev);
 err_cant_register_device:

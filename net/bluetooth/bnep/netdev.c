@@ -26,6 +26,7 @@
 */
 
 #include <linux/module.h>
+#include <linux/interrupt.h>
 #include <linux/slab.h>
 
 #include <linux/socket.h>
@@ -43,6 +44,9 @@
 #include "bnep.h"
 
 #define BNEP_TX_QUEUE_LEN 20
+// +s LGBT_COMMON_PATCH_SR01107153 Disable_support_for_MULTI_ADDR_SET sunmee.choi@lge.com 2013-02-15
+#undef CONFIG_BT_BNEP_MC_FILTER
+// +e LGBT_COMMON_PATCH_SR01107153
 
 static int bnep_net_open(struct net_device *dev)
 {
@@ -217,7 +221,7 @@ static const struct net_device_ops bnep_netdev_ops = {
 	.ndo_stop            = bnep_net_close,
 	.ndo_start_xmit	     = bnep_net_xmit,
 	.ndo_validate_addr   = eth_validate_addr,
-	.ndo_set_multicast_list = bnep_net_set_mc_list,
+	.ndo_set_rx_mode     = bnep_net_set_mc_list,
 	.ndo_set_mac_address = bnep_net_set_mac_addr,
 	.ndo_tx_timeout      = bnep_net_timeout,
 	.ndo_change_mtu	     = eth_change_mtu,

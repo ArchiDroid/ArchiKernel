@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2007-2012, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -92,9 +92,9 @@ static int clock_debug_enable_set(void *data, u64 val)
 	int rc = 0;
 
 	if (val)
-		rc = clk_enable(clock);
+		rc = clk_prepare_enable(clock);
 	else
-		clk_disable(clock);
+		clk_disable_unprepare(clock);
 
 	return rc;
 }
@@ -120,7 +120,10 @@ static int clock_debug_local_get(void *data, u64 *val)
 {
 	struct clk *clock = data;
 
-	*val = clock->ops->is_local(clock);
+	if (!clock->ops->is_local)
+		*val = true;
+	else
+		*val = clock->ops->is_local(clock);
 
 	return 0;
 }
@@ -145,8 +148,6 @@ static size_t num_msm_clocks;
 
 int __init clock_debug_init(struct clock_init_data *data)
 {
-	int ret = 0;
-
 	debugfs_base = debugfs_create_dir("clk", NULL);
 	if (!debugfs_base)
 		return -ENOMEM;
@@ -159,27 +160,32 @@ int __init clock_debug_init(struct clock_init_data *data)
 	num_msm_clocks = data->size;
 
 	measure = clk_get_sys("debug", "measure");
-	if (IS_ERR(measure)) {
-		ret = PTR_ERR(measure);
+	if (IS_ERR(measure))
 		measure = NULL;
-	}
 
-	return ret;
+	return 0;
 }
 
 
 static int clock_debug_print_clock(struct clk *c)
 {
-	size_t ln = 0;
-	char s[128];
+	char *start = "";
 
 	if (!c || !c->count)
 		return 0;
 
-	ln += snprintf(s, sizeof(s), "\t%s", c->dbg_name);
-	while (ln < sizeof(s) && (c = clk_get_parent(c)))
-		ln += snprintf(s + ln, sizeof(s) - ln, " -> %s", c->dbg_name);
-	pr_info("%s\n", s);
+	pr_info("\t");
+	do {
+		if (c->vdd_class)
+			pr_cont("%s%s [%ld, %lu]", start, c->dbg_name, c->rate,
+				c->vdd_class->cur_level);
+		else
+			pr_cont("%s%s [%ld]", start, c->dbg_name, c->rate);
+		start = " -> ";
+	} while ((c = clk_get_parent(c)));
+
+	pr_cont("\n");
+
 	return 1;
 }
 

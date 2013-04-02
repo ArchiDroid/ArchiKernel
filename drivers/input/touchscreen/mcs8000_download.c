@@ -31,10 +31,14 @@
 //============================================================
 
 #include "MTH_M3C_R00_V03_bin.c" //for M3C EVB 사용 안함.
-
-#include "LGE610_R00_V12_bin.c"//for M4 EU suntel,Telus suntel
+#if 1 //  woden@lge.com [2013-02-26] => New TS Firmware was applied. 
+#include "LGE610_R00_V16_bin.c"//for M4 EU suntel,Telus suntel
+#include "LGE610_R01_V20_bin.c" //for M4 EU Inotek,Telus inotek
+#else
+#include "LGE610_R00_V15_bin.c"//for M4 EU suntel,Telus suntel
 #include "LGE610_R01_V18_bin.c" //for M4 EU Inotek,Telus inotek
-#include "LGE615_R02_V12_bin.c" //for M4 dual 최신, Bell 초기 버전
+#endif
+#include "LGE615_R02_V13_bin.c" //for M4 dual 최신, Bell 초기 버전
 #include "LGE615_R04_V01_bin.c" //for M4 dual 초기 버전. 펌웨어 업데이트 진행 안함
 #include "LGE617_R03_V03_bin.c" // E617(Bell 최신 버전)  
 UINT8  ucVerifyBuffer[MELFAS_TRANSFER_LENGTH];		//	You may melloc *ucVerifyBuffer instead of this
@@ -98,7 +102,7 @@ void melfas_send_download_enable_command(void)
 
 int mcsdl_download_binary_data(UINT8 master_dl_retry, int val,unsigned char fw_ver, unsigned char comp_ver)
 {
-	int nRet;
+	int nRet = 0;
 #ifdef FW_FROM_FILE
 	struct file *filp;
 	spinlock_t           lock;

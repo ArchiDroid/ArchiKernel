@@ -623,6 +623,38 @@ struct pm8xxx_gpio_rpc_cfg {
 	bool				int_polarity;
 };
 
+//LGE_CHANGE_S,narasimha.chikka@lge.com,Add charger ic register status
+#if defined(CONFIG_MACH_MSM8X25_V7)
+enum max8971_register{
+	MAX8971_REG_CHGINT ,
+	MAX8971_REG_CHGINT_MASK,
+	MAX8971_REG_CHG_STAT,
+	MAX8971_REG_DETAILS1,
+	MAX8971_REG_DETAILS2,
+	MAX8971_REG_CHGCNTL1,
+	MAX8971_REG_FCHGCRNT,
+	MAX8971_REG_DCCRNT,
+	MAX8971_REG_TOPOFF,
+	MAX8971_REG_TEMPREG,
+	MAX8971_REG_PROTCMD,
+};
+struct max8971_reg{
+	enum max8971_register  reg_chgint;
+	enum max8971_register  reg_chgint_mask;
+	enum max8971_register  reg_chg_stat;
+	enum max8971_register  reg_details1;
+	enum max8971_register  reg_details2;
+	enum max8971_register  reg_chgcntl1;
+	enum max8971_register  reg_fchgcrnt;
+	enum max8971_register  reg_dccrnt;
+	enum max8971_register  reg_topoff;
+	enum max8971_register  reg_tempreg;
+	enum max8971_register  reg_protcmd;
+	enum max8971_register  read_result;
+};
+#endif
+//LGE_CHANGE_E,narasimha.chikka@lge.com,Add charger ic register status
+
 int pmic_lp_mode_control(enum switch_cmd cmd, enum vreg_lp_id id);
 int pmic_vreg_set_level(enum vreg_id vreg, int level);
 int pmic_vreg_pull_down_switch(enum switch_cmd cmd, enum vreg_pdown_id id);
@@ -745,17 +777,15 @@ int pmic_gpio_set_value(unsigned gpio, int value);
 int pmic_gpio_get_value(unsigned gpio);
 int pmic_gpio_get_direction(unsigned gpio);
 int pmic_gpio_config(struct pm8xxx_gpio_rpc_cfg *);
-
-/* LGE_CHANGE_S : kernel3.0 porting, Camera LDO Setting
- * 2011-11-09, yoonsoo.kim@lge.com, 
- * Camera LDO Setting API
- */
-int pmic_miniabb_ldo_control(uint16_t ldo_num, uint16_t enable);
-/* LGE_CHANGE_E : Camera LDO Setting */
-/* LGE_CHANGE_S : U0 Heating and DoU Issue
- * 2012-01-26, yoonsoo.kim@lge.com, 
- * When user enter the streaming service, change the charging current
- */
+#if defined(CONFIG_MACH_MSM7X27A_U0)
+   /* LGE_CHANGE_S : U0 Heating and DoU Issue
+    * 2012-01-26, yoonsoo.kim@lge.com,
+    * When user enter the streaming service, change the charging current
+    */
 int pmic_miniabb_charging_current_change(uint16_t charging_current);
-/* LGE_CHANGE_E : U0 Heating and DoU Issue*/
+   /* LGE_CHANGE_E : U0 Heating and DoU Issue*/
+#endif
+#if defined(CONFIG_MACH_MSM8X25_V7)
+int pmic_get_charging_ic_reg(struct max8971_reg *reg);
+#endif
 #endif

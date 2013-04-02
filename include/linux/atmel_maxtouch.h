@@ -248,7 +248,14 @@
 #define DEBUG_VERBOSE  2
 #define DEBUG_MESSAGES 5
 #define DEBUG_RAW      8
+
+/*LGE_CHANGE_S : byungyong.hwang@lge.com touch - compile error fix for V7*/
+#if defined(CONFIG_LGE_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)
+//#define DEBUG_TRACE   10
+#else
 #define DEBUG_TRACE   10
+#endif
+/*LGE_CHANGE_E : byungyong.hwang@lge.com touch - compile error fix for V7*/
 
 /* IOCTL commands */
 /* TODO: get correct numbers! */

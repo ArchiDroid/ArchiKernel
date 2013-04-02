@@ -33,6 +33,7 @@
 #include <linux/input.h>
 #include <linux/sysfs.h>
 #include <linux/math64.h>
+#include <linux/module.h>
 #include "rmi_drvr.h"
 #include "rmi_bus.h"
 #include "rmi_sensor.h"

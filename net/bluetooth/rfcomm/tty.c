@@ -26,6 +26,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/interrupt.h>
 
 #include <linux/tty.h>
 #include <linux/tty_driver.h>

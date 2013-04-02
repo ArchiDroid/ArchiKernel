@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/pagemap.h>
+#include <linux/export.h>
 #include <linux/leds.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
@@ -57,7 +58,7 @@ static ssize_t clkgate_delay_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
-	return snprintf(buf, PAGE_SIZE, "%lu millisecs\n",
+	return snprintf(buf, PAGE_SIZE, "%lu\n",
 			host->clkgate_delay);
 }
 
@@ -241,10 +242,10 @@ static inline void mmc_host_clk_init(struct mmc_host *host)
 	/* Hold MCI clock for 8 cycles by default */
 	host->clk_delay = 8;
 	/*
-	 * Default clock gating delay is value is 200ms.
+	 * Default clock gating delay is 0ms to avoid wasting power.
 	 * This value can be tuned by writing into sysfs entry.
 	 */
-	host->clkgate_delay = 200;
+	host->clkgate_delay = 0;
 	host->clk_gated = false;
 	INIT_DELAYED_WORK(&host->clk_gate_work, mmc_host_clk_gate_work);
 	spin_lock_init(&host->clk_lock);
@@ -293,6 +294,7 @@ static inline void mmc_host_clk_exit(struct mmc_host *host)
 static inline void mmc_host_clk_sysfs_init(struct mmc_host *host)
 {
 }
+
 #endif
 
 /**
@@ -334,7 +336,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	wake_lock_init(&host->detect_wake_lock, WAKE_LOCK_SUSPEND,
 		kasprintf(GFP_KERNEL, "%s_detect", mmc_hostname(host)));
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
-	INIT_DELAYED_WORK_DEFERRABLE(&host->disable, mmc_host_deeper_disable);
 #ifdef CONFIG_PM
 	host->pm_notify.notifier_call = mmc_pm_notify;
 #endif
@@ -363,33 +364,24 @@ static ssize_t
 show_perf(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct mmc_host *host = dev_get_drvdata(dev);
-	int64_t rtime_mmcq, wtime_mmcq, rtime_drv, wtime_drv;
-	unsigned long rbytes_mmcq, wbytes_mmcq, rbytes_drv, wbytes_drv;
+	int64_t rtime_drv, wtime_drv;
+	unsigned long rbytes_drv, wbytes_drv;
 
 	spin_lock(&host->lock);
 
-	rbytes_mmcq = host->perf.rbytes_mmcq;
-	wbytes_mmcq = host->perf.wbytes_mmcq;
 	rbytes_drv = host->perf.rbytes_drv;
 	wbytes_drv = host->perf.wbytes_drv;
 
-	rtime_mmcq = ktime_to_us(host->perf.rtime_mmcq);
-	wtime_mmcq = ktime_to_us(host->perf.wtime_mmcq);
 	rtime_drv = ktime_to_us(host->perf.rtime_drv);
 	wtime_drv = ktime_to_us(host->perf.wtime_drv);
 
 	spin_unlock(&host->lock);
 
-	return snprintf(buf, PAGE_SIZE, "Write performance at MMCQ Level:"
-					"%lu bytes in %lld microseconds\n"
-					"Read performance at MMCQ Level:"
-					"%lu bytes in %lld microseconds\n"
-					"Write performance at driver Level:"
+	return snprintf(buf, PAGE_SIZE, "Write performance at driver Level:"
 					"%lu bytes in %lld microseconds\n"
 					"Read performance at driver Level:"
 					"%lu bytes in %lld microseconds\n",
-					wbytes_mmcq, wtime_mmcq, rbytes_mmcq,
-					rtime_mmcq, wbytes_drv, wtime_drv,
+					wbytes_drv, wtime_drv,
 					rbytes_drv, rtime_drv);
 }
 
@@ -399,18 +391,23 @@ set_perf(struct device *dev, struct device_attribute *attr,
 {
 	int64_t value;
 	struct mmc_host *host = dev_get_drvdata(dev);
+
 	sscanf(buf, "%lld", &value);
+	spin_lock(&host->lock);
 	if (!value) {
-		spin_lock(&host->lock);
 		memset(&host->perf, 0, sizeof(host->perf));
-		spin_unlock(&host->lock);
+		host->perf_enable = false;
+	} else {
+		host->perf_enable = true;
 	}
+	spin_unlock(&host->lock);
 
 	return count;
 }
 
 static DEVICE_ATTR(perf, S_IRUGO | S_IWUSR,
 		show_perf, set_perf);
+
 #endif
 
 static struct attribute *dev_attrs[] = {

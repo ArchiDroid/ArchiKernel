@@ -21,6 +21,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/module.h>
 
 #define DRIVER_NAME "ats_input"
 // BEGIN: 0010583 alan.park@lge.com 2010.11.06
@@ -37,7 +38,7 @@ struct input_dev *get_ats_input_dev(void)
 {
 	return ats_input_dev;
 }
-EXPORT_SYMBOL(get_ats_input_dev);
+
 
 
 static int __devinit ats_input_probe(struct platform_device *pdev)
@@ -52,12 +53,35 @@ static int __devinit ats_input_probe(struct platform_device *pdev)
 	}
 	ats_input_dev->name = "ats_input";
 
+	/* 2012-10-23 JongWook-Park(blood9874@lge.com) [V3] DIAG Key Input Code test Patch [START] */ 
+	#if 0 /*seven temporally blocked */
 	for(i=0; i<EV_CNT; i++)
 		set_bit(i, ats_input_dev->evbit);
 	for(i=0; i<KEY_CNT; i++)
 		set_bit(i, ats_input_dev->keybit);
 	set_bit(ABS_MT_TOUCH_MAJOR, ats_input_dev->absbit);
 	clear_bit(EV_REP, ats_input_dev->evbit);
+	#else
+	set_bit(EV_ABS, ats_input_dev->evbit);
+	set_bit(EV_KEY, ats_input_dev->evbit);
+	ats_input_dev->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
+
+	for(i = 0; i<= KEY_0; i++)	
+		ats_input_dev->keybit[BIT_WORD(i)] |= BIT_MASK(i);
+
+	for(i = KEY_VOLUMEDOWN; i<= KEY_POWER; i++)	
+		ats_input_dev->keybit[BIT_WORD(i)] |= BIT_MASK(i);
+
+	ats_input_dev->keybit[BIT_WORD(KEY_SEND)] |= BIT_MASK(KEY_SEND);
+	ats_input_dev->keybit[BIT_WORD(KEY_END)] |= BIT_MASK(KEY_END);
+
+	for(i = KEY_NUMERIC_0; i<= KEY_NUMERIC_POUND; i++)	
+		ats_input_dev->keybit[BIT_WORD(i)] |= BIT_MASK(i);
+
+	set_bit(ABS_MT_TOUCH_MAJOR, ats_input_dev->absbit);
+	clear_bit(EV_REP, ats_input_dev->evbit);
+	#endif /*seven temporally blocked*/
+	/* 2012-10-23 JongWook-Park(blood9874@lge.com) [V3] DIAG Key Input Code test Patch [END] */ 
 
 	rc = input_register_device(ats_input_dev);
 	if (rc)
@@ -100,7 +124,14 @@ static void __exit ats_input_exit(void)
 	platform_driver_unregister(&ats_input_driver);
 }
 
+
+EXPORT_SYMBOL(get_ats_input_dev);
+//#LGE_CHANGE : 2012-10-24 Sanghun,Lee(eee3114.@lge.com) sensor change from bmc150 to bmc050
+#if 1
+late_initcall(ats_input_init);
+#else
 module_init(ats_input_init);
+#endif
 module_exit(ats_input_exit);
 
 MODULE_AUTHOR("LG Electronics Inc.");

@@ -17,6 +17,8 @@
 #include <linux/spinlock.h>
 #include <linux/mfd/pm8xxx/core.h>
 #include <linux/leds-pmic8058.h>
+#include <linux/module.h>
+#include <linux/string.h>
 
 #define SSBI_REG_ADDR_DRV_KEYPAD	0x48
 #define PM8058_DRV_KEYPAD_BL_MASK	0xf0

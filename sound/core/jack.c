@@ -21,6 +21,7 @@
 
 #include <linux/input.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/jack.h>
 #include <sound/core.h>
 
@@ -30,8 +31,10 @@ static int jack_switch_types[] = {
 	SW_LINEOUT_INSERT,
 	SW_JACK_PHYSICAL_INSERT,
 	SW_VIDEOOUT_INSERT,
+	SW_LINEIN_INSERT,
 	SW_HPHL_OVERCURRENT,
 	SW_HPHR_OVERCURRENT,
+	SW_UNSUPPORT_INSERT,
 };
 
 static int snd_jack_dev_free(struct snd_device *device)

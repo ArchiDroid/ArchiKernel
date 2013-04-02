@@ -15,8 +15,8 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <mach/qdsp5v2/aux_pcm.h>
-#include <mach/gpio.h>
 #include <linux/delay.h>
 #include <mach/debug_mm.h>
 

@@ -25,6 +25,7 @@ struct mmc_bus_ops {
 	int (*power_save)(struct mmc_host *);
 	int (*power_restore)(struct mmc_host *);
 	int (*alive)(struct mmc_host *);
+	int (*poweroff_notify)(struct mmc_host *, int notify);
 };
 
 void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops);
@@ -32,6 +33,8 @@ void mmc_detach_bus(struct mmc_host *host);
 
 void mmc_init_erase(struct mmc_card *card);
 
+void mmc_power_up(struct mmc_host *host);
+void mmc_power_off(struct mmc_host *host);
 void mmc_set_chip_select(struct mmc_host *host, int mode);
 void mmc_set_clock(struct mmc_host *host, unsigned int hz);
 void mmc_gate_clock(struct mmc_host *host);
@@ -44,19 +47,15 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage,
 			   bool cmd11);
 void mmc_set_timing(struct mmc_host *host, unsigned int timing);
 void mmc_set_driver_type(struct mmc_host *host, unsigned int drv_type);
+void mmc_power_off(struct mmc_host *host);
 
 static inline void mmc_delay(unsigned int ms)
 {
 	if (ms < 1000 / HZ) {
 		cond_resched();
 		mdelay(ms);
-// [LGE_CHANGE_S] seyun.kim : 2012-02-21 : sd card resume suspend problem 
-#if 1
-#else
 	} else if (ms < jiffies_to_msecs(2)) {
 		usleep_range(ms * 1000, (ms + 1) * 1000);
-#endif
-// [LGE_CHANGE_E] seyun.kim : sd card resume suspend problem 
 	} else {
 		msleep(ms);
 	}
@@ -73,7 +72,7 @@ int mmc_attach_sd(struct mmc_host *host);
 int mmc_attach_sdio(struct mmc_host *host);
 
 /* Module parameters */
-extern int use_spi_crc;
+extern bool use_spi_crc;
 
 /* Debugfs information for hosts and cards */
 void mmc_add_host_debugfs(struct mmc_host *host);

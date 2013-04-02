@@ -19,7 +19,10 @@
 
 #include "power.h"
 
+#define MAX_BUF 100
+
 static wait_queue_head_t fb_state_wq;
+static int display = 1;
 static DEFINE_SPINLOCK(fb_state_lock);
 static enum {
 	FB_STATE_STOPPED_DRAWING,
@@ -38,18 +41,9 @@ static void stop_drawing_early_suspend(struct early_suspend *h)
 	spin_unlock_irqrestore(&fb_state_lock, irq_flags);
 
 	wake_up_all(&fb_state_wq);
-
-//LGE_CHANGE_S, [youngbae.choi@lge.com] , 2012-02-13
-#if 0 /*original*/
 	ret = wait_event_timeout(fb_state_wq,
 				 fb_state == FB_STATE_STOPPED_DRAWING,
 				 HZ);
-#else
-	ret = wait_event_timeout(fb_state_wq,
-				 fb_state == FB_STATE_STOPPED_DRAWING,
-				 HZ / 2);
-#endif
-//LGE_CHANGE_E, [youngbae.choi@lge.com] , 2012-02-13
 	if (unlikely(fb_state != FB_STATE_STOPPED_DRAWING))
 		pr_warning("stop_drawing_early_suspend: timeout waiting for "
 			   "userspace to stop drawing\n");
@@ -80,10 +74,16 @@ static ssize_t wait_for_fb_sleep_show(struct kobject *kobj,
 
 	ret = wait_event_interruptible(fb_state_wq,
 				       fb_state != FB_STATE_DRAWING_OK);
-	if (ret && fb_state == FB_STATE_DRAWING_OK)
+	if (ret && fb_state == FB_STATE_DRAWING_OK) {
 		return ret;
-	else
+	} else {
 		s += sprintf(buf, "sleeping");
+		if (display == 1) {
+			display = 0;
+			sysfs_notify(power_kobj, NULL, "wait_for_fb_status");
+		}
+	}
+
 	return s - buf;
 }
 
@@ -105,28 +105,69 @@ static ssize_t wait_for_fb_wake_show(struct kobject *kobj,
 				       fb_state == FB_STATE_DRAWING_OK);
 	if (ret && fb_state != FB_STATE_DRAWING_OK)
 		return ret;
-	else
+	else {
 		s += sprintf(buf, "awake");
-
+		if (display == 0) {
+			display = 1;
+			sysfs_notify(power_kobj, NULL, "wait_for_fb_status");
+		}
+	}
 	return s - buf;
 }
 
-#define power_ro_attr(_name) \
-static struct kobj_attribute _name##_attr = {	\
-	.attr	= {				\
-		.name = __stringify(_name),	\
-		.mode = 0444,			\
-	},					\
-	.show	= _name##_show,			\
-	.store	= NULL,		\
+static ssize_t wait_for_fb_status_show(struct kobject *kobj,
+				       struct kobj_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	if (display == 1)
+		ret = snprintf(buf, strnlen("on", MAX_BUF) + 1, "on");
+	else
+		ret = snprintf(buf, strnlen("off", MAX_BUF) + 1, "off");
+
+	return ret;
 }
+
+// LGE_CHANGE_S,narasimha.chikka@lge.com, Add Fb State Sysfs
+static ssize_t fb_status_show(struct kobject *kobj,
+				       struct kobj_attribute *attr, char *buf)
+{
+	int ret_fb_state = 0;
+	unsigned long irq_flags;
+	
+	spin_lock_irqsave(&fb_state_lock, irq_flags);
+	ret_fb_state = fb_state;
+	spin_unlock_irqrestore(&fb_state_lock, irq_flags);
+	
+	return snprintf(buf, PAGE_SIZE, "%d\n",ret_fb_state);
+}
+
+// LGE_CHANGE_E,narasimha.chikka@lge.com, Add Fb State Sysfs
+
+#define power_ro_attr(_name)				\
+	static struct kobj_attribute _name##_attr = {	\
+		.attr	= {				\
+			.name = __stringify(_name),	\
+			.mode = 0444,			\
+		},					\
+		.show	= _name##_show,			\
+		.store	= NULL,				\
+	}
 
 power_ro_attr(wait_for_fb_sleep);
 power_ro_attr(wait_for_fb_wake);
+power_ro_attr(wait_for_fb_status);
+// LGE_CHANGE_S,narasimha.chikka@lge.com, Add Fb State Sysfs
+power_ro_attr(fb_status);
+// LGE_CHANGE_E,narasimha.chikka@lge.com, Add Fb State Sysfs
 
 static struct attribute *g[] = {
 	&wait_for_fb_sleep_attr.attr,
 	&wait_for_fb_wake_attr.attr,
+	&wait_for_fb_status_attr.attr,
+// LGE_CHANGE_S,narasimha.chikka@lge.com, Add Fb State Sysfs
+	&fb_status_attr.attr,
+// LGE_CHANGE_E,narasimha.chikka@lge.com, Add Fb State Sysfs
 	NULL,
 };
 

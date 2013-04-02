@@ -27,13 +27,13 @@
 
 #include <mach/vreg.h>
 #include <mach/htc_pwrsink.h>
+#include <mach/proc_comm.h>
 
 #include <asm/mach/mmc.h>
 
 #include "devices.h"
 #include "gpio_chip.h"
 #include "board-sapphire.h"
-#include "proc_comm.h"
 
 #define DEBUG_SDSLOT_VDD 0
 
