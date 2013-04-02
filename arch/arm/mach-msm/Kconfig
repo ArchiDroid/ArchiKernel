@@ -910,7 +910,7 @@ config PHYS_OFFSET
 config KERNEL_PMEM_EBI_REGION
 	bool "Enable in-kernel PMEM region for EBI"
 	default y if ARCH_MSM8X60
-	depends on ANDROID_PMEM && (ARCH_MSM8X60 || ARCH_MSM8960 || ARCH_MSM8974)
+	depends on ARCH_MSM8X60 || ARCH_MSM8960 || ARCH_MSM8974
 	help
 	   Enable the in-kernel PMEM allocator to use EBI memory.
 
