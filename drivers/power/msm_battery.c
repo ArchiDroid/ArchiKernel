@@ -629,7 +629,7 @@ static void msm_batt_update_psy_status(void)
 /* 2012-12-18, jikhwan.jeong@lge.com, [V7][Power][Common] Add battery_charging_current kernel debug log. [END] */
 	struct	power_supply	*supp;
 
-        pr_info("%s: enter\n", __func__);
+        pr_debug("%s: enter\n", __func__);
 
 #if defined(CONFIG_MACH_LGE)
   /* 2010-12-14 by baborobo@lge.com
@@ -713,7 +713,7 @@ static void msm_batt_update_psy_status(void)
 		 * Nothing changed in Battery or charger status.
 		 */
 		unnecessary_event_count++;
-		pr_info("BATT: same event count = %u\n",
+		pr_debug("BATT: same event count = %u\n",
 				 unnecessary_event_count);
 #if defined(CONFIG_MACH_LGE)
     /* 2010-12-14 by baborobo@lge.com
@@ -1083,7 +1083,7 @@ static void msm_batt_update_psy_status(void)
 		
 #endif
 		
-	pr_info("%s: exit\n", __func__);
+	pr_debug("%s: exit\n", __func__);
 
 #if defined(CONFIG_MACH_LGE)
   /* 2010-12-14 by baborobo@lge.com
