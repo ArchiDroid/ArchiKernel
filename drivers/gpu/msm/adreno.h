@@ -125,7 +125,7 @@ struct adreno_gpudev {
 	irqreturn_t (*irq_handler)(struct adreno_device *);
 	void (*irq_control)(struct adreno_device *, int);
 	void * (*snapshot)(struct adreno_device *, void *, int *, int);
-	void (*rb_init)(struct adreno_device *, struct adreno_ringbuffer *);
+	int (*rb_init)(struct adreno_device *, struct adreno_ringbuffer *);
 	void (*start)(struct adreno_device *);
 	unsigned int (*busy_cycles)(struct adreno_device *);
 };
