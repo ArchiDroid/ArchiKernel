@@ -625,6 +625,7 @@ void kgsl_mh_start(struct kgsl_device *device)
 	 * kgsl_pwrctrl_irq() is called
 	 */
 }
+EXPORT_SYMBOL(kgsl_mh_start);
 
 static inline struct gen_pool *
 _get_pool(struct kgsl_pagetable *pagetable, unsigned int flags)
