@@ -22,7 +22,7 @@
 #include CONFIG_LGE_BOARD_HEADER_FILE
 #include <mach/lge/lge_pm.h>
 
-#include <../../kernel/power/power.h>
+#include "../../kernel/power/power.h"
 #include <mach/msm_smsm.h>
 #if defined(CONFIG_MACH_MSM7X25A_V3) || defined(CONFIG_MACH_MSM7X25A_V1)
 #include <mach/msm_hsusb.h>
