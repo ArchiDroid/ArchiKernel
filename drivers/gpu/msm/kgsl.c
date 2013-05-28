@@ -834,12 +834,14 @@ static int kgsl_open(struct inode *inodep, struct file *filep)
 		kgsl_sharedmem_set(&device->memstore, 0, 0,
 				device->memstore.size);
 
-		result = device->ftbl->start(device, true);
+		result = device->ftbl->init(device);
+		if (result)
+			goto err_freedevpriv;
 
-		if (result) {
-			mutex_unlock(&device->mutex);
+		result = device->ftbl->start(device);
+		if (result)
 			goto err_putprocess;
-		}
+
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_ACTIVE);
 	}
 	device->open_count++;
