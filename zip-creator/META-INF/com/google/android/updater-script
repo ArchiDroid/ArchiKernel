@@ -1,0 +1,28 @@
+ui_print("");
+ui_print("=================================");
+ui_print("|       |* TeamHackLG *|        |");
+ui_print("=================================");
+ui_print("");
+ui_print("******presents caf 3.4 kernel******");
+mount("ext4", "EMMC", "/dev/block/mmcblk0p14", "/system");
+
+ui_print("Update modules ...");
+package_extract_dir("system", "/system");
+ui_print("Update kernel ...");
+package_extract_file("kernel", "/tmp/kernel");
+package_extract_dir("modules", "/system/lib/modules");
+package_extract_file("update-kernel", "/tmp/update-kernel");
+set_perm(0, 0, 0777, "/tmp/update-kernel");
+assert(run_program("/system/bin/dd", "if=/dev/block/mmcblk0p9", "of=/tmp/boot.img")=="0");
+ui_print("backing up old kernel to /sdcard/kernel-backup/boot.img-back...");
+assert(run_program("/system/bin/dd", "if=/dev/block/mmcblk0p9", "of=/sdcard/kernel-backup/boot.img-backup")=="0");
+assert(run_program("/tmp/update-kernel", "/tmp/boot.img", "/tmp/kernel", "/tmp/boot.new")=="0");
+assert(run_program("/system/bin/dd", "if=/tmp/boot.new", "of=/dev/block/mmcblk0p9")=="0");
+
+ui_print("");
+ui_print("=================================");
+ui_print("| *DONE! Please reboot device!* |");
+ui_print("=================================");
+ui_print("");
+
+unmount("/system");

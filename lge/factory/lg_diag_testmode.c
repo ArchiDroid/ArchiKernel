@@ -17,7 +17,7 @@
 #ifdef CONFIG_LGE_DLOAD_SRD
 #include <userDataBackUpDiag.h>
 #include <userDataBackUpTypeDef.h> 
-#include <../../kernel/arch/arm/mach-msm/smd_private.h>
+#include <../../arch/arm/mach-msm/smd_private.h>
 #include <linux/slab.h>
 #endif 
 
