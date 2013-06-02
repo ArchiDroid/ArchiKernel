@@ -594,6 +594,13 @@ void msm_8974_reserve(void);
 void msm_8974_very_early(void);
 void msm_8974_init_gpiomux(void);
 
+/* Dump debug info (states, rate, etc) of clocks */
+#if defined(CONFIG_ARCH_MSM7X27)
+void msm_clk_dump_debug_info(void);
+#else
+static inline void msm_clk_dump_debug_info(void) {}
+#endif
+
 struct mmc_platform_data;
 int msm_add_sdcc(unsigned int controller,
 		struct mmc_platform_data *plat);
