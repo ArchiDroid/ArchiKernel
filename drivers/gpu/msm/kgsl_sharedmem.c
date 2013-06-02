@@ -551,8 +551,7 @@ _kgsl_sharedmem_page_alloc(struct kgsl_memdesc *memdesc,
 		 * range ourselves (see below)
 		 */
 
-		pages[i] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM |
-			__GFP_NOWARN | __GFP_NORETRY);
+		pages[i] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
 		if (pages[i] == NULL) {
 			ret = -ENOMEM;
 			goto done;
