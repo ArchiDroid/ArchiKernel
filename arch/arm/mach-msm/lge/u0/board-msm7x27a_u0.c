@@ -837,7 +837,7 @@ static struct platform_device ion_cma_device = {
 };
 #endif
 
-**
+/**
  * These heaps are listed in the order they will be allocated.
  * Don't swap the order unless you know what you are doing!
  */
