@@ -2,7 +2,7 @@
  * drivers/gpu/ion/ion_carveout_heap.c
  *
  * Copyright (C) 2011 Google, Inc.
- * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -31,7 +31,6 @@
 #include <mach/iommu_domains.h>
 #include <asm/mach/map.h>
 #include <asm/cacheflush.h>
-#include <linux/msm_ion.h>
 
 struct ion_carveout_heap {
 	struct ion_heap heap;
@@ -64,17 +63,10 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 				__func__, heap->name,
 				carveout_heap->total_size -
 				carveout_heap->allocated_bytes, size);
-
-		// LGE_CHANGE_S bohyun.jung@lge.com - debug msg on alloc failure.
-		pr_info("ion_carveout_allocate: ION_CARVEOUT_ALLOCATE_FAIL - ION heap (%s) request size (%lx), tot allocate_bytes (%lx)\n", 
-			heap->name, size, carveout_heap->allocated_bytes);
-		// LGE_CHANGE_E bohyun.jung@lge.com - debug msg on alloc failure.
-
 		return ION_CARVEOUT_ALLOCATE_FAIL;
 	}
 
 	carveout_heap->allocated_bytes += size;
-	
 	return offset;
 }
 
@@ -85,13 +77,7 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 		container_of(heap, struct ion_carveout_heap, heap);
 
 	if (addr == ION_CARVEOUT_ALLOCATE_FAIL)
-	{
-		// LGE_CHANGE_S bohyun.jung@lge.com - debug msg on free failure.
-		pr_info("ion_carveout_free: ION_CARVEOUT_ALLOCATE_FAIL - ION heap (%s) request size (%lx), tot allocate_bytes (%lx)\n", 
-				heap->name, size, carveout_heap->allocated_bytes);
-		// LGE_CHANGE_E bohyun.jung@lge.com - debug msg on free failure.
 		return;
-	}
 	gen_pool_free(carveout_heap->pool, addr, size);
 	carveout_heap->allocated_bytes -= size;
 }

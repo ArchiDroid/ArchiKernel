@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -12,7 +12,7 @@
  */
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/msm_ion.h>
+#include <linux/ion.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -25,6 +25,7 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <mach/iommu_domains.h>
+#include <linux/dma-mapping.h>
 
 struct ion_iommu_heap {
 	struct ion_heap heap;
@@ -80,7 +81,12 @@ static int ion_iommu_heap_allocate(struct ion_heap *heap,
 				goto err3;
 
 			sg_set_page(sg, data->pages[i], PAGE_SIZE, 0);
+			sg_dma_address(sg) = sg_phys(sg);
 		}
+
+		if (!ION_IS_CACHED(flags))
+			dma_sync_sg_for_device(NULL, table->sgl, table->nents,
+						DMA_BIDIRECTIONAL);
 
 		buffer->priv_virt = data;
 		return 0;
