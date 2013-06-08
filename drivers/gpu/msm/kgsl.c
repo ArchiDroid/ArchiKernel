@@ -754,8 +754,15 @@ kgsl_get_process_private(struct kgsl_device *device,
 	private = kgsl_find_process_private(cur_dev_priv);
 
 	mutex_lock(&private->process_private_mutex);
-	if (!private->mem_rb.rb_node)
-		private->mem_rb = RB_ROOT;
+	
+        /*
+	 * If debug root initialized then it means the rest of the fields
+	 * are also initialized
+	 */
+	if (private->debug_root)
+		goto done;
+
+	private->mem_rb = RB_ROOT;
 
 	if ((!private->pagetable) && kgsl_mmu_enabled()) {
 		unsigned long pt_name;
@@ -769,11 +776,10 @@ kgsl_get_process_private(struct kgsl_device *device,
 		}
 	}
 
-	if (!private->kobj.parent)
-		kgsl_process_init_sysfs(private);
-	if (!private->debug_root)
-		kgsl_process_init_debugfs(private);
+	kgsl_process_init_sysfs(private);
+	kgsl_process_init_debugfs(private);
 
+done:
 	mutex_unlock(&private->process_private_mutex);
 	return private;
 }
