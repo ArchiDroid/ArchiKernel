@@ -88,9 +88,14 @@ int msm_dcvs_idle(int handle, enum msm_core_idle_state state,
  * before the sink driver can be registered.
  */
 struct msm_dcvs_core_info {
-	struct msm_dcvs_freq_entry *freq_tbl;
-	struct msm_dcvs_core_param core_param;
-	struct msm_dcvs_algo_param algo_param;
+	int					num_cores;
+	int					*sensors;
+	int					thermal_poll_ms;
+	struct msm_dcvs_freq_entry		*freq_tbl;
+	struct msm_dcvs_core_param		core_param;
+	struct msm_dcvs_algo_param		algo_param;
+	struct msm_dcvs_energy_curve_coeffs	energy_coeffs;
+	struct msm_dcvs_power_params		power_param;
 };
 
 /**

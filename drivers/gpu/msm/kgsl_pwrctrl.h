@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,8 +60,6 @@ struct kgsl_clk_stats {
  * @irq_name - resource name for the IRQ
  * @restore_slumber - Flag to indicate that we are in a suspend/restore sequence
  * @clk_stats - structure of clock statistics
- * @pm_qos_req_dma - the power management quality of service structure
- * @pm_qos_latency - allowed CPU latency in microseconds
  */
 
 struct kgsl_pwrctrl {
@@ -79,7 +77,7 @@ struct kgsl_pwrctrl {
 	unsigned int interval_timeout;
 	bool strtstp_sleepwake;
 	struct regulator *gpu_reg;
-	struct regulator *gpu_dig;
+	struct regulator *gpu_cx;
 	uint32_t pcl;
 	unsigned int nap_allowed;
 	unsigned int idle_needed;
@@ -87,8 +85,6 @@ struct kgsl_pwrctrl {
 	s64 time;
 	unsigned int restore_slumber;
 	struct kgsl_clk_stats clk_stats;
-	struct pm_qos_request pm_qos_req_dma;
-	unsigned int pm_qos_latency;
 };
 
 void kgsl_pwrctrl_irq(struct kgsl_device *device, int state);

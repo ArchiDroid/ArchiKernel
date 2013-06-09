@@ -91,7 +91,6 @@ static void idlestats_busy(struct kgsl_device *device,
 	struct idlestats_priv *priv = pwrscale->priv;
 	struct kgsl_power_stats stats;
 	int i, busy, nr_cpu = 1;
-	int busy_start_time = 0;
 
 	if (priv->pulse.busy_start_time != 0) {
 		priv->pulse.wait_interval = 0;
@@ -114,10 +113,6 @@ static void idlestats_busy(struct kgsl_device *device,
 		}
 		priv->pulse.wait_interval /= nr_cpu;
 
-		/* Start busy timer before resetting the busy cycles perfmon
-		   counter, otherwise we will have busy interval exceeding
-		   total time in case of 100% busy gpu case */
-		busy_start_time = ktime_to_us(ktime_get());
 		/* This is called from within a mutex protected function, so
 		   no additional locking required */
 		device->ftbl->power_stats(device, &stats);
@@ -132,15 +127,11 @@ static void idlestats_busy(struct kgsl_device *device,
 		priv->pulse.busy_interval = stats.busy_time;
 		msm_idle_stats_idle_end(&priv->idledev, &priv->pulse);
 	}
-
-	if (busy_start_time == 0)
-		priv->pulse.busy_start_time = ktime_to_us(ktime_get());
-	else
-		priv->pulse.busy_start_time = busy_start_time;
+	priv->pulse.busy_start_time = ktime_to_us(ktime_get());
 }
 
 static void idlestats_idle(struct kgsl_device *device,
-			struct kgsl_pwrscale *pwrscale)
+		struct kgsl_pwrscale *pwrscale)
 {
 	int i, nr_cpu;
 	struct idlestats_priv *priv = pwrscale->priv;

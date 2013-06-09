@@ -40,8 +40,8 @@ const unsigned int a3xx_registers[] = {
 	0x0578, 0x057f, 0x0600, 0x0602, 0x0605, 0x0607, 0x060a, 0x060e,
 	0x0612, 0x0614, 0x0c01, 0x0c02, 0x0c06, 0x0c1d, 0x0c3d, 0x0c3f,
 	0x0c48, 0x0c4b, 0x0c80, 0x0c80, 0x0c88, 0x0c8b, 0x0ca0, 0x0cb7,
-	0x0cc0, 0x0cc1, 0x0cc6, 0x0cc7, 0x0ce4, 0x0ce5, 0x0e00, 0x0e05,
-	0x0e0c, 0x0e0c, 0x0e22, 0x0e23, 0x0e41, 0x0e45, 0x0e64, 0x0e65,
+	0x0cc0, 0x0cc1, 0x0cc6, 0x0cc7, 0x0ce4, 0x0ce5,
+	0x0e41, 0x0e45, 0x0e64, 0x0e65,
 	0x0e80, 0x0e82, 0x0e84, 0x0e89, 0x0ea0, 0x0ea1, 0x0ea4, 0x0ea7,
 	0x0ec4, 0x0ecb, 0x0ee0, 0x0ee0, 0x0f00, 0x0f01, 0x0f03, 0x0f09,
 	0x2040, 0x2040, 0x2044, 0x2044, 0x2048, 0x204d, 0x2068, 0x2069,
@@ -49,7 +49,7 @@ const unsigned int a3xx_registers[] = {
 	0x2079, 0x207a, 0x20c0, 0x20d3, 0x20e4, 0x20ef, 0x2100, 0x2109,
 	0x210c, 0x210c, 0x210e, 0x210e, 0x2110, 0x2111, 0x2114, 0x2115,
 	0x21e4, 0x21e4, 0x21ea, 0x21ea, 0x21ec, 0x21ed, 0x21f0, 0x21f0,
-	0x2200, 0x2212, 0x2214, 0x2217, 0x221a, 0x221a, 0x2240, 0x227e,
+	0x2240, 0x227e,
 	0x2280, 0x228b, 0x22c0, 0x22c0, 0x22c4, 0x22ce, 0x22d0, 0x22d8,
 	0x22df, 0x22e6, 0x22e8, 0x22e9, 0x22ec, 0x22ec, 0x22f0, 0x22f7,
 	0x22ff, 0x22ff, 0x2340, 0x2343, 0x2348, 0x2349, 0x2350, 0x2356,
@@ -58,7 +58,7 @@ const unsigned int a3xx_registers[] = {
 	0x2474, 0x2475, 0x2479, 0x247a, 0x24c0, 0x24d3, 0x24e4, 0x24ef,
 	0x2500, 0x2509, 0x250c, 0x250c, 0x250e, 0x250e, 0x2510, 0x2511,
 	0x2514, 0x2515, 0x25e4, 0x25e4, 0x25ea, 0x25ea, 0x25ec, 0x25ed,
-	0x25f0, 0x25f0, 0x2600, 0x2612, 0x2614, 0x2617, 0x261a, 0x261a,
+	0x25f0, 0x25f0,
 	0x2640, 0x267e, 0x2680, 0x268b, 0x26c0, 0x26c0, 0x26c4, 0x26ce,
 	0x26d0, 0x26d8, 0x26df, 0x26e6, 0x26e8, 0x26e9, 0x26ec, 0x26ec,
 	0x26f0, 0x26f7, 0x26ff, 0x26ff, 0x2740, 0x2743, 0x2748, 0x2749,
@@ -68,6 +68,26 @@ const unsigned int a3xx_registers[] = {
 };
 
 const unsigned int a3xx_registers_count = ARRAY_SIZE(a3xx_registers) / 2;
+
+/* Removed the following HLSQ register ranges from being read during
+ * recovery since reading the registers may cause the device to hang:
+ */
+const unsigned int a3xx_hlsq_registers[] = {
+	0x0e00, 0x0e05, 0x0e0c, 0x0e0c, 0x0e22, 0x0e23,
+	0x2200, 0x2212, 0x2214, 0x2217, 0x221a, 0x221a,
+	0x2600, 0x2612, 0x2614, 0x2617, 0x261a, 0x261a,
+};
+
+const unsigned int a3xx_hlsq_registers_count =
+			ARRAY_SIZE(a3xx_hlsq_registers) / 2;
+
+/* The set of additional registers to be dumped for A330 */
+
+const unsigned int a330_registers[] = {
+	0x1d0, 0x1d0, 0x1d4, 0x1d4, 0x453, 0x453,
+};
+
+const unsigned int a330_registers_count = ARRAY_SIZE(a330_registers) / 2;
 
 /* Simple macro to facilitate bit setting in the gmem2sys and sys2gmem
  * functions.
@@ -2699,35 +2719,100 @@ static unsigned int a3xx_busy_cycles(struct adreno_device *adreno_dev)
 	return val;
 }
 
+struct a3xx_vbif_data {
+	unsigned int reg;
+	unsigned int val;
+};
+
+/* VBIF registers start after 0x3000 so use 0x0 as end of list marker */
+static struct a3xx_vbif_data a305_vbif[] = {
+	/* Set up 16 deep read/write request queues */
+	{ A3XX_VBIF_IN_RD_LIM_CONF0, 0x10101010 },
+	{ A3XX_VBIF_IN_RD_LIM_CONF1, 0x10101010 },
+	{ A3XX_VBIF_OUT_RD_LIM_CONF0, 0x10101010 },
+	{ A3XX_VBIF_OUT_WR_LIM_CONF0, 0x10101010 },
+	{ A3XX_VBIF_DDR_OUT_MAX_BURST, 0x0000303 },
+	{ A3XX_VBIF_IN_WR_LIM_CONF0, 0x10101010 },
+	{ A3XX_VBIF_IN_WR_LIM_CONF1, 0x10101010 },
+	/* Enable WR-REQ */
+	{ A3XX_VBIF_GATE_OFF_WRREQ_EN, 0x0000FF },
+	/* Set up round robin arbitration between both AXI ports */
+	{ A3XX_VBIF_ARB_CTL, 0x00000030 },
+	/* Set up AOOO */
+	{ A3XX_VBIF_OUT_AXI_AOOO_EN, 0x0000003C },
+	{ A3XX_VBIF_OUT_AXI_AOOO, 0x003C003C },
+	{0, 0},
+};
+
+static struct a3xx_vbif_data a320_vbif[] = {
+	/* Set up 16 deep read/write request queues */
+	{ A3XX_VBIF_IN_RD_LIM_CONF0, 0x10101010 },
+	{ A3XX_VBIF_IN_RD_LIM_CONF1, 0x10101010 },
+	{ A3XX_VBIF_OUT_RD_LIM_CONF0, 0x10101010 },
+	{ A3XX_VBIF_OUT_WR_LIM_CONF0, 0x10101010 },
+	{ A3XX_VBIF_DDR_OUT_MAX_BURST, 0x0000303 },
+	{ A3XX_VBIF_IN_WR_LIM_CONF0, 0x10101010 },
+	{ A3XX_VBIF_IN_WR_LIM_CONF1, 0x10101010 },
+	/* Enable WR-REQ */
+	{ A3XX_VBIF_GATE_OFF_WRREQ_EN, 0x0000FF },
+	/* Set up round robin arbitration between both AXI ports */
+	{ A3XX_VBIF_ARB_CTL, 0x00000030 },
+	/* Set up AOOO */
+	{ A3XX_VBIF_OUT_AXI_AOOO_EN, 0x0000003C },
+	{ A3XX_VBIF_OUT_AXI_AOOO, 0x003C003C },
+	/* Enable 1K sort */
+	{ A3XX_VBIF_ABIT_SORT, 0x000000FF },
+	{ A3XX_VBIF_ABIT_SORT_CONF, 0x000000A4 },
+	{0, 0},
+};
+
+static struct a3xx_vbif_data a330_vbif[] = {
+	/* Set up 16 deep read/write request queues */
+	{ A3XX_VBIF_IN_RD_LIM_CONF0, 0x18181818 },
+	{ A3XX_VBIF_IN_RD_LIM_CONF1, 0x00001818 },
+	{ A3XX_VBIF_OUT_RD_LIM_CONF0, 0x00001818 },
+	{ A3XX_VBIF_OUT_WR_LIM_CONF0, 0x00001818 },
+	{ A3XX_VBIF_DDR_OUT_MAX_BURST, 0x0000303 },
+	{ A3XX_VBIF_IN_WR_LIM_CONF0, 0x18181818 },
+	{ A3XX_VBIF_IN_WR_LIM_CONF1, 0x00001818 },
+	/* Enable WR-REQ */
+	{ A3XX_VBIF_GATE_OFF_WRREQ_EN, 0x00003F },
+	/* Set up round robin arbitration between both AXI ports */
+	{ A3XX_VBIF_ARB_CTL, 0x00000030 },
+	/* Set up VBIF_ROUND_ROBIN_QOS_ARB */
+	{ A3XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x0001 },
+	/* Set up AOOO */
+	{ A3XX_VBIF_OUT_AXI_AOOO_EN, 0x0000003F },
+	{ A3XX_VBIF_OUT_AXI_AOOO, 0x003F003F },
+	/* Enable 1K sort */
+	{ A3XX_VBIF_ABIT_SORT, 0x0001003F },
+	{ A3XX_VBIF_ABIT_SORT_CONF, 0x000000A4 },
+	/* Disable VBIF clock gating. This is to enable AXI running
+	 * higher frequency than GPU.
+	 */
+	{ A3XX_VBIF_CLKON, 1 },
+	{0, 0},
+};
+
 static void a3xx_start(struct adreno_device *adreno_dev)
 {
 	struct kgsl_device *device = &adreno_dev->dev;
+	struct a3xx_vbif_data *vbif = NULL;
 
-	/* Set up 16 deep read/write request queues */
+	if (adreno_is_a305(adreno_dev))
+		vbif = a305_vbif;
+	else if (adreno_is_a320(adreno_dev))
+		vbif = a320_vbif;
+	else if (adreno_is_a330(adreno_dev))
+		vbif = a330_vbif;
 
-	adreno_regwrite(device, A3XX_VBIF_IN_RD_LIM_CONF0, 0x10101010);
-	adreno_regwrite(device, A3XX_VBIF_IN_RD_LIM_CONF1, 0x10101010);
-	adreno_regwrite(device, A3XX_VBIF_OUT_RD_LIM_CONF0, 0x10101010);
-	adreno_regwrite(device, A3XX_VBIF_OUT_WR_LIM_CONF0, 0x10101010);
-	adreno_regwrite(device, A3XX_VBIF_DDR_OUT_MAX_BURST, 0x00000303);
-	adreno_regwrite(device, A3XX_VBIF_IN_WR_LIM_CONF0, 0x10101010);
-	adreno_regwrite(device, A3XX_VBIF_IN_WR_LIM_CONF1, 0x10101010);
+	BUG_ON(vbif == NULL);
 
-	/* Enable WR-REQ */
-	adreno_regwrite(device, A3XX_VBIF_GATE_OFF_WRREQ_EN, 0x000000FF);
-
-	/* Set up round robin arbitration between both AXI ports */
-	adreno_regwrite(device, A3XX_VBIF_ARB_CTL, 0x00000030);
-
-	/* Set up AOOO */
-	adreno_regwrite(device, A3XX_VBIF_OUT_AXI_AOOO_EN, 0x0000003C);
-	adreno_regwrite(device, A3XX_VBIF_OUT_AXI_AOOO, 0x003C003C);
-
-	if (cpu_is_apq8064()) {
-		/* Enable 1K sort */
-		adreno_regwrite(device, A3XX_VBIF_ABIT_SORT, 0x000000FF);
-		adreno_regwrite(device, A3XX_VBIF_ABIT_SORT_CONF, 0x000000A4);
+	while (vbif->reg != 0) {
+		adreno_regwrite(device, vbif->reg, vbif->val);
+		vbif++;
 	}
+
 	/* Make all blocks contribute to the GPU BUSY perf counter */
 	adreno_regwrite(device, A3XX_RBBM_GPU_BUSY_MASKED, 0xFFFFFFFF);
 
@@ -2752,10 +2837,29 @@ static void a3xx_start(struct adreno_device *adreno_dev)
 	adreno_regwrite(device, A3XX_RBBM_INTERFACE_HANG_INT_CTL,
 			(1 << 16) | 0xFFF);
 
+	/* Enable 64-byte cacheline size. HW Default is 32-byte (0x000000E0). */
+	adreno_regwrite(device, A3XX_UCHE_CACHE_MODE_CONTROL_REG, 0x00000001);
+
 	/* Enable Clock gating */
 	adreno_regwrite(device, A3XX_RBBM_CLOCK_CTL,
 			A3XX_RBBM_CLOCK_CTL_DEFAULT);
 
+	/* Set the OCMEM base address for A330 */
+	if (adreno_is_a330(adreno_dev)) {
+		adreno_regwrite(device, A3XX_RB_GMEM_BASE_ADDR,
+			(unsigned int)(adreno_dev->ocmem_base >> 14));
+	}
+
+	/* Turn on performance counters */
+	adreno_regwrite(device, A3XX_RBBM_PERFCTR_CTL, 0x01);
+
+	/*
+	 * Set SP perfcounter 7 to count SP_FS_FULL_ALU_INSTRUCTIONS
+	 * we will use this to augment our hang detection
+	 */
+
+	adreno_regwrite(device, A3XX_SP_PERFCOUNTER7_SELECT,
+		SP_FS_FULL_ALU_INSTRUCTIONS);
 }
 
 /* Defined in adreno_a3xx_snapshot.c */
