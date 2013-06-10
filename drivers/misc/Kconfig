@@ -707,4 +707,10 @@ config SLP_PROCESS_MON
 	  Providing monitoring important processes. Users can register the process
 	  with sysfs.
 
+config TOUCH_WAKE
+	bool "Support for Touch Wake"
+	default y
+	help
+		Say Y here to enable Touch Wake
+
 endif # MISC_DEVICES
