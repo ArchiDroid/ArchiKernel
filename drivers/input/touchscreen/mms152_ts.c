@@ -56,6 +56,10 @@
 #include <linux/fb.h>
 #endif
 
+#ifdef CONFIG_TOUCH_WAKE
+#include <linux/touch_wake.h>
+#endif
+
 #define MAX_FINGERS		10
 #define MAX_WIDTH		30
 #define MAX_PRESSURE		255
@@ -1020,6 +1024,10 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 #endif
 			continue;
 		}
+/* #ifdef CONFIG_TOUCH_WAKE
+  if (!device_is_suspended())
+  {
+#endif */
 		if (info->panel == 'M') {
 			input_mt_slot(info->input_dev, id);
 			input_mt_report_slot_state(info->input_dev,
@@ -1096,6 +1104,9 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 #endif
 		}
 		touch_is_pressed++;
+#ifdef CONFIG_TOUCH_WAKE
+  touch_press();
+#endif		
 	}
 	input_sync(info->input_dev);
 
@@ -4259,6 +4270,12 @@ static int __devinit mms_ts_probe(struct i2c_client *client,
 	register_early_suspend(&info->early_suspend);
 #endif
 
+#ifdef CONFIG_TOUCH_WAKE
+  touchwake_data = info;
+    if (touchwake_data == NULL)
+    pr_err("[TOUCHWAKE] Failed to set touchwake_data\n");
+#endif 
+
 #ifdef CONFIG_INPUT_FBSUSPEND
 	ret = tsp_register_fb(info);
 	if (ret)
@@ -4406,17 +4423,39 @@ static int mms_ts_resume(struct device *dev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void mms_ts_early_suspend(struct early_suspend *h)
 {
-	struct mms_ts_info *info;
-	info = container_of(h, struct mms_ts_info, early_suspend);
-	mms_ts_suspend(&info->client->dev);
-
+#ifndef CONFIG_TOUCH_WAKE
+  struct mms_ts_info *info;
+  info = container_of(h, struct mms_ts_info, early_suspend);
+  mms_ts_suspend(&info->client->dev);
+#endif
 }
 
 static void mms_ts_late_resume(struct early_suspend *h)
 {
-	struct mms_ts_info *info;
-	info = container_of(h, struct mms_ts_info, early_suspend);
-	mms_ts_resume(&info->client->dev);
+#ifndef CONFIG_TOUCH_WAKE
+  struct mms_ts_info *info;
+  info = container_of(h, struct mms_ts_info, early_suspend);
+  mms_ts_resume(&info->client->dev);
+#endif
+}
+#endif
+
+#ifdef CONFIG_TOUCH_WAKE
+static struct mms_ts_info * touchwake_data;
+void touchscreen_disable(void)
+{
+  if (touchwake_data != NULL) 
+    mms_ts_suspend(&touchwake_data->client->dev);
+
+    return;
+}
+EXPORT_SYMBOL(touchscreen_disable);
+
+void touchscreen_enable(void)
+{
+    mms_ts_resume(&touchwake_data->client->dev);
+
+    return;
 }
 #endif
 

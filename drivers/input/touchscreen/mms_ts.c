@@ -52,6 +52,10 @@
 
 #include "touchboost_switch.h"
 
+#ifdef CONFIG_TOUCH_WAKE
+#include <linux/touch_wake.h>
+#endif
+
 #ifdef CONFIG_MACH_SUPERIOR_KOR_SKT
 #define FW_465GS37
 #endif
@@ -777,6 +781,10 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 		if (info->finger_state[i] == 1)
 			touch_is_pressed++;
 	}
+
+#ifdef CONFIG_TOUCH_WAKE
+  touch_press();
+#endif
 
 #if TOUCH_BOOSTER
 	if (tb_switch == TOUCHBOOST_ON)
@@ -3044,6 +3052,103 @@ static struct attribute_group sec_touch_factory_attr_group = {
 };
 #endif /* SEC_TSP_FACTORY_TEST */
 
+#if defined(CONFIG_PM) || defined(CONFIG_HAS_EARLYSUSPEND)
+static int mms_ts_suspend(struct device *dev)
+{
+  struct i2c_client *client = to_i2c_client(dev);
+  struct mms_ts_info *info = i2c_get_clientdata(client);
+
+  if (!info->enabled)
+    return 0;
+
+  dev_notice(&info->client->dev, "%s: users=%d\n", __func__,
+       info->input_dev->users);
+
+  disable_irq(info->irq);
+  info->enabled = false;
+  touch_is_pressed = 0;
+  release_all_fingers(info);
+  info->pdata->power(false);
+  /* This delay needs to prevent unstable POR by
+  rapid frequently pressing of PWR key. */
+  msleep(50);
+  return 0;
+}
+
+static int mms_ts_resume(struct device *dev)
+{
+  struct i2c_client *client = to_i2c_client(dev);
+  struct mms_ts_info *info = i2c_get_clientdata(client);
+  int ret = 0;
+
+  if (info->enabled)
+    return 0;
+
+  dev_notice(&info->client->dev, "%s: users=%d\n", __func__,
+       info->input_dev->users);
+  info->pdata->power(true);
+  msleep(120);
+
+  if (info->ta_status) {
+    dev_notice(&client->dev, "TA connect!!!\n");
+    i2c_smbus_write_byte_data(info->client, 0x33, 0x1);
+  } else {
+    dev_notice(&client->dev, "TA disconnect!!!\n");
+    i2c_smbus_write_byte_data(info->client, 0x33, 0x2);
+  }
+
+  /* Because irq_type by EXT_INTxCON register is changed to low_level
+   *  after wakeup, irq_type set to falling edge interrupt again.
+   */
+
+  enable_irq(info->irq);
+  info->enabled = true;
+  mms_set_noise_mode(info);
+  return 0;
+}
+#endif
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void mms_ts_early_suspend(struct early_suspend *h)
+{
+#ifndef CONFIG_TOUCH_WAKE
+  struct mms_ts_info *info;
+  info = container_of(h, struct mms_ts_info, early_suspend);
+  mms_ts_suspend(&info->client->dev);
+#endif
+
+}
+
+static void mms_ts_late_resume(struct early_suspend *h)
+{
+#ifndef CONFIG_TOUCH_WAKE
+  struct mms_ts_info *info;
+  info = container_of(h, struct mms_ts_info, early_suspend);
+  mms_ts_resume(&info->client->dev);
+#endif
+}
+#endif
+
+#ifdef CONFIG_TOUCH_WAKE
+static struct mms_ts_info * touchwake_data;
+void touchscreen_disable(void)
+{
+  if (touchwake_data != NULL) 
+    mms_ts_suspend(&touchwake_data->client->dev);
+
+    return;
+}
+EXPORT_SYMBOL(touchscreen_disable);
+
+void touchscreen_enable(void)
+{
+    mms_ts_resume(&touchwake_data->client->dev);
+
+    return;
+}
+EXPORT_SYMBOL(touchscreen_enable);
+#endif
+
 static int __devinit mms_ts_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
@@ -3226,6 +3331,12 @@ static int __devinit mms_ts_probe(struct i2c_client *client,
 #endif
 #endif
 
+#ifdef CONFIG_TOUCH_WAKE
+  touchwake_data = info;
+    if (touchwake_data == NULL)
+    pr_err("[TOUCHWAKE] Failed to set touchwake_data\n");
+#endif  
+
 	sec_touchscreen = device_create(sec_class,
 					NULL, 0, info, "sec_touchscreen");
 	if (IS_ERR(sec_touchscreen)) {
@@ -3287,81 +3398,6 @@ static int __devexit mms_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if defined(CONFIG_PM) || defined(CONFIG_HAS_EARLYSUSPEND)
-static int mms_ts_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct mms_ts_info *info = i2c_get_clientdata(client);
-
-	if (!info->enabled)
-		return 0;
-
-	dev_notice(&info->client->dev, "%s: users=%d\n", __func__,
-		   info->input_dev->users);
-
-	disable_irq(info->irq);
-	info->enabled = false;
-	touch_is_pressed = 0;
-	release_all_fingers(info);
-	info->pdata->power(false);
-	/* This delay needs to prevent unstable POR by
-	rapid frequently pressing of PWR key. */
-	msleep(50);
-	return 0;
-}
-
-static int mms_ts_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct mms_ts_info *info = i2c_get_clientdata(client);
-	int ret = 0;
-
-	if (info->enabled)
-		return 0;
-
-	dev_notice(&info->client->dev, "%s: users=%d\n", __func__,
-		   info->input_dev->users);
-
-#if !defined(CONFIG_TARGET_LOCALE_KOR)
-	info->pdata->power(true);
-	msleep(120);
-#endif
-
-	if (info->ta_status) {
-		dev_notice(&client->dev, "TA connect!!!\n");
-		i2c_smbus_write_byte_data(info->client, 0x33, 0x1);
-	} else {
-		dev_notice(&client->dev, "TA disconnect!!!\n");
-		i2c_smbus_write_byte_data(info->client, 0x33, 0x2);
-	}
-
-	/* Because irq_type by EXT_INTxCON register is changed to low_level
-	 *  after wakeup, irq_type set to falling edge interrupt again.
-	 */
-
-	enable_irq(info->irq);
-	info->enabled = true;
-	mms_set_noise_mode(info);
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void mms_ts_early_suspend(struct early_suspend *h)
-{
-	struct mms_ts_info *info;
-	info = container_of(h, struct mms_ts_info, early_suspend);
-	mms_ts_suspend(&info->client->dev);
-
-}
-
-static void mms_ts_late_resume(struct early_suspend *h)
-{
-	struct mms_ts_info *info;
-	info = container_of(h, struct mms_ts_info, early_suspend);
-	mms_ts_resume(&info->client->dev);
-}
-
 #if defined(CONFIG_TARGET_LOCALE_KOR)
 static void mms_ts_power_late_resume(struct early_suspend *h)
 {
@@ -3370,7 +3406,6 @@ static void mms_ts_power_late_resume(struct early_suspend *h)
 
 	info->pdata->power(true);
 }
-#endif
 #endif
 
 #if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND)
