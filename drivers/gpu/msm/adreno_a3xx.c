@@ -2531,7 +2531,7 @@ static void a305_create_on_resume_ib(struct adreno_device *adreno_dev)
 	cmds = start_cmd;
 
 	*cmds++ = cp_type0_packet(A3XX_RBBM_CLOCK_CTL, 1);
-	*cmds++ = A3XX_RBBM_CLOCK_CTL_DEFAULT;
+	*cmds++ = adreno_a3xx_rbbm_clock_ctl_default(adreno_dev);
 
 	*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 5);
 	*cmds++ = CP_REG(A3XX_HLSQ_CONTROL_0_REG);
