@@ -260,8 +260,8 @@ static unsigned int max_scaling_freq_soft = 0;		// ZZ: init value for "soft" sca
 static unsigned int max_scaling_freq_hard = 0;		// ZZ: init value for "hard" scaling = 0 full range
 static unsigned int suspend_flag = 0;			// ZZ: init value for suspend status. 1 = in early suspend
 static unsigned int skip_hotplug_flag = 1;		// ZZ: initial start without hotplugging to fix lockup issues
-static unsigned int fast_scaling_down = 0;		// ZZ: init fast scaling without fast "down" scaling
-static unsigned int scaling_mode;			// ZZ: fast scaling up or up/down mode holding updown value during runtime
+static int scaling_mode_up;				// ZZ: fast scaling up mode holding up value during runtime
+static int scaling_mode_down;				// ZZ: fast scaling down mode holding down value during runtime
 
 // raise sampling rate to SR*multiplier and adjust sampling rate/thresholds/hotplug/scaling/freq limit/freq step on blank screen
 
@@ -500,35 +500,31 @@ static int mn_freqs[17][5]={
 };
 
 static int mn_get_next_freq(unsigned int curfreq, unsigned int updown, unsigned int load) {
-    int i=0;
-    int f=0;
-    int power=0;
+
+	int i=0;
+	int target=0; // Yank : Target column in freq. array
     
-    if (load < dbs_tuners_ins.smooth_up)
-	power=0;
-    else
-        power=2;
-    
-	    for(i = max_scaling_freq_soft; i < freq_table_size; i++)
-    	    {
+	if (load < dbs_tuners_ins.smooth_up) 	// Yank : Decide what column to use as target
+		target=updown+0;		//          normal scale columns
+	else
+		target=updown+2;		//           power scale columns
+
+	for(i = max_scaling_freq_soft; i < freq_table_size; i++) {
+
 		if(curfreq == mn_freqs[i][MN_FREQ]) {
-		    if(dbs_tuners_ins.fast_scaling != 0 && i != 0 && i != freq_table_size && updown != fast_scaling_down) {
-			f = i;
-			if(updown == 1){
-			f = f - scaling_mode;
-		    	if(f >= 1) 			// ZZ: we don't want to jump out of the array if we do fs scaling
-		    	    i = f;
-			} else {
-			f = f + scaling_mode;
-		    	if(f <= (freq_table_size - 1)) 			// ZZ: we don't want to jump out of the array if we do fs scaling
-		    	    i = f;
-			}
-		    }
-		return mn_freqs[i][updown+power]; 		// updown 1|2 or 3|4
+
+			if(updown == MN_UP)	// Yank : Scaling up
+				return mn_freqs[max(              1, i - scaling_mode_up  )][target];	// ZZ: we don't want to jump out of the array if we do fs scaling
+			else			// Yank : Scaling down
+				return mn_freqs[min(freq_table_size, i + scaling_mode_down)][target];	// ZZ: we don't want to jump out of the array if we do fs scaling
+
+			return (curfreq);	// Yank : We should never get here...
 		}
-	    }
+
+	}
     
-    return (curfreq); // not found
+	return (curfreq); // not found
+
 }
 
 static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
@@ -1107,12 +1103,12 @@ static ssize_t store_fast_scaling(struct kobject *a,
 	dbs_tuners_ins.fast_scaling = input;
 
 	if (input > 4) {
-	    scaling_mode = input - 4;
-	    fast_scaling_down = 0;
+	    scaling_mode_up   = input - 4;	// Yank : fast scaling up
+	    scaling_mode_down = input - 4;	// Yank : fast scaling down
 
 	} else {
-	    scaling_mode = input;
-	    fast_scaling_down = 2;
+	    scaling_mode_up   = input;		// Yank : fast scaling up only
+	    scaling_mode_down = 0;
 	}
 	return count;
 }
@@ -1906,7 +1902,6 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 static void powersave_early_suspend(struct early_suspend *handler)
 {
   int i=0;
-  int valid_freq[17]={1800000, 1700000, 1600000, 1500000, 1400000, 1300000, 1200000, 1100000, 1000000, 900000, 800000, 700000, 600000, 500000, 400000, 300000, 200000};
   skip_hotplug_flag = 1; 						// ZZ: try to avoid deadlock by disabling hotplugging if we are in the middle of hotplugging logic
   suspend_flag = 1; 							// ZZ: we want to know if we are at suspend because of things that shouldn't be executed at suspend
   for (i = 0; i < 1000; i++);						// ZZ: wait a few samples to be sure hotplugging is off (never be sure so this is dirty)
@@ -1952,11 +1947,11 @@ static void powersave_early_suspend(struct early_suspend *handler)
   dbs_tuners_ins.fast_scaling = fast_scaling_asleep;			// ZZ: set fast scaling
 
 	if (dbs_tuners_ins.fast_scaling > 4) {				// ZZ: set scaling mode
-	    scaling_mode = dbs_tuners_ins.fast_scaling - 4;
-	    fast_scaling_down = 0;					// ZZ: fast down scaling on
+	    scaling_mode_up   = dbs_tuners_ins.fast_scaling - 4;	// Yank : fast scaling up
+	    scaling_mode_down = dbs_tuners_ins.fast_scaling - 4;	// Yank : fast scaling down
 	} else {
-	    scaling_mode = dbs_tuners_ins.fast_scaling;
-	    fast_scaling_down = 2;					// ZZ: fast down scaling off
+	    scaling_mode_up   = dbs_tuners_ins.fast_scaling;		// Yank : fast scaling up only
+	    scaling_mode_down = 0;					// Yank : fast scaling down
 	}
 
 	for (i=0; i < freq_table_size; i++) {
@@ -1998,7 +1993,6 @@ static void powersave_early_suspend(struct early_suspend *handler)
 static void powersave_late_resume(struct early_suspend *handler)
 {
   int i=0;
-  int valid_freq[17]={1800000, 1700000, 1600000, 1500000, 1400000, 1300000, 1200000, 1100000, 1000000, 900000, 800000, 700000, 600000, 500000, 400000, 300000, 200000};
   skip_hotplug_flag = 1; 						// ZZ: same as above skip hotplugging to avoid deadlocks
   suspend_flag = 0; 							// ZZ: we are resuming so reset supend flag
 
@@ -2033,12 +2027,12 @@ static void powersave_late_resume(struct early_suspend *handler)
   dbs_tuners_ins.freq_limit = freq_limit_awake;				// ZZ: restore previous settings
   dbs_tuners_ins.fast_scaling = fast_scaling_awake;			// ZZ: restore previous settings
 
-	if (dbs_tuners_ins.fast_scaling > 4) { 				// ZZ: set scaling mode
-	    scaling_mode = dbs_tuners_ins.fast_scaling - 4;
-	    fast_scaling_down = 0;
+	if (dbs_tuners_ins.fast_scaling > 4) {				// ZZ: set scaling mode
+	    scaling_mode_up   = dbs_tuners_ins.fast_scaling - 4;	// Yank : fast scaling up
+	    scaling_mode_down = dbs_tuners_ins.fast_scaling - 4;	// Yank : fast scaling down
 	} else {
-	    scaling_mode = dbs_tuners_ins.fast_scaling;
-	    fast_scaling_down = 2;
+	    scaling_mode_up   = dbs_tuners_ins.fast_scaling;		// Yank : fast scaling up only
+	    scaling_mode_down = 0;					// Yank : fast scaling down
 	}
 	
 	for (i=0; i < freq_table_size; i++) { 
@@ -2074,7 +2068,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	unsigned int j;
 	int rc;
 	int i=0;
-	int valid_freq[17]={1800000, 1700000, 1600000, 1500000, 1400000, 1300000, 1200000, 1100000, 1000000, 900000, 800000, 700000, 600000, 500000, 400000, 300000, 200000};
 	
 	this_dbs_info = &per_cpu(cs_cpu_dbs_info, cpu);
 
