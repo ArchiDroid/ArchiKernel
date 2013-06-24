@@ -39,8 +39,6 @@
 
 #include <mach/pmic.h>
 
-#ifdef NEW_ENDPOINTS
-
 #define SND(desc, num) { .name = #desc, .id = num }
 static struct snd_endpoint snd_endpoints_list[] = {
 	SND(HANDSET, 0),
@@ -63,7 +61,7 @@ static struct snd_endpoint snd_endpoints_list[] = {
 };
 #undef SND
 
-#else
+#if 0
 #define SND(desc, num) { .name = #desc, .id = num }
 static struct snd_endpoint snd_endpoints_list[] = {
 	SND(HANDSET_LOOPBACK, 5),
