@@ -39,6 +39,8 @@
 
 #include <mach/pmic.h>
 
+#define NEW_ENDPOINTS
+
 #ifdef NEW_ENDPOINTS
 
 #define SND(desc, num) { .name = #desc, .id = num }
