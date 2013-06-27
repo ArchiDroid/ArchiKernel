@@ -1,6 +1,6 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (c) 2000-2001, 2011-2012 Code Aurora Forum.  All rights reserved.
+   Copyright (c) 2000-2001, 2011-2012 The Linux Foundation.  All rights reserved.
    Copyright (C) 2009-2010 Gustavo F. Padovan <gustavo@padovan.org>
    Copyright (C) 2010 Google Inc.
 
@@ -87,6 +87,20 @@ int l2cap_sock_le_params_valid(struct bt_le_params *le_params)
 			le_params->scan_window > BT_LE_SCAN_WINDOW_MAX ||
 			le_params->scan_interval < BT_LE_SCAN_INTERVAL_MIN ||
 			le_params->scan_window > le_params->scan_interval ||
+			le_params->interval_min < BT_LE_CONN_INTERVAL_MIN ||
+			le_params->interval_max > BT_LE_CONN_INTERVAL_MAX ||
+			le_params->interval_min > le_params->interval_max ||
+			le_params->supervision_timeout < BT_LE_SUP_TO_MIN ||
+			le_params->supervision_timeout > BT_LE_SUP_TO_MAX) {
+		return 0;
+	}
+
+	return 1;
+}
+
+int l2cap_sock_le_conn_update_params_valid(struct bt_le_params *le_params)
+{
+	if (!le_params || le_params->latency > BT_LE_LATENCY_MAX ||
 			le_params->interval_min < BT_LE_CONN_INTERVAL_MIN ||
 			le_params->interval_max > BT_LE_CONN_INTERVAL_MAX ||
 			le_params->interval_min > le_params->interval_max ||
@@ -839,7 +853,8 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 		}
 
 		if (!conn->hcon->out ||
-				!l2cap_sock_le_params_valid(&le_params)) {
+				!l2cap_sock_le_conn_update_params_valid(
+					&le_params)) {
 			err = -EINVAL;
 			break;
 		}

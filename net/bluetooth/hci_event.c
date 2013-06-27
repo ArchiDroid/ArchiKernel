@@ -1,6 +1,6 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (c) 2000-2001, 2010-2012, Code Aurora Forum. All rights reserved.
+   Copyright (c) 2000-2001, 2010-2013 The Linux Foundation. All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -424,6 +424,16 @@ static void hci_cc_host_buffer_size(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
 	hci_req_complete(hdev, HCI_OP_HOST_BUFFER_SIZE, status);
+}
+
+static void hci_cc_le_clear_white_list(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	hci_req_complete(hdev, HCI_OP_LE_CLEAR_WHITE_LIST, status);
 }
 
 static void hci_cc_read_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
@@ -911,6 +921,23 @@ static void hci_cc_le_read_buffer_size(struct hci_dev *hdev,
 	BT_DBG("%s le mtu %d:%d", hdev->name, hdev->le_mtu, hdev->le_pkts);
 
 	hci_req_complete(hdev, HCI_OP_LE_READ_BUFFER_SIZE, rp->status);
+}
+
+static void hci_cc_le_read_white_list_size(struct hci_dev *hdev,
+				       struct sk_buff *skb)
+{
+	struct hci_rp_le_read_white_list_size *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hdev->le_white_list_size = rp->size;
+
+	BT_DBG("%s le white list %d", hdev->name, hdev->le_white_list_size);
+
+	hci_req_complete(hdev, HCI_OP_LE_READ_WHITE_LIST_SIZE, rp->status);
 }
 
 static void hci_cc_user_confirm_reply(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1540,7 +1567,28 @@ static void hci_cs_disconn_physical_link(struct hci_dev *hdev, __u8 status)
 
 static void hci_cs_le_start_enc(struct hci_dev *hdev, u8 status)
 {
+	struct hci_cp_le_start_enc *cp;
+	struct hci_conn *conn;
+
 	BT_DBG("%s status 0x%x", hdev->name, status);
+	if (!status) {
+		return;
+	}
+
+	BT_DBG("%s Le start enc failed 0x%x", hdev->name, status);
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_START_ENC);
+	if (!cp) {
+		BT_DBG("CP is null");
+		return;
+	}
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn) {
+		BT_DBG("conn exists");
+		hci_conn_put(conn);
+	}
+	hci_dev_unlock(hdev);
 }
 
 static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1642,10 +1690,8 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (conn->type == ACL_LINK) {
 			struct hci_cp_read_remote_version cp;
 			cp.handle = ev->handle;
-// +s LGBT_COMMON_PATCH_SR01017282 sunmee.choi@lge.com 2012-11-26 performance issue (opp request time)
 			hci_send_cmd(hdev, HCI_OP_READ_CLOCK_OFFSET,
 				sizeof(cp), &cp);
-// +e LGBT_COMMON_PATCH_SR01017282
 			hci_send_cmd(hdev, HCI_OP_READ_REMOTE_VERSION,
 				sizeof(cp), &cp);
 		}
@@ -1751,11 +1797,7 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 			cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
 			cp.max_latency    = cpu_to_le16(0x000A);
 			cp.content_format = cpu_to_le16(hdev->voice_setting);
-
-			// LGBT_BLUEZCOM_BUGFIX_SCORECONNFAILNTG, 
-			// sco reconnection fail with NTG4.5 (qct patch in e0), jeonghoon.lim@lge.com
-			// cp.retrans_effort = 0x01; // original
-			cp.retrans_effort = 0xff; 
+			cp.retrans_effort = 0x01;
 
 			hci_send_cmd(hdev, HCI_OP_ACCEPT_SYNC_CONN_REQ,
 							sizeof(cp), &cp);
@@ -1775,7 +1817,7 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	struct hci_ev_disconn_complete *ev = (void *) skb->data;
 	struct hci_conn *conn;
 
-	BT_DBG("%s status %d", hdev->name, ev->status);
+	BT_DBG("%s status %d reason %d", hdev->name, ev->status, ev->reason);
 
 	if (ev->status) {
 		hci_dev_lock(hdev);
@@ -1793,7 +1835,7 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	conn->state = BT_CLOSED;
 
 	if (conn->type == ACL_LINK || conn->type == LE_LINK)
-		mgmt_disconnected(hdev->id, &conn->dst);
+		mgmt_disconnected(hdev->id, &conn->dst, ev->reason);
 
 	if (conn->type == LE_LINK)
 		del_timer(&conn->smp_timer);
@@ -1821,15 +1863,6 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			struct hci_cp_auth_requested cp;
 			hci_remove_link_key(hdev, &conn->dst);
 			cp.handle = cpu_to_le16(conn->handle);
-			/*Initiates dedicated bonding as pin or key is missing
-			on remote device*/
-			/*In case if remote device is ssp supported,
-			reduce the security level to MEDIUM if it is HIGH*/
-			if (conn->ssp_mode && conn->auth_initiator &&
-				conn->io_capability != 0x03) {
-				conn->pending_sec_level = BT_SECURITY_HIGH;
-				conn->auth_type = HCI_AT_DEDICATED_BONDING_MITM;
-			}
 			hci_send_cmd(conn->hdev, HCI_OP_AUTH_REQUESTED,
 							sizeof(cp), &cp);
 			hci_dev_unlock(hdev);
@@ -1858,6 +1891,8 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			} else {
 				conn->state = BT_CONNECTED;
 				hci_proto_connect_cfm(conn, ev->status);
+				if (ev->status)
+					conn->disc_timeout = HCI_DISCONN_AUTH_FAILED_TIMEOUT;
 				hci_conn_put(conn);
 			}
 		} else {
@@ -2034,7 +2069,7 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 							sizeof(cp), &cp);
 		goto unlock;
 	} else  if (!(lmp_ssp_capable(conn)) && conn->auth_initiator &&
-		(conn->pending_sec_level == BT_SECURITY_HIGH)) {
+		(conn->pending_sec_level == BT_SECURITY_VERY_HIGH)) {
 		conn->pending_sec_level = BT_SECURITY_MEDIUM;
 	}
 
@@ -2259,6 +2294,14 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_LE_READ_BUFFER_SIZE:
 		hci_cc_le_read_buffer_size(hdev, skb);
+		break;
+
+	case HCI_OP_LE_READ_WHITE_LIST_SIZE:
+		hci_cc_le_read_white_list_size(hdev, skb);
+		break;
+
+	case HCI_OP_LE_CLEAR_WHITE_LIST:
+		hci_cc_le_clear_white_list(hdev, skb);
 		break;
 
 	case HCI_OP_READ_RSSI:
@@ -2650,7 +2693,7 @@ static inline void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff
 			conn->pending_sec_level, conn->ssp_mode, key->pin_len);
 	}
 	if (conn && (conn->ssp_mode == 0) &&
-		(conn->pending_sec_level == BT_SECURITY_HIGH) &&
+		(conn->pending_sec_level == BT_SECURITY_VERY_HIGH) &&
 		(key->pin_len != 16)) {
 		BT_DBG("Security is high ignoring this key");
 		goto not_found;
@@ -2839,14 +2882,14 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 
 		conn->ssp_mode = (ev->features[0] & 0x01);
 		/*In case if remote device ssp supported/2.0 device
-		reduce the security level to MEDIUM if it is HIGH*/
+		reduce the security level to MEDIUM if it is VERY HIGH*/
 		if (!conn->ssp_mode && conn->auth_initiator &&
-			(conn->pending_sec_level == BT_SECURITY_HIGH))
+			(conn->pending_sec_level == BT_SECURITY_VERY_HIGH))
 			conn->pending_sec_level = BT_SECURITY_MEDIUM;
 
 		if (conn->ssp_mode && conn->auth_initiator &&
 			conn->io_capability != 0x03) {
-			conn->pending_sec_level = BT_SECURITY_HIGH;
+			conn->pending_sec_level = BT_SECURITY_VERY_HIGH;
 			conn->auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 		}
 	}
@@ -2907,12 +2950,13 @@ static inline void hci_sync_conn_complete_evt(struct hci_dev *hdev, struct sk_bu
 	case 0x1a:	/* Unsupported Remote Feature */
 	case 0x1f:	/* Unspecified error */
 		if (conn->out && conn->attempt < 2) {
-			if (!conn->hdev->is_wbs)
+			if (!conn->hdev->is_wbs) {
 				conn->pkt_type =
 					(hdev->esco_type & SCO_ESCO_MASK) |
 					(hdev->esco_type & EDR_ESCO_MASK);
-			hci_setup_sync(conn, conn->link->handle);
-			goto unlock;
+				hci_setup_sync(conn, conn->link->handle);
+				goto unlock;
+			}
 		}
 		/* fall through */
 
@@ -3180,10 +3224,22 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 {
 	struct hci_ev_le_conn_complete *ev = (void *) skb->data;
 	struct hci_conn *conn;
+	u8 white_list;
 
 	BT_DBG("%s status %d", hdev->name, ev->status);
 
 	hci_dev_lock(hdev);
+
+	/* Ignore event for LE cancel create conn whitelist */
+	if (ev->status && !bacmp(&ev->bdaddr, BDADDR_ANY))
+		goto unlock;
+
+	if (hci_conn_hash_lookup_ba(hdev, LE_LINK, BDADDR_ANY))
+		white_list = 1;
+	else
+		white_list = 0;
+
+	BT_DBG("w_list %d", white_list);
 
 	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &ev->bdaddr);
 	if (!conn) {
@@ -3216,7 +3272,8 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	hci_conn_hold_device(conn);
 	hci_conn_add_sysfs(conn);
 
-	hci_proto_connect_cfm(conn, ev->status);
+	if (!white_list)
+		hci_proto_connect_cfm(conn, ev->status);
 
 unlock:
 	hci_dev_unlock(hdev);

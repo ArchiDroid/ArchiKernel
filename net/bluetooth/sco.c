@@ -1,7 +1,7 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
-   Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+   Copyright (c) 2011, The Linux Foundation. All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -397,8 +397,10 @@ static void __sco_sock_close(struct sock *sk)
 		if (sco_pi(sk)->conn) {
 			sk->sk_state = BT_DISCONN;
 			sco_sock_set_timer(sk, SCO_DISCONN_TIMEOUT);
-			hci_conn_put(sco_pi(sk)->conn->hcon);
-			sco_pi(sk)->conn->hcon = NULL;
+			if (sco_pi(sk)->conn->hcon != NULL) {
+				hci_conn_put(sco_pi(sk)->conn->hcon);
+				sco_pi(sk)->conn->hcon = NULL;
+			}
 		} else
 			sco_chan_del(sk, ECONNRESET);
 		break;
@@ -812,6 +814,9 @@ static int sco_sock_shutdown(struct socket *sock, int how)
 		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime)
 			err = bt_sock_wait_state(sk, BT_CLOSED,
 							sk->sk_lingertime);
+		else
+			err = bt_sock_wait_state(sk, BT_CLOSED,
+							SCO_DISCONN_TIMEOUT);
 	}
 	release_sock(sk);
 	return err;
@@ -832,6 +837,11 @@ static int sco_sock_release(struct socket *sock)
 	if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime) {
 		lock_sock(sk);
 		err = bt_sock_wait_state(sk, BT_CLOSED, sk->sk_lingertime);
+		release_sock(sk);
+	} else {
+		lock_sock(sk);
+		err = bt_sock_wait_state(sk, BT_CLOSED,
+							SCO_DISCONN_TIMEOUT);
 		release_sock(sk);
 	}
 

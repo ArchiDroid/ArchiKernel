@@ -1,6 +1,6 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (c) 2000-2001, 2010-2012 Code Aurora Forum. All rights reserved.
+   Copyright (c) 2000-2001, 2010-2012 The Linux Foundation. All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -119,6 +119,7 @@ enum {
 #define HCIINQUIRY	_IOR('H', 240, int)
 
 /* HCI timeouts */
+#define HCI_DISCONN_AUTH_FAILED_TIMEOUT	(10)	/* 10 ms */
 #define HCI_CONNECT_TIMEOUT	(40000)	/* 40 seconds */
 #define HCI_DISCONN_TIMEOUT	(2000)	/* 2 seconds */
 #define HCI_PAIRING_TIMEOUT	(60000)	/* 60 seconds */
@@ -412,12 +413,10 @@ struct hci_cp_read_remote_version {
 	__le16   handle;
 } __packed;
 
-// +s LGBT_COMMON_PATCH_SR01017282 sunmee.choi@lge.com 2012-11-26 performance issue (opp request time)
 #define HCI_OP_READ_CLOCK_OFFSET	0x041f
 struct hci_cp_read_clock_offset {
 	__le16   handle;
 } __packed;
-// +e LGBT_COMMON_PATCH_SR01017282
 
 #define HCI_OP_SETUP_SYNC_CONN		0x0428
 struct hci_cp_setup_sync_conn {
@@ -973,6 +972,26 @@ struct hci_cp_le_create_conn {
 } __packed;
 
 #define HCI_OP_LE_CREATE_CONN_CANCEL	0x200e
+
+#define HCI_OP_LE_READ_WHITE_LIST_SIZE	0x200F
+struct hci_rp_le_read_white_list_size {
+	__u8     status;
+	__u8     size;
+} __packed;
+
+#define HCI_OP_LE_CLEAR_WHITE_LIST	0x2010
+
+#define HCI_OP_LE_ADD_DEV_WHITE_LIST	0x2011
+struct hci_cp_le_add_dev_white_list {
+	__u8     addr_type;
+	bdaddr_t addr;
+} __packed;
+
+#define HCI_OP_LE_REMOVE_DEV_WHITE_LIST 0x2012
+struct hci_cp_le_remove_dev_white_list {
+	__u8     addr_type;
+	bdaddr_t addr;
+} __packed;
 
 #define HCI_OP_LE_CONN_UPDATE		0x2013
 struct hci_cp_le_conn_update {

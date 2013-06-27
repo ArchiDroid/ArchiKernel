@@ -165,13 +165,9 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 void hci_conn_del_sysfs(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
-	//*s QCT_BT_PATCH_SR01110096 fix not to reset the device when a HID is turned on and off repeatedly kyuseok.kim@lge.com 2013-02-20
-	/* Original
-	queue_work(conn->hdev->workqueue, &conn->work_del);*/
-	if (conn->hdev) {
+
+	if (conn->hdev)
 		queue_work(conn->hdev->workqueue, &conn->work_del);
-	}
-	//*e QCT_BT_PATCH_SR01110096
 }
 
 static inline char *host_bustostr(int bus)

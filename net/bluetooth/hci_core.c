@@ -1,6 +1,6 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (c) 2000-2001, 2010-2012 Code Aurora Forum.  All rights reserved.
+   Copyright (c) 2000-2001, 2010-2012 The Linux Foundation.  All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -305,6 +305,12 @@ static void hci_le_init_req(struct hci_dev *hdev, unsigned long opt)
 
 	/* Read LE buffer size */
 	hci_send_cmd(hdev, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
+
+	/* Read LE clear white list */
+	hci_send_cmd(hdev, HCI_OP_LE_CLEAR_WHITE_LIST, 0, NULL);
+
+	/* Read LE white list size */
+	hci_send_cmd(hdev, HCI_OP_LE_READ_WHITE_LIST_SIZE, 0, NULL);
 }
 
 static void hci_scan_req(struct hci_dev *hdev, unsigned long opt)
@@ -2124,6 +2130,55 @@ void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 EXPORT_SYMBOL(hci_send_sco);
 
 /* ---- HCI TX task (outgoing data) ---- */
+/* HCI ACL Connection scheduler */
+static inline struct hci_conn *hci_low_sent_acl(struct hci_dev *hdev,
+								int *quote)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_conn *conn = NULL;
+	int num = 0, min = ~0, conn_num = 0;
+	struct list_head *p;
+
+	/* We don't have to lock device here. Connections are always
+	 * added and removed with TX task disabled. */
+	list_for_each(p, &h->list) {
+		struct hci_conn *c;
+		c = list_entry(p, struct hci_conn, list);
+		if (c->type == ACL_LINK)
+			conn_num++;
+
+		if (skb_queue_empty(&c->data_q))
+			continue;
+
+		if (c->state != BT_CONNECTED && c->state != BT_CONFIG)
+			continue;
+
+		num++;
+
+		if (c->sent < min) {
+			min  = c->sent;
+			conn = c;
+		}
+	}
+
+	if (conn) {
+		int cnt, q;
+		cnt = hdev->acl_cnt;
+		q = cnt / num;
+		*quote = q ? q : 1;
+	} else
+		*quote = 0;
+
+	if ((*quote == hdev->acl_cnt) &&
+		(conn->sent == (hdev->acl_pkts - 1)) &&
+		(conn_num > 1)) {
+			*quote = 0;
+			conn = NULL;
+	}
+
+	BT_DBG("conn %p quote %d", conn, *quote);
+	return conn;
+}
 
 /* HCI Connection scheduler */
 static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int *quote)
@@ -2217,8 +2272,10 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 	}
 
 	while (hdev->acl_cnt > 0 &&
-		(conn = hci_low_sent(hdev, ACL_LINK, &quote))) {
-		while (quote > 0 && (skb = skb_dequeue(&conn->data_q))) {
+		((conn = hci_low_sent_acl(hdev, &quote)) != NULL)) {
+
+		while (quote > 0 &&
+			  (skb = skb_dequeue(&conn->data_q))) {
 			int count = 1;
 
 			BT_DBG("skb %p len %d", skb, skb->len);
@@ -2234,7 +2291,6 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 			if (count > hdev->acl_cnt)
 				return;
 
-			hci_dev_lock(hdev);
 			hci_conn_enter_active_mode(conn, bt_cb(skb)->force_active);
 
 			hci_send_frame(skb);
@@ -2244,7 +2300,6 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 			quote -= count;
 
 			conn->sent += count;
-			hci_dev_unlock(hdev);
 		}
 	}
 }

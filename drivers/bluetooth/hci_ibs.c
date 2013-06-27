@@ -5,7 +5,7 @@
  *  protocol extension to H4.
  *
  *  Copyright (C) 2007 Texas Instruments, Inc.
- *  Copyright (c) 2010, 2012 Code Aurora Forum. All rights reserved.
+ *  Copyright (c) 2010, 2012 The Linux Foundation. All rights reserved.
  *
  *  Acknowledgements:
  *  This file is based on hci_ll.c, which was...
@@ -111,9 +111,6 @@ struct ibs_struct {
 	unsigned long tx_vote;		/* clock must be on for TX */
 	unsigned long rx_vote;		/* clock must be on for RX */
 	struct	timer_list tx_idle_timer;
-	//*s LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
-	struct  timer_list rx_idle_timer;
-	//*e LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
 	struct	timer_list wake_retrans_timer;
 	struct	workqueue_struct *workqueue;
 	struct	work_struct ws_awake_rx;
@@ -139,10 +136,6 @@ struct ibs_struct {
 	unsigned long votes_on;
 	unsigned long votes_off;
 };
-
-//*s LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
-static void hci_ibs_rx_idle_timeout(unsigned long arg);
-//*e LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
 
 #ifdef CONFIG_SERIAL_MSM_HS
 static void __ibs_msm_serial_clock_on(struct tty_struct *tty)
@@ -261,14 +254,13 @@ static void ibs_wq_awake_device(struct work_struct *work)
 	struct ibs_struct *ibs = container_of(work, struct ibs_struct,
 					ws_awake_device);
 	struct hci_uart *hu = (struct hci_uart *)ibs->ibs_hu;
-	unsigned long flags;
 
 	BT_DBG(" %p ", hu);
 
 	/* Vote for serial clock */
 	ibs_msm_serial_clock_vote(HCI_IBS_TX_VOTE_CLOCK_ON, hu);
 
-	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
+	spin_lock(&ibs->hci_ibs_lock);
 
 	/* send wake indication to device */
 	if (send_hci_ibs_cmd(HCI_IBS_WAKE_IND, hu) < 0)
@@ -279,8 +271,7 @@ static void ibs_wq_awake_device(struct work_struct *work)
 	/* start retransmit timer */
 	mod_timer(&ibs->wake_retrans_timer, jiffies + wake_retrans);
 
-	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
-
+	spin_unlock(&ibs->hci_ibs_lock);
 }
 
 static void ibs_wq_awake_rx(struct work_struct *work)
@@ -288,14 +279,12 @@ static void ibs_wq_awake_rx(struct work_struct *work)
 	struct ibs_struct *ibs = container_of(work, struct ibs_struct,
 					ws_awake_rx);
 	struct hci_uart *hu = (struct hci_uart *)ibs->ibs_hu;
-	unsigned long flags;
 
 	BT_DBG(" %p ", hu);
 
 	ibs_msm_serial_clock_vote(HCI_IBS_RX_VOTE_CLOCK_ON, hu);
 
-	spin_lock_irqsave(&ibs->hci_ibs_lock, flags);
-
+	spin_lock(&ibs->hci_ibs_lock);
 	ibs->rx_ibs_state = HCI_IBS_RX_AWAKE;
 	/* Always acknowledge device wake up,
 	 * sending IBS message doesn't count as TX ON
@@ -305,8 +294,7 @@ static void ibs_wq_awake_rx(struct work_struct *work)
 
 	ibs->ibs_sent_wacks++; /* debug */
 
-	spin_unlock_irqrestore(&ibs->hci_ibs_lock, flags);
-
+	spin_unlock(&ibs->hci_ibs_lock);
 	/* actually send the packets */
 	hci_uart_tx_wakeup(hu);
 
@@ -470,11 +458,6 @@ static int ibs_open(struct hci_uart *hu)
 	ibs->tx_idle_timer.function = hci_ibs_tx_idle_timeout;
 	ibs->tx_idle_timer.data     = (u_long) hu;
 
-//*s LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
-	init_timer(&ibs->rx_idle_timer);
-	ibs->rx_idle_timer.function = hci_ibs_rx_idle_timeout;
-	ibs->rx_idle_timer.data     = (u_long) hu;
-//*e LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
 	BT_INFO("HCI_IBS open, tx_idle_delay=%lu, wake_retrans=%lu",
 		tx_idle_delay, wake_retrans);
 
@@ -535,9 +518,6 @@ static int ibs_close(struct hci_uart *hu)
 	skb_queue_purge(&ibs->tx_wait_q);
 	skb_queue_purge(&ibs->txq);
 	del_timer(&ibs->tx_idle_timer);
-	//*s LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
-	del_timer(&ibs->rx_idle_timer);
-	//*e LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
 	del_timer(&ibs->wake_retrans_timer);
 	destroy_workqueue(ibs->workqueue);
 	ibs->ibs_hu = NULL;
@@ -771,9 +751,6 @@ static int ibs_recv(struct hci_uart *hu, void *data, int count)
 
 	ptr = data;
 	while (count) {
-//*s LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
-		del_timer(&ibs->rx_idle_timer);
-//*e LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
 		if (ibs->rx_count) {
 			len = min_t(unsigned int, ibs->rx_count, count);
 			memcpy(skb_put(ibs->rx_skb, len), ptr, len);
@@ -851,9 +828,6 @@ static int ibs_recv(struct hci_uart *hu, void *data, int count)
 
 		case HCI_IBS_WAKE_IND:
 			BT_DBG("HCI_IBS_WAKE_IND packet");
-//*s LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
-			mod_timer(&ibs->rx_idle_timer, jiffies + tx_idle_delay);
-//*e LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
 			ibs_device_want_to_wakeup(hu);
 			ptr++; count--;
 			continue;
@@ -888,16 +862,6 @@ static int ibs_recv(struct hci_uart *hu, void *data, int count)
 
 	return count;
 }
-//*s LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
-static void hci_ibs_rx_idle_timeout(unsigned long arg)
-{
-	struct hci_uart *hu = (struct hci_uart *) arg;
-	struct ibs_struct *ibs = hu->priv;
-
-	BT_DBG("hu %p rx_idle_timeout in %lu state", hu, ibs->rx_ibs_state);
-	ibs_device_want_to_sleep(hu);
-}
-//*e LGBT_BUGFIX_BT_UART_RX_INTERUPT_CURRENT_ISSUE christine.lee@lge.com 2013-01-09
 
 static struct sk_buff *ibs_dequeue(struct hci_uart *hu)
 {

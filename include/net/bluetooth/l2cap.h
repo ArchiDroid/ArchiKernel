@@ -1,6 +1,6 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (c) 2000-2001, 2010-2012 Code Aurora Forum.  All rights reserved.
+   Copyright (c) 2000-2001, 2010-2012 The Linux Foundation.  All rights reserved.
    Copyright (C) 2009-2010 Gustavo F. Padovan <gustavo@padovan.org>
    Copyright (C) 2010 Google Inc.
 
@@ -717,5 +717,7 @@ void l2cap_amp_logical_complete(int result, struct hci_conn *ampcon,
 				struct hci_chan *ampchan, struct sock *sk);
 
 void l2cap_amp_logical_destroyed(struct hci_conn *ampcon);
+
+void l2cap_conn_del(struct hci_conn *hcon, int err, u8 is_process);
 
 #endif /* __L2CAP_H */

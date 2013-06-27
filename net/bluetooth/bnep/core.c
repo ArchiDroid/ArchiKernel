@@ -56,9 +56,6 @@
 #include "bnep.h"
 
 #define VERSION "1.3"
-// +s LGBT_COMMON_PATCH_SR01107153 Disable_support_for_MULTI_ADDR_SET sunmee.choi@lge.com 2013-02-15
-#undef CONFIG_BT_BNEP_MC_FILTER
-// +e LGBT_COMMON_PATCH_SR01107153
 
 static bool compress_src = 1;
 static bool compress_dst = 1;
