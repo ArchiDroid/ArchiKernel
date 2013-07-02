@@ -1588,7 +1588,8 @@ static int adreno_init(struct kgsl_device *device)
 	 */
 	ft_detect_regs[0] = adreno_dev->gpudev->reg_rbbm_status;
 
-	adreno_perfcounter_init(device);
+	if (!adreno_is_a2xx(adreno_dev))
+            adreno_perfcounter_init(device);
 
 	/* Power down the device */
 	kgsl_pwrctrl_disable(device);
@@ -1678,7 +1679,8 @@ static int adreno_start(struct kgsl_device *device)
 	if (KGSL_STATE_DUMP_AND_FT != device->state)
 		mod_timer(&device->idle_timer, jiffies + FIRST_TIMEOUT);
 
-	adreno_perfcounter_start(adreno_dev);
+	if (!adreno_is_a2xx(adreno_dev))
+           adreno_perfcounter_start(adreno_dev);
 
 	device->reset_counter++;
 
