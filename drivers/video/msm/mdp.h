@@ -72,15 +72,7 @@ extern uint32 mdp_intr_mask;
 #define MDPOP_SHARPENING	BIT(11) /* enable sharpening */
 #define MDPOP_BLUR		BIT(12) /* enable blur */
 #define MDPOP_FG_PM_ALPHA       BIT(13)
-/* vinay.bhooma@lge.com TD Fix issue 261189
- * QUALCOMM Patch for SR#01078394 - Screen flickers on launching opera for 1st time.
- * Target : UO/P700 
- * Screen flickers for target which support MDP Composition.
- * With GPU Composition model e.g. V3 screen flickering issue is not observed.
-*/ 
 #define MDPOP_LAYER_IS_FG       BIT(14)
-/**End of QUALCOMM Patch for SR#01078394 - Screen flickers on launching opera for 1st time */
-
 #define MDP_ALLOC(x)  kmalloc(x, GFP_KERNEL)
 
 struct mdp_buf_type {
