@@ -23,7 +23,6 @@
 #include "kgsl_pwrscale.h"
 #include "kgsl_device.h"
 #include "kgsl_trace.h"
-#include "kgsl_sharedmem.h"
 
 #define KGSL_PWRFLAGS_POWER_ON 0
 #define KGSL_PWRFLAGS_CLK_ON   1
@@ -1026,7 +1025,7 @@ void kgsl_idle_check(struct work_struct *work)
 			}
 		}
 	} else if (device->state & (KGSL_STATE_HUNG |
-					KGSL_STATE_DUMP_AND_RECOVER)) {
+					KGSL_STATE_DUMP_AND_FT)) {
 		kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
 	}
 
@@ -1065,7 +1064,7 @@ void kgsl_pre_hwaccess(struct kgsl_device *device)
 		break;
 	case KGSL_STATE_INIT:
 	case KGSL_STATE_HUNG:
-	case KGSL_STATE_DUMP_AND_RECOVER:
+	case KGSL_STATE_DUMP_AND_FT:
 		if (test_bit(KGSL_PWRFLAGS_CLK_ON,
 					 &device->pwrctrl.power_flags))
 			break;
@@ -1089,9 +1088,9 @@ void kgsl_check_suspended(struct kgsl_device *device)
 		mutex_unlock(&device->mutex);
 		wait_for_completion(&device->hwaccess_gate);
 		mutex_lock(&device->mutex);
-	} else if (device->state == KGSL_STATE_DUMP_AND_RECOVER) {
+	} else if (device->state == KGSL_STATE_DUMP_AND_FT) {
 		mutex_unlock(&device->mutex);
-		wait_for_completion(&device->recovery_gate);
+		wait_for_completion(&device->ft_gate);
 		mutex_lock(&device->mutex);
 	} else if (device->state == KGSL_STATE_SLUMBER)
 		kgsl_pwrctrl_wake(device);
@@ -1226,11 +1225,6 @@ EXPORT_SYMBOL(kgsl_pwrctrl_sleep);
 void kgsl_pwrctrl_wake(struct kgsl_device *device)
 {
 	int status;
-	unsigned int context_id;
-	unsigned int state = device->state;
-	unsigned int ts_processed = 0xdeaddead;
-	struct kgsl_context *context;
-
 	kgsl_pwrctrl_request_state(device, KGSL_STATE_ACTIVE);
 	switch (device->state) {
 	case KGSL_STATE_SLUMBER:
@@ -1244,17 +1238,6 @@ void kgsl_pwrctrl_wake(struct kgsl_device *device)
 	case KGSL_STATE_SLEEP:
 		kgsl_pwrctrl_axi(device, KGSL_PWRFLAGS_ON);
 		kgsl_pwrscale_wake(device);
-		kgsl_sharedmem_readl(&device->memstore,
-			(unsigned int *) &context_id,
-			KGSL_MEMSTORE_OFFSET(KGSL_MEMSTORE_GLOBAL,
-				current_context));
-		context = idr_find(&device->context_idr, context_id);
-		if (context)
-			ts_processed = kgsl_readtimestamp(device, context,
-				KGSL_TIMESTAMP_RETIRED);
-		KGSL_PWR_INFO(device, "Wake from %s state. CTXT: %d RTRD TS: %08X\n",
-			kgsl_pwrstate_to_str(state),
-			context ? context->id : -1, ts_processed);
 		/* fall through */
 	case KGSL_STATE_NAP:
 		/* Turn on the core clocks */
@@ -1330,7 +1313,7 @@ const char *kgsl_pwrstate_to_str(unsigned int state)
 		return "SUSPEND";
 	case KGSL_STATE_HUNG:
 		return "HUNG";
-	case KGSL_STATE_DUMP_AND_RECOVER:
+	case KGSL_STATE_DUMP_AND_FT:
 		return "DNR";
 	case KGSL_STATE_SLUMBER:
 		return "SLUMBER";
