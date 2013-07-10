@@ -50,7 +50,7 @@
 #include <linux/smsc911x.h>
 #include <linux/atmel_maxtouch.h>
 #include <linux/msm_adc.h>
-#include <linux/ion.h>
+#include <linux/msm_ion.h>
 /*LGE_CHANGE_S[satya.kamasali@lge.com]20121017: ram_console support*/
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 #include <linux/persistent_ram.h>

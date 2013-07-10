@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2009, 2012-2013 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2009, 2012 Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2418,22 +2418,13 @@ void mdp_adjust_start_addr(uint8 **src0,
 		 * we need to shift x direction same as y dir for offsite
 		 */
 		if (iBuf->mdpImg.imgType == MDP_Y_CBCR_H2V2_ADRENO
-							&& layer == 0) {
-			if (v_slice == 1)
-				*src1 += ((x / h_slice) * h_slice + ((y == 0)
-				? 0 : (y * (ALIGN(width/2, 32) * 2)))) * bpp;
-			else
-				*src1 += ((x / h_slice) * h_slice + ((y == 0)
-				? 0 : (((y + 1) / v_slice) *
-				(ALIGN(width/2, 32) * 2)))) * bpp;
-		} else {
-			if (v_slice == 1)
-				*src1 += ((x / h_slice) * h_slice + ((y == 0)
-				? 0 : (y * width))) * bpp;
-			else
-				*src1 += ((x / h_slice) * h_slice + ((y == 0)
-				? 0 : ((y + 1) / v_slice) * width)) * bpp;
-		}
+							&& layer == 0)
+			*src1 += ((x / h_slice) * h_slice + ((y == 0) ? 0 :
+			(((y + 1) / v_slice - 1) * (ALIGN(width/2, 32) * 2))))
+									* bpp;
+		else
+			*src1 += ((x / h_slice) * h_slice +
+			((y == 0) ? 0 : ((y + 1) / v_slice - 1) * width)) * bpp;
 
 		/* if it's dest/bg buffer, we need to adjust it for rotation */
 		if (layer != 0)

@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <kgsl_device.h>
 
-
 #include "kgsl_trace.h"
 
 static void _add_event_to_list(struct list_head *head, struct kgsl_event *event)
@@ -113,6 +112,13 @@ int kgsl_add_event(struct kgsl_device *device, u32 id, u32 ts,
 	} else
 		_add_event_to_list(&device->events, event);
 
+	/*
+	 * Increase the active count on the device to avoid going into power
+	 * saving modes while events are pending
+	 */
+
+	device->active_cnt++;
+
 	queue_work(device->work_queue, &device->ts_expired_ws);
 	return 0;
 }
@@ -133,6 +139,15 @@ void kgsl_cancel_events_ctxt(struct kgsl_device *device,
 	cur = kgsl_readtimestamp(device, context, KGSL_TIMESTAMP_RETIRED);
 	id = context->id;
 
+	/*
+	 * Increment the refcount to avoid freeing the context while
+	 * cancelling its events
+	 */
+	kgsl_context_get(context);
+
+	/* Remove ourselves from the master pending list */
+	list_del_init(&context->events_list);
+
 	list_for_each_entry_safe(event, event_tmp, &context->events, list) {
 		/*
 		 * "cancel" the events by calling their callback.
@@ -152,10 +167,10 @@ void kgsl_cancel_events_ctxt(struct kgsl_device *device,
 
 		kgsl_context_put(context);
 		kfree(event);
-	}
 
-	/* Remove ourselves from the master pending list */
-	list_del_init(&context->events_list);
+		kgsl_active_count_put(device);
+	}
+	kgsl_context_put(context);
 }
 
 /**
@@ -196,6 +211,8 @@ void kgsl_cancel_events(struct kgsl_device *device,
 		if (event->context)
 			kgsl_context_put(event->context);
 		kfree(event);
+
+		kgsl_active_count_put(device);
 	}
 }
 EXPORT_SYMBOL(kgsl_cancel_events);
@@ -229,6 +246,8 @@ static void _process_event_list(struct kgsl_device *device,
 		if (event->context)
 			kgsl_context_put(event->context);
 		kfree(event);
+
+		kgsl_active_count_put(device);
 	}
 }
 
@@ -298,12 +317,18 @@ void kgsl_process_events(struct work_struct *work)
 		events_list) {
 
 		/*
+		 * Increment the refcount to make sure that the list_del_init
+		 * is called with a valid context's list
+		 */
+		kgsl_context_get(context);
+		/*
 		 * If kgsl_timestamp_expired_context returns 0 then it no longer
 		 * has any pending events and can be removed from the list
 		 */
 
 		if (kgsl_process_context_events(device, context) == 0)
 			list_del_init(&context->events_list);
+		kgsl_context_put(context);
 	}
 
 	mutex_unlock(&device->mutex);
