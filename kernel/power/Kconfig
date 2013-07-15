@@ -338,3 +338,10 @@ config SUSPEND_TIME
 	  Prints the time spent in suspend in the kernel log, and
 	  keeps statistics on the time spent in suspend in
 	  /sys/kernel/debug/suspend_time
+
+config EARLY_SUSPEND_DELAY
+	bool "Delay fbearlysuspend to allow CRT off animation to be displayed (yank555.lu)"
+	default y
+	---help---
+	  A simple sysfs interface to user customizable
+	  pause to allow CRT off animation to be shown.
