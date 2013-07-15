@@ -482,13 +482,15 @@ static ssize_t proximity_enable_store(struct device *dev,
 		pr_err("%s: invalid value %d\n", __func__, *buf);
 		return -EINVAL;
 	}
-#ifdef CONFIG_TOUCH_WAKE
-	if (new_value) { // true if proximity detected
-		proximity_detected();
-  } else {
-        proximity_off();
-    }
-#endif
+	
+	#ifdef CONFIG_TOUCH_WAKE
+		if (new_value) { // true if proximity detected
+			proximity_detected();
+		} else {
+			proximity_off();
+		}
+	#endif
+
 	mutex_lock(&cm36651->power_lock);
 	pr_info("%s, new_value = %d, threshold = %d\n", __func__, new_value,
 		ps_reg_setting[1][1]);
