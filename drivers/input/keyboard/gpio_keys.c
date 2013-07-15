@@ -960,7 +960,6 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		input_set_capability(input, type, button->code);
 
 		#ifdef CONFIG_TOUCH_WAKE
-			  pr_info("powerkey device set to: %p \n", input);
 			  set_powerkeydev(input);
 		#endif		
 	}
