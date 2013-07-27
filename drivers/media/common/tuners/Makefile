@@ -31,3 +31,7 @@ obj-$(CONFIG_MEDIA_TUNER_TDA18212) += tda18212.o
 
 ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb/frontends
+
+CFLAGS_tda18212.o = -Wno-maybe-uninitialized
+CFLAGS_tda18218.o = -Wno-maybe-uninitialized
+CFLAGS_xc4000.o = -Wno-maybe-uninitialized
