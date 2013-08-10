@@ -408,3 +408,4 @@ obj-$(CONFIG_MSM_FIQ) += msm_watchdog7k.o
 obj-$(CONFIG_MINIABB_REGULATOR) += miniabb-regulator.o
 ### [LGE_BSP_E] jihyun2.jang@lge.com, 20130212 - RT8966A miniABB regulator
 
+obj-$(CONFIG_ARCH_RANDOM) += early_random.o
