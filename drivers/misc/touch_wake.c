@@ -16,6 +16,15 @@
  *
  * --------------------------------------------------------------------------------------
  *
+ * Fixed proxy detection, only disable touchwake when proxy sensor is active and
+ * proximity is really detected
+ *
+ * Bumped version to 1.1a
+ *
+ *                                         Jean-Pierre Rasquin <yank555.lu@gmail.com>
+ *
+ * --------------------------------------------------------------------------------------
+ *
  * Implemented double tap to wake with configurable knockon delay time
  *
  * Bumped version to 1.2
