@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,21 +8,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-*/
+ *
+ */
 
-#ifndef __ASM_ARCH_MSM_SERIAL_H
-#define __ASM_ARCH_MSM_SERIAL_H
+#include "adreno.h"
 
-#include <linux/serial_core.h>
-
-/* Optional platform device data for msm_serial driver.
- * Used to configure low power wakeup */
-struct msm_serial_platform_data {
-	int wakeup_irq;  /* wakeup irq */
-	/* bool: inject char into rx tty on wakeup */
-	unsigned char inject_rx_on_wakeup;
-	char rx_to_inject;
-	int userid;
-};
-
-#endif
+/* Instantiate tracepoints */
+#define CREATE_TRACE_POINTS
+#include "adreno_trace.h"
