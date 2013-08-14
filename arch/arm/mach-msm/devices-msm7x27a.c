@@ -220,7 +220,7 @@ struct platform_device msm_device_dmov = {
 };
 
 static struct acpuclk_pdata msm7x27a_acpuclk_pdata = {
-	.max_speed_delta_khz = 400000,
+	.max_speed_delta_khz = 450000,
 };
 
 struct platform_device msm7x27a_device_acpuclk = {
@@ -911,10 +911,14 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 		/* LGE_CHANGE_S [peter.jung@lge.com]
 		    DoU Power consumption */
 		{
+			.gpu_freq = 355760000,
+                        .bus_freq = 213760000,
+		},
+		/* LGE_CHANGE_E [peter.jung@lge.com] */
+		{
 			.gpu_freq = 320000000,
 			.bus_freq = 200000000,
 		},
-		/* LGE_CHANGE_E [peter.jung@lge.com] */
 		{
 			.gpu_freq = 245760000,
 			.bus_freq = 200000000,
@@ -922,10 +926,6 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 		{
 			.gpu_freq = 192000000,
 			.bus_freq = 160000000,
-		},
-		{
-			.gpu_freq = 133330000,
-			.bus_freq = 0,
 		},
 	},
 	.init_level = 0,
@@ -955,9 +955,11 @@ void __init msm7x25a_kgsl_3d0_init(void)
 	if (cpu_is_msm7x25a() || cpu_is_msm7x25aa() || cpu_is_msm7x25ab()) {
 		kgsl_3d0_pdata.num_levels = 2;
 		kgsl_3d0_pdata.pwrlevel[0].gpu_freq = 133330000;
-		kgsl_3d0_pdata.pwrlevel[0].bus_freq = 160000000;
-		kgsl_3d0_pdata.pwrlevel[1].gpu_freq = 96000000;
-		kgsl_3d0_pdata.pwrlevel[1].bus_freq = 0;
+                kgsl_3d0_pdata.pwrlevel[0].bus_freq = 160000000;
+                kgsl_3d0_pdata.pwrlevel[1].gpu_freq = 96000000;
+                kgsl_3d0_pdata.pwrlevel[1].bus_freq = 0;
+
+
 	}
 }
 
