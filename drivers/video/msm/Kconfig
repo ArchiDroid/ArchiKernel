@@ -1024,6 +1024,13 @@ config FB_MSM_EBI2_PANEL_DETECT
 	---help---
 	  Support for EBI2 panel auto detect
 
+config FB_MSM_MSMFB_KCAL
+        bool "MSMFB color Control"
+        depends on FB_MSM_MDP_HW
+        default n
+        ---help---
+          Interface to calibrate LCD color temperature
+
 if FB_MSM_MDSS
 	source "drivers/video/msm/mdss/Kconfig"
 endif
