@@ -189,6 +189,7 @@ static int msm_mctl_set_vfe_output_mode(struct msm_cam_media_controller
 	return rc;
 }
 
+#ifdef SENSOR_POWER_CHECK_PATCH
 static uint8_t msm_sensor_state_check(
 	struct msm_cam_media_controller *p_mctl)
 {
@@ -202,6 +203,7 @@ static uint8_t msm_sensor_state_check(
 		return 1;
 	return 0;
 }
+#endif
 
 /* called by the server or the config nodes to handle user space
 	commands*/
@@ -376,8 +378,12 @@ static int msm_mctl_cmd(struct msm_cam_media_controller *p_mctl,
 			ERR_COPY_FROM_USER();
 			rc = -EFAULT;
 		} else {
+#ifdef SENSOR_POWER_CHECK_PATCH
 			if (msm_sensor_state_check(p_mctl))
 				rc = msm_flash_ctrl(p_mctl->sdata, &flash_info);
+#else
+                         rc = msm_flash_ctrl(p_mctl->sdata, &flash_info);
+#endif
 		}
 		break;
 	}

@@ -392,3 +392,9 @@ config OV7692
 	depends on MSM_CAMERA
 	---help---
 	  Omni Vision VGA YUV Sensor
+
+config SENSOR_POWER_CHECK_PATCH
+	bool "sensor power up and down patch"
+	depends on MSM_CAMERA
+	---help---
+	  caf patch for state check for sensor power up and down
