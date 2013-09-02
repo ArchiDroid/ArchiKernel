@@ -41,6 +41,13 @@
 #endif
 #endif
 
+
+#ifdef CONFIG_CHARGE_LEVEL
+#include "linux/charge_level.h" 
+int ignore_unstable_power = IGNORE_UNSTABLE_POWER_DEFAULT;
+int ignore_safety_margin = IGNORE_SAFETY_MARGIN_DEFAULT;
+#endif
+
 /* MAX77693 Registers(defined @max77693-private.h) */
 
 /* MAX77693_CHG_REG_CHG_INT */
@@ -1399,9 +1406,15 @@ static void max77693_softreg_work(struct work_struct *work)
 				int_ok, chgin_dtls, chg_dtls,
 				byp_dtls, mu_st2, in_curr);
 
+#ifdef CONFIG_CHARGE_LEVEL
+	if ((ignore_unstable_power = 0) && ((in_curr > SW_REG_CURR_STEP_MA) && (chg_dtls != 0x8) &&
+		((byp_dtls & MAX77693_BYP_DTLS3) ||
+		((chgin_dtls != 0x3) && (vbvolt == 0x1))))) {
+#else
 	if ((in_curr > SW_REG_CURR_STEP_MA) && (chg_dtls != 0x8) &&
 		((byp_dtls & MAX77693_BYP_DTLS3) ||
 		((chgin_dtls != 0x3) && (vbvolt == 0x1)))) {
+#endif
 		pr_info("%s: unstable power\n", __func__);
 
 		/* set soft regulation progress */
@@ -1433,7 +1446,11 @@ static void max77693_softreg_work(struct work_struct *work)
 		}
 
 		/* for margin */
+#ifdef CONFIG_CHARGE_LEVEL
+		if ((ignore_safety_margin = 0) && (chg_data->soft_reg_ing == true)) {
+#else
 		if (chg_data->soft_reg_ing == true) {
+#endif
 			pr_info("%s: stable power, reduce 1 more step "
 						"for margin\n", __func__);
 			max77693_reduce_input(chg_data, SW_REG_CURR_STEP_MA);
@@ -1830,8 +1847,13 @@ static irqreturn_t max77693_charger_irq(int irq, void *data)
 						chg_dtls, bat_dtls, mu_st2);
 
 #if defined(USE_CHGIN_INTR)
+#ifdef CONFIG_CHARGE_LEVEL
+	if ((ignore_unstable_power = 0) && (((chgin_dtls == 0x0) || (chgin_dtls == 0x1)) &&
+			(vbvolt == 0x1) && (chg_dtls != 0x8))) {
+#else
 	if (((chgin_dtls == 0x0) || (chgin_dtls == 0x1)) &&
 			(vbvolt == 0x1) && (chg_dtls != 0x8)) {
+#endif
 		pr_info("%s: abnormal power state: chgin(%d), vb(%d), chg(%d)\n",
 					__func__, chgin_dtls, vbvolt, chg_dtls);
 

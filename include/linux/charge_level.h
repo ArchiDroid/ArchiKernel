@@ -25,3 +25,11 @@ extern int usb_level;
 
 #define USB_CHARGE_LEVEL_MIN 0
 #define USB_CHARGE_LEVEL_MAX 1600
+
+extern int ignore_unstable_power;
+
+#define IGNORE_UNSTABLE_POWER_DEFAULT 0
+
+extern int ignore_safety_margin;
+
+#define IGNORE_SAFETY_MARGIN_DEFAULT 0
