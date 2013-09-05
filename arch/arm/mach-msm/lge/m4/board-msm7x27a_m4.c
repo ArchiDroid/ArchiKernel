@@ -279,7 +279,7 @@ static struct msm_i2c_platform_data msm_gsbi1_qup_i2c_pdata = {
 #define MSM_RESERVE_MDP_SIZE       	    0x1400000 	// 0x2300000 
 #define MSM7x25A_MSM_RESERVE_MDP_SIZE       0x1400000
 
-#define MSM_RESERVE_ADSP_SIZE      	    0x1200000
+#define MSM_RESERVE_ADSP_SIZE      	    0x00D00000
 #define MSM7x25A_MSM_RESERVE_ADSP_SIZE      0xB91000
 /*LGE_CHANGE_E[jyothishre.nk@lge.com]20121102*/
 #define CAMERA_ZSL_SIZE		(SZ_1M * 60)
