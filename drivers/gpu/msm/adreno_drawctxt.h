@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -12,8 +12,6 @@
  */
 #ifndef __ADRENO_DRAWCTXT_H
 #define __ADRENO_DRAWCTXT_H
-
-#include <linux/sched.h>
 
 #include "adreno_pm4types.h"
 #include "a2xx_reg.h"
@@ -46,24 +44,12 @@
 #define CTXT_FLAGS_TRASHSTATE		BIT(10)
 /* per context timestamps enabled */
 #define CTXT_FLAGS_PER_CONTEXT_TS	BIT(11)
-/* Context has caused a GPU hang and fault tolerance successful */
-#define CTXT_FLAGS_GPU_HANG_FT	BIT(12)
+/* Context has caused a GPU hang and recovered properly */
+#define CTXT_FLAGS_GPU_HANG_RECOVERED	BIT(12)
 /* Context is being destroyed so dont save it */
 #define CTXT_FLAGS_BEING_DESTROYED	BIT(13)
 /* User mode generated timestamps enabled */
 #define CTXT_FLAGS_USER_GENERATED_TS    BIT(14)
-/* Context skip till EOF */
-#define CTXT_FLAGS_SKIP_EOF             BIT(15)
-/* Context no fault tolerance */
-#define CTXT_FLAGS_NO_FAULT_TOLERANCE  BIT(16)
-
-/* Symbolic table for the adreno draw context type */
-#define ADRENO_DRAWCTXT_TYPES \
-	{ KGSL_CONTEXT_TYPE_ANY, "any" }, \
-	{ KGSL_CONTEXT_TYPE_GL, "GL" }, \
-	{ KGSL_CONTEXT_TYPE_CL, "CL" }, \
-	{ KGSL_CONTEXT_TYPE_C2D, "C2D" }, \
-	{ KGSL_CONTEXT_TYPE_RS, "RS" }
 
 struct kgsl_device;
 struct adreno_device;
@@ -96,15 +82,8 @@ struct gmem_shadow_t {
 };
 
 struct adreno_context {
-	pid_t pid;
-	char pid_name[TASK_COMM_LEN];
 	unsigned int id;
-	unsigned int ib_gpu_time_used;
-	unsigned int timestamp;
 	uint32_t flags;
-	uint32_t pagefault;
-	unsigned long pagefault_ts;
-	unsigned int type;
 	struct kgsl_pagetable *pagetable;
 	struct kgsl_memdesc gpustate;
 	unsigned int reg_restore[3];
@@ -137,7 +116,7 @@ struct adreno_context {
 int adreno_drawctxt_create(struct kgsl_device *device,
 			struct kgsl_pagetable *pagetable,
 			struct kgsl_context *context,
-			uint32_t *flags);
+			uint32_t flags);
 
 void adreno_drawctxt_destroy(struct kgsl_device *device,
 			  struct kgsl_context *context);
