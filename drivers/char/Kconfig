@@ -652,5 +652,12 @@ config MSM_SMD_PKT
 	  Enables userspace clients to read and write to some packet SMD
 	  ports via device interface for MSM chipset.
 
+config FRANDOM
+	tristate "Support for /dev/frandom and /dev/erandom"
+	default m
+	help
+	  If you do say Y here, the fast random number generator will
+	  be supported.
+
 endmenu
 
