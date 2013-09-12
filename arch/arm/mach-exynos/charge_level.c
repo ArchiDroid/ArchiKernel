@@ -77,6 +77,34 @@ static ssize_t charge_level_usb_store(struct kobject *kobj, struct kobj_attribut
 	return count;
 }
 
+static ssize_t charge_level_wireless_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	// print current value
+	return sprintf(buf, "%d mA", wireless_level);
+}
+
+
+static ssize_t charge_level_wireless_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret = -EINVAL;
+	int val;
+
+	// read value from input buffer
+	ret = sscanf(buf, "%d", &val);
+
+	// check whether value is within the valid ranges and adjust accordingly
+	if (val > WIRELESS_CHARGE_LEVEL_MAX)
+		val = WIRELESS_CHARGE_LEVEL_MAX;
+
+	if (val < WIRELESS_CHARGE_LEVEL_MIN)
+		val = WIRELESS_CHARGE_LEVEL_MIN;
+
+	// store value
+	wireless_level = val;
+
+	return count;
+}
+
 
 static ssize_t ignore_unstable_power_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -133,6 +161,9 @@ __ATTR(charge_level_ac, 0666, charge_level_ac_show, charge_level_ac_store);
 static struct kobj_attribute charge_level_usb_attribute =
 __ATTR(charge_level_usb, 0666, charge_level_usb_show, charge_level_usb_store);
 
+static struct kobj_attribute charge_level_wireless_attribute =
+__ATTR(charge_level_wireless, 0666, charge_level_wireless_show, charge_level_wireless_store);
+
 static struct kobj_attribute ignore_unstable_power_attribute =
 __ATTR(ignore_unstable_power, 0666, ignore_unstable_power_show, ignore_unstable_power_store);
 
@@ -143,6 +174,7 @@ static struct attribute *charge_level_attrs[] =
 {
 	&charge_level_ac_attribute.attr,
 	&charge_level_usb_attribute.attr,
+	&charge_level_wireless_attribute.attr,
 	&ignore_unstable_power_attribute.attr,
 	&ignore_safety_margin_attribute.attr,
 	NULL,
