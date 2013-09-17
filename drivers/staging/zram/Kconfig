@@ -35,3 +35,8 @@ config ZRAM_FOR_ANDROID
 	default n
 	help
 	  This option enables modified zram behavior optimized for android
+
+config ZRAM_LZ4
+	bool "LZ4 compression"
+	depends on LZ4_COMPRESS
+	depends on LZ4_DECOMPRESS

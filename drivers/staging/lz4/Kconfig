@@ -1,0 +1,7 @@
+config LZ4_COMPRESS
+	tristate "LZ4 Compression"
+	default n
+
+config LZ4_DECOMPRESS
+	tristate "LZ4 Decompression"
+	default n
