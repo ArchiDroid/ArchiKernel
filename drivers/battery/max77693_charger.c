@@ -1407,7 +1407,7 @@ static void max77693_softreg_work(struct work_struct *work)
 				byp_dtls, mu_st2, in_curr);
 
 #ifdef CONFIG_CHARGE_LEVEL
-	if ((ignore_unstable_power = 0) && ((in_curr > SW_REG_CURR_STEP_MA) && (chg_dtls != 0x8) &&
+	if ((0 == ignore_unstable_power) && ((in_curr > SW_REG_CURR_STEP_MA) && (chg_dtls != 0x8) &&
 		((byp_dtls & MAX77693_BYP_DTLS3) ||
 		((chgin_dtls != 0x3) && (vbvolt == 0x1))))) {
 #else
@@ -1447,7 +1447,7 @@ static void max77693_softreg_work(struct work_struct *work)
 
 		/* for margin */
 #ifdef CONFIG_CHARGE_LEVEL
-		if ((ignore_safety_margin = 0) && (chg_data->soft_reg_ing == true)) {
+		if ((0 == ignore_safety_margin) && (chg_data->soft_reg_ing == true)) {
 #else
 		if (chg_data->soft_reg_ing == true) {
 #endif
@@ -1848,7 +1848,7 @@ static irqreturn_t max77693_charger_irq(int irq, void *data)
 
 #if defined(USE_CHGIN_INTR)
 #ifdef CONFIG_CHARGE_LEVEL
-	if ((ignore_unstable_power = 0) && (((chgin_dtls == 0x0) || (chgin_dtls == 0x1)) &&
+	if ((0 == ignore_unstable_power) && (((chgin_dtls == 0x0) || (chgin_dtls == 0x1)) &&
 			(vbvolt == 0x1) && (chg_dtls != 0x8))) {
 #else
 	if (((chgin_dtls == 0x0) || (chgin_dtls == 0x1)) &&
