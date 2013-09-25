@@ -199,25 +199,29 @@ static struct msm_camera_gpio_conf gpio_conf_hi542 = {
 
 #ifdef CONFIG_MT9E013_LGIT
 static uint32_t mt9e013_lgit_cam_off_gpio_table[] = {
-	GPIO_CFG(15/*GPIO_CAM_RESET*/, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
+	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),/*GPIO_MCLK*/
+	GPIO_CFG(34, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),/*GPIO_CAM_RESET*///juhaeng.min 20130408 changed power sequence
 };
 
 static uint32_t mt9e013_lgit_cam_on_gpio_table[] = {
-	GPIO_CFG(15/*GPIO_CAM_RESET*/, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
+	GPIO_CFG(15, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),/*GPIO_MCLK*/
+	GPIO_CFG(34, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),/*GPIO_CAM_RESET*///juhaeng.min 20130408 changed power sequence
 };
 
 static struct gpio mt9e013_lgit_cam_req_gpio[] = {
+	{23, GPIOF_DIR_OUT, "CAM_VCM"},	
 	{49, GPIOF_DIR_OUT, "CAM_DVDD"},	
 	{128, GPIOF_DIR_OUT, "CAM_IOVDD"},
 	{48, GPIOF_DIR_OUT, "CAM_AVDD"},
-	{23, GPIOF_DIR_OUT, "CAM_VCM"},
+	//{23, GPIOF_DIR_OUT, "CAM_VCM"},
 };
 
 static struct msm_gpio_set_tbl mt9e013_lgit_cam_gpio_set_tbl[] = {
+	{23, GPIOF_OUT_INIT_HIGH, 1000}, // vcm28	
 	{49, GPIOF_OUT_INIT_HIGH, 1000}, // dvdd18	
 	{128, GPIOF_OUT_INIT_HIGH, 1000}, // iovdd18
 	{48, GPIOF_OUT_INIT_HIGH, 1000}, // avdd28
-	{23, GPIOF_OUT_INIT_HIGH, 1000}, // vcm28
+	//{23, GPIOF_OUT_INIT_HIGH, 1000}, // vcm28
 };
 
 static struct msm_camera_gpio_conf gpio_conf_mt9e013_lgit = {
@@ -360,13 +364,39 @@ static struct msm_camera_sensor_info msm_camera_sensor_hi542_data = {
 #endif
 
 #ifdef CONFIG_MT9E013_LGIT
+//juhaeng.min 20130408 Start [[ changed power sequence
+static int32_t ext_power_ctrl_mt9e013_lgit (int enable)
+{
+	int32_t rc = 0;
+
+	unsigned extra_gpio = 34;
+	if (enable) {
+		rc = gpio_request(extra_gpio, "mt9e013_lgit_reset_n");
+
+		if (rc < 0) {
+			pr_err("%s: gpio_request failed\n", __func__);
+			return rc;
+		}
+		printk("%s: %d: gpio_direction_output 34:low\n", __func__, __LINE__);
+		gpio_direction_output(extra_gpio, 0);
+		msleep(20);
+		gpio_set_value(extra_gpio, enable ? 1 : 0);
+		msleep(10);
+	}
+	else {
+		gpio_set_value(extra_gpio, enable ? 1 : 0);
+		gpio_free(extra_gpio);
+	}
+	return rc;
+}
+//juhaeng.min 20130408 End ]]
 #ifdef CONFIG_MT9E013_LGIT_ACT
-static struct i2c_board_info msm_act_main_cam_i2c_info = {
+static struct i2c_board_info msm_act_main_cam_i2c_info2 = {
 		I2C_BOARD_INFO("msm_actuator", 0x11),
 };
 
 static struct msm_actuator_info msm_act_main_cam_6_info = {
-	.board_info     = &msm_act_main_cam_i2c_info,
+	.board_info     = &msm_act_main_cam_i2c_info2,
 	.cam_name   = MSM_ACTUATOR_MAIN_CAM_6,
 	.bus_id         = MSM_GSBI0_QUP_I2C_BUS_ID,
 	.vcm_pwd        = 1, 
@@ -375,13 +405,13 @@ static struct msm_actuator_info msm_act_main_cam_6_info = {
 #endif//CONFIG_MT9E013_LGIT_ACT
 
 #ifdef CONFIG_LEDS_AS364X
-static struct msm_camera_sensor_flash_src led_flash_src = {
+static struct msm_camera_sensor_flash_src led_flash_src2 = {
 	.flash_sr_type = MSM_CAMERA_FLASH_SRC_CURRENT_DRIVER,
 };
 
 static struct msm_camera_sensor_flash_data flash_mt9e013_lgit = {
 	.flash_type = MSM_CAMERA_FLASH_LED,
-    .flash_src              = &led_flash_src,
+    .flash_src              = &led_flash_src2,
 };
 #else
 static struct msm_camera_sensor_flash_data flash_mt9e013_lgit = {
@@ -393,6 +423,7 @@ static struct msm_camera_sensor_flash_data flash_mt9e013_lgit = {
 static struct msm_camera_sensor_platform_info mt9e013_lgit_sensor_info = {
 	.mount_angle = 90,
 	.gpio_conf = &gpio_conf_mt9e013_lgit,		
+	.ext_power_ctrl = ext_power_ctrl_mt9e013_lgit,//juhaeng.min 20130408 changed power sequence
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_mt9e013_lgit_data = {
