@@ -2157,33 +2157,26 @@ CONFIG_MSM_CAMERA_V4L2=y
 #
 # Camera Sensor Selection
 #
-# CONFIG_IMX074 is not set
-# CONFIG_T8EV4 is not set
-# CONFIG_T8EV4_ACT is not set
-# CONFIG_HI707 is not set
-# CONFIG_IMX111 is not set
-# CONFIG_IMX111_ACT is not set
-# CONFIG_HI707_ROT_180 is not set
-# CONFIG_HI707_PWR_SEPARATE is not set
-# CONFIG_T4K28 is not set
-# CONFIG_HI351 is not set
-# CONFIG_HI542 is not set
-# CONFIG_HI542_ACT is not set
-CONFIG_MT9V113=y
-# CONFIG_OV5647 is not set
+# CONFIG_MT9T013 is not set
+# CONFIG_MT9D112 is not set
+# CONFIG_OV5640 is not set
 # CONFIG_WEBCAM_OV7692_QRD is not set
-# CONFIG_MT9M114 is not set
 # CONFIG_WEBCAM_OV9726 is not set
-# CONFIG_MT9E013 is not set
-CONFIG_T9E013_LGIT=Y
+# CONFIG_MT9P012 is not set
+# CONFIG_MT9P017 is not set
+#CONFIG_HI542 is not set
+#CONFIG_HI542_ACT is not set
+CONFIG_MT9E013_LGIT=y
 CONFIG_MT9E013_LGIT_ACT=y
-# CONFIG_IMX074_ACT is not set
+CONFIG_MT9V113=y
+# CONFIG_MT9P012_KM is not set
+# CONFIG_MT9E013 is not set
+# CONFIG_S5K3E2FX is not set
 # CONFIG_S5K4E1 is not set
 # CONFIG_MSM_CAMERA_FLASH_SC628A is not set
-# CONFIG_MSM_CAMERA_FLASH_TPS61310 is not set
 # CONFIG_IMX072 is not set
-# CONFIG_OV2720 is not set
-# CONFIG_OV8825 is not set
+# CONFIG_QS_MT9P017 is not set
+# CONFIG_VB6801 is not set
 CONFIG_MSM_CAMERA_FLASH=y
 CONFIG_MSM_CAMERA_SENSOR=y
 CONFIG_MSM_ACTUATOR=y
@@ -2206,7 +2199,7 @@ CONFIG_RADIO_ADAPTERS=y
 # CONFIG_RADIO_TEA5764 is not set
 # CONFIG_RADIO_SAA7706H is not set
 # CONFIG_RADIO_TEF6862 is not set
-# CONFIG_RADIO_WL1273 is not set
+# CONFIG_RADIO_WL1273 is not setup
 
 #
 # Texas Instruments WL128x FM driver (ST based)
