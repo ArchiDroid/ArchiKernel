@@ -17,11 +17,11 @@
  * 2010-03-03, cleaneye.kim@lge.com
  */
 #define MSM7X27_EBI1_CS0_BASE	PHYS_OFFSET
-#define LGE_RAM_CONSOLE_SIZE    (124 * SZ_1K * 2)
+#define LGE_RAM_CONSOLE_SIZE    (SZ_1K)
 #endif
 
 #ifdef CONFIG_LGE_HANDLE_PANIC
-#define LGE_CRASH_LOG_SIZE              (4 * SZ_1K)
+#define LGE_CRASH_LOG_SIZE              (SZ_1K)
 #endif
 
 
