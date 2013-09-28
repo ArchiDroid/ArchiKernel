@@ -2294,11 +2294,9 @@ static void device_cb(struct dev_evt_msg *evt, void *private)
 			acdb_data.acdb_state &= ~CAL_DATA_READY;
 			goto update_cache;
 		}
-	} else{
+	} else
 		/* state is updated to query the modem for values */
-		acdb_data.audrec_applied &= ~AUDREC_READY;
 		acdb_data.acdb_state &= ~CAL_DATA_READY;
-	      }
 
 update_cache:
 	if (dev_type.tx_device) {

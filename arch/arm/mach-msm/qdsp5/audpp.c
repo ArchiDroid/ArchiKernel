@@ -460,7 +460,6 @@ void audpp_disable(int id, void *private)
 			if (rc == 0)
 				msm_adsp_dump(audpp->mod);
 		}
-		audpp->enabled = 0;
 		msm_adsp_disable(audpp->mod);
 		msm_adsp_put(audpp->mod);
 		audpp->mod = NULL;

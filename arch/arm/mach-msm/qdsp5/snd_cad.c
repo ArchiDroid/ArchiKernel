@@ -3,7 +3,7 @@
  * interface to "snd" service on the baseband cpu
  * This code also borrows from snd.c, which is
  * Copyright (C) 2008 HTC Corporation
- * Copyright (c) 2009, 2012 Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009, 2012 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -496,6 +496,7 @@ case SND_SET_NREC:
 /* LGE_CHANGE_E :  Bluetooth NERC Cmd Support */
 #endif
 /*LGE_CHANBE_E : seven.kim@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 
 	default:
 		MM_ERR("unknown command\n");

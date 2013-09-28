@@ -3,7 +3,7 @@
  * interface to "snd" service on the baseband cpu
  *
  * Copyright (C) 2008 HTC Corporation
- * Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -1182,6 +1182,7 @@ void snd_fm_vol_mute()
 }
 #endif
 /*LGE_CHANBE_E : jaz.john@lge.com kernel3.0 porting based on kernel2.6.38*/
+
 
 static ssize_t snd_dev_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)

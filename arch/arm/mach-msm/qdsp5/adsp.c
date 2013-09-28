@@ -3,7 +3,7 @@
  * Register/Interrupt access for userspace aDSP library.
  *
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
  * Author: Iliyan Malchev <ibm@android.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -720,11 +720,22 @@ static void handle_adsp_rtos_mtoa_app(struct rpc_request_hdr *req)
 	mutex_lock(&module->lock);
 	switch (event) {
 	case RPC_ADSP_RTOS_MOD_READY:
-		MM_INFO("module %s: READY\n", module->name);
-		module->state = ADSP_STATE_ENABLED;
-		wake_up(&module->state_wait);
-		adsp_set_image(module->info, image);
-		break;
+		if (module->state == ADSP_STATE_ENABLING) {
+			MM_INFO("module %s: READY\n", module->name);
+			module->state = ADSP_STATE_ENABLED;
+			wake_up(&module->state_wait);
+			adsp_set_image(module->info, image);
+			break;
+		} else {
+			MM_ERR("module %s got READY event in state[%d]\n",
+								module->name,
+								module->state);
+			rpc_send_accepted_void_reply(rpc_cb_server_client,
+						req->xid,
+						RPC_ACCEPTSTAT_GARBAGE_ARGS);
+			mutex_unlock(&module->lock);
+			return;
+		}
 	case RPC_ADSP_RTOS_MOD_DISABLE:
 		MM_INFO("module %s: DISABLED\n", module->name);
 		module->state = ADSP_STATE_DISABLED;
@@ -1490,9 +1501,7 @@ static int __init adsp_init(void)
 	if (msm_adsp_probe_work_queue == NULL)
 		return -ENOMEM;
 	msm_adsp_driver.driver.name = msm_adsp_driver_name;
-	preempt_disable();
 	rc = platform_driver_register(&msm_adsp_driver);
-	preempt_enable();
 	MM_INFO("%s -- %d\n", msm_adsp_driver_name, rc);
 	return rc;
 }

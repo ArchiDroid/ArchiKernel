@@ -3,7 +3,7 @@
  * interface to "audmgr" service on the baseband cpu
  *
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2009, 2012, 2013 Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009, 2012, 2013 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -158,8 +158,10 @@ static void process_audmgr_callback(struct audmgr_global *amg,
 			return;
 		if (am->state != STATE_ENABLED)
 			am->state = STATE_ENABLED;
-		if (!amg->cad)
+		if (!amg->cad) {
+			wake_up(&am->wait);
 			break;
+		}
 
 		if (am->evt.session_info == SESSION_PLAYBACK &&
 			am->evt.dev_type.rx_device != amg->rx_device) {
