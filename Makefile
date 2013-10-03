@@ -345,17 +345,28 @@ KALLSYMS	= scripts/kallsyms
 PERL		= perl
 CHECK		= sparse
 
+ARM_FLAGS       = -funswitch-loops \
+                  -fpredictive-commoning \
+                  -fgcse-after-reload \
+                  -fipa-cp-clone \
+                  -fsingle-precision-constant \
+                  -pipe -finline-functions \
+                  -ffast-math \
+                  -mfpu=neon \
+                  -march=armv7-a \
+                  -fvect-cost-model
+
 # Use the wrapper for the compiler.  This wrapper scans for new
 # warnings and causes the build to stop upon encountering them.
 CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   =
-AFLAGS_MODULE   =
-LDFLAGS_MODULE  =
-CFLAGS_KERNEL	=
-AFLAGS_KERNEL	=
+CFLAGS_MODULE   = $(ARM_FLAGS) -DMODULE
+AFLAGS_MODULE   = $(ARM_FLAGS) -DMODULE --strip-debug
+LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
+CFLAGS_KERNEL  = $(ARM_FLAGS)
+AFLAGS_KERNEL  =
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
 
@@ -372,6 +383,12 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
+                   -marm -mfloat-abi=softfp -march=armv7-a \
+                   -mfpu=neon -ffast-math -pipe \
+                   -funswitch-loops -fpredictive-commoning -fgcse-after-reload -fno-tree-vectorize \
+                   -ftree-vectorize -funsafe-math-optimizations \
+                   -fsched-spec-load -mvectorize-with-neon-quad \
+                   -fmodulo-sched -fmodulo-sched-allow-regmoves \
 		   -fno-delete-null-pointer-checks
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
