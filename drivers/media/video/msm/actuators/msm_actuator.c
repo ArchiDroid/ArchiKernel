@@ -634,8 +634,10 @@ int32_t msm_actuator_init(struct msm_actuator_ctrl_t *a_ctrl,
 		__func__, set_info->af_tuning_params.total_steps);
 		return -EFAULT;
 	}
-	a_ctrl->region_size = set_info->af_tuning_params.region_size;
-	if (a_ctrl->region_size > MAX_ACTUATOR_REGION) {
+	if (set_info->af_tuning_params.region_size <= MAX_ACTUATOR_REGION) {
+		a_ctrl->region_size = set_info->af_tuning_params.region_size;
+	} else {
+		a_ctrl->region_size = 0;
 		pr_err("%s: MAX_ACTUATOR_REGION is exceeded.\n", __func__);
 		return -EFAULT;
 	}
@@ -651,8 +653,11 @@ int32_t msm_actuator_init(struct msm_actuator_ctrl_t *a_ctrl,
 	a_ctrl->i2c_data_type = set_info->actuator_params.i2c_data_type;
 	a_ctrl->i2c_client.client->addr = set_info->actuator_params.i2c_addr;
 	a_ctrl->i2c_client.addr_type = set_info->actuator_params.i2c_addr_type;
-	a_ctrl->reg_tbl_size = set_info->actuator_params.reg_tbl_size;
-	if (a_ctrl->reg_tbl_size > MAX_ACTUATOR_REG_TBL_SIZE) {
+	if (set_info->actuator_params.reg_tbl_size <=
+		MAX_ACTUATOR_REG_TBL_SIZE) {
+		a_ctrl->reg_tbl_size = set_info->actuator_params.reg_tbl_size;
+	} else {
+		a_ctrl->reg_tbl_size = 0;
 		pr_err("%s: MAX_ACTUATOR_REG_TBL_SIZE is exceeded.\n",
 			__func__);
 		return -EFAULT;
