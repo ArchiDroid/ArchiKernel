@@ -51,7 +51,7 @@ esac
 
 echo "now building the kernel"
 
-export starttime=`date +%s`
+START=$(date +%s)
 
 make $defconfig
 make -j `cat /proc/cpuinfo | grep "^processor" | wc -l` "$@"
@@ -72,8 +72,6 @@ if [ -f arch/arm/boot/zImage ]; then
 
     find . -name *.ko | xargs cp -a --target-directory=zip-creator/system/lib/modules/
 
-    export endtime=`date +%s`
-
     zipfile="$vendor-$target-v$version-$daytime.zip"
     cd zip-creator
     rm -f *.zip
@@ -85,4 +83,10 @@ else # [ -f arch/arm/boot/zImage ]
     echo "the build failed so a zip won't be created"
 fi # [ -f arch/arm/boot/zImage ]
 
-echo "Building time: $(($endtime-$starttime)) seconds"
+END=$(date +%s)
+BUILDTIME=$((END - START))
+B_MIN=$((BUILDTIME / 60))
+B_SEC=$((BUILDTIME - E_MIN * 60))
+echo -ne "\033[32mBuildtime: "
+[ $B_MIN != 0 ] && echo -ne "$B_MIN min(s) "
+echo -e "$B_SEC sec(s)\033[0m"
