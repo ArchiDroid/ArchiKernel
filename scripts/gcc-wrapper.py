@@ -43,6 +43,9 @@ allowed_warnings = set([
     "alignment.c:327",
     "mmu.c:602",
     "return_address.c:62",
+    "adsp.c:1108",
+    "adsp.c:1110",
+    "hci_conn.c:407",
  ])
 
 # Capture the name of the object file, can find it.
