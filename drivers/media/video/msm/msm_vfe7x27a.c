@@ -469,7 +469,12 @@ static int vfe_7x_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 			rc = -ENOMEM;
 			goto config_failure;
 		}
-
+		if (vfecmd.length > sizeof(struct vfe_stats_we_cfg)) {
+			pr_err("%s: Invalid command length %d\n", __func__,
+				(vfecmd.length));
+			rc = -EINVAL;
+			goto config_done;
+		}
 		if (copy_from_user(scfg,
 					(void __user *)(vfecmd->value),
 					vfecmd->length)) {
@@ -517,6 +522,12 @@ static int vfe_7x_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		if (!sfcfg) {
 			rc = -ENOMEM;
 			goto config_failure;
+		}
+		if (vfecmd.length > sizeof(struct vfe_stats_af_cfg)) {
+			pr_err("%s: Invalid command length %d\n", __func__,
+				(vfecmd.length));
+			rc = -EINVAL;
+			goto config_done;
 		}
 
 		if (copy_from_user(sfcfg,

@@ -1349,6 +1349,12 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
 			rc = -ENOMEM;
 			goto config_failure;
 		}
+		if (vfecmd.length > sizeof(struct vfe_stats_we_cfg) - 4) {
+			pr_err("%s: Invalid command length %d\n", __func__,
+				(vfecmd.length));
+			rc = -EINVAL;
+			goto config_done;
+		}
 
 		if (copy_from_user((char *)scfg + 4,
 					(void __user *)(vfecmd.value),
@@ -1405,6 +1411,12 @@ static long msm_vfe_subdev_ioctl(struct v4l2_subdev *sd,
 		if (!sfcfg) {
 			rc = -ENOMEM;
 			goto config_failure;
+		}
+		if (vfecmd.length > sizeof(struct vfe_stats_af_cfg) - 4) {
+			pr_err("%s: Invalid command length %d\n", __func__,
+				(vfecmd.length));
+			rc = -EINVAL;
+			goto config_done;
 		}
 
 		if (copy_from_user((char *)sfcfg + 4,
