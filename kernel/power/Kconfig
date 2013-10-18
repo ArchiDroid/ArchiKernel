@@ -352,4 +352,3 @@ config SPEEDUP_KEYRESUME
 	default y
 	---help---
 	  Speed up system resume
-	  
