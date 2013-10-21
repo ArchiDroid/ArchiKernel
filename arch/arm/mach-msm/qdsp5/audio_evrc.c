@@ -1,6 +1,6 @@
 /* arch/arm/mach-msm/audio_evrc.c
  *
- * Copyright (c) 2008-2009, 2011-2012 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2009, 2011-2013 The Linux Foundation. All rights reserved.
  *
  * This code also borrows from audio_aac.c, which is
  * Copyright (C) 2008 Google, Inc.
@@ -1198,7 +1198,10 @@ static int audevrc_process_eos(struct audio *audio,
 		rc = -EBUSY;
 		goto done;
 	}
-
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1255,6 +1258,10 @@ static ssize_t audevrc_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("mf offset_val %x\n", mfield_size);
 				if (copy_from_user(cpy_ptr, buf,
 							mfield_size)) {
@@ -1285,7 +1292,10 @@ static ssize_t audevrc_write(struct file *file, const char __user *buf,
 			 }
 			 frame->mfield_sz = mfield_size;
 		}
-
+		if (mfield_size > frame->size) {
+			rc = -EINVAL;
+			break;
+		}
 		xfer = (count > (frame->size - mfield_size)) ?
 			(frame->size - mfield_size) : count;
 		if (copy_from_user(cpy_ptr, buf, xfer)) {
