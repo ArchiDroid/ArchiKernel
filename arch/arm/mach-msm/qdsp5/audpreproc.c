@@ -23,7 +23,7 @@
 #include <mach/debug_mm.h>
 #include <mach/qdsp5/qdsp5audpreproc.h>
 #include <mach/qdsp5/qdsp5audreccmdi.h>
-#include <mach/qdsp5v2/audio_acdbi.h>
+#include <mach/qdsp5/audio_acdbi.h>
 
 
 static DEFINE_MUTEX(audpreproc_lock);

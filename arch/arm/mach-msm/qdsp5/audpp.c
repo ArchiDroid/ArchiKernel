@@ -35,7 +35,7 @@
 #include <mach/qdsp5/qdsp5audppcmdi.h>
 #include <mach/qdsp5/qdsp5audppmsg.h>
 #include <mach/qdsp5/qdsp5audpp.h>
-#include <mach/qdsp5v2/audio_acdbi.h>
+#include <mach/qdsp5/audio_acdbi.h>
 #include <mach/debug_mm.h>
 
 #include "evlog.h"
