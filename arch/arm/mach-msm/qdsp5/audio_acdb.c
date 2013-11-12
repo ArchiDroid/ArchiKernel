@@ -35,7 +35,7 @@
 #include <mach/qdsp5/qdsp5audpreproccmdi.h>
 #include <mach/qdsp5/qdsp5audpreprocmsg.h>
 #include <mach/qdsp5/qdsp5audppmsg.h>
-#include <mach/qdsp5/audio_acdbi.h>
+#include <mach/qdsp5/audio_acdbi2.h>
 #include <mach/qdsp5/acdb_commands.h>
 #include <mach/qdsp5/audio_acdb_def.h>
 #include <mach/debug_mm.h>
