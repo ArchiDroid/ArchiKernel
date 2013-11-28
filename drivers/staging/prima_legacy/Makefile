@@ -3,6 +3,8 @@ MODNAME := wlan
 #Do we panic on bug?  default is to warn
 PANIC_ON_BUG := 0
 
+EXTRA_LDFLAGS += --strip-debug
+
 ifeq ($(CONFIG_CFG80211),y)
 HAVE_CFG80211 := 1
 else
