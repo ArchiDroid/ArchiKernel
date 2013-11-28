@@ -18,6 +18,10 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/module.h>
+#include <mach/msm_smd.h>
+#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
+#include "../wcnss/wcnss_prealloc.h"
+#endif
 
 /* Libra SDIO function device */
 static struct sdio_func *libra_sdio_func;
@@ -507,6 +511,8 @@ static struct sdio_driver libra_sdiofn_driver = {
 
 static int __init libra_sdioif_init(void)
 {
+        int ret = 0;
+
 	libra_sdio_func = NULL;
 	libra_mmc_host = NULL;
 	libra_mmc_host_index = -1;
@@ -519,7 +525,13 @@ static int __init libra_sdioif_init(void)
 
 	printk(KERN_INFO "%s: Loaded Successfully\n", __func__);
 
-	return 0;
+#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
+	ret = wcnss_prealloc_init();
+	if (ret < 0)
+		pr_err("wcnss: pre-allocation failed\n");
+
+#endif
+	return ret;
 }
 
 static void __exit libra_sdioif_exit(void)
@@ -537,6 +549,9 @@ static void __exit libra_sdioif_exit(void)
 		printk(KERN_ERR "%s: Card removal not detected\n", __func__);
 
 	sdio_unregister_driver(&libra_sdiofn_driver);
+#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
+	wcnss_prealloc_deinit();
+#endif
 
 	libra_sdio_func = NULL;
 	libra_mmc_host = NULL;
