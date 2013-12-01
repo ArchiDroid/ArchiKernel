@@ -523,12 +523,14 @@ void max77693_set_input_current(struct max77693_charger_data *chg_data,
 
 	/* Set input current limit */
 	if (chg_data->soft_reg_state) {
+		charge_info_level = chg_data->soft_reg_current;
 		pr_info("%s: now in soft regulation loop: %d\n", __func__,
 						chg_data->soft_reg_current);
 		in_curr = max77693_get_input_current(chg_data);
 		if (in_curr == chg_data->soft_reg_current) {
 			pr_debug("%s: same input current: %dmA\n",
 						__func__, in_curr);
+			charge_info_level = chg_data->soft_reg_current;			
 			mutex_unlock(&chg_data->ops_lock);
 			return;
 		}
@@ -1267,12 +1269,14 @@ static void max77693_reduce_input(struct max77693_charger_data *chg_data,
 	if (chg_data->soft_reg_current < curr) {
 		pr_err("%s: recude curr(%d) is under now curr(%d)\n", __func__,
 					curr, chg_data->soft_reg_current);
+		charge_info_level = chg_data->soft_reg_current;			
 		return;
 	}
 
 	chg_data->soft_reg_current -= curr;
 	chg_data->soft_reg_current = max(chg_data->soft_reg_current,
 						SW_REG_CURR_MIN_MA);
+	charge_info_level = chg_data->soft_reg_current;
 	pr_info("%s: %dmA to %dmA\n", __func__,
 			reg_data * 20, chg_data->soft_reg_current);
 
