@@ -2,7 +2,6 @@
 # Makefile for wlan sdio if driver
 
 librasdioif-objs += libra_sdioif.o ../wcnss/qcomwlan_secif.o
-librasdioif-objs += libra_sdioif.o ../wcnss/wcnss_prealloc.o
 
 ifdef CONFIG_ARCH_MSM8X60
 	librasdioif-objs += qcomwlan_pwrif.o
