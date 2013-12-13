@@ -344,50 +344,50 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
 }
 
 static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
-                          u32 index, int offset, struct bio *bio)
+			  u32 index, int offset, struct bio *bio)
 {
-        int ret;
-        struct page *page;
-        unsigned char *user_mem, *uncmem = NULL;
-        struct zram_meta *meta = zram->meta;
-        page = bvec->bv_page;
+	int ret;
+	struct page *page;
+	unsigned char *user_mem, *uncmem = NULL;
+	struct zram_meta *meta = zram->meta;
+	page = bvec->bv_page;
 
-        if (unlikely(!meta->table[index].handle) ||
+	if (unlikely(!meta->table[index].handle) ||
 			zram_test_flag(meta, index, ZRAM_ZERO)) {
-                handle_zero_page(bvec);
-                return 0;
-        }
+		handle_zero_page(bvec);
+		return 0;
+	}
 
-        if (is_partial_io(bvec))
-                /* Use  a temporary buffer to decompress the page */
-                uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
+	if (is_partial_io(bvec))
+		/* Use  a temporary buffer to decompress the page */
+		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
 
 	user_mem = kmap_atomic(page);
 	if (!is_partial_io(bvec))
-                uncmem = user_mem;
+		uncmem = user_mem;
 
-        if (!uncmem) {
-                pr_info("Unable to allocate temp memory\n");
-                ret = -ENOMEM;
-                goto out_cleanup;
-        }
+	if (!uncmem) {
+		pr_info("Unable to allocate temp memory\n");
+		ret = -ENOMEM;
+		goto out_cleanup;
+	}
 
-        ret = zram_decompress_page(zram, uncmem, index);
-        /* Should NEVER happen. Return bio error if it does. */
-        if (unlikely(ret != LZO_E_OK))
-                goto out_cleanup;
+	ret = zram_decompress_page(zram, uncmem, index);
+	/* Should NEVER happen. Return bio error if it does. */
+	if (unlikely(ret != LZO_E_OK))
+		goto out_cleanup;
 
-        if (is_partial_io(bvec))
-                memcpy(user_mem + bvec->bv_offset, uncmem + offset,
-                                bvec->bv_len);
+	if (is_partial_io(bvec))
+		memcpy(user_mem + bvec->bv_offset, uncmem + offset,
+				bvec->bv_len);
 
-        flush_dcache_page(page);
-        ret = 0;
+	flush_dcache_page(page);
+	ret = 0;
 out_cleanup:
-        kunmap_atomic(user_mem);
-        if (is_partial_io(bvec))
-                kfree(uncmem);
-        return ret;
+	kunmap_atomic(user_mem);
+	if (is_partial_io(bvec))
+		kfree(uncmem);
+	return ret;
 }
 
 static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
@@ -430,6 +430,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 	}
 
 	if (page_zero_filled(uncmem)) {
+		kunmap_atomic(user_mem);
 		/* Free memory associated with this sector now. */
 		zram_free_page(zram, index);
 

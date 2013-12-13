@@ -423,7 +423,7 @@ static struct page *get_next_page(struct page *page)
 	if (is_last_page(page))
 		next = NULL;
 	else if (is_first_page(page))
-		next = (struct page *)page->private;
+		next = (struct page *)page_private(page);
 	else
 		next = list_entry(page->lru.next, struct page, lru);
 
@@ -581,7 +581,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 			first_page->inuse = 0;
 		}
 		if (i == 1)
-			first_page->private = (unsigned long)page;
+			set_page_private(first_page, (unsigned long)page);
 		if (i >= 1)
 			page->first_page = first_page;
 		if (i >= 2)
@@ -732,18 +732,13 @@ static void __zs_unmap_object(struct mapping_area *area,
 	addr = kmap_atomic(pages[1]);
 	memcpy(addr, buf + sizes[0], sizes[1]);
 	kunmap_atomic(addr);
+
 out:
 	/* enable page faults to match kunmap_atomic() return conditions */
 	pagefault_enable();
- }
- 
-#endif /* USE_PGTABLE_MAPPING */
+}
 
-/*
- * If this becomes a separate module, register zs_init() with
- * module_init(), zs_exit with module_exit(), and remove zs_initialized
-*/
-static int zs_initialized;
+#endif /* USE_PGTABLE_MAPPING */
 
 static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
 				void *pcpu)
@@ -809,7 +804,7 @@ fail:
  */
 struct zs_pool *zs_create_pool(gfp_t flags)
 {
-	int i, error, ovhd_size;
+	int i, ovhd_size;
 	struct zs_pool *pool;
 
 	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
@@ -833,26 +828,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
 
 	}
 
-	/*
-	 * If this becomes a separate module, register zs_init with
-	 * module_init, and remove this block
-	*/
-	if (!zs_initialized) {
-		error = zs_init();
-		if (error)
-			goto cleanup;
-		zs_initialized = 1;
-	}
-
 	pool->flags = flags;
-
-	error = 0; /* Success */
-
-cleanup:
-	if (error) {
-		zs_destroy_pool(pool);
-		pool = NULL;
-	}
 
 	return pool;
 }
@@ -1002,6 +978,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	enum fullness_group fg;
 	struct size_class *class;
 	struct mapping_area *area;
+	struct page *pages[2];
 
 	BUG_ON(!handle);
 
@@ -1018,7 +995,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	off = obj_idx_to_offset(page, obj_idx, class->size);
 
 	area = &get_cpu_var(zs_map_area);
-        area->vm_mm = mm;
+	area->vm_mm = mm;
 	if (off + class->size <= PAGE_SIZE) {
 		/* this object is contained entirely within a page */
 		area->vm_addr = kmap_atomic(page);
@@ -1043,7 +1020,6 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
 	enum fullness_group fg;
 	struct size_class *class;
 	struct mapping_area *area;
-	struct page *pages[2];
 
 	BUG_ON(!handle);
 
@@ -1079,3 +1055,9 @@ u64 zs_get_total_size_bytes(struct zs_pool *pool)
 	return npages << PAGE_SHIFT;
 }
 EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
+
+module_init(zs_init);
+module_exit(zs_exit);
+
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
