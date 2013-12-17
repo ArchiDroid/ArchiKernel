@@ -38,6 +38,10 @@
 #include "mali_profiling_internal.h"
 #endif
 
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+#include <gpu_clock_control.h>
+#include <gpu_voltage_control.h>
+#endif
 
 /* Mali GPU memory. Real values come from module parameter or from device specific data */
 unsigned int mali_dedicated_mem_start = 0;
@@ -942,6 +946,11 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 	/* Initialize the GPU utilization tracking */
 	err = mali_utilization_init();
 	if (_MALI_OSK_ERR_OK != err) goto utilization_init_failed;
+
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+  	gpu_clock_control_start();
+  	gpu_voltage_control_start();
+#endif
 
 	/* Allowing the system to be turned off */
 	_mali_osk_pm_dev_ref_dec();
