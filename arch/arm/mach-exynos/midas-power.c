@@ -527,7 +527,7 @@ static struct regulator_init_data ldo25_redwood_init_data = {
 static struct regulator_init_data max77686_buck1_data = {
 	.constraints = {
 		.name = "vdd_mif range",
-		.min_uV = 850000,
+		.min_uV = 600000,
 #ifdef CONFIG_SLP
 		.max_uV = 1100000,
 #else
@@ -548,7 +548,7 @@ static struct regulator_init_data max77686_buck1_data = {
 static struct regulator_init_data max77686_buck2_data = {
 	.constraints = {
 		.name = "vdd_arm range",
-		.min_uV = 850000,
+		.min_uV = 600000,
 		.max_uV = 1500000,
 		.apply_uV = 1,
 		.always_on = 1,
@@ -563,9 +563,9 @@ static struct regulator_init_data max77686_buck3_data = {
 	.constraints = {
 		.name = "vdd_int range",
 #if defined(CONFIG_MACH_M3_JPN_DCM)
-		.min_uV = 825000,
+		.min_uV = 600000,
 #else
-		.min_uV = 850000,
+		.min_uV = 600000,
 #endif
 #ifdef CONFIG_SLP
 		.max_uV = 1150000,
@@ -587,14 +587,14 @@ static struct regulator_init_data max77686_buck3_data = {
 static struct regulator_init_data max77686_buck4_data = {
 	.constraints = {
 		.name = "vdd_g3d range",
-		.min_uV = 850000,
+		.min_uV = 600000,
 #ifdef CONFIG_SLP
-		.max_uV = 1100000,
+		.max_uV = 1200000,
 #else
 #if defined(CONFIG_MACH_M3_JPN_DCM)
 		.max_uV = 1200000,
 #else
-		.max_uV = 1075000,
+		.max_uV = 1200000,
 #endif
 #endif
 		.boot_on = 1,
