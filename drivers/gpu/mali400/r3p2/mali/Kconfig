@@ -65,3 +65,10 @@ config MALI_SHARED_INTERRUPTS
 	  Adds functionality required to properly support shared interrupts.  Without this support,
 	  the device driver will fail during insmod if it detects shared interrupts.  Works even if
 	  the GPU is not using shared interrupts, but can cause lower performance.
+
+config GPU_CLOCK_CONTROL
+  bool "Enable GPU clock control and voltage interface"
+  depends on MALI400
+  default y
+  help
+    This enables a sysfs interface to control gpu clock and voltage.
