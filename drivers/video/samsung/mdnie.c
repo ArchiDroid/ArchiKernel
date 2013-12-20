@@ -49,6 +49,7 @@
 #include "mdnie_table_superior.h"
 #elif defined(CONFIG_FB_S5P_S6E8AA0)
 #include "mdnie_table_m0.h"
+#include "mdnie_table_m0_sharpness_tweak.h"
 #elif defined(CONFIG_FB_S5P_EA8061) || defined(CONFIG_FB_S5P_S6EVR02)
 #include "mdnie_table_t0.h"
 #elif defined(CONFIG_FB_S5P_S6E63M0)
@@ -125,6 +126,8 @@
 static struct class *mdnie_class;
 struct mdnie_info *g_mdnie;
 
+int mdnie_preset = 0;
+
 static int mdnie_send_sequence(struct mdnie_info *mdnie, const unsigned short *seq)
 {
 	int ret = 0, i = 0;
@@ -171,7 +174,12 @@ static struct mdnie_tuning_info *mdnie_request_table(struct mdnie_info *mdnie)
 		table = &color_tone_table[mdnie->scenario % COLOR_TONE_1];
 		goto exit;
 	} else if (mdnie->scenario < SCENARIO_MAX) {
-		table = &tuning_table[mdnie->cabc][mdnie->mode][mdnie->scenario];
+		// depending on sharpness tweak status, take either normal or
+		// tweaked tuning table
+		if (mdnie_preset == 0)
+			table = &tuning_table[mdnie->cabc][mdnie->mode][mdnie->scenario];
+		else
+			table = &tuning_table_sharp_tweak[mdnie->cabc][mdnie->mode][mdnie->scenario];
 		goto exit;
 	}
 
@@ -199,7 +207,7 @@ exit:
 	return;
 }
 
-static void mdnie_update(struct mdnie_info *mdnie)
+void mdnie_update(struct mdnie_info *mdnie)
 {
 	struct mdnie_tuning_info *table = NULL;
 
