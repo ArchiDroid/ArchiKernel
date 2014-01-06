@@ -27,6 +27,8 @@ config IRQ_WORK
 	bool
 	depends on HAVE_IRQ_WORK
 
+source init/Kconfig_FIH
+
 menu "General setup"
 
 config EXPERIMENTAL

@@ -148,7 +148,8 @@ static struct subsys_soc_restart_order *restart_orders_8064_sglte2[] = {
 static struct subsys_soc_restart_order **restart_orders;
 static int n_restart_orders;
 
-static int restart_level = RESET_SUBSYS_INDEPENDENT;
+//static int restart_level = RESET_SUBSYS_INDEPENDENT;
+static int restart_level;
 
 int get_restart_level()
 {

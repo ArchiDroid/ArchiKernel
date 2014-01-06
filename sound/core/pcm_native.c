@@ -35,6 +35,7 @@
 #include <sound/timer.h>
 #include <sound/minors.h>
 #include <asm/io.h>
+#include <linux/gpio.h>
 #if defined(CONFIG_MIPS) && defined(CONFIG_DMA_NONCOHERENT)
 #include <dma-coherence.h>
 #endif
@@ -2607,6 +2608,28 @@ static int snd_pcm_common_ioctl1(struct file *file,
 	case SNDRV_COMPRESS_DRAIN:
 	case SNDRV_COMPRESS_METADATA_MODE:
 		return snd_compressed_ioctl(substream, cmd, arg);
+	case SNDRV_PCM_IOCTL_OPENHAC:
+	{     
+		if (gpio_request(79, "CDC_REV_EN") == 0) {
+			int ret = 0;
+			ret = gpio_tlmm_config(GPIO_CFG(79, 0,
+											GPIO_CFG_OUTPUT,
+											GPIO_CFG_PULL_UP,
+											GPIO_CFG_2MA),
+									GPIO_CFG_ENABLE);
+			if (ret)
+				pr_err("%s: Failed to configure CDC_REV_EN gpio 79\n", __func__);
+		}
+		gpio_set_value(79, 1);
+		printk("__ENABLE HAC\n");
+		return 0;
+	}
+	case SNDRV_PCM_IOCTL_CLOSEHAC:
+	{
+		gpio_set_value(79, 0);
+		printk("__DISABLE HAC\n");
+		return 0;
+	}
 	}
 	snd_printd("unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;

@@ -1872,11 +1872,11 @@ static int __init afe_init(void)
 	this_afe.apr = NULL;
 #ifdef CONFIG_DEBUG_FS
 	debugfs_afelb = debugfs_create_file("afe_loopback",
-	0220, NULL, (void *) "afe_loopback",
+	0200, NULL, (void *) "afe_loopback",
 	&afe_debug_fops);
 
 	debugfs_afelb_gain = debugfs_create_file("afe_loopback_gain",
-	0220, NULL, (void *) "afe_loopback_gain",
+	0200, NULL, (void *) "afe_loopback_gain",
 	&afe_debug_fops);
 
 

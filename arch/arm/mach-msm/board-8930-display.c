@@ -27,13 +27,16 @@
 
 #include "devices.h"
 #include "board-8930.h"
+#include <linux/fih_hw_info.h>
+#include <linux/spinlock.h>
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
+
 #define MSM_FB_PRIM_BUF_SIZE \
-		(roundup((1920 * 1088 * 4), 4096) * 3) /* 4 bpp x 3 pages */
+		(roundup((864 * 480 * 4), 4096) * 3) /* 4 bpp x 3 pages */
 #else
 #define MSM_FB_PRIM_BUF_SIZE \
-		(roundup((1920 * 1088 * 4), 4096) * 2) /* 4 bpp x 2 pages */
+		(roundup((864 * 480 * 4), 4096) * 2) /* 4 bpp x 2 pages */
 #endif
 /* Note: must be multiple of 4096 */
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
@@ -61,6 +64,7 @@
 #define MIPI_VIDEO_NT_HD_PANEL_NAME		"mipi_video_nt35590_720p"
 #define HDMI_PANEL_NAME	"hdmi_msm"
 #define TVOUT_PANEL_NAME	"tvout_msm"
+#define MIPI_VIDEO_ORISE_FWVGA_PANEL_NAME	"mipi_video_orise_fwvga"
 
 static struct resource msm_fb_resources[] = {
 	{
@@ -70,51 +74,13 @@ static struct resource msm_fb_resources[] = {
 
 static int msm_fb_detect_panel(const char *name)
 {
-	if (machine_is_msm8930_evt()) {
-		if (!strncmp(name, MIPI_VIDEO_NT_HD_PANEL_NAME,
-			strnlen(MIPI_VIDEO_NT_HD_PANEL_NAME,
+	if (!strncmp(name, MIPI_VIDEO_ORISE_FWVGA_PANEL_NAME,
+			strnlen(MIPI_VIDEO_ORISE_FWVGA_PANEL_NAME,
 				PANEL_NAME_MAX_LEN)))
-			return 0;
-	} else {
-		if (!strncmp(name, MIPI_CMD_NOVATEK_QHD_PANEL_NAME,
-			strnlen(MIPI_CMD_NOVATEK_QHD_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-			return 0;
+	{
+		printk("%s: '%s' detected.", __func__, name);
+		return 0;
 	}
-
-#if !defined(CONFIG_FB_MSM_LVDS_MIPI_PANEL_DETECT) && \
-	!defined(CONFIG_FB_MSM_MIPI_PANEL_DETECT)
-	if (!strncmp(name, MIPI_VIDEO_NOVATEK_QHD_PANEL_NAME,
-			strnlen(MIPI_VIDEO_NOVATEK_QHD_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-		return 0;
-
-	if (!strncmp(name, MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
-			strnlen(MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-		return 0;
-
-	if (!strncmp(name, MIPI_VIDEO_SIMULATOR_VGA_PANEL_NAME,
-			strnlen(MIPI_VIDEO_SIMULATOR_VGA_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-		return 0;
-
-	if (!strncmp(name, MIPI_CMD_RENESAS_FWVGA_PANEL_NAME,
-			strnlen(MIPI_CMD_RENESAS_FWVGA_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-		return 0;
-#endif
-
-	if (!strncmp(name, HDMI_PANEL_NAME,
-			strnlen(HDMI_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-		return 0;
-
-	if (!strncmp(name, TVOUT_PANEL_NAME,
-			strnlen(TVOUT_PANEL_NAME,
-				PANEL_NAME_MAX_LEN)))
-		return 0;
-
 	pr_warning("%s: not supported '%s'", __func__, name);
 	return -ENODEV;
 }
@@ -131,16 +97,7 @@ static struct platform_device msm_fb_device = {
 	.dev.platform_data = &msm_fb_pdata,
 };
 
-static bool dsi_power_on;
 static struct mipi_dsi_panel_platform_data novatek_pdata;
-static void pm8917_gpio_set_backlight(int bl_level)
-{
-	int gpio24 = PM8917_GPIO_PM_TO_SYS(24);
-	if (bl_level > 0)
-		gpio_set_value_cansleep(gpio24, 1);
-	else
-		gpio_set_value_cansleep(gpio24, 0);
-}
 
 /*
  * TODO: When physical 8930/PM8038 hardware becomes
@@ -149,189 +106,210 @@ static void pm8917_gpio_set_backlight(int bl_level)
  */
 #define DISP_RST_GPIO 58
 #define DISP_3D_2D_MODE 1
-static int mipi_dsi_cdp_panel_power(int on)
-{
-	static struct regulator *reg_l8, *reg_l23, *reg_l2;
-	/* Control backlight GPIO (24) directly when using PM8917 */
-	int gpio24 = PM8917_GPIO_PM_TO_SYS(24);
-	int rc;
 
-	pr_debug("%s: state : %d\n", __func__, on);
+static int msm_fb_dsi_client_reset(int hold)
+{
+	int retVal = 0;
+	static int isGPIOInit = 0;
+	pr_info("[DISPLAY] +%s(%d)\n", __func__, hold);
+
+	/* GPIO INIT */
+	if(isGPIOInit == 0){
+		retVal = gpio_request(DISP_RST_GPIO, "disp_rst_n");
+		if (retVal) {
+			pr_err("[DISPLAY] %s: Failed to request lcm_reset, error=%d\n", __func__, retVal);
+			retVal = -ENODEV;
+			goto error;
+		}
+		
+		retVal = gpio_tlmm_config(GPIO_CFG(DISP_RST_GPIO , 0, GPIO_CFG_OUTPUT,
+									GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+		isGPIOInit = 1;
+	}
+	
+	if (hold) {
+		retVal = gpio_direction_output(DISP_RST_GPIO , 0);
+	} else {
+		msleep(2);
+		retVal = gpio_direction_output(DISP_RST_GPIO , 1);
+		msleep(2);
+		retVal |= gpio_direction_output(DISP_RST_GPIO , 0);
+		msleep(2);
+		retVal |= gpio_direction_output(DISP_RST_GPIO , 1);
+	}
+	
+error:
+
+	if (retVal != 0) {
+		pr_err("[DISPLAY] %s: Failed LCD reset enable\n", __func__);
+	}
+
+	return retVal;
+}
+
+extern unsigned int fih_get_product_phase(void);
+
+static int mipi_dsi_panel_power(int on)
+{
+	int rc = 0, retVal = 0;
+	static struct regulator *reg_vdd, *reg_iovdd, *reg_vdd_mipi;
+	static bool dsi_power_on = false;
+	unsigned int phaseid = 0;
+
+	pr_info("[DISPLAY] +%s(%d)\n", __func__, on);
 
 	if (!dsi_power_on) {
 
-		reg_l8 = regulator_get(&msm_mipi_dsi1_device.dev,
-				"dsi_vdc");
-		if (IS_ERR(reg_l8)) {
-			pr_err("could not get 8038_l8, rc = %ld\n",
-				PTR_ERR(reg_l8));
-			return -ENODEV;
-		}
-		reg_l23 = regulator_get(&msm_mipi_dsi1_device.dev,
-				"dsi_vddio");
-		if (IS_ERR(reg_l23)) {
-			pr_err("could not get 8038_l23, rc = %ld\n",
-				PTR_ERR(reg_l23));
-			return -ENODEV;
-		}
-		reg_l2 = regulator_get(&msm_mipi_dsi1_device.dev,
+		/* INIT VDD_MIPI */
+		reg_vdd_mipi = regulator_get(&msm_mipi_dsi1_device.dev,
 				"dsi_vdda");
-		if (IS_ERR(reg_l2)) {
-			pr_err("could not get 8038_l2, rc = %ld\n",
-				PTR_ERR(reg_l2));
-			return -ENODEV;
+		if (IS_ERR(reg_vdd_mipi)) {
+			pr_err("[DISPLAY]could not get reg_vdd_mipi, rc = %ld\n",
+				PTR_ERR(reg_vdd_mipi));
+			retVal = -ENODEV;
+			goto error;
 		}
-		rc = regulator_set_voltage(reg_l8, 2800000, 3000000);
+		rc = regulator_set_voltage(reg_vdd_mipi, 1200000, 1200000);
 		if (rc) {
-			pr_err("set_voltage l8 failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-		rc = regulator_set_voltage(reg_l23, 1800000, 1800000);
-		if (rc) {
-			pr_err("set_voltage l23 failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-		rc = regulator_set_voltage(reg_l2, 1200000, 1200000);
-		if (rc) {
-			pr_err("set_voltage l2 failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-		rc = gpio_request(DISP_RST_GPIO, "disp_rst_n");
-		if (rc) {
-			pr_err("request gpio DISP_RST_GPIO failed, rc=%d\n",
-				rc);
-			gpio_free(DISP_RST_GPIO);
-			return -ENODEV;
-		}
-		if (machine_is_msm8930_evt()) {
-			rc = gpio_direction_output(DISP_RST_GPIO, 1);
-			if (rc) {
-				pr_err("gpio_direction_output failed for %d gpio rc=%d\n",
-						DISP_RST_GPIO, rc);
-				return -ENODEV;
-			}
+			pr_err("[DISPLAY]set_voltage VDD_MIPI failed, rc=%d\n", rc);
+			retVal = -EINVAL;
+			goto error;
 		}
 
-		if (!machine_is_msm8930_evt()) {
-			rc = gpio_request(DISP_3D_2D_MODE, "disp_3d_2d");
-			if (rc) {
-				pr_err("request gpio DISP_3D_2D_MODE failed, rc=%d\n",
-				 rc);
-				gpio_free(DISP_3D_2D_MODE);
-				return -ENODEV;
-			}
-			rc = gpio_direction_output(DISP_3D_2D_MODE, 0);
-			if (rc) {
-				pr_err("gpio_direction_output failed for %d gpio rc=%d\n",
-						DISP_3D_2D_MODE, rc);
-				return -ENODEV;
-			}
+		/* INIT VDD FOR LCD*/
+		reg_vdd = regulator_get(&msm_mipi_dsi1_device.dev,
+				"dsi_vdc");
+		if (IS_ERR(reg_vdd)) {
+			pr_err("[DISPLAY]could not get reg_vdd, rc = %ld\n",
+				PTR_ERR(reg_vdd));
+			retVal = -ENODEV;
+			goto error;
 		}
-		if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917) {
-			rc = gpio_request(gpio24, "disp_bl");
+
+		rc = regulator_set_voltage(reg_vdd, 2800000, 2800000);
+		if (rc) {
+			pr_err("[DISPLAY]set_voltage reg_vdd failed, rc=%d\n", rc);
+			retVal = -EINVAL;
+			goto error;
+		}
+		
+		/* INIT IOVDD FOR LCD*/
+		phaseid = fih_get_product_phase();
+		if(phaseid == PHASE_EVM ){
+			pr_info("[DISPLAY]Get L18\n");
+			reg_iovdd = regulator_get(&msm_mipi_dsi1_device.dev,
+				"lcd_iovdd");
+		}else{
+			pr_info("[DISPLAY]Get LVS2\n");
+			reg_iovdd = regulator_get(&msm_mipi_dsi1_device.dev,
+				"lcd_lvs2");
+		}
+		if (IS_ERR(reg_iovdd)) {
+			pr_err("[DISPLAY]could not get reg_iovdd, rc = %ld\n",
+				PTR_ERR(reg_iovdd));
+			retVal = -ENODEV;
+			goto error;
+		}
+
+		if(phaseid == PHASE_EVM ){
+			rc = regulator_set_voltage(reg_iovdd, 1800000, 1800000);
 			if (rc) {
-				pr_err("request for gpio 24 failed, rc=%d\n",
-					rc);
-				return -ENODEV;
+				pr_err("[DISPLAY]set_voltage reg_iovdd failed, rc=%d\n", rc);
+				rc = -ENODEV;
+				goto error;
 			}
-			gpio_set_value_cansleep(gpio24, 0);
-			novatek_pdata.gpio_set_backlight =
-				pm8917_gpio_set_backlight;
 		}
 		dsi_power_on = true;
 	}
 
 	if (on) {
-		rc = regulator_set_optimum_mode(reg_l8, 100000);
+		rc = regulator_set_optimum_mode(reg_vdd_mipi, 100000);
 		if (rc < 0) {
-			pr_err("set_optimum_mode l8 failed, rc=%d\n", rc);
-			return -EINVAL;
+			pr_err("[DISPLAY]set_optimum_mode VDD_MIPI failed, rc=%d\n", rc);
+			retVal =  -EINVAL;
+			goto error;
 		}
-		rc = regulator_set_optimum_mode(reg_l23, 100000);
+		rc = regulator_set_optimum_mode(reg_vdd, 100000);
 		if (rc < 0) {
-			pr_err("set_optimum_mode l23 failed, rc=%d\n", rc);
-			return -EINVAL;
+			pr_err("[DISPLAY]set_optimum_mode reg_vdd failed, rc=%d\n", rc);
+			retVal = -EINVAL;
+			goto error;
 		}
-		rc = regulator_set_optimum_mode(reg_l2, 100000);
+		rc = regulator_set_optimum_mode(reg_iovdd, 100000);
 		if (rc < 0) {
-			pr_err("set_optimum_mode l2 failed, rc=%d\n", rc);
-			return -EINVAL;
+			pr_err("[DISPLAY]set_optimum_mode reg_iovdd failed, rc=%d\n", rc);
+			retVal = -EINVAL;
+			goto error;
 		}
-		rc = regulator_enable(reg_l8);
+		rc = regulator_enable(reg_vdd_mipi);
 		if (rc) {
-			pr_err("enable l8 failed, rc=%d\n", rc);
-			return -ENODEV;
+			pr_err("[DISPLAY]enable VDD_MIPI failed, rc=%d\n", rc);
+			retVal = -ENODEV;
+			goto error;
 		}
-		rc = regulator_enable(reg_l23);
+		rc = regulator_enable(reg_iovdd);
 		if (rc) {
-			pr_err("enable l8 failed, rc=%d\n", rc);
-			return -ENODEV;
+			pr_err("[DISPLAY]enable l18 failed, rc=%d\n", rc);
+			retVal = -ENODEV;
+			goto error;
 		}
-		rc = regulator_enable(reg_l2);
+		rc = regulator_enable(reg_vdd);
 		if (rc) {
-			pr_err("enable l2 failed, rc=%d\n", rc);
-			return -ENODEV;
+			pr_err("[DISPLAY]enable l8 failed, rc=%d\n", rc);
+			retVal = -ENODEV;
+			goto error;
 		}
-		usleep(10000);
-		gpio_set_value(DISP_RST_GPIO, 1);
-		usleep(10);
-		gpio_set_value(DISP_RST_GPIO, 0);
-		usleep(20);
-		gpio_set_value(DISP_RST_GPIO, 1);
-		if (!machine_is_msm8930_evt())
-			gpio_set_value(DISP_3D_2D_MODE, 1);
-		usleep(20);
+
 	} else {
+		rc = regulator_disable(reg_iovdd);
+		if (rc) {
+			pr_err("[DISPLAY]disable reg_vdd failed, rc=%d\n", rc);
+			retVal = -ENODEV;
+			goto error;
+		}
+		rc = regulator_disable(reg_vdd);
+		if (rc) {
+			pr_err("[DISPLAY]disable reg_vdd failed, rc=%d\n", rc);
+			retVal = -ENODEV;
+			goto error;
+		}
+		rc = regulator_disable(reg_vdd_mipi);
+		if (rc) {
+			pr_err("[DISPLAY]disable reg_vdd_mipi failed, rc=%d\n", rc);
+			retVal = -ENODEV;
+			goto error;
+		}
 
-		gpio_set_value(DISP_RST_GPIO, 0);
+		rc = regulator_set_optimum_mode(reg_vdd_mipi, 100);
+		if (rc < 0) {
+			pr_err("[DISPLAY]set_optimum_mode reg_vdd_mipi failed, rc=%d\n", rc);
+			retVal = -EINVAL;
+			goto error;
+		}
+		rc = regulator_set_optimum_mode(reg_vdd, 100);
+		if (rc < 0) {
+			pr_err("[DISPLAY]set_optimum_mode reg_vdd failed, rc=%d\n", rc);
+			retVal = -EINVAL;
+			goto error;
+		}
 
-		rc = regulator_disable(reg_l2);
-		if (rc) {
-			pr_err("disable reg_l2 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-		rc = regulator_disable(reg_l8);
-		if (rc) {
-			pr_err("disable reg_l8 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-		rc = regulator_disable(reg_l23);
-		if (rc) {
-			pr_err("disable reg_l23 failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-		rc = regulator_set_optimum_mode(reg_l8, 100);
+		rc = regulator_set_optimum_mode(reg_iovdd, 100);
 		if (rc < 0) {
-			pr_err("set_optimum_mode l8 failed, rc=%d\n", rc);
-			return -EINVAL;
+			pr_err("[DISPLAY]set_optimum_mode reg_iovdd failed, rc=%d\n", rc);
+			retVal = -EINVAL;
+			goto error;
 		}
-		rc = regulator_set_optimum_mode(reg_l23, 100);
-		if (rc < 0) {
-			pr_err("set_optimum_mode l23 failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-		rc = regulator_set_optimum_mode(reg_l2, 100);
-		if (rc < 0) {
-			pr_err("set_optimum_mode l2 failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-		if (!machine_is_msm8930_evt())
-			gpio_set_value(DISP_3D_2D_MODE, 0);
-		usleep(20);
 	}
-	return 0;
-}
+	
+error:
 
-static int mipi_dsi_panel_power(int on)
-{
-	pr_debug("%s: on=%d\n", __func__, on);
-
-	return mipi_dsi_cdp_panel_power(on);
+	return retVal;
 }
 
 static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.vsync_gpio = MDP_VSYNC_GPIO,
 	.dsi_power_save = mipi_dsi_panel_power,
+	.dsi_client_reset = msm_fb_dsi_client_reset,
 };
 
 #ifdef CONFIG_MSM_BUS_SCALING
@@ -590,8 +568,6 @@ static struct platform_device hdmi_msm_device = {
 	.resource = hdmi_msm_resources,
 	.dev.platform_data = &hdmi_msm_data,
 };
-#else
-static int hdmi_panel_power(int on) { return 0; }
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL */
 
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
@@ -606,6 +582,8 @@ static struct platform_device wfd_device = {
 	.id            = -1,
 };
 #endif
+
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 
 #ifdef CONFIG_MSM_BUS_SCALING
 static struct msm_bus_vectors dtv_bus_init_vectors[] = {
@@ -659,7 +637,6 @@ static struct lcdc_platform_data dtv_pdata = {
 };
 #endif
 
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 static int hdmi_enable_5v(int on)
 {
 	static struct regulator *reg_ext_5v;	/* HDMI_5V */
@@ -848,7 +825,6 @@ static bool hdmi_platform_source(void)
 }
 
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL */
-
 void __init msm8930_init_fb(void)
 {
 	platform_device_register(&msm_fb_device);
@@ -859,18 +835,24 @@ void __init msm8930_init_fb(void)
 	platform_device_register(&wfd_device);
 #endif
 
-	platform_device_register(&mipi_dsi_novatek_panel_device);
+	if(0)
+		platform_device_register(&mipi_dsi_novatek_panel_device);
 
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
-	platform_device_register(&hdmi_msm_device);
+	if(0)
+		platform_device_register(&hdmi_msm_device);
 #endif
 
-	platform_device_register(&mipi_dsi_toshiba_panel_device);
+	if(0)
+		platform_device_register(&mipi_dsi_toshiba_panel_device);
 
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("mipi_dsi", &mipi_dsi_pdata);
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 #ifdef CONFIG_MSM_BUS_SCALING
-	msm_fb_register_device("dtv", &dtv_pdata);
+	if(0)
+		msm_fb_register_device("dtv", &dtv_pdata);
+#endif
 #endif
 }
 

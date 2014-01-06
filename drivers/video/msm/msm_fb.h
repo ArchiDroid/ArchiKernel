@@ -199,18 +199,16 @@ struct msm_fb_data_type {
 	void *cpu_pm_hdl;
 	u32 acq_fen_cnt;
 	struct sync_fence *acq_fen[MDP_MAX_FENCE_FD];
-	int cur_rel_fen_fd;
-	struct sync_pt *cur_rel_sync_pt;
-	struct sync_fence *cur_rel_fence;
-	struct sync_fence *last_rel_fence;
 	struct sw_sync_timeline *timeline;
 	int timeline_value;
-	u32 last_acq_fen_cnt;
-	struct sync_fence *last_acq_fen[MDP_MAX_FENCE_FD];
 	struct mutex sync_mutex;
+	struct mutex queue_mutex;
 	struct completion commit_comp;
 	u32 is_committing;
-	struct work_struct commit_work;
+	atomic_t commit_cnt;
+	struct task_struct *commit_thread;
+	wait_queue_head_t commit_queue;
+	int wake_commit_thread;
 	void *msm_fb_backup;
 	boolean panel_driver_on;
 	int vsync_sysfs_created;
@@ -245,6 +243,8 @@ int calc_fb_offset(struct msm_fb_data_type *mfd, struct fb_info *fbi, int bpp);
 void msm_fb_wait_for_fence(struct msm_fb_data_type *mfd);
 int msm_fb_signal_timeline(struct msm_fb_data_type *mfd);
 void msm_fb_release_timeline(struct msm_fb_data_type *mfd);
+void msm_fb_release_busy(struct msm_fb_data_type *mfd);
+
 #ifdef CONFIG_FB_BACKLIGHT
 void msm_fb_config_backlight(struct msm_fb_data_type *mfd);
 #endif
@@ -254,8 +254,26 @@ int msm_fb_check_frame_rate(struct msm_fb_data_type *mfd,
 				struct fb_info *info);
 
 #ifdef CONFIG_FB_MSM_LOGO
-#define INIT_IMAGE_FILE "/initlogo.rle"
+#define INIT_IMAGE_FILE "/logo.rle"
+#if !defined(CONFIG_FB_MSM_DEFAULT_DEPTH_RGBA8888)
 int load_565rle_image(char *filename, bool bf_supported);
+#endif
+typedef enum {
+	BATTERY_EMPTY = 0,
+	BATTERY_LEVEL_01,
+	BATTERY_LEVEL_02,
+	BATTERY_LEVEL_03,
+	BATTERY_LEVEL_04,
+	BATTERY_LEVEL_05,
+	BATTERY_FULL,
+	/* Below two items are for display on/off */
+	BATTERY_DISP_ON,
+	BATTERY_DISP_OFF,
+	DISP_LOGO,
+	BATTERY_INVALID_ENUM
+} BATT_ICON_TYPE;
+int fih_load_565rle_image(const char *filename);
+int fih_dump_framebuffer(char *filename);
 #endif
 
 #endif /* MSM_FB_H */

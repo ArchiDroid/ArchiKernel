@@ -423,6 +423,16 @@ config FB_MSM_MIPI_SIMULATOR_VIDEO
 	select FB_MSM_MIPI_DSI_SIMULATOR
 	default n
 
+config FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_ORISE
+	default n
+
+config FB_MSM_MIPI_ORISE_CMD_FWVGA_PT
+	bool
+	select FB_MSM_MIPI_DSI_ORISE
+	default n
+
 config FB_MSM_NO_MDP_PIPE_CTRL
 	depends on FB_MSM_OVERLAY
 	bool "Do not use mdp_pipe_ctrl"
@@ -577,6 +587,8 @@ config FB_MSM_MIPI_PANEL_DETECT
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
 	select FB_MSM_MIPI_CHIMEI_WXGA
 	select FB_MSM_MIPI_CHIMEI_WUXGA
+	select FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT
+	select FB_MSM_MIPI_ORISE_CMD_FWVGA_PT
 	---help---
 	  Support for MIPI panel auto detect
 
@@ -641,6 +653,8 @@ config FB_MSM_LVDS_MIPI_PANEL_DETECT
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
 	select FB_MSM_MIPI_CHIMEI_WXGA
 	select FB_MSM_MIPI_CHIMEI_WUXGA
+	select FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT
+	select FB_MSM_MIPI_ORISE_CMD_FWVGA_PT
 	---help---
 	  Support for LVDS + MIPI panel auto detect
 
@@ -763,6 +777,14 @@ config FB_MSM_MIPI_NT35590_VIDEO_720P_PT_PANEL
 config FB_MSM_MIPI_SIMULATOR_VIDEO_PANEL
 	bool "MIPI Simulator Video Panel"
 	select FB_MSM_MIPI_SIMULATOR_VIDEO
+
+config FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT_PANEL
+	bool "MIPI ORISE Video FWVGA PT Panel"
+	select FB_MSM_MIPI_ORISE_VIDEO_FWVGA_PT
+
+config FB_MSM_MIPI_ORISE_CMD_FWVGA_PT_PANEL
+	bool "MIPI ORISE Command FWVGA PT Panel"
+	select FB_MSM_MIPI_ORISE_CMD_FWVGA_PT
 
 config FB_MSM_EBI2_TMD_QVGA_EPSON_QCIF
 	bool "EBI2 TMD QVGA Epson QCIF Dual Panel"

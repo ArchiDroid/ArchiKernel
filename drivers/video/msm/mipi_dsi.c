@@ -127,7 +127,10 @@ static int mipi_dsi_off(struct platform_device *pdev)
 
 	mipi_dsi_ahb_ctrl(0);
 	spin_unlock_bh(&dsi_clk_lock);
-
+	
+	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_client_reset)
+		mipi_dsi_pdata->dsi_client_reset(1);
+		
 	mipi_dsi_unprepare_clocks();
 	mipi_dsi_unprepare_ahb_clocks();
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
@@ -163,6 +166,10 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	fbi = mfd->fbi;
 	var = &fbi->var;
 	pinfo = &mfd->panel_info;
+	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
+	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_client_reset)
+		mipi_dsi_pdata->dsi_client_reset(1);
+	mipi_dsi_clk_set_rate();
 
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(1);
@@ -181,6 +188,9 @@ static int mipi_dsi_on(struct platform_device *pdev)
 		target_type = mipi_dsi_pdata->target_type;
 
 	mipi_dsi_phy_init(0, &(mfd->panel_info), target_type);
+
+	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
+		mipi_dsi_pdata->dsi_power_save(1);
 
 	mipi_dsi_clk_enable();
 
@@ -263,6 +273,11 @@ static int mipi_dsi_on(struct platform_device *pdev)
 		wmb();
 	}
 
+	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_client_reset)
+		mipi_dsi_pdata->dsi_client_reset(0);
+
+			msleep(150);
+
 	if (mdp_rev >= MDP_REV_41)
 		mutex_lock(&mfd->dma->ov_mutex);
 	else
@@ -338,12 +353,10 @@ static int mipi_dsi_early_off(struct platform_device *pdev)
 	return panel_next_early_off(pdev);
 }
 
-
 static int mipi_dsi_late_init(struct platform_device *pdev)
 {
 	return panel_next_late_init(pdev);
 }
-
 
 static int mipi_dsi_resource_initialized;
 
@@ -421,16 +434,6 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		if (mipi_dsi_pdata) {
 			vsync_gpio = mipi_dsi_pdata->vsync_gpio;
 			pr_debug("%s: vsync_gpio=%d\n", __func__, vsync_gpio);
-
-			if (mdp_rev == MDP_REV_303 &&
-				mipi_dsi_pdata->dsi_client_reset) {
-				if (mipi_dsi_pdata->dsi_client_reset())
-					pr_err("%s: DSI Client Reset failed!\n",
-						__func__);
-				else
-					pr_debug("%s: DSI Client Reset success\n",
-						__func__);
-			}
 		}
 
 		if (mipi_dsi_clk_init(pdev))
@@ -604,9 +607,6 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	pdev_list[pdev_list_cnt++] = pdev;
 
 	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
-
-	if (!mfd->cont_splash_done)
-		cont_splash_clk_ctrl(1);
 
 return 0;
 

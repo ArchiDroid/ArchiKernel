@@ -487,6 +487,10 @@ enum {
 #define SNDRV_PCM_IOCTL_READN_FRAMES	_IOR('A', 0x53, struct snd_xfern)
 #define SNDRV_PCM_IOCTL_LINK		_IOW('A', 0x60, int)
 #define SNDRV_PCM_IOCTL_UNLINK		_IO('A', 0x61)
+/* MM-NC-HAC-00-[+ */
+#define SNDRV_PCM_IOCTL_OPENHAC		_IO('A', 0x62)
+#define SNDRV_PCM_IOCTL_CLOSEHAC	_IO('A', 0x63)
+/* MM-NC-HAC-00-]- */
 
 /*****************************************************************************
  *                                                                           *

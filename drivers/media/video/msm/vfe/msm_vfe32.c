@@ -4284,7 +4284,7 @@ static void vfe32_process_reset_irq(
 			 *    predefined threshold.
 			 * In either case, there is no point in continuing with
 			 * recovery at this point. Since VFE is already RESET,
-			 * instead of starting it again, just notify the
+			 * instStop recovery and notify applicationead of starting it again, just notify the
 			 * application about the error so that the camera
 			 * application can be gracefully exited. */
 			atomic_set(&recovery_active, 0);
@@ -5889,6 +5889,21 @@ static irqreturn_t vfe32_parse_irq(int irq_num, void *data)
 			axi_ctrl->share_ctrl->vfebase + VFE_IRQ_MASK_0);
 		recover_irq_mask1 = msm_camera_io_r(
 			axi_ctrl->share_ctrl->vfebase + VFE_IRQ_MASK_1);
+		/* Clear all IRQs from MASK 0 */
+		msm_camera_io_w(0x0, axi_ctrl->share_ctrl->vfebase + VFE_IRQ_MASK_0);
+		/* Clear all IRQs from MASK 1 except RESET IRQ */
+		msm_camera_io_w((0x1 << 23),
+			axi_ctrl->share_ctrl->vfebase + VFE_IRQ_MASK_1);
+		msm_camera_io_w(VFE_CLEAR_ALL_IRQS,
+			axi_ctrl->share_ctrl->vfebase + VFE_IRQ_CLEAR_0);
+		msm_camera_io_w(VFE_CLEAR_ALL_IRQS,
+			axi_ctrl->share_ctrl->vfebase + VFE_IRQ_CLEAR_1);
+		/* Disable CAMIF capture */
+		msm_camera_io_w(0x2, axi_ctrl->share_ctrl->vfebase +
+			VFE_CAMIF_COMMAND);
+		msm_camera_io_w(AXI_HALT,
+			axi_ctrl->share_ctrl->vfebase + VFE_AXI_CMD);
+		wmb();
 		vfe32_complete_reset(axi_ctrl);
 		atomic_set(&recovery_active, 2);
 	}

@@ -217,6 +217,9 @@ static void __init adjust_reserve_sizes(void)
 
 	mt = &reserve_info->memtype_reserve_table[0];
 	for (i = 0; i < MEMTYPE_MAX; i++, mt++) {
+		if (i == MEMTYPE_EBI1_FIH) {
+			continue;
+		}
 		if (mt->flags & MEMTYPE_FLAGS_1M_ALIGN)
 			mt->size = (mt->size + SECTION_SIZE - 1) & SECTION_MASK;
 		if (mt->size > mt->limit) {
@@ -238,7 +241,11 @@ static void __init reserve_memory_for_mempools(void)
 	mt = &reserve_info->memtype_reserve_table[0];
 	for (memtype = 0; memtype < MEMTYPE_MAX; memtype++, mt++) {
 		if (mt->flags & MEMTYPE_FLAGS_FIXED || !mt->size)
+		{
+			ret = memblock_remove(mt->start, mt->size);
+			BUG_ON(ret);
 			continue;
+		}
 
 		/* We know we will find memory bank(s) of the proper size
 		 * as we have limited the size of the memory pool for
@@ -365,6 +372,7 @@ static char * const memtype_names[] = {
 	[MEMTYPE_SMI]	= "SMI",
 	[MEMTYPE_EBI0] = "EBI0",
 	[MEMTYPE_EBI1] = "EBI1",
+	[MEMTYPE_EBI1_FIH] = "EBI1_FIH",
 };
 
 int msm_get_memory_type_from_name(const char *memtype_name)

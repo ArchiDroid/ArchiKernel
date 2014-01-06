@@ -726,8 +726,6 @@ static struct platform_device hdmi_msm_device = {
 	.resource = hdmi_msm_resources,
 	.dev.platform_data = &hdmi_msm_data,
 };
-#else
-static int hdmi_panel_power(int on) { return 0; }
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL */
 
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
@@ -742,6 +740,7 @@ static struct platform_device wfd_device = {
 	.id            = -1,
 };
 #endif
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 
 #ifdef CONFIG_MSM_BUS_SCALING
 static struct msm_bus_vectors dtv_bus_init_vectors[] = {
@@ -784,7 +783,6 @@ static struct lcdc_platform_data dtv_pdata = {
 };
 #endif
 
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 static int hdmi_enable_5v(int on)
 {
 	/* TBD: PM8921 regulator instead of 8901 */
@@ -1026,8 +1024,10 @@ void __init msm8960_init_fb(void)
 
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("mipi_dsi", &mipi_dsi_pdata);
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 #ifdef CONFIG_MSM_BUS_SCALING
 	msm_fb_register_device("dtv", &dtv_pdata);
+#endif
 #endif
 }
 
@@ -1059,10 +1059,12 @@ static void set_mdp_clocks_for_wuxga(void)
 	mdp_1080p_vectors[0].ab = 2000000000;
 	mdp_1080p_vectors[0].ib = 2000000000;
 
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 	if (hdmi_is_primary) {
 		dtv_bus_def_vectors[0].ab = 2000000000;
 		dtv_bus_def_vectors[0].ib = 2000000000;
 	}
+#endif
 }
 
 void __init msm8960_set_display_params(char *prim_panel, char *ext_panel)

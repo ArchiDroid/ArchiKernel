@@ -106,6 +106,36 @@
 #include "board-8930.h"
 #include "acpuclock-krait.h"
 
+#include <linux/version_host.h>
+
+#include <linux/fih_sw_info.h>
+
+#include <linux/fih_hw_info.h>
+extern void fih_info_init(void);
+
+#include <linux/input/synaptics_dsx.h>
+
+#ifdef CONFIG_PN544_I2C_NFC
+#include <linux/pn544.h>
+#endif
+#ifdef CONFIG_SENSETEK_I2C_SENSORS
+#include <linux/stk_i2c_ps31xx.h>
+#endif
+
+#ifdef CONFIG_FIH_GSENSOR_BMA250
+#include <linux/bma250.h>
+#endif
+
+#ifdef CONFIG_FIH_PWM_LED
+#include <linux/fih_pwm_lib.h>
+#endif
+#ifdef CONFIG_SENSORS_CM36283
+#include <linux/cm36283.h>
+#endif
+#ifdef CONFIG_SENSORS_BMM050
+#include <linux/bmm050.h>
+#endif
+
 static struct platform_device msm_fm_platform_init = {
 	.name = "iris_fm",
 	.id   = -1,
@@ -290,6 +320,11 @@ static struct memtype_reserve msm8930_reserve_table[] __initdata = {
 	[MEMTYPE_EBI1] = {
 		.flags	=	MEMTYPE_FLAGS_1M_ALIGN,
 	},
+	[MEMTYPE_EBI1_FIH] = {
+		.start	=	MTD_MEMORY_RESERVE_BASE,
+		.size		=	MTD_MEMORY_RESERVE_SIZE,
+		.flags	=	MEMTYPE_FLAGS_FIXED,
+	},
 };
 
 
@@ -377,6 +412,200 @@ static struct ion_co_heap_pdata fw_co_msm8930_ion_pdata = {
 };
 #endif
 
+#ifdef CONFIG_FIH_PWM_LED
+static struct led_device_data fih_S3A_led_data[] = {
+		/*=====PMIC MPP LPG PIN Group (LPG1~LPG3)=====*/
+#if 0
+		{
+			.name = "sns_blue",
+			.id = 6,
+			.use_hw = LED_HW_PMIC_MPP,
+			.detail = {
+				.pmic_data = {
+					.pmic_pin = PM8038_MPP_PM_TO_SYS(4),
+					.lpg_out  = 0,
+					.on_off_pwm = 250,
+					.blinking_pwm1  = 0,
+                    .blinking_pwm2  = 511,
+                    .pwm_clock      = PM_PWM_CLK_19P2MHZ,
+                    .pwm_div_value  = PM_PWM_PDIV_6,
+                    .pwm_div_exp    = 3,
+                    .blinking_time1 = 500,
+                    .blinking_time2 = 500,
+                    .interval       = 1000,
+                    .toggle_up_down = 1,
+                    .ramp_loop      = 1,
+                    .ramp_up_down   = 1,
+                    .current_sink   = PM_MPP__I_SINK__LEVEL_5mA, 
+                    .use_table      = 1,
+                    .fade_in_out_pwm = 511,
+                    .lut_table_start  = 0,
+                    .lut_table_end = 15,
+				},
+			},
+		},
+
+		{
+			.name = "sns_red",
+			.id = 4,
+			.use_hw = LED_HW_PMIC_MPP,
+			.detail = {
+				.pmic_data = {
+					.pmic_pin = PM8038_MPP_PM_TO_SYS(6),
+					.lpg_out  = 1,
+					.on_off_pwm = 250,
+					.blinking_pwm1  = 0,
+                    .blinking_pwm2  = 511,
+                    .pwm_clock      = PM_PWM_CLK_19P2MHZ,
+                    .pwm_div_value  = PM_PWM_PDIV_6,
+                    .pwm_div_exp    = 3,
+                    .blinking_time1 = 500,
+                    .blinking_time2 = 500,
+                    .interval       = 1000,
+                    .toggle_up_down = 1,
+                    .ramp_loop      = 1,
+                    .ramp_up_down   = 1,
+                    .current_sink   = PM_MPP__I_SINK__LEVEL_5mA, 
+                    .use_table      = 0,
+                    .fade_in_out_pwm =511,
+                    .lut_table_start  = 16,
+                    .lut_table_end  = 31,
+				},
+			},
+		},
+
+		{
+			.name = "sns_green",
+			.id = 5,
+			.use_hw = LED_HW_PMIC_MPP,
+			.detail = {
+				.pmic_data = {
+					.pmic_pin = PM8038_MPP_PM_TO_SYS(3),
+					.lpg_out  = 2,
+					.on_off_pwm = 250,
+					.blinking_pwm1  = 0,
+                    .blinking_pwm2  = 511,
+                    .pwm_clock      = PM_PWM_CLK_19P2MHZ,
+                    .pwm_div_value  = PM_PWM_PDIV_6,
+                    .pwm_div_exp    = 3,
+                    .blinking_time1 = 500,
+                    .blinking_time2 = 500,
+                    .interval       = 1000,
+                    .toggle_up_down = 1,
+                    .ramp_loop      = 1,
+                    .ramp_up_down   = 1,
+                    .current_sink   = PM_MPP__I_SINK__LEVEL_5mA, 
+                    .use_table      = 0,
+                    .fade_in_out_pwm = 511,
+                    .lut_table_start  = 32,
+                    .lut_table_end  = 47,
+				},
+			},
+		},
+#endif
+		/*=====ONLY LPG PIN Group (LPG4~LPG6)=====*/
+//PERI-BJ-ChangeDefaultBlinkingPWM-00+{
+		{
+			.name = "blue",
+			.id = 2,
+			.use_hw = LED_HW_PMIC_LPG,
+			.detail = {
+				.pmic_data = {
+					.pmic_pin = -1, //non-pin
+					.lpg_out  = 3,
+					.on_off_pwm = 250,
+					.blinking_pwm1  = 511,
+                    .blinking_pwm2  = 0,
+                    .pwm_clock      = PM_PWM_CLK_19P2MHZ,
+                    .pwm_div_value  = PM_PWM_PDIV_6,
+                    .pwm_div_exp    = 3,
+                    .blinking_time1 = 500,
+                    .blinking_time2 = 500,
+                    .interval       = 1000,
+                    .toggle_up_down = 1,
+                    .ramp_loop      = 1,
+                    .ramp_up_down   = 1,
+					.current_sink	= RGB_12mA,
+                    .use_table      = 1,
+                    .fade_in_out_pwm = 511,
+                    .lut_table_start  = 16,
+                    .lut_table_end = 31,
+				},
+			},
+		},
+
+		{
+			.name = "green",
+			.id = 1,
+			.use_hw = LED_HW_PMIC_LPG,
+			.detail = {
+				.pmic_data = {
+					.pmic_pin = -1, //non-pin
+					.lpg_out  = 4,
+					.on_off_pwm = 250,
+					.blinking_pwm1  = 511,
+                    .blinking_pwm2  = 0,
+                    .pwm_clock      = PM_PWM_CLK_19P2MHZ,
+                    .pwm_div_value  = PM_PWM_PDIV_6,
+                    .pwm_div_exp    = 3,
+                    .blinking_time1 = 500,
+                    .blinking_time2 = 500,
+                    .interval       = 1000,
+                    .toggle_up_down = 1,
+                    .ramp_loop      = 1,
+                    .ramp_up_down   = 1,
+					.current_sink	= RGB_12mA,
+                    .use_table      = 1,
+                    .fade_in_out_pwm = 511,
+                    .lut_table_start  = 32,
+                    .lut_table_end = 47,
+				},
+			},
+		},
+
+		{
+			.name = "red",
+			.id = 0,
+			.use_hw = LED_HW_PMIC_LPG,
+			.detail = {
+				.pmic_data = {
+					.pmic_pin = -1, //non-pin
+					.lpg_out  = 5,
+					.on_off_pwm = 250,
+					.blinking_pwm1  = 511,
+                    .blinking_pwm2  = 0,
+                    .pwm_clock      = PM_PWM_CLK_19P2MHZ,
+                    .pwm_div_value  = PM_PWM_PDIV_6,
+                    .pwm_div_exp    = 3,
+                    .blinking_time1 = 500,
+                    .blinking_time2 = 500,
+                    .interval       = 1000,
+                    .toggle_up_down = 1,
+                    .ramp_loop      = 1,
+                    .ramp_up_down   = 1,
+					.current_sink	= RGB_12mA,
+                    .use_table      = 1,
+                    .fade_in_out_pwm = 511,
+                    .lut_table_start  = 48,
+                    .lut_table_end = 63,
+				},
+			},
+		},
+};
+struct leds_device_data	fih_leds_data = {
+	.device_data = fih_S3A_led_data,
+	.count = sizeof(fih_S3A_led_data) / sizeof(*fih_S3A_led_data),
+};
+
+static struct platform_device fih_device_leds = {
+        .name   = "fih_leds",
+        .id     = -1,
+        .dev    =
+        {
+        	.platform_data = &fih_leds_data,
+        },
+};
+#endif
 
 static u64 msm_dmamask = DMA_BIT_MASK(32);
 
@@ -528,6 +757,92 @@ static void __init msm8930_reserve_fixed_area(unsigned long fixed_area_size)
 	BUG_ON(ret);
 #endif
 }
+
+#ifdef CONFIG_PN544_I2C_NFC
+#define PN544_IRQ_GPIO		40
+#define PN544_VEN_GPIO		41
+#define PN544_FIRM_GPIO		89
+
+static unsigned pn544_config_gpio[] = {
+	/*IRQ*/
+	GPIO_CFG(PN544_IRQ_GPIO, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+	/*VEN*/
+	GPIO_CFG(PN544_VEN_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
+	/*firmware download mode*/
+	GPIO_CFG(PN544_FIRM_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
+};
+
+static int pn544_request_vdd_resource(void)
+{
+	// enable vdd, return 0 as success// reserve
+	return 0;
+}
+static int pn544_request_gpio_resource(void)
+{
+	//request related GPIOs, return 0 as success
+	int ret;
+
+	//IRQ
+	ret = gpio_request(PN544_IRQ_GPIO, "nfc_int");
+	if (ret) 
+	{
+		printk(KERN_ERR "%s: Failed to request GPIO %d\n",__func__, PN544_IRQ_GPIO);
+		return ret;
+	}
+	ret = gpio_tlmm_config(pn544_config_gpio[0], GPIO_CFG_ENABLE);
+	if (ret)
+	{
+		printk(KERN_ERR "%s: Failed to gpio_tlmm_config %d\n",__func__, PN544_IRQ_GPIO);
+		return ret;
+	}
+
+	//VEN
+	ret = gpio_request(PN544_VEN_GPIO, "nfc_ven");
+	if (ret) 
+	{
+		printk(KERN_ERR "%s: Failed to request GPIO %d\n",__func__, PN544_VEN_GPIO);
+		return ret;
+	}
+	ret = gpio_tlmm_config(pn544_config_gpio[1], GPIO_CFG_ENABLE);
+	if (ret)
+	{
+		printk(KERN_ERR "%s: Failed to gpio_tlmm_config %d\n",__func__, PN544_VEN_GPIO);
+		return ret;
+	}
+
+	//FIRM
+	ret = gpio_request(PN544_FIRM_GPIO, "nfc_firm");
+	if (ret) 
+	{
+		printk(KERN_ERR "%s: Failed to request GPIO %d\n",__func__, PN544_FIRM_GPIO);
+		return ret;
+	}
+	ret = gpio_tlmm_config(pn544_config_gpio[2], GPIO_CFG_ENABLE);
+	if (ret)
+	{
+		printk(KERN_ERR "%s: Failed to gpio_tlmm_config %d\n",__func__, PN544_FIRM_GPIO);
+		return ret;
+	}
+
+	return ret;
+}
+
+static struct pn544_i2c_platform_data pn544_platform_data = {
+	.irq_gpio = PN544_IRQ_GPIO,
+	.ven_gpio = PN544_VEN_GPIO,
+	.firm_gpio = PN544_FIRM_GPIO,
+	.request_vdd_resource = pn544_request_vdd_resource,
+	.request_gpio_resource = pn544_request_gpio_resource,
+};
+
+static struct i2c_board_info pn544_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("pn544", 0x28),
+		.platform_data = &pn544_platform_data,
+		.irq = MSM_GPIO_TO_INT(PN544_IRQ_GPIO),
+	},
+};
+#endif /* CONFIG_PN544_I2C_NFC */
 
 /**
  * Reserve memory for ION and calculate amount of reusable memory for fmem.
@@ -1065,7 +1380,7 @@ static struct msm_bus_paths qseecom_hw_bus_scale_usecases[] = {
 	},
 	{
 		ARRAY_SIZE(qseecom_enable_dfab_vectors),
-		qseecom_enable_sfpb_vectors,
+		qseecom_enable_dfab_vectors,
 	},
 	{
 		ARRAY_SIZE(qseecom_enable_sfpb_vectors),
@@ -1527,7 +1842,7 @@ static int hsusb_phy_init_seq[] = {
 	0x44, 0x80, /* set VBUS valid threshold
 			and disconnect valid threshold */
 	0x38, 0x81, /* update DC voltage level */
-	0x24, 0x82, /* set preemphasis and rise/fall time */
+	0x3C, 0x82, /* set preemphasis and rise/fall time */
 	0x13, 0x83, /* set source impedance adjusment */
 	-1};
 
@@ -2074,37 +2389,11 @@ static struct i2c_board_info mxt_device_info_8930[] __initdata = {
 	},
 };
 
-/*»     Synaptics Thin Driver»  */
+/*\BB     Synaptics Thin Driver\BB  */
 
 #define CLEARPAD3202_ADDR 0x20
 #define CLEARPAD3202_ATTEN_GPIO (11)
 #define CLEARPAD3202_RESET_GPIO (52)
-
-static unsigned char synaptic_rmi4_button_codes[] = {KEY_MENU, KEY_HOME,
-							KEY_BACK};
-
-static struct synaptics_rmi4_capacitance_button_map synaptic_rmi4_button_map = {
-	.nbuttons = ARRAY_SIZE(synaptic_rmi4_button_codes),
-	.map = synaptic_rmi4_button_codes,
-};
-
-static struct synaptics_rmi4_platform_data rmi4_platformdata = {
-	.irq_flags = IRQF_TRIGGER_FALLING,
-	.irq_gpio = CLEARPAD3202_ATTEN_GPIO,
-	.reset_gpio = CLEARPAD3202_RESET_GPIO,
-	.regulator_en = true,
-	.i2c_pull_up = true,
-	.capacitance_button_map = &synaptic_rmi4_button_map,
-	.fw_image_name = "PR1237913.img",
-};
-
-static struct i2c_board_info rmi4_i2c_devices[] = {
-	{
-		I2C_BOARD_INFO("synaptics_rmi4_i2c",
-		CLEARPAD3202_ADDR),
-		.platform_data = &rmi4_platformdata,
-	},
-};
 
 #define MHL_POWER_GPIO_PM8038	PM8038_GPIO_PM_TO_SYS(MHL_GPIO_PWR_EN)
 #define MHL_POWER_GPIO_PM8917	PM8917_GPIO_PM_TO_SYS(25)
@@ -2128,7 +2417,87 @@ static struct i2c_board_info sii_device_info[] __initdata = {
 	},
 };
 
+#ifdef CONFIG_FIH_KEYBOARD_GPIO
 
+#define GPIO_VOLUME_UP         106
+#define GPIO_VOLUME_DOWN       107
+#define GPIO_CAMERA_SNAPSHOT    69
+#define GPIO_CAMERA_FOCUS       39
+
+#define GPIO_VOLUME_UP_S1         48
+#define GPIO_VOLUME_DOWN_S1       47
+
+static struct gpio_keys_button the_buttons[] = {
+	{
+		.gpio = GPIO_VOLUME_UP,
+		.code = KEY_VOLUMEUP,
+		.desc = "Volume Up",
+		.wakeup	= 1,
+		.active_low = 1,
+		.debounce_interval = 100
+	},
+	{
+		.gpio = GPIO_VOLUME_DOWN,
+		.code = KEY_VOLUMEDOWN,
+		.desc = "Volume Down",
+		.wakeup	= 1,
+		.active_low = 1,
+		.debounce_interval = 100
+	},
+	{
+		.gpio = GPIO_CAMERA_FOCUS,
+		.code = KEY_CAMERA_FOCUS,
+		.desc = "Camera Focus",
+		.wakeup	= 0,
+		.active_low = 1,
+		.debounce_interval = 100
+	},
+	{
+		.gpio = GPIO_CAMERA_SNAPSHOT,
+		.code = KEY_CAMERA_SNAPSHOT,
+		.desc = "Camera Snapshot",
+		.wakeup	= 1,
+		.active_low = 1,
+		.debounce_interval = 100
+	},
+};
+
+static struct gpio_keys_platform_data the_button_data = {
+	.buttons = the_buttons,
+	.nbuttons = ARRAY_SIZE(the_buttons),
+};
+
+static struct platform_device S3A_GPIO_key = {
+	.name   = "fih_gpio-keys",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &the_button_data,
+	},
+};
+
+void __init msm8930_init_key(void)
+{
+	if (gpio_tlmm_config( GPIO_CFG( GPIO_CAMERA_FOCUS, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ))
+		pr_err( "GPIO_CAMERA_FOCUS: gpio_tlmm_config(%d) failed\n", GPIO_CAMERA_FOCUS);
+	
+	if (gpio_tlmm_config( GPIO_CFG( GPIO_CAMERA_SNAPSHOT, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ))
+		pr_err( "GPIO_CAMERA_SNAPSHOT: gpio_tlmm_config(%d) failed\n", GPIO_CAMERA_SNAPSHOT);
+
+	if (gpio_tlmm_config( GPIO_CFG( GPIO_VOLUME_UP, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ))
+		pr_err( "GPIO_VOLUME_UP: gpio_tlmm_config(%d) failed\n", GPIO_VOLUME_UP);
+	
+	if (gpio_tlmm_config( GPIO_CFG( GPIO_VOLUME_DOWN, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ))
+		pr_err( "GPIO_VOLUME_DOWN: gpio_tlmm_config(%d) failed\n", GPIO_VOLUME_DOWN);
+	
+	/* Setting for S1 boot */
+	if (gpio_tlmm_config( GPIO_CFG( GPIO_VOLUME_DOWN_S1, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ))
+		pr_err( "GPIO_VOLUME_DOWN_S1: gpio_tlmm_config(%d) failed\n", GPIO_VOLUME_DOWN_S1);
+	
+	if (gpio_tlmm_config( GPIO_CFG( GPIO_VOLUME_UP_S1, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA ), GPIO_CFG_ENABLE ))
+		pr_err( "GPIO_VOLUME_UP_S1: gpio_tlmm_config(%d) failed\n", GPIO_VOLUME_UP_S1);		
+
+}
+#else
 #ifdef MSM8930_PHASE_2
 
 #define GPIO_VOLUME_UP_PM8038		PM8038_GPIO_PM_TO_SYS(3)
@@ -2233,22 +2602,23 @@ static struct platform_device gpio_keys_8930 = {
 	},
 };
 #endif /* MSM8930_PHASE_2 */
+#endif
 
 static struct msm_i2c_platform_data msm8960_i2c_qup_gsbi4_pdata = {
-	.clk_freq = 100000,
+	.clk_freq = 320000,
 	.src_clk_rate = 24000000,
 };
-
 static struct msm_i2c_platform_data msm8960_i2c_qup_gsbi3_pdata = {
-	.clk_freq = 100000,
+	.clk_freq = 400000,
 	.src_clk_rate = 24000000,
 };
-
 
 static struct msm_i2c_platform_data msm8960_i2c_qup_gsbi8_pdata = {
 	.clk_freq = 100000,
 	.src_clk_rate = 24000000,
 };
+
+#if 0
 static struct msm_i2c_platform_data msm8960_i2c_qup_gsbi9_pdata = {
 	.clk_freq = 100000,
 	.src_clk_rate = 24000000,
@@ -2258,9 +2628,9 @@ static struct msm_i2c_platform_data msm8960_i2c_qup_gsbi10_pdata = {
 	.clk_freq = 100000,
 	.src_clk_rate = 24000000,
 };
-
+#endif
 static struct msm_i2c_platform_data msm8960_i2c_qup_gsbi12_pdata = {
-	.clk_freq = 100000,
+	.clk_freq = 400000,
 	.src_clk_rate = 24000000,
 };
 
@@ -2413,7 +2783,7 @@ static struct platform_device *pmic_pm8917_devices[] __initdata = {
 
 static struct platform_device *i2c_qup_devices[] __initdata = {
 	&msm8960_device_qup_i2c_gsbi4,
-	&msm8960_device_qup_i2c_gsbi9,
+	/* &msm8960_device_qup_i2c_gsbi9, */
 };
 
 static struct platform_device *i2c_qup_sglte_devices[] __initdata = {
@@ -2429,7 +2799,7 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm_pil_vidc,
 	&msm8960_device_qup_spi_gsbi1,
 	&msm8960_device_qup_i2c_gsbi3,
-	&msm8960_device_qup_i2c_gsbi10,
+	/* &msm8960_device_qup_i2c_gsbi10,*/
 	&msm8960_device_qup_i2c_gsbi12,
 	&msm_slim_ctrl,
 	&msm_device_wcnss_wlan,
@@ -2483,8 +2853,12 @@ static struct platform_device *common_devices[] __initdata = {
 	&coresight_etm1_device,
 	&msm_device_dspcrashd_8960,
 	&msm8960_device_watchdog,
+#ifdef CONFIG_FIH_KEYBOARD_GPIO
+	/*&S3A_GPIO_key,*/
+#else
 #ifdef MSM8930_PHASE_2
 	&gpio_keys_8930,
+#endif
 #endif
 	&msm8930_rtb_device,
 	&msm_bus_8930_apps_fabric,
@@ -2544,6 +2918,7 @@ static struct platform_device *cdp_devices[] __initdata = {
 
 static void __init msm8930_i2c_init(void)
 {
+#if 0
 	int minor_ver = SOCINFO_VERSION_MINOR(socinfo_get_platform_version());
 	int major_ver = SOCINFO_VERSION_MAJOR(socinfo_get_platform_version());
 	void __iomem *gsbi_mem;
@@ -2559,21 +2934,25 @@ static void __init msm8930_i2c_init(void)
 			msm8960_i2c_qup_gsbi10_pdata.use_gsbi_shared_mode = 1;
 		}
 	}
+#endif
 
 	msm8960_device_qup_i2c_gsbi4.dev.platform_data =
 					&msm8960_i2c_qup_gsbi4_pdata;
 
 	msm8960_device_qup_i2c_gsbi3.dev.platform_data =
 					&msm8960_i2c_qup_gsbi3_pdata;
+
 	if (socinfo_get_platform_subtype() == PLATFORM_SUBTYPE_SGLTE)
 		msm8960_device_qup_i2c_gsbi8.dev.platform_data =
 					&msm8960_i2c_qup_gsbi8_pdata;
+#if 0 					
 	else
 		msm8960_device_qup_i2c_gsbi9.dev.platform_data =
 					&msm8960_i2c_qup_gsbi9_pdata;
 
 	msm8960_device_qup_i2c_gsbi10.dev.platform_data =
 					&msm8960_i2c_qup_gsbi10_pdata;
+#endif
 
 	msm8960_device_qup_i2c_gsbi12.dev.platform_data =
 					&msm8960_i2c_qup_gsbi12_pdata;
@@ -2779,6 +3158,223 @@ static struct i2c_board_info __initdata lis3dh_i2c_boardinfo[] = {
 };
 #endif /* CONFIG_STM_LIS3DH */
 
+static int rmi4_gpio_setup( unsigned gpio, bool configure)
+{
+	int retval=0;
+
+	if (configure) {
+		retval = gpio_request(gpio, "rmi4_attn");
+
+		if (retval) {
+			pr_err("%s: Failed to get attn gpio %d. Code: %d.",
+			       __func__, gpio, retval);
+		}
+
+		retval = gpio_direction_input(gpio);
+		if (retval) {
+			pr_err("%s: Failed to setup attn gpio %d. Code: %d.",
+			       __func__, gpio, retval);
+			gpio_free(gpio);
+		}
+
+	} else {
+		pr_warn("%s: No way to deconfigure gpio %d.",
+		       __func__, gpio);
+	}
+
+	return retval;
+}
+
+static bool	reset_touch_ic( void )
+{
+
+	int	reset_pin = 80;
+
+	int	retval;
+
+	retval = gpio_request( reset_pin, "RMI4-Reset" );
+
+	if( retval )
+	{
+		printk( "ITUCH : Failed to get RESET gpio(%d). Code(%d)", reset_pin, retval );
+	}
+
+	gpio_direction_output( reset_pin, 0 );
+
+	msleep( 30 );
+
+	gpio_direction_output( reset_pin, 1 );
+
+	msleep( 60 );
+
+	printk( "ITUCH : Reset(GPIO-%d)\n", reset_pin );
+
+	return	true;
+
+}
+
+static unsigned char rmi4_button_codes[] = {};
+
+static struct synaptics_rmi_f1a_button_map rmi4_button_map = {
+	.nbuttons = ARRAY_SIZE(rmi4_button_codes),
+	.map = rmi4_button_codes,
+};
+
+static struct synaptics_dsx_platform_data dsx_platformdata = {
+	.irq_type	= IRQF_TRIGGER_FALLING,
+	.gpio		= 78,
+	.reset_touch_ic	= reset_touch_ic,
+ 	.gpio_config	= rmi4_gpio_setup,
+	.f1a_button_map = &rmi4_button_map,
+};
+
+static struct i2c_board_info rmi4_info_EVM[] __initdata =
+{
+     {
+         I2C_BOARD_INFO( "synaptics_dsx_i2c", 0x70 ),
+        .platform_data = &dsx_platformdata,
+     },
+};
+
+static struct i2c_board_info rmi4_info_DP[] __initdata =
+{
+     {
+         I2C_BOARD_INFO( "synaptics_dsx_i2c", 0x20 ),
+        .platform_data = &dsx_platformdata,
+     },
+};
+
+#ifdef CONFIG_FIH_GSENSOR_BMA250
+static int bma250_gpio_init(void)
+{
+    int GS_INT = GPIO_GS_INT;
+    if (gpio_request(GS_INT, "GS_INT"))
+    {
+        GSENSOR_DEBUG(LEVEL0, "Request GPIO(%d) failed.", GS_INT);
+        return -EIO;
+    }
+    if (gpio_tlmm_config(GPIO_CFG(GS_INT, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE))
+    {
+        gpio_free(GS_INT);
+        GSENSOR_DEBUG(LEVEL0, "Config GPIO(%d) failed.", GS_INT);
+        return -EIO;
+    }
+    gpio_direction_input(GS_INT);
+    gpio_set_value_cansleep(GS_INT, 0);
+
+    GSENSOR_DEBUG(LEVEL0, "GPIO(%d) Done.", GS_INT);
+    return 0;
+}
+
+static struct bma250_platform_data bma250_platform_data = {
+    .gpio_init = bma250_gpio_init,
+    .layout = 2,
+};
+#endif /*CONFIG_FIH_GSENSOR_BMA250*/
+
+#ifdef CONFIG_SENSETEK_I2C_SENSORS
+static int stk_gpio_init(void)
+{
+    int ALPS_OUT = EINT_GPIO;
+    if (gpio_request(ALPS_OUT, "EINT"))
+    {
+        PSENSOR_DEBUG(LEVEL0, "Request GPIO(%d) failed.", ALPS_OUT);
+        return -EIO;
+    }
+    if (gpio_tlmm_config(GPIO_CFG(ALPS_OUT, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE))
+    {
+        PSENSOR_DEBUG(LEVEL0, "Config GPIO(%d) failed.", ALPS_OUT);
+        return -EIO;
+    }
+    gpio_direction_input(ALPS_OUT);
+
+    PSENSOR_DEBUG(LEVEL0, "GPIO(%d) Done.", ALPS_OUT);
+    return 0;
+}
+
+static struct stk3171_platform_data stk3171_platform_data = {
+    .gpio_init = stk_gpio_init,
+    .sensitivity = 0,
+};
+#endif /*CONFIG_SENSETEK_I2C_SENSORS*/
+
+#ifdef CONFIG_SENSORS_CM36283
+
+static int cm36283_gpio_init(void)
+{
+    if (gpio_request(CM36283_PS_INT_N, "EINT"))
+    {
+        return -EIO;
+    }
+    if (gpio_tlmm_config(GPIO_CFG(CM36283_PS_INT_N, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE))
+    {
+        return -EIO;
+    }
+    gpio_direction_input(CM36283_PS_INT_N);
+
+    return 0;
+}
+
+static struct cm36283_platform_data cm36283_pdata = {
+        
+//2. Assign the interrupt pin number
+//modify the element in cm36283_pdata structure
+		.intr = CM36283_PS_INT_N,
+		/*PERI-CH-Mapping_table01++[*/
+        .levels = { 0x0A, 0xA0, 0xE1, 0x140, 0x280,0x500, 0xA28, 0x16A8, 0x1F40, 0x2800},
+        /*PERI-CH-Mapping_table01++]*/
+        .power = NULL,
+        .init = cm36283_gpio_init,
+        .slave_addr = CM36283_slave_add,
+        .ps_close_thd_set = 0x19,        
+        .ps_away_thd_set = 0x16,
+        .ls_cmd = CM36283_ALS_IT_160ms | CM36283_ALS_GAIN_2,    
+        .ps_conf1_val = CM36283_PS_ITB_1_2 | CM36283_PS_DR_1_40 | CM36283_PS_IT_1T | CM36283_PS_PERS_2 | CM36283_PS_RES_1,
+        .ps_conf3_val = CM36283_PS_MS_NORMAL | CM36283_PS_PROL_255 | CM36283_PS_SMART_PERS_ENABLE,      
+};
+
+#endif /*CONFIG_SENSORS_CM36283*/
+
+#ifdef CONFIG_SENSORS_BMM050
+static struct bmm050_platform_data bmm050_pdata = {
+    .layout = 3,
+};
+#endif
+
+#ifdef CONFIG_FIH_SENSOR
+static struct i2c_board_info __initdata sensors_i2c_boardinfo[] = {
+#ifdef CONFIG_SENSETEK_I2C_SENSORS
+	{
+		I2C_BOARD_INFO("stk_ps", 0x90>>1),
+		.platform_data = &stk3171_platform_data,
+		.irq = MSM_GPIO_TO_INT(EINT_GPIO),
+	},
+#endif
+
+#ifdef CONFIG_SENSORS_CM36283
+	{
+		I2C_BOARD_INFO(CM36283_I2C_NAME, CM36283_slave_add),
+		.platform_data = &cm36283_pdata,
+		.irq = MSM_GPIO_TO_INT(CM36283_PS_INT_N),
+	},
+#endif /*CONFIG_SENSORS_CM36283*/
+
+#ifdef CONFIG_SENSORS_BMM050
+	{
+		I2C_BOARD_INFO("bmm050", 0x10),
+		.platform_data = &bmm050_pdata,
+	},
+#endif /*CONFIG_SENSORS_BMM050*/
+
+#ifdef CONFIG_FIH_GSENSOR_BMA250
+	{
+		I2C_BOARD_INFO(GSENSOR_NAME, 0x18),
+		.platform_data = &bma250_platform_data,
+		.irq = MSM_GPIO_TO_INT(GPIO_GS_INT),
+	},
+#endif
+};
+#endif/*CONFIG_FIH_SENSOR*/
 #ifdef CONFIG_BMP18X_I2C
 static struct i2c_board_info __initdata bmp18x_i2c_boardinfo[] = {
 	{
@@ -2817,17 +3413,27 @@ static struct i2c_registry msm8960_i2c_devices[] __initdata = {
 		ARRAY_SIZE(mxt_device_info_8930),
 	},
 	{
-		I2C_EVT,
-		MSM_8930_GSBI3_QUP_I2C_BUS_ID,
-		rmi4_i2c_devices,
-		ARRAY_SIZE(rmi4_i2c_devices),
-	},
-	{
 		I2C_SURF | I2C_FFA | I2C_LIQUID | I2C_FLUID,
 		MSM_8930_GSBI9_QUP_I2C_BUS_ID,
 		sii_device_info,
 		ARRAY_SIZE(sii_device_info),
 	},
+#ifdef CONFIG_FIH_SENSOR
+	{
+		I2C_SURF | I2C_FFA | I2C_LIQUID | I2C_FLUID,
+		MSM_8930_GSBI12_QUP_I2C_BUS_ID,
+		sensors_i2c_boardinfo,
+		ARRAY_SIZE(sensors_i2c_boardinfo),
+	},
+#endif /*CONFIG_FIH_SENSOR*/
+#ifdef CONFIG_PN544_I2C_NFC
+	{
+		I2C_SURF | I2C_FFA | I2C_LIQUID | I2C_FLUID,
+		MSM_8930_GSBI12_QUP_I2C_BUS_ID,
+		pn544_info,
+		ARRAY_SIZE(pn544_info),
+	},
+#endif /* CONFIG_PN544_I2C_NFC */
 #ifdef CONFIG_STM_LIS3DH
 	{
 		I2C_FFA | I2C_FLUID | I2C_EVT,
@@ -2848,6 +3454,24 @@ static struct i2c_registry msm8960_i2c_devices[] __initdata = {
 
 };
 #endif /* CONFIG_I2C */
+
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+static struct resource ram_console_resources[1] = {
+        [0] = {
+                .start  = RAM_CONSOLE_PHYS,
+                .end    = RAM_CONSOLE_PHYS + RAM_CONSOLE_SIZE - 1,
+                .flags  = IORESOURCE_MEM,
+        },
+};
+
+static struct platform_device ram_console_device = {
+        .name   = "ram_console",
+        .id     = 0,
+        .num_resources  = ARRAY_SIZE(ram_console_resources),
+        .resource       = ram_console_resources,
+};
+#endif /* end of #ifdef CONFIG_ANDROID_RAM_CONSOLE */
+
 
 static void __init register_i2c_devices(void)
 {
@@ -2894,6 +3518,30 @@ static void __init register_i2c_devices(void)
 			msm8930_camera_i2c_devices.info,
 			msm8930_camera_i2c_devices.len);
 #endif
+	{
+		struct i2c_board_info *info;
+		int	bus, size;
+
+		gpio_tlmm_config( GPIO_CFG( 78, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA ), GPIO_CFG_ENABLE );
+
+		switch( fih_get_product_phase () )
+		{
+			case	PHASE_EVM :
+			case	PHASE_EVM2 :
+				bus = MSM_8930_GSBI3_QUP_I2C_BUS_ID, size = ARRAY_SIZE( rmi4_info_EVM ), info = rmi4_info_EVM;
+				printk( "ITUCH : Setting(EVM & EVM2)\n" );
+				break;
+
+			case	PHASE_PD :
+			case	PHASE_DP :
+			default :
+				bus = MSM_8930_GSBI3_QUP_I2C_BUS_ID, size = ARRAY_SIZE( rmi4_info_DP ), info = rmi4_info_DP;
+				printk( "ITUCH : Setting(PD & DP)\n" );
+				break;
+
+		}
+		i2c_register_board_info( bus, info, size );
+	}
 #endif
 }
 
@@ -2927,8 +3575,10 @@ static void __init msm8930_pm8917_pdata_fixup(void)
 
 	mhl_platform_data.gpio_mhl_power = MHL_POWER_GPIO_PM8917;
 
+#ifndef CONFIG_FIH_KEYBOARD_GPIO
 	gpio_keys_8930_pdata.buttons = keys_8930_pm8917;
 	gpio_keys_8930_pdata.nbuttons = ARRAY_SIZE(keys_8930_pm8917);
+#endif
 
 	msm_device_saw_core0.dev.platform_data
 		= &msm8930_pm8038_saw_regulator_core0_pdata;
@@ -2967,6 +3617,18 @@ static void __init msm8930ab_update_krait_spm(void)
 }
 
 
+void fih_get_host_version(void)
+{
+    char   fih_host_version[30];
+    snprintf(fih_host_version, 30, "%s.%s.%s.%s\n",
+        VER_HOST_BSP_VERSION,
+        VER_HOST_PLATFORM_NUMBER,
+        VER_HOST_BRANCH_NUMBER,
+        VER_HOST_BUILD_NUMBER);
+
+    printk(KERN_ERR "FIH kernel : HOST Version = %s \r\n",fih_host_version);
+}
+
 static void __init msm8930ab_update_retention_spm(void)
 {
 	int i;
@@ -2996,7 +3658,6 @@ static struct msm_serial_hs_platform_data msm_uart_dm9_pdata = {
 static struct msm_serial_hs_platform_data msm_uart_dm9_pdata;
 #endif
 
-
 static void __init msm8930_cdp_init(void)
 {
 	int i, reg_size = 0;
@@ -3006,6 +3667,9 @@ static void __init msm8930_cdp_init(void)
 		msm8930_pm8917_pdata_fixup();
 	if (meminfo_init(SYS_MEMORY, SZ_256M) < 0)
 		pr_err("meminfo_init() failed!\n");
+
+	msm_smd_init();
+	fih_get_host_version();
 
 	platform_device_register(&msm_gpio_device);
 	msm_tsens_early_init(&msm_tsens_pdata);
@@ -3174,6 +3838,7 @@ static void __init msm8930_cdp_init(void)
 	else
 		msm8930_pm8917_gpio_mpp_init();
 #endif
+	fih_hwid_read();
 	platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 #ifdef CONFIG_MSM_CAMERA
 	msm8930_init_cam();
@@ -3215,8 +3880,23 @@ static void __init msm8930_cdp_init(void)
 		platform_device_register(&mdm_sglte_device);
 	}
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+    platform_device_register(&ram_console_device);
+#endif
+
+#ifdef CONFIG_FIH_PWM_LED
+	platform_device_register(&fih_device_leds);
+#endif
+
+
+
 	if (PLATFORM_IS_CHARM25())
 		platform_add_devices(mdm_devices, ARRAY_SIZE(mdm_devices));
+
+#ifdef CONFIG_FIH_KEYBOARD_GPIO
+	msm8930_init_key();
+	platform_device_register( &S3A_GPIO_key );
+#endif
 }
 
 MACHINE_START(MSM8930_CDP, "QCT MSM8930 CDP")

@@ -570,13 +570,13 @@ void mipi_dsi_phy_init(int panel_ndx, struct msm_panel_info const *panel_info,
 	MIPI_OUTP(MIPI_DSI_BASE + 0x128, 0x0000);/* end phy w reset */
 	wmb();
 	usleep(1);
-	MIPI_OUTP(MIPI_DSI_BASE + 0x500, 0x0003);/* regulator_ctrl_0 */
+	MIPI_OUTP(MIPI_DSI_BASE + 0x500, 0x0002);/* regulator_ctrl_0 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x504, 0x0001);/* regulator_ctrl_1 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x508, 0x0001);/* regulator_ctrl_2 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x50c, 0x0000);/* regulator_ctrl_3 */
 	MIPI_OUTP(MIPI_DSI_BASE + 0x510, 0x0100);/* regulator_ctrl_4 */
 
-	MIPI_OUTP(MIPI_DSI_BASE + 0x4b0, 0x04);/* DSIPHY_LDO_CNTRL */
+	MIPI_OUTP(MIPI_DSI_BASE + 0x4b0, 0x05);/* DSIPHY_LDO_CNTRL */
 
 	pd = (panel_info->mipi).dsi_phy_db;
 
@@ -695,6 +695,16 @@ void mipi_dsi_ahb_ctrl(u32 enable)
 	}
 }
 
+void mipi_dsi_clk_set_rate(void)
+{
+	if (clk_set_rate(dsi_byte_div_clk, 1) < 0)	/* divided by 1 */
+		pr_err("%s: dsi_byte_div_clk - "
+			"clk_set_rate failed\n", __func__);
+	if (clk_set_rate(dsi_esc_clk, esc_byte_ratio) < 0) /* divided by esc */
+		pr_err("%s: dsi_esc_clk - "			 /* clk ratio */
+			"clk_set_rate failed\n", __func__);
+
+}
 void mipi_dsi_clk_enable(void)
 {
 	u32 pll_ctrl = MIPI_INP(MIPI_DSI_BASE + 0x0200);
@@ -705,12 +715,6 @@ void mipi_dsi_clk_enable(void)
 	MIPI_OUTP(MIPI_DSI_BASE + 0x0200, pll_ctrl | 0x01);
 	mipi_dsi_phy_rdy_poll();
 
-	if (clk_set_rate(dsi_byte_div_clk, 1) < 0)      /* divided by 1 */
-		pr_err("%s: dsi_byte_div_clk - "
-			"clk_set_rate failed\n", __func__);
-	if (clk_set_rate(dsi_esc_clk, esc_byte_ratio) < 0) /* divided by esc */
-		pr_err("%s: dsi_esc_clk - "                      /* clk ratio */
-			"clk_set_rate failed\n", __func__);
 	mipi_dsi_pclk_ctrl(&dsi_pclk, 1);
 	mipi_dsi_clk_ctrl(&dsicore_clk, 1);
 	clk_prepare_enable(dsi_byte_div_clk);

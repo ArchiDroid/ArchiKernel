@@ -122,6 +122,14 @@ int32_t msm_sensor_write_res_settings(struct msm_sensor_ctrl_t *s_ctrl,
 		s_ctrl->msm_sensor_reg->mode_settings, res);
 	if (rc < 0)
 		return rc;
+    
+    if (s_ctrl->sensor_output_reg_addr->x_output == 0xFFFF && 
+        s_ctrl->sensor_output_reg_addr->y_output == 0xFFFF)
+    {
+        printk("msm_sensor_write_res_settings: ByPass msm_sensor_write_output_settings() for %s\n"
+                , s_ctrl->sensordata->sensor_name);
+        return 0;
+    }
 
 	rc = msm_sensor_write_output_settings(s_ctrl, res);
 	if (rc < 0)

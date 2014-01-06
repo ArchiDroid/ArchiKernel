@@ -1,11 +1,12 @@
 /*
- * Synaptics RMI4 touchscreen driver
+ * Synaptics DSX touchscreen driver
  *
  * Copyright (C) 2012 Synaptics Incorporated
  *
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2010 Js HA <js.ha@stericsson.com>
+ * Copyright (C) 2010 Naveen Kumar G <naveen.gaddipati@stericsson.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,48 +17,40 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _SYNAPTICS_DSX_H_
 #define _SYNAPTICS_DSX_H_
 
-/*
- * struct synaptics_rmi4_capacitance_button_map - 0d button map
- * @nbuttons: number of buttons
- * @map: button map
- */
-struct synaptics_rmi4_capacitance_button_map {
+struct synaptics_rmi_f1a_button_map {
 	unsigned char nbuttons;
 	unsigned char *map;
 };
 
 /*
- * struct synaptics_rmi4_platform_data - rmi4 platform data
+ * struct synaptics_dsx_platform_data - dsx platform data
  * @x_flip: x flip flag
  * @y_flip: y flip flag
  * @regulator_en: regulator enable flag
- * @irq_gpio: attention interrupt gpio
- * @irq_flags: flags used by the irq
- * @reset_gpio: reset gpio
- * @panel_x: panel maximum values on the x
- * @panel_y: panel maximum values on the y
+ * @gpio: attention interrupt gpio
+ * @irq_type: irq type
  * @gpio_config: pointer to gpio configuration function
- * @capacitance_button_map: pointer to 0d button map
+ * @f1a_button_map: pointer to 0d button map
  */
-struct synaptics_rmi4_platform_data {
+struct synaptics_dsx_platform_data {
 	bool x_flip;
 	bool y_flip;
 	bool regulator_en;
-	bool i2c_pull_up;
-	unsigned irq_gpio;
-	u32 irq_flags;
-	u32 reset_flags;
-	unsigned reset_gpio;
-	unsigned panel_x;
-	unsigned panel_y;
-	const char *fw_image_name;
-	int (*gpio_config)(unsigned gpio, bool configure);
-	struct synaptics_rmi4_capacitance_button_map *capacitance_button_map;
+	unsigned gpio;
+	int irq_type;
+	int (*gpio_config)(unsigned interrupt_gpio, bool configure);
+	bool ( *reset_touch_ic )( void );
+	bool ( *enable_touch_power )( void );
+	struct synaptics_rmi_f1a_button_map *f1a_button_map;
 };
 
 #endif

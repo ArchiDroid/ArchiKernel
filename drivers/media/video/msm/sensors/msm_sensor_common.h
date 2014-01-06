@@ -82,6 +82,7 @@ struct msm_camera_power_seq_t {
 struct msm_sensor_id_info_t {
 	uint16_t sensor_id_reg_addr;
 	uint16_t sensor_id;
+	uint16_t sensor_id_reg_addr2;
 };
 
 struct msm_sensor_reg_t {

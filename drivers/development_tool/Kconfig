@@ -1,0 +1,13 @@
+#
+# Vibrator device configuration
+#
+
+menu "FIH development tool"
+
+config FIH_DEVELOPMENT_TOOL
+	bool "use FIH development tool"
+	help
+	  FIH development tool.
+
+endmenu
+

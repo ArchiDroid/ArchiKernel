@@ -25,6 +25,7 @@
 #include <mach/gpio.h>
 #include "msm_camera_i2c.h"
 
+#ifndef CONFIG_MSM_CAMERA_FLASH_LM3642
 struct flash_work {
 	struct work_struct my_work;
 	int    x;
@@ -33,6 +34,7 @@ struct flash_work *work;
 static struct timer_list flash_timer;
 static int timer_state;
 static struct workqueue_struct *flash_wq;
+#endif
 struct i2c_client *sx150x_client;
 struct timer_list timer_flash;
 static struct msm_camera_sensor_info *sensor_data;
@@ -42,6 +44,247 @@ enum msm_cam_flash_stat{
 	MSM_CAM_FLASH_ON,
 };
 
+#ifdef CONFIG_MSM_CAMERA_FLASH_LM3642
+//Define for register reference
+#define	REG_ENABLE			(0xA)//ENABLE REGISTER (0x0A)
+#define	REG_I_CTRL			(0x9)//CURRENT CONTROL REGISTER (0x09)
+
+//Define for mode change and pin enable
+#define	TX_PIN_EN_SHIFT			(6)
+#define	STROBE_PIN_EN_SHIFT		(5)
+#define	TORCH_PIN_EN_SHIFT		(4)
+#define	MODE_BITS_SHIFT			(0)
+#define	TX_PIN_EN_MASK			(0x1)
+#define	STROBE_PIN_EN_MASK		(0x1)
+#define	TORCH_PIN_EN_MASK		(0x1)
+#define EX_PIN_ENABLE_MASK		(0x70)
+#define	MODE_BITS_MASK			(0x73)
+
+//Define for current control
+#define	TORCH_I_MASK			(0x7)
+#define	FLASH_I_MASK			(0xF)
+#define	TORCH_I_SHIFT			(4)
+#define	FLASH_I_SHIFT			(0)
+
+
+enum lm3642_mode {
+	MODES_STASNDBY = 0,
+	MODES_INDIC,
+	MODES_TORCH,
+	MODES_FLASH
+};
+
+enum lm3642_pin_enable {
+	PIN_DISABLED = 0,
+	PIN_ENABLED,
+};
+
+enum lm3642_torch_current_val{
+    TORCH_OFF,
+	TORCH_46P88_MA,//Default
+	TORCH_93P74_MA,
+	TORCH_140P63_MA,
+	TORCH_187P5_MA,
+	TORCH_234P38_MA,
+	TORCH_281P25_MA,
+    TORCH_328P13_MA,
+    TORCH_375_MA,
+};
+
+enum lm3642_flash_current_val{
+    FLASH_OFF,
+	FLASH_93P75_MA,
+	FLASH_187P5_MA,
+	FLASH_281P25_MA,
+	FLASH_375_MA,
+	FLASH_468P75_MA,
+	FLASH_562P5_MA,
+	FLASH_656P25_MA,
+	FLASH_750_MA,
+	FLASH_843P75_MA,
+	FLASH_937P5_MA,
+	FLASH_1031P25_MA,
+	FLASH_1125_MA,
+	FLASH_1218P75_MA,
+	FLASH_1312P5_MA,
+	FLASH_1406P25_MA,
+	FLASH_1500_MA,//Default
+};
+
+static int lm3642_write_bits(uint8_t reg, uint8_t val, uint8_t mask, uint8_t shift)
+{
+    int rc = 0;
+    uint16_t reg_val = 0;
+    
+    rc = msm_camera_i2c_read(&i2c_client, reg, &reg_val, MSM_CAMERA_I2C_BYTE_DATA);
+	if (rc < 0) {
+		pr_err("lm3642_write_bits: msm_camera_i2c_read(0x%x) failed! rc = %d\n", reg, rc);
+		goto error;
+	}
+    CDBG("lm3642_write_bits: Before: msm_camera_i2c_read(0x%x) = 0x%x .\n", reg, reg_val);
+
+    reg_val &= (~(mask << shift));
+    reg_val |= ((val & mask) << shift);
+
+    printk("lm3642_write_bits: Set reg_0x%x = 0x%x .\n", reg, reg_val);
+    rc = msm_camera_i2c_write(&i2c_client, reg, reg_val, MSM_CAMERA_I2C_BYTE_DATA);
+    if (rc < 0) {
+        pr_err("lm3642_write_bits: msm_camera_i2c_write(0x%x) failed! rc = %d\n", reg, rc);
+        goto error;
+    }
+
+    rc = msm_camera_i2c_read(&i2c_client, reg, &reg_val, MSM_CAMERA_I2C_BYTE_DATA);
+    if (rc < 0) {
+        pr_err("lm3642_write_bits: msm_camera_i2c_read(0x%x) failed! rc = %d\n", reg, rc);
+        goto error;
+    }
+    CDBG("lm3642_write_bits: After: msm_camera_i2c_read(0x%x) = 0x%x .\n", reg, reg_val);
+
+error:
+    return rc;
+}
+
+static int lm3642_init( enum lm3642_pin_enable torch_pin_en, 
+                         enum lm3642_pin_enable strobe_pin_en, 
+                         enum lm3642_pin_enable tx_pin_en)
+{
+    int rc = 0;
+    uint16_t reg_val = 0;
+
+	/*set enable register */
+    rc = msm_camera_i2c_read(&i2c_client, REG_ENABLE, &reg_val, MSM_CAMERA_I2C_BYTE_DATA);
+	if (rc < 0) {
+		pr_err("lm3642_init: msm_camera_i2c_read(0x%x) failed! rc = %d\n", REG_ENABLE, rc);
+		goto error;
+	}
+    CDBG("lm3642_init: msm_camera_i2c_read(0x%x) = 0x%x .\n", REG_ENABLE, reg_val);
+
+	reg_val &= (~EX_PIN_ENABLE_MASK);
+	reg_val |= ((torch_pin_en & 0x01) << TORCH_PIN_EN_SHIFT);
+	reg_val |= ((strobe_pin_en & 0x01) << STROBE_PIN_EN_SHIFT);
+	reg_val |= ((tx_pin_en & 0x01) << TX_PIN_EN_SHIFT);
+
+    rc = msm_camera_i2c_write(&i2c_client, REG_ENABLE, reg_val, MSM_CAMERA_I2C_BYTE_DATA);
+    if (rc < 0) {
+        pr_err("lm3642_init: msm_camera_i2c_write(0x%x) failed! rc = %d\n", REG_ENABLE, rc);
+        goto error;
+    }
+    CDBG("lm3642_init: Set reg_0x%x = 0x%x .\n", REG_ENABLE, reg_val);
+
+error:
+    return rc;
+
+}
+
+static int lm3642_control(uint8_t brightness, enum lm3642_mode opmode, 
+                             enum lm3642_pin_enable torch_pin_en, 
+                             enum lm3642_pin_enable strobe_pin_en,
+                             enum lm3642_pin_enable tx_pin_en)
+{
+	int rc = 0;
+
+	/*brightness 0 means off-state */
+	if (!brightness)
+		opmode = MODES_STASNDBY;
+
+    /*Set current value*/
+	switch (opmode) {
+	case MODES_TORCH:
+        printk("lm3642_control: case MODES_TORCH ~ brightness = %d\n", brightness);
+		rc = lm3642_write_bits(REG_I_CTRL,
+				  brightness - 1, TORCH_I_MASK, TORCH_I_SHIFT);
+
+		if (torch_pin_en)
+			opmode |= (TORCH_PIN_EN_MASK << TORCH_PIN_EN_SHIFT);
+		break;
+
+	case MODES_FLASH:
+        printk("lm3642_control: case MODES_FLASH ~ brightness = %d\n", brightness);
+		rc = lm3642_write_bits(REG_I_CTRL,
+				  brightness - 1, FLASH_I_MASK, FLASH_I_SHIFT);
+		if (strobe_pin_en)
+			opmode |= (STROBE_PIN_EN_MASK << STROBE_PIN_EN_SHIFT);
+		break;
+
+	case MODES_INDIC:
+        printk("lm3642_control: case MODES_INDIC ~ brightness = %d\n", brightness);
+		rc = lm3642_write_bits(REG_I_CTRL,
+				  brightness - 1, TORCH_I_MASK, TORCH_I_SHIFT);
+		break; 
+		
+	case MODES_STASNDBY:
+		printk("lm3642_control: case MODES_STASNDBY ~ brightness = %d\n", brightness);
+		break;
+
+	default:
+		return -ENOTSUPP;
+	}
+	if (rc < 0){   
+        pr_err("lm3642_control: Set brightness = %d fail !\n", brightness);
+		goto error;
+    }
+    
+	if (tx_pin_en)
+		opmode |= (TX_PIN_EN_MASK << TX_PIN_EN_SHIFT);
+
+    /*Set mode and control pin*/
+	rc = lm3642_write_bits(REG_ENABLE,
+			  opmode, MODE_BITS_MASK, MODE_BITS_SHIFT);
+	if (rc < 0){   
+        pr_err("lm3642_control: Set mode and control pin fail !\n");
+		goto error;
+    }
+
+    CDBG("lm3642_control: torch_pin_en = %d, strobe_pin_en = %d, tx_pin_en = %d,\n", torch_pin_en, strobe_pin_en, tx_pin_en);
+error:
+	return rc;
+}
+
+
+static struct i2c_client *lm3642_client;
+
+static const struct i2c_device_id lm3642_i2c_id[] = {
+	{"lm3642", 0},
+	{ }
+};
+
+static int lm3642_i2c_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	int rc = 0;
+	CDBG("%s enter\n", __func__);
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		pr_err("i2c_check_functionality failed\n");
+		goto probe_failure;
+	}
+
+	lm3642_client = client;
+	i2c_client.client = lm3642_client;
+	i2c_client.addr_type = MSM_CAMERA_I2C_BYTE_ADDR;
+	rc = lm3642_init(PIN_DISABLED, PIN_DISABLED, PIN_DISABLED);
+	if (rc < 0) {
+		lm3642_client = NULL;
+		goto probe_failure;
+	}
+
+	CDBG("%s success! rc = %d\n", __func__, rc);
+	return 0;
+
+probe_failure:
+	pr_err("%s failed! rc = %d\n", __func__, rc);
+	return rc;
+}
+
+static struct i2c_driver lm3642_i2c_driver = {
+	.id_table = lm3642_i2c_id,
+	.probe  = lm3642_i2c_probe,
+	.remove = __exit_p(lm3642_i2c_remove),
+	.driver = {
+		.name = "lm3642",
+	},
+};
+#else
 static struct i2c_client *sc628a_client;
 
 static const struct i2c_device_id sc628a_i2c_id[] = {
@@ -123,6 +366,8 @@ static struct i2c_driver tps61310_i2c_driver = {
 		.name = "tps61310",
 	},
 };
+#endif
+//FIH-SW-MM-MC-BringUpLM3642ForCameraFlashLed-00+}
 
 static int config_flash_gpio_table(enum msm_cam_flash_stat stat,
 			struct msm_camera_sensor_strobe_flash_data *sfdata)
@@ -287,6 +532,88 @@ int msm_camera_flash_led(
 	return rc;
 }
 
+//FIH-SW-MM-MC-BringUpLM3642ForCameraFlashLed-00+{
+#ifdef CONFIG_MSM_CAMERA_FLASH_LM3642
+int msm_camera_flash_external(
+	struct msm_camera_sensor_flash_external *external,
+	unsigned led_state)
+{
+    int rc = 0;
+
+	switch (led_state) {
+
+	case MSM_CAMERA_LED_INIT:
+        printk("msm_camera_flash_external: case MSM_CAMERA_LED_INIT ~\n");
+		if (external->flash_id == MAM_CAMERA_EXT_LED_FLASH_LM3642) {
+			if (!lm3642_client) {
+				rc = i2c_add_driver(&lm3642_i2c_driver);
+				if (rc < 0 || lm3642_client == NULL) {
+					pr_err("lm3642_i2c_driver add failed\n");
+					rc = -ENOTSUPP;
+					return rc;
+				}
+			}
+		} else {
+			pr_err("Flash id not supported\n");
+			rc = -ENOTSUPP;
+			return rc;
+		}
+
+        rc = lm3642_init(PIN_DISABLED, PIN_DISABLED, PIN_DISABLED);
+        if (rc < 0)
+            pr_err("lm3642_init() fail !\n");
+        break;
+
+	case MSM_CAMERA_LED_RELEASE:
+        printk("msm_camera_flash_external: case MSM_CAMERA_LED_RELEASE ~\n");
+
+        CDBG("lm3642_control(TORCH_OFF, MODES_STASNDBY, PIN_DISABLED)\n");
+        rc = lm3642_control(TORCH_OFF, MODES_STASNDBY, PIN_DISABLED, PIN_DISABLED, PIN_DISABLED);
+        if (rc < 0)
+            pr_err("lm3642_control(TORCH_OFF, MODES_STASNDBY, PIN_DISABLED) fail !\n");
+
+        if (lm3642_client) {
+            i2c_del_driver(&lm3642_i2c_driver);
+            lm3642_client = NULL;
+        }
+		break;
+
+	case MSM_CAMERA_LED_OFF:
+        printk("msm_camera_flash_external: case MSM_CAMERA_LED_OFF ~\n");
+
+        CDBG("lm3642_control(TORCH_OFF, MODES_STASNDBY, PIN_DISABLED)\n");
+        rc = lm3642_control(TORCH_OFF, MODES_STASNDBY, PIN_DISABLED, PIN_DISABLED, PIN_DISABLED);
+        if (rc < 0)
+            pr_err("lm3642_control(TORCH_OFF, MODES_STASNDBY, PIN_DISABLED) fail !\n");
+		break;
+
+	case MSM_CAMERA_LED_LOW:
+        printk("msm_camera_flash_external: case MSM_CAMERA_LED_LOW ~\n");
+/*MM-UW-Add torch current-00+{*/
+        CDBG("lm3642_control(TORCH_140P63_MA, MODES_TORCH, PIN_DISABLED)\n");
+        rc = lm3642_control(TORCH_140P63_MA, MODES_TORCH, PIN_DISABLED, PIN_DISABLED, PIN_DISABLED);
+        if (rc < 0)
+            pr_err("lm3642_control(TORCH_140P63_MA, MODES_TORCH) fail !\n");
+		break;
+
+	case MSM_CAMERA_LED_HIGH:
+        printk("msm_camera_flash_external: case MSM_CAMERA_LED_HIGH ~\n");
+
+        CDBG("lm3642_control(FLASH_843P75_MA, MODES_FLASH, PIN_DISABLED)\n");
+        rc = lm3642_control(FLASH_843P75_MA, MODES_FLASH, PIN_DISABLED, PIN_DISABLED, PIN_DISABLED);
+        if (rc < 0)
+            pr_err("lm3642_control(FLASH_843P75_MA, MODES_FLASH) fail !\n");
+/*MM-SL-Add torch current-00+}*/
+		break;
+
+	default:
+		rc = -EFAULT;
+		break;
+	}
+	return rc;
+}
+
+#else
 static void flash_wq_function(struct work_struct *work)
 {
 	if (tps61310_client) {
@@ -503,6 +830,9 @@ error:
 	return rc;
 }
 
+#endif
+//FIH-SW-MM-MC-BringUpLM3642ForCameraFlashLed-00+}
+
 static int msm_camera_flash_pwm(
 	struct msm_camera_sensor_flash_pwm *pwm,
 	unsigned led_state)
@@ -602,7 +932,7 @@ int32_t msm_camera_flash_set_led_state(
 	if (fdata->flash_type != MSM_CAMERA_FLASH_LED ||
 		fdata->flash_src == NULL)
 		return -ENODEV;
-
+    
 	switch (fdata->flash_src->flash_sr_type) {
 	case MSM_CAMERA_FLASH_SRC_PMIC:
 		rc = msm_camera_flash_pmic(&fdata->flash_src->_fsrc.pmic_src,
@@ -636,7 +966,6 @@ int32_t msm_camera_flash_set_led_state(
 		rc = -ENODEV;
 		break;
 	}
-
 	return rc;
 }
 

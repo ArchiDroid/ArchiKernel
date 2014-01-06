@@ -47,6 +47,20 @@ static DEFINE_MUTEX(input_mutex);
 
 static struct input_handler *input_table[8];
 
+static int is_sensor_input(const char *dev_name)
+{
+	if (strcmp(dev_name, "bma250") == 0 || strcmp(dev_name, "proximity") == 0 ||\
+		strcmp(dev_name, "bmm050") == 0 || strcmp(dev_name, "sensord") == 0 ||\
+		strcmp(dev_name, "lightsensor-level") == 0)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
 static inline int is_event_supported(unsigned int code,
 				     unsigned long *bm, unsigned int max)
 {
@@ -96,8 +110,13 @@ static void input_pass_event(struct input_dev *dev,
 			if (!handler->filter) {
 				if (filtered)
 					break;
-
-				handler->event(handle, type, code, value);
+				if (is_sensor_input(dev->name) && strcmp(handler->name, "cpufreq_ond")==0)
+				{
+				//Do not call cpufreq_ondemand to change cpu freq to max.
+				//printk(KERN_INFO "[INPUT]Do not call cpufreq_ondemand.c(%s)\n", dev->name);
+				}
+				else
+					handler->event(handle, type, code, value);
 
 			} else if (handler->filter(handle, type, code, value))
 				filtered = true;
@@ -583,6 +602,8 @@ void input_close_device(struct input_handle *handle)
 }
 EXPORT_SYMBOL(input_close_device);
 
+extern bool is_power_off_charging(void);
+
 /*
  * Simulate keyup events for all keys that are marked as pressed.
  * The function must be called with dev->event_lock held.
@@ -593,14 +614,18 @@ static void input_dev_release_keys(struct input_dev *dev)
 
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
 		for (code = 0; code <= KEY_MAX; code++) {
-			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
-			    __test_and_clear_bit(code, dev->key)) {
-				input_pass_event(dev, EV_KEY, code, 0);
+
+			if (!(is_power_off_charging() && code == 116)) {
+				if (is_event_supported(code, dev->keybit, KEY_MAX) &&
+				    __test_and_clear_bit(code, dev->key)) {
+					input_pass_event(dev, EV_KEY, code, 0);
+				}
 			}
 		}
 		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
 }
+
 
 /*
  * Prepare device for unregistering

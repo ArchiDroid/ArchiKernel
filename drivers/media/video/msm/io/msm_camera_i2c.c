@@ -34,6 +34,17 @@ int32_t msm_camera_i2c_rxdata(struct msm_camera_i2c_client *dev_client,
 			.buf   = rxdata,
 		},
 	};
+
+//FIH-SW-MM-MC-BringUpLM3642ForCameraFlashLed-00+{
+#ifdef CONFIG_MSM_CAMERA_FLASH_LM3642
+        if (dev_client->client->addr == 0x63)
+        {
+            msgs[0].addr = dev_client->client->addr;
+            msgs[1].addr = dev_client->client->addr;
+        }
+#endif
+//FIH-SW-MM-MC-BringUpLM3642ForCameraFlashLed-00+}
+
 	rc = i2c_transfer(dev_client->client->adapter, msgs, 2);
 	if (rc < 0)
 		S_I2C_DBG("msm_camera_i2c_rxdata failed 0x%x\n", saddr);
@@ -53,6 +64,14 @@ int32_t msm_camera_i2c_txdata(struct msm_camera_i2c_client *dev_client,
 			.buf = txdata,
 		 },
 	};
+
+//FIH-SW-MM-MC-BringUpLM3642ForCameraFlashLed-00+{
+#ifdef CONFIG_MSM_CAMERA_FLASH_LM3642
+    if (dev_client->client->addr == 0x63)
+        msg[0].addr = dev_client->client->addr;
+#endif
+//FIH-SW-MM-MC-BringUpLM3642ForCameraFlashLed-00+}
+
 	rc = i2c_transfer(dev_client->client->adapter, msg, 1);
 	if (rc < 0)
 		S_I2C_DBG("msm_camera_i2c_txdata faild 0x%x\n", saddr);

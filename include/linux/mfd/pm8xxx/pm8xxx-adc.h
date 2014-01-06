@@ -216,6 +216,7 @@ enum pm8xxx_adc_scale_fn_type {
 	ADC_SCALE_PA_THERM,
 	ADC_SCALE_PMIC_THERM,
 	ADC_SCALE_XOTHERM,
+	ADC_SCALE_SYS_THERM,
 	ADC_SCALE_NONE,
 };
 
@@ -353,6 +354,12 @@ int32_t pm8xxx_adc_scale_batt_therm(int32_t adc_code,
 			const struct pm8xxx_adc_properties *adc_prop,
 			const struct pm8xxx_adc_chan_properties *chan_prop,
 			struct pm8xxx_adc_chan_result *chan_rslt);
+
+int32_t pm8xxx_adc_scale_sys_therm(int32_t adc_code,
+			const struct pm8xxx_adc_properties *adc_prop,
+			const struct pm8xxx_adc_chan_properties *chan_prop,
+			struct pm8xxx_adc_chan_result *chan_rslt);
+
 /**
  * pm8xxx_adc_scale_pa_therm() - Scales the pre-calibrated digital output
  *		of an ADC to the ADC reference and compensates for the

@@ -173,6 +173,7 @@ static struct pm8xxx_adc_scale_fn adc_scale_fn[] = {
 	[ADC_SCALE_PA_THERM] = {pm8xxx_adc_scale_pa_therm},
 	[ADC_SCALE_PMIC_THERM] = {pm8xxx_adc_scale_pmic_therm},
 	[ADC_SCALE_XOTHERM] = {pm8xxx_adc_tdkntcg_therm},
+	[ADC_SCALE_SYS_THERM] = {pm8xxx_adc_scale_sys_therm},
 };
 
 /* On PM8921 ADC the MPP needs to first be configured
@@ -1319,7 +1320,11 @@ static int __init pm8xxx_adc_init(void)
 {
 	return platform_driver_register(&pm8xxx_adc_driver);
 }
-module_init(pm8xxx_adc_init);
+//MTD-BSP-KC-HWID-01+[
+//module_init(pm8xxx_adc_init);
+//arch_initcall(pm8xxx_adc_init);
+postcore_initcall(pm8xxx_adc_init);
+//MTD-BSP-KC-HWID-01+]
 
 static void __exit pm8xxx_adc_exit(void)
 {

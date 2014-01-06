@@ -12,10 +12,10 @@
  */
 
 
-#ifndef MIPI_ORISE_H
-#define MIPI_ORISE_H
+#ifndef MIPI_ORISE_FWVGA_H
+#define MIPI_ORISE_FWVGA_H
 
 int mipi_orise_device_register(struct msm_panel_info *pinfo,
 					u32 channel, u32 panel);
 
-#endif  /* MIPI_ORISE_H */
+#endif  /* MIPI_ORISE_FWVGA_H */

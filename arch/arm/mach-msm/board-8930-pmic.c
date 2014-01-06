@@ -146,15 +146,6 @@ struct pm8xxx_mpp_init {
 
 /* Initial PM8038 GPIO configurations */
 static struct pm8xxx_gpio_init pm8038_gpios[] __initdata = {
-	/* keys GPIOs */
-	PM8038_GPIO_INPUT(3, PM_GPIO_PULL_UP_30),
-	PM8038_GPIO_INPUT(8, PM_GPIO_PULL_UP_30),
-	PM8038_GPIO_INPUT(10, PM_GPIO_PULL_UP_30),
-	PM8038_GPIO_INPUT(11, PM_GPIO_PULL_UP_30),
-	/* haptics gpio */
-	PM8038_GPIO_OUTPUT_FUNC(7, 0, PM_GPIO_FUNC_1),
-	/* MHL PWR EN */
-	PM8038_GPIO_OUTPUT_VIN(5, 1, PM8038_GPIO_VIN_VPH),
 };
 
 /* Initial PM8038 MPP configurations */
@@ -260,13 +251,15 @@ static struct pm8xxx_adc_amux pm8038_adc_channels_data[] = {
 	{"125v", CHANNEL_125V, CHAN_PATH_SCALING1, AMUX_RSV1,
 		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
 	{"chg_temp", CHANNEL_CHG_TEMP, CHAN_PATH_SCALING1, AMUX_RSV1,
-		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
-	{"pa_therm1", ADC_MPP_1_AMUX4, CHAN_PATH_SCALING1, AMUX_RSV1,
-		ADC_DECIMATION_TYPE2, ADC_SCALE_PA_THERM},
+		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},		
+	{"AMUX_IN", ADC_MPP_1_AMUX4, CHAN_PATH_SCALING1, AMUX_RSV1, 
+		ADC_DECIMATION_TYPE3, ADC_SCALE_SYS_THERM}, 		
+//	{"pa_therm1", ADC_MPP_1_AMUX4, CHAN_PATH_SCALING1, AMUX_RSV1,
+//		ADC_DECIMATION_TYPE2, ADC_SCALE_PA_THERM},
 	{"xo_therm", CHANNEL_MUXOFF, CHAN_PATH_SCALING1, AMUX_RSV0,
 		ADC_DECIMATION_TYPE2, ADC_SCALE_XOTHERM},
-	{"pa_therm0", ADC_MPP_1_AMUX3, CHAN_PATH_SCALING1, AMUX_RSV1,
-		ADC_DECIMATION_TYPE2, ADC_SCALE_PA_THERM},
+	{"pa_therm0", CHANNEL_MPP_2, CHAN_PATH_SCALING2, AMUX_RSV1,
+		ADC_DECIMATION_TYPE4, ADC_SCALE_DEFAULT},
 };
 
 static struct pm8xxx_adc_properties pm8038_adc_data = {
@@ -297,7 +290,7 @@ static struct pm8xxx_mpp_platform_data pm8xxx_mpp_pdata __devinitdata = {
 };
 
 static struct pm8xxx_rtc_platform_data pm8xxx_rtc_pdata __devinitdata = {
-	.rtc_write_enable	= false,
+	.rtc_write_enable	= true,
 	.rtc_alarm_powerup	= false,
 };
 
@@ -315,21 +308,22 @@ static int pm8921_therm_mitigation[] = {
 };
 
 #define MAX_VOLTAGE_MV		4200
-#define CHG_TERM_MA		100
+#define CHG_TERM_MA		50
+#define VMAXSEL_NORMAL_DELTA			200
 static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
-	.update_time		= 60000,
+	.update_time		= 30000,
 	.max_voltage		= MAX_VOLTAGE_MV,
 	.min_voltage		= 3200,
 	.uvd_thresh_voltage	= 4050,
 	.alarm_low_mv		= 3400,
 	.alarm_high_mv		= 4000,
-	.resume_voltage_delta	= 60,
+	.resume_voltage_delta	= VMAXSEL_NORMAL_DELTA,
 	.resume_charge_percent	= 99,
 	.term_current		= CHG_TERM_MA,
-	.cool_temp		= 10,
-	.warm_temp		= 45,
+	.cool_temp		= -20,
+	.warm_temp		= 100,
 	.temp_check_period	= 1,
-	.max_bat_chg_current	= 1100,
+	.max_bat_chg_current	= 1500,
 	.cool_bat_chg_current	= 350,
 	.warm_bat_chg_current	= 350,
 	.cool_bat_voltage	= 4100,
@@ -346,7 +340,7 @@ static struct pm8xxx_vibrator_platform_data pm8038_vib_pdata = {
 	.max_timeout_ms = 15000,
 };
 
-#define PM8038_WLED_MAX_CURRENT		25
+#define PM8038_WLED_MAX_CURRENT		20
 #define PM8XXX_LED_PWM_PERIOD		1000
 #define PM8XXX_LED_PWM_DUTY_MS		20
 #define PM8038_RGB_LED_MAX_CURRENT	12
@@ -356,6 +350,8 @@ static struct led_info pm8038_led_info[] = {
 		.name			= "wled",
 		.default_trigger	= "bkl_trigger",
 	},
+#if 0
+
 	[1] = {
 		.name			= "led:rgb_red",
 		.default_trigger	= "battery-charging",
@@ -366,6 +362,7 @@ static struct led_info pm8038_led_info[] = {
 	[3] = {
 		.name			= "led:rgb_blue",
 	},
+#endif
 };
 
 static struct led_platform_data pm8038_led_core_pdata = {
@@ -383,6 +380,7 @@ static struct wled_config_data wled_cfg = {
 	.num_strings = 1,
 };
 
+#if 0
 static int pm8038_led0_pwm_duty_pcts[56] = {
 		1, 4, 8, 12, 16, 20, 24, 28, 32, 36,
 		40, 44, 46, 52, 56, 60, 64, 68, 72, 76,
@@ -391,18 +389,21 @@ static int pm8038_led0_pwm_duty_pcts[56] = {
 		58, 54, 50, 48, 42, 38, 34, 30, 26, 22,
 		14, 10, 6, 4, 1
 };
+#endif
 
 /*
  * Note: There is a bug in LPG module that results in incorrect
  * behavior of pattern when LUT index 0 is used. So effectively
  * there are 63 usable LUT entries.
  */
+#if 0
 static struct pm8xxx_pwm_duty_cycles pm8038_led0_pwm_duty_cycles = {
 	.duty_pcts = (int *)&pm8038_led0_pwm_duty_pcts,
 	.num_duty_pcts = ARRAY_SIZE(pm8038_led0_pwm_duty_pcts),
 	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
 	.start_idx = 1,
 };
+#endif
 
 static struct pm8xxx_led_config pm8038_led_configs[] = {
 	[0] = {
@@ -412,6 +413,8 @@ static struct pm8xxx_led_config pm8038_led_configs[] = {
 		.default_state = 0,
 		.wled_cfg = &wled_cfg,
 	},
+
+#if 0
 	[1] = {
 		.id = PM8XXX_ID_RGB_LED_RED,
 		.mode = PM8XXX_LED_MODE_PWM1,
@@ -436,6 +439,7 @@ static struct pm8xxx_led_config pm8038_led_configs[] = {
 		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
 		.pwm_duty_cycles = &pm8038_led0_pwm_duty_cycles,
 	},
+#endif
 };
 
 static struct pm8xxx_led_platform_data pm8xxx_leds_pdata = {
@@ -476,7 +480,7 @@ static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.r_sense_uohm			= 10000,
 	.v_cutoff			= 3400,
 	.max_voltage_uv			= MAX_VOLTAGE_MV * 1000,
-	.shutdown_soc_valid_limit	= 20,
+	.shutdown_soc_valid_limit	= 70,
 	.adjust_soc_low_threshold	= 25,
 	.chg_term_ua			= CHG_TERM_MA * 1000,
 	.rconn_mohm			= 18,
@@ -507,6 +511,8 @@ static struct pm8038_platform_data pm8038_platform_data __devinitdata = {
 	.leds_pdata		= &pm8xxx_leds_pdata,
 	.ccadc_pdata		= &pm8xxx_ccadc_pdata,
 	.spk_pdata		= &pm8xxx_spk_pdata,
+    .vibrator_pdata  = &pm8038_vib_pdata,   
+	
 };
 
 static struct msm_ssbi_platform_data msm8930_ssbi_pm8038_pdata __devinitdata = {

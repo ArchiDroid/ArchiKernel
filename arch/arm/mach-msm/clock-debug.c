@@ -146,6 +146,9 @@ static int clock_debug_hwcg_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(clock_hwcg_fops, clock_debug_hwcg_get,
 			NULL, "%llu\n");
 
+static struct dentry *debugfs_base;
+static u32 debug_suspend;
+
 static int fmax_rates_show(struct seq_file *m, void *unused)
 {
 	struct clk *clock = m->private;

@@ -66,8 +66,8 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/msm_hsusb.h>
-#include <linux/tracepoint.h>
-#include <mach/usb_trace.h>
+/*CONN-EH-USBPROBE-00-*///#include <linux/tracepoint.h>
+/*CONN-EH-USBPROBE-00-*///#include <mach/usb_trace.h>
 #include "ci13xxx_udc.h"
 
 /* Turns on streaming. overrides CI13XXX_DISABLE_STREAMING */
@@ -140,6 +140,7 @@ static int ffs_nr(u32 x)
 	return n ? n-1 : 32;
 }
 
+#if 0/*CONN-EH-USBPROBE-00-{*/
 struct ci13xxx_ebi_err_entry {
 	u32 *usb_req_buf;
 	u32 usb_req_length;
@@ -154,6 +155,7 @@ struct ci13xxx_ebi_err_data {
 	struct ci13xxx_ebi_err_entry *ebi_err_entry;
 };
 static struct ci13xxx_ebi_err_data *ebi_err_data;
+#endif/*CONN-EH-USBPROBE-00-}*/
 
 /******************************************************************************
  * HW block
@@ -1760,6 +1762,7 @@ __maybe_unused static int dbg_remove_files(struct device *dev)
 	return 0;
 }
 
+#if 0/*CONN-EH-USBPROBE-00-{*/
 static void dump_usb_info(void *ignore, unsigned int ebi_addr,
 	unsigned int ebi_apacket0, unsigned int ebi_apacket1)
 {
@@ -1825,7 +1828,7 @@ static void dump_usb_info(void *ignore, unsigned int ebi_addr,
 	}
 	spin_unlock_irqrestore(udc->lock, flags);
 }
-
+#endif/*CONN-EH-USBPROBE-00-}*/
 /******************************************************************************
  * UTIL block
  *****************************************************************************/
@@ -3788,11 +3791,12 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	pm_runtime_no_callbacks(&udc->gadget.dev);
 	pm_runtime_enable(&udc->gadget.dev);
 
+#if 0/*CONN-EH-USBPROBE-00-{*/
 	retval = register_trace_usb_daytona_invalid_access(dump_usb_info,
 								NULL);
 	if (retval)
 		pr_err("Registering trace failed\n");
-
+#endif/*CONN-EH-USBPROBE-00-}*/
 	_udc = udc;
 	return retval;
 
@@ -3826,17 +3830,18 @@ free_udc:
 static void udc_remove(void)
 {
 	struct ci13xxx *udc = _udc;
-	int retval;
+/*CONN-EH-USBPROBE-00-*///int retval;
 
 	if (udc == NULL) {
 		err("EINVAL");
 		return;
 	}
+#if 0/*CONN-EH-USBPROBE-00-{*/
 	retval = unregister_trace_usb_daytona_invalid_access(dump_usb_info,
 									NULL);
 	if (retval)
 		pr_err("Unregistering trace failed\n");
-
+#endif/*CONN-EH-USBPROBE-00-}*/
 	usb_del_gadget_udc(&udc->gadget);
 
 	if (udc->transceiver) {

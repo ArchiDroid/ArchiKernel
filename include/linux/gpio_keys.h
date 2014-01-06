@@ -11,6 +11,7 @@ struct gpio_keys_button {
 	const char *desc;
 	unsigned int type;	/* input event type (EV_KEY, EV_SW, EV_ABS) */
 	int wakeup;		/* configure the button as a wake-up source */
+	int wakeup_index;/*MTD-SW-PERIPHERAL-AH-KEY-00*/
 	int debounce_interval;	/* debounce ticks interval in msecs */
 	bool can_disable;
 	int value;		/* axis value for EV_ABS */

@@ -2,6 +2,7 @@
  * Gadget Function Driver for MTP
  *
  * Copyright (C) 2010 Google, Inc.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  * Author: Mike Lockwood <lockwood@android.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -13,6 +14,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * NOTE: This file has been modified by Sony Ericsson Mobile Communications AB /
+ * Sony Mobile Communications AB. Modifications are licensed under the License.
  */
 
 /* #define DEBUG */
@@ -48,6 +51,7 @@
 #define STATE_BUSY                  2   /* processing userspace calls */
 #define STATE_CANCELED              3   /* transaction canceled by host */
 #define STATE_ERROR                 4   /* error from completion routine */
+#define STATE_RESET                 5   /* reset the device *//*CONN-EH-WHQL-MTP-00+*/
 
 /* number of tx and rx requests to allocate */
 #define TX_REQ_MAX 4
@@ -230,7 +234,8 @@ static u8 mtp_os_string[] = {
 	/* padding */
 	0
 };
-
+//CONN-EH-MTP-00*{
+#if 0
 /* Microsoft Extended Configuration Descriptor Header Section */
 struct mtp_ext_config_desc_header {
 	__le32	dwLength;
@@ -248,7 +253,26 @@ struct mtp_ext_config_desc_function {
 	__u8	subCompatibleID[8];
 	__u8	reserved[6];
 };
+#else
+struct ms_ext_compatID_desc_head {
+	unsigned int dwLength;
+	unsigned short bcdVersion;
+	unsigned short wIndex;
+	unsigned char bCount;
+	unsigned char reserved[7];
+};
 
+/* extend compat ID descriptor(data section) */
+struct ms_ext_compatID_desc_data{
+	unsigned char bFirstInterfaceNumber;
+	unsigned char reserved1;
+	unsigned char compatibleID[8];
+	unsigned char subCompatibleID[8];
+	unsigned char reserved2[6];
+};
+#endif
+
+#if 0
 /* MTP Extended Configuration Descriptor */
 struct {
 	struct mtp_ext_config_desc_header	header;
@@ -266,7 +290,8 @@ struct {
 		.compatibleID = { 'M', 'T', 'P' },
 	},
 };
-
+#endif
+//CONN-EH-MTP-00*}
 struct mtp_device_status {
 	__le16	wLength;
 	__le16	wCode;
@@ -365,7 +390,7 @@ static void mtp_complete_out(struct usb_ep *ep, struct usb_request *req)
 	struct mtp_dev *dev = _mtp_dev;
 
 	dev->rx_done = 1;
-	if (req->status != 0)
+	if (req->status != 0 && dev->state == STATE_BUSY)/*CONN-EH-WHQL-MTP-00**/
 		dev->state = STATE_ERROR;
 
 	wake_up(&dev->read_wq);
@@ -487,7 +512,15 @@ static ssize_t mtp_read(struct file *fp, char __user *buf,
 		dev->state = STATE_READY;
 		spin_unlock_irq(&dev->lock);
 		return -ECANCELED;
+	/*CONN-EH-WHQL-MTP-00+{*/
+	} else if (dev->state == STATE_RESET) {
+		/* report a reset state to userspace */
+		dev->state = STATE_READY;
+		spin_unlock_irq(&dev->lock);
+		DBG(cdev, "mtp_read DEVICE RESET. State: %d.\n", dev->state);
+		return -ECONNRESET;
 	}
+	/*CONN-EH-WHQL-MTP-00+}*/
 	dev->state = STATE_BUSY;
 	spin_unlock_irq(&dev->lock);
 
@@ -516,11 +549,24 @@ requeue_req:
 		spin_unlock_irq(&dev->lock);
 		goto done;
 	}
+
+	/*CONN-EH-WHQL-MTP-00*{*/
+	/*The workaround is to fix CV test "Halt Endpoint Test" and fix WHQL MTP Compliance Test - Core*/
+	//For CV test
 	if (ret < 0) {
 		r = ret;
 		usb_ep_dequeue(dev->ep_out, req);
 		goto done;
 	}
+
+	//For WHCK
+	if (ret == 0 && !dev->rx_done && dev->state != STATE_READY) {
+		r = ret;
+		usb_ep_dequeue(dev->ep_out, req);
+		goto done;
+	}
+	/*CONN-EH-WHQL-MTP-00*}*/
+
 	if (dev->state == STATE_BUSY) {
 		/* If we got a 0-len packet, throw it back and try again. */
 		if (req->actual == 0)
@@ -538,6 +584,10 @@ done:
 	spin_lock_irq(&dev->lock);
 	if (dev->state == STATE_CANCELED)
 		r = -ECANCELED;
+	/*CONN-EH-WHQL-MTP-00+{*/
+	else if (dev->state == STATE_RESET)
+		r = -ECONNRESET;
+	/*CONN-EH-WHQL-MTP-00+}*/
 	else if (dev->state != STATE_OFFLINE)
 		dev->state = STATE_READY;
 	spin_unlock_irq(&dev->lock);
@@ -798,13 +848,34 @@ static void receive_file_work(struct work_struct *data)
 			/* wait for our last read to complete */
 			ret = wait_event_interruptible(dev->read_wq,
 				dev->rx_done || dev->state != STATE_BUSY);
-			if (dev->state == STATE_CANCELED
-					|| dev->state == STATE_OFFLINE) {
+			if (dev->state == STATE_CANCELED) {/*CONN-EH-WHQL-MTP-00**/
 				r = -ECANCELED;
 				if (!dev->rx_done)
 					usb_ep_dequeue(dev->ep_out, read_req);
 				break;
 			}
+                        /*CONN-EH-WHQL-MTP-00+{*/
+			if (dev->state == STATE_OFFLINE) {
+				r = -ENODEV;
+                                printk(KERN_ERR "if (dev->state == STATE_OFFLINE)\n");
+				if (!dev->rx_done)
+					usb_ep_dequeue(dev->ep_out, read_req);
+				break;
+			}
+			if (dev->state == STATE_RESET) {
+				//DBG(cdev, "receive_file_work DEVICE RESET\n");
+                                printk(KERN_ERR "receive_file_work DEVICE RESET\n");
+				r = -ECONNRESET;
+				if (!dev->rx_done) {
+					//DBG(cdev, "usb_ep_dequeue"
+					//	"DEVICE RESET\n");
+                                        printk(KERN_ERR "usb_ep_dequeue...DEVICE RESET\n");
+					usb_ep_dequeue(dev->ep_out, read_req);
+				}
+				break;
+			}
+			/*CONN-EH-WHQL-MTP-00+}*/
+
 			/* if xfer_file_length is 0xFFFFFFFF, then we read until
 			 * we get a zero length packet
 			 */
@@ -886,6 +957,19 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 			ret = -ECANCELED;
 			goto out;
 		}
+                /*CONN-EH-WHQL-MTP-00+{*/
+		if (dev->state == STATE_RESET) {
+			/* report reset to userspace */
+			//DBG(dev->cdev, "report reset to user space..."
+			//	"mtp_ioctl... DEVICE RESET");
+                        printk(KERN_ERR "report reset to user space...mtp_ioctl... DEVICE RESET\n");
+			dev->state = STATE_READY;
+			spin_unlock_irq(&dev->lock);
+			ret = -ECONNRESET;
+			goto out;
+		}
+                /*CONN-EH-WHQL-MTP-00+}*/
+
 		if (dev->state == STATE_OFFLINE) {
 			spin_unlock_irq(&dev->lock);
 			ret = -ENODEV;
@@ -955,6 +1039,10 @@ fail:
 	spin_lock_irq(&dev->lock);
 	if (dev->state == STATE_CANCELED)
 		ret = -ECANCELED;
+	/*CONN-EH-WHQL-MTP-00+{*/
+	else if (dev->state == STATE_RESET)
+		ret = -ECONNRESET;
+	/*CONN-EH-WHQL-MTP-00+}*/
 	else if (dev->state != STATE_OFFLINE)
 		dev->state = STATE_READY;
 	spin_unlock_irq(&dev->lock);
@@ -981,6 +1069,7 @@ static int mtp_open(struct inode *ip, struct file *fp)
 static int mtp_release(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "mtp_release\n");
+	dump_stack();//For Monkey test trace call stack
 
 	mtp_unlock(&_mtp_dev->open_excl);
 	return 0;
@@ -1034,9 +1123,55 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 		if (ctrl->bRequest == 1
 				&& (ctrl->bRequestType & USB_DIR_IN)
 				&& (w_index == 4 || w_index == 5)) {
+			//CONN-EH-MTP-00*{
+			#if 0
 			value = (w_length < sizeof(mtp_ext_config_desc) ?
 					w_length : sizeof(mtp_ext_config_desc));
 			memcpy(cdev->req->buf, &mtp_ext_config_desc, value);
+			#else
+			int total = 0;
+			int func_num = 0;
+			int interface_num = 0;
+			struct ms_ext_compatID_desc_head *head;
+			struct ms_ext_compatID_desc_data *data;
+			struct usb_configuration        *cfg;
+			struct usb_function *f;
+
+			head = (struct ms_ext_compatID_desc_head *) cdev->req->buf;
+			data = (struct ms_ext_compatID_desc_data *)(head + 1);
+
+			/* zero clear */
+			memset( cdev->req->buf, 0x00, cdev->bufsiz);
+
+			list_for_each_entry(cfg, &cdev->configs, list)	{
+
+				list_for_each_entry(f, &cfg->functions, list)	{
+					//CONN-EH-COVERITY63949-00- if (!f)
+					//CONN-EH-COVERITY63949-00- 	break;
+
+					interface_num++;
+					data->bFirstInterfaceNumber = func_num;
+					printk(KERN_INFO"usb:%s MTP interface bFirstInterfaceNumber: %d\n", __func__,  data->bFirstInterfaceNumber);
+					data->reserved1 = 1;
+					if (!strcmp(f->name, "mtp"))	{
+						memcpy(data->compatibleID, "MTP", 3);
+						VDBG(cdev, "MTP interface found. Interface_num: %d.\n", interface_num );
+					}
+					data++;
+					func_num++;
+				}
+			}
+
+			total = sizeof(*head) + (sizeof(*data) * func_num);
+
+			/* header section */
+			head->dwLength = total;
+			head->bcdVersion = __constant_cpu_to_le16(0x0100);
+			head->wIndex = __constant_cpu_to_le16(4);
+			head->bCount = func_num;
+			value = min(w_length, (u16)total);
+			#endif
+			//CONN-EH-MTP-00*}
 		}
 	} else if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
 		DBG(cdev, "class request: %d index: %d value: %d length: %d\n",
@@ -1059,6 +1194,25 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			 * the contents.
 			 */
 			value = w_length;
+		/*CONN-EH-WHQL-MTP-00+{*/
+		} else if (ctrl->bRequest == MTP_REQ_RESET && w_index == 0
+			&& w_value == 0) {
+			DBG(cdev, "MTP_REQ_RESET\n");
+
+			spin_lock_irqsave(&dev->lock, flags);
+			/* Flushing the buffers as mentioned in MTP spec */
+			usb_ep_fifo_flush(dev->ep_out);
+			dev->state = STATE_RESET;
+			wake_up(&dev->read_wq);
+			wake_up(&dev->write_wq);
+			spin_unlock_irqrestore(&dev->lock, flags);
+
+			/* We need to queue a request to read the remaining
+			 *  bytes, but we don't actually need to look at
+			 * the contents.
+			 */
+			value = w_length;
+		/*CONN-EH-WHQL-MTP-00+}*/
 		} else if (ctrl->bRequest == MTP_REQ_GET_DEVICE_STATUS
 				&& w_index == 0 && w_value == 0) {
 			struct mtp_device_status *status = cdev->req->buf;
@@ -1073,6 +1227,15 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			if (dev->state == STATE_CANCELED)
 				status->wCode =
 					__cpu_to_le16(MTP_RESPONSE_DEVICE_BUSY);
+                        /*CONN-EH-WHQL-MTP-00+{*/
+			else if (dev->state == STATE_RESET) {
+				status->wCode =
+					__cpu_to_le16(MTP_RESPONSE_OK);
+				//DBG(cdev, "Device goest to ready state from"
+				//	"reset state... DEVICE RESET\n");
+                                printk(KERN_ERR "Device goest to ready state from reset state... DEVICE RESET\n");
+			}
+			/*CONN-EH-WHQL-MTP-00+}*/
 			else
 				status->wCode =
 					__cpu_to_le16(MTP_RESPONSE_OK);
@@ -1109,7 +1272,7 @@ mtp_function_bind(struct usb_configuration *c, struct usb_function *f)
 	if (id < 0)
 		return id;
 	mtp_interface_desc.bInterfaceNumber = id;
-	mtp_ext_config_desc.function.bFirstInterfaceNumber = id;
+	//CONN-EH-MTP-00- mtp_ext_config_desc.function.bFirstInterfaceNumber = id;
 
 	/* allocate endpoints */
 	ret = mtp_create_bulk_endpoints(dev, &mtp_fullspeed_in_desc,
