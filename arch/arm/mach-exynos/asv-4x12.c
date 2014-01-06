@@ -21,6 +21,11 @@
 #include <mach/map.h>
 #include <plat/cpu.h>
 
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+typedef unsigned long mali_bool;
+mali_bool mali_dvfs_table_update(void);
+#endif
+
 /* ASV function for Fused Chip */
 #define IDS_ARM_OFFSET		24
 #define IDS_ARM_MASK		0xFF
@@ -257,6 +262,10 @@ static int exynos4x12_asv_store_result(struct samsung_asv *asv_info)
 
 	exynos4x12_pre_set_abb();
 
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+	mali_dvfs_table_update();
+#endif
+
 	return 0;
 }
 
@@ -350,6 +359,10 @@ int exynos4x12_asv_init(struct samsung_asv *asv_info)
 		exynos_special_flag = (tmp >> LOCKING_OFFSET) & LOCKING_MASK;
 
 		exynos4x12_pre_set_abb();
+
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+		mali_dvfs_table_update();
+#endif
 
 		return -EEXIST;
 	}

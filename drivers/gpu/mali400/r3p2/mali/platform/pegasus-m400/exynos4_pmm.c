@@ -93,7 +93,8 @@ mali_dvfs_table mali_dvfs[MALI_DVFS_STEPS]={
 			/* step 4 */{533  ,1000000	,1075000   ,95   ,100} };
 #else
 			/* step 0 */{134  ,1000000	, 950000   ,85   , 90},
-			/* step 1 */{267  ,1000000	,1050000   ,85   ,100} };
+			/* step 1 */{267  ,1000000	,1050000   ,85   ,100},
+			/* step 2 */{400  ,1000000  ,1200000   ,85   ,100} };
 #endif
 
 #ifdef EXYNOS4_ASV_ENABLED
@@ -611,7 +612,7 @@ static mali_bool change_mali_dvfs_status(u32 step, mali_bool boostup )
 #ifdef EXYNOS4_ASV_ENABLED
 extern unsigned int exynos_result_of_asv;
 
-static mali_bool mali_dvfs_table_update(void)
+mali_bool mali_dvfs_table_update(void)
 {
 	unsigned int i, tmp, g3d_lock_volt = 0;
 	unsigned int step_num = MALI_DVFS_STEPS;
@@ -747,9 +748,11 @@ static unsigned int decideNextStatus(unsigned int utilization)
 		if (utilization > (int)(255 * mali_dvfs[maliDvfsStatus.currentStep].upthreshold / 100) &&
 				level < MALI_DVFS_STEPS - 1) {
 			level++;
+#if 0 /* this prevents the usage of 5th step -gm */
 			if ((samsung_rev() < EXYNOS4412_REV_2_0) && 3 == get_mali_dvfs_status()) {
 				level=get_mali_dvfs_status();
 			}
+#endif
 		}
 		else if (utilization < (int)(255 * mali_dvfs[maliDvfsStatus.currentStep].downthreshold / 100) &&
 				level > 0) {
