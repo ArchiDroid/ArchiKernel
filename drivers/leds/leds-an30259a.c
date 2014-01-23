@@ -14,6 +14,7 @@
 /* Extended sysfs interface to allow for full control of LED operations
  *
  * Extension Author: Jean-Pierre Rasquin <yank555.lu@gmail.com>
+ * Further extended by andip71, 23.01.2014
  *
  * SysFS interface :
  * -----------------
@@ -34,11 +35,9 @@
  *
  * /sys/class/sec/led/led_speed (rw)
  *
+ *   0 : continuous light
  *   1 : normal rate
- *   2 : 2x faster
- *   3 : 3x faster
- *   4 : 4x faster
- *   5 : 5x faster
+ *   2 - 60: faster rate
  *
  * /sys/class/sec/led/led_slope (rw)
  *
@@ -299,6 +298,7 @@ static void leds_set_slope_mode(struct i2c_client *client,
 				u8 slptt1, u8 slptt2,
 				u8 dt1, u8 dt2, u8 dt3, u8 dt4)
 {
+
 	struct an30259a_data *data = i2c_get_clientdata(client);
 
 	data->shadow_reg[AN30259A_REG_LED1CNT1 + led * 4] =
@@ -322,7 +322,7 @@ static void leds_on(enum an30259a_led_enum led, bool on, bool slopemode,
 		data->shadow_reg[AN30259A_REG_LED1CNT2 + led * 4] &=
 							~AN30259A_MASK_DELAY;
 	}
-	if (slopemode)
+	if ((slopemode) && (led_speed != 0))
 		data->shadow_reg[AN30259A_REG_LEDON] |= LED_SLOPE_MODE << led;
 	else
 		data->shadow_reg[AN30259A_REG_LEDON] &=
@@ -692,14 +692,7 @@ static ssize_t store_an30259a_led_intensity(struct device *dev,
 static ssize_t show_an30259a_led_speed(struct device *dev,
                     struct device_attribute *attr, char *buf)
 {
-	switch(led_speed) {
-		case 1:		return sprintf(buf, "%d - LED blinking/fading speed as requested\n", led_speed); break;
-		case 2:
-		case 3:
-		case 4:
-		case 5:		return sprintf(buf, "%d - LED blinking/fading speed is %dx faster\n", led_speed, led_speed);
-		default:	return sprintf(buf, "%d - LED blinking/fading speed is in undefined status\n", led_speed);
-	}
+	return sprintf(buf, "%d - LED blinking/fading speed\n", led_speed);
 }
 
 static ssize_t store_an30259a_led_speed(struct device *dev,
@@ -710,14 +703,11 @@ static ssize_t store_an30259a_led_speed(struct device *dev,
 
 	sscanf(buf, "%d", &new_led_speed);
 
-	switch(new_led_speed) { /* Accept only if 1 - 5 */
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-		case 5:		led_speed = new_led_speed;
-		default:	return count;
-	}
+	// only accept if between 0 and 15
+	if ((new_led_speed >= 0) && (new_led_speed <= 15))
+		led_speed = new_led_speed;
+		
+	return count;
 }
 
 static ssize_t show_an30259a_led_slope(struct device *dev,
