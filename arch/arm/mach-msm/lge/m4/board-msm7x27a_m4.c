@@ -54,6 +54,8 @@
 #include <linux/atmel_maxtouch.h>
 #include <linux/msm_adc.h>
 #include <linux/msm_ion.h>
+#include <linux/dma-contiguous.h>
+#include <linux/dma-mapping.h>
 /*LGE_CHANGE_S[jyothishre.nk@lge.com]20121009: ram_console support*/
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 #include <linux/persistent_ram.h>
@@ -292,6 +294,7 @@ static struct platform_device ion_dev;
 static int msm_ion_camera_size;
 static int msm_ion_audio_size;
 static int msm_ion_sf_size;
+static int msm_ion_camera_size_carving;
 #endif
 
 
@@ -872,9 +875,17 @@ static void fix_sizes(void)
 	if (get_ddr_size() > SZ_512M)
 		reserve_adsp_size = CAMERA_ZSL_SIZE;
 #ifdef CONFIG_ION_MSM
-	msm_ion_camera_size = reserve_adsp_size;
 	msm_ion_audio_size = MSM_RESERVE_AUDIO_SIZE;
 	msm_ion_sf_size = reserve_mdp_size;
+#ifdef CONFIG_CMA
+        if (get_ddr_size() > SZ_256M)
+                reserve_adsp_size = CAMERA_ZSL_SIZE;
+	msm_ion_camera_size = reserve_adsp_size;
+        msm_ion_camera_size_carving = 0;
+#else
+        msm_ion_camera_size = reserve_adsp_size;
+        msm_ion_camera_size_carving = msm_ion_camera_size;
+#endif
 #endif
 }
 /*LGE_CHANGE_E[jyothishre.nk@lge.com]20121102*/
@@ -994,8 +1005,9 @@ static void __init size_ion_devices(void)
 static void __init reserve_ion_memory(void)
 {
 #if defined(CONFIG_ION_MSM) && defined(CONFIG_MSM_MULTIMEDIA_USE_ION)
-	msm7x27a_reserve_table[MEMTYPE_EBI1].size += msm_ion_camera_size;
 	msm7x27a_reserve_table[MEMTYPE_EBI1].size += RESERVE_KERNEL_EBI1_SIZE;
+        msm7x27a_reserve_table[MEMTYPE_EBI1].size +=
+		msm_ion_camera_size_carving;
 	msm7x27a_reserve_table[MEMTYPE_EBI1].size += msm_ion_sf_size;
 #endif
 }
@@ -1021,6 +1033,7 @@ static struct reserve_info msm7x27a_reserve_info __initdata = {
 static void __init msm7x27a_reserve(void)
 {
 	reserve_info = &msm7x27a_reserve_info;
+        memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
         memblock_remove(BOOTLOADER_BASE_ADDR, msm_ion_audio_size);
 	msm_reserve();
 #ifdef CONFIG_CMA
