@@ -1624,7 +1624,7 @@ typedef enum
 #define CFG_TDLS_IMPLICIT_TRIGGER_DEFAULT           ( 0 )
 
 #define CFG_TDLS_TX_STATS_PERIOD                    "gTDLSTxStatsPeriod"
-#define CFG_TDLS_TX_STATS_PERIOD_MIN                ( 2000 )
+#define CFG_TDLS_TX_STATS_PERIOD_MIN                ( 10 )
 #define CFG_TDLS_TX_STATS_PERIOD_MAX                ( 4294967295UL )
 #define CFG_TDLS_TX_STATS_PERIOD_DEFAULT            ( 5000 )
 
@@ -1649,7 +1649,7 @@ typedef enum
 #define CFG_TDLS_IDLE_TIMEOUT_DEFAULT               ( 5000 )
 
 #define CFG_TDLS_IDLE_PACKET_THRESHOLD              "gTDLSIdlePacketThreshold"
-#define CFG_TDLS_IDLE_PACKET_THRESHOLD_MIN          ( 1 )
+#define CFG_TDLS_IDLE_PACKET_THRESHOLD_MIN          ( 0 )
 #define CFG_TDLS_IDLE_PACKET_THRESHOLD_MAX          ( 40000 )
 #define CFG_TDLS_IDLE_PACKET_THRESHOLD_DEFAULT      ( 5 )
 
@@ -1667,6 +1667,10 @@ typedef enum
 #define CFG_TDLS_RSSI_TEARDOWN_THRESHOLD_MIN        ( -120 )
 #define CFG_TDLS_RSSI_TEARDOWN_THRESHOLD_MAX        ( 0 )
 #define CFG_TDLS_RSSI_TEARDOWN_THRESHOLD_DEFAULT    ( -75 )
+#define CFG_TDLS_EXTERNAL_CONTROL                   "gTDLSExternalControl"
+#define CFG_TDLS_EXTERNAL_CONTROL_MIN               (0)
+#define CFG_TDLS_EXTERNAL_CONTROL_MAX               (1)
+#define CFG_TDLS_EXTERNAL_CONTROL_DEFAULT           (0)
 #endif
 
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
@@ -1813,6 +1817,12 @@ typedef enum
 #define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_MIN       ( 1000 )
 #define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_MAX       ( 10000 )
 #define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_DEFAULT   ( 5000 )
+
+//Enable debug for remain on channel issues
+#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_NAME    "gDebugP2pRemainOnChannel"
+#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_DEFAULT ( 0 )
+#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MIN     ( 0 )
+#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MAX     ( 1 )
 
 /*---------------------------------------------------------------------------
   Type declarations
@@ -2164,6 +2174,7 @@ v_U16_t                     configMccParam;
    v_U32_t                     fTDLSRSSIHysteresis;
    v_S31_t                     fTDLSRSSITriggerThreshold;
    v_S31_t                     fTDLSRSSITeardownThreshold;
+   v_BOOL_t                    fTDLSExternalControl;
 #endif
    v_U32_t                     enableLpwrImgTransition;
 #ifdef WLAN_SOFTAP_VSTA_FEATURE
@@ -2204,6 +2215,7 @@ v_U16_t                     configMccParam;
                                                  //splitscan
    //Traffic monitor timer for split scan
    v_U32_t                     trafficMntrTmrForSplitScan;
+   v_BOOL_t                    debugP2pRemainOnChannel;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

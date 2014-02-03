@@ -3860,7 +3860,11 @@ WLANTL_GetFrames
       WDA_TLI_PROCESS_FRAME_LEN( pTLCb->tlMgmtFrmClient.vosPendingDataBuff,
                           usPktLen, uResLen, uTotalPktLen);
 
-      VOS_ASSERT(usPktLen <= WLANTL_MAX_ALLOWED_LEN);
+      if (usPktLen > WLANTL_MAX_ALLOWED_LEN)
+      {
+          usPktLen = WLANTL_MAX_ALLOWED_LEN;
+          VOS_ASSERT(0);
+      }
 
       if ( ( pTLCb->uResCount > uResLen ) &&
            ( uRemaining > uTotalPktLen ) &&
@@ -3898,7 +3902,11 @@ WLANTL_GetFrames
       WDA_TLI_PROCESS_FRAME_LEN( pTLCb->tlBAPClient.vosPendingDataBuff,
                           usPktLen, uResLen, uTotalPktLen);
 
-      VOS_ASSERT(usPktLen <= WLANTL_MAX_ALLOWED_LEN);
+      if (usPktLen > WLANTL_MAX_ALLOWED_LEN)
+      {
+          usPktLen = WLANTL_MAX_ALLOWED_LEN;
+          VOS_ASSERT(0);
+      }
 
       if ( ( pTLCb->uResCount > (uResLen + WDA_TLI_MIN_RES_MF ) ) &&
            ( uRemaining > uTotalPktLen ))
@@ -3998,7 +4006,11 @@ WLANTL_GetFrames
         {
             WDA_TLI_PROCESS_FRAME_LEN( vosTempBuf, usPktLen, uResLen, uTotalPktLen);
 
-            VOS_ASSERT( usPktLen <= WLANTL_MAX_ALLOWED_LEN);
+            if (usPktLen > WLANTL_MAX_ALLOWED_LEN)
+            {
+                usPktLen = WLANTL_MAX_ALLOWED_LEN;
+                VOS_ASSERT(0);
+            }
 
             TLLOG4(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_LOW,
                       "WLAN TL:Resources needed by frame: %d", uResLen));
@@ -4146,7 +4158,11 @@ WLANTL_GetFrames
       {
         WDA_TLI_PROCESS_FRAME_LEN( vosTempBuf, usPktLen, uResLen, uTotalPktLen);
 
-        VOS_ASSERT( usPktLen <= WLANTL_MAX_ALLOWED_LEN);
+        if (usPktLen > WLANTL_MAX_ALLOWED_LEN)
+        {
+            usPktLen = WLANTL_MAX_ALLOWED_LEN;
+            VOS_ASSERT(0);
+        }
 
         TLLOG4(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_LOW,
                   "WLAN TL:Resources needed by frame: %d", uResLen));
@@ -4240,8 +4256,14 @@ WLANTL_GetFrames
   vos_pkt_walk_packet_chain( vosRoot, &vosDataBuff, 1/*true*/ );
 
   *pvosDataBuff = vosDataBuff;
-  VOS_ASSERT( pbUrgent );
-  *pbUrgent     = pTLCb->bUrgent;
+  if (pbUrgent)
+  {
+      *pbUrgent     = pTLCb->bUrgent;
+  }
+  else
+  {
+      VOS_ASSERT( pbUrgent );
+  }
   return ucResult;
 }/* WLANTL_GetFrames */
 
@@ -4920,9 +4942,6 @@ WLANTL_ProcessBAPFrame
     }
 
     /* Send packet to BAP client*/
-
-    VOS_ASSERT(pTLCb->tlBAPClient.pfnTlBAPRx != NULL);
-
     if ( VOS_STATUS_SUCCESS != WDA_DS_TrimRxPacketInfo( vosTempBuff ) )
     {
       TLLOGW(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
@@ -4952,6 +4971,10 @@ WLANTL_ProcessBAPFrame
         pTLCb->tlBAPClient.pfnTlBAPRx( vos_get_global_context(VOS_MODULE_ID_TL,pTLCb),
                                        vosTempBuff,
                                        (WLANTL_BAPFrameEnumType)usType );
+    else
+    {
+        VOS_ASSERT(0);
+    }
 
     return VOS_TRUE;
   }
@@ -5258,6 +5281,11 @@ WLANTL_RxFrames
                "WLAN TL:Invalid parameter sent on WLANTL_RxFrames"));
     return VOS_STATUS_E_INVAL;
   }
+
+ /*------------------------------------------------------------------------
+   Popolaute timestamp as the time when packet arrives
+   ---------------------------------------------------------------------- */
+   vosDataBuff->timestamp = vos_timer_get_system_ticks();
 
   /*------------------------------------------------------------------------
     Extract TL control block
@@ -7575,15 +7603,16 @@ WLANTL_FwdPktToHDD
       wRxMetaInfo.ucUP = (v_U8_t)(STAMetaInfo & WLANTL_AC_MASK);
       wRxMetaInfo.ucDesSTAId = ucDesSTAId;
      
-   vosStatus = pClientSTA->pfnSTARx( pvosGCtx, vosDataBuff, ucDesSTAId,
+      vosStatus = pClientSTA->pfnSTARx( pvosGCtx, vosDataBuff, ucDesSTAId,
                                             &wRxMetaInfo );
-  if ( VOS_STATUS_SUCCESS != vosStatus )
-  {
-     TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+      if ( VOS_STATUS_SUCCESS != vosStatus )
+      {
+          TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
                 "WLAN TL: failed to send pkt to HDD \n"));
-     vos_pkt_return_packet(vosDataBuff);
-     return vosStatus;
-   }
+          vos_pkt_return_packet(vosDataBuff);
+
+          return vosStatus;
+      }
       vosDataBuff = vosNextDataBuff;
    }
    return VOS_STATUS_SUCCESS;
@@ -10174,7 +10203,7 @@ WLANTL_MgmtFrmRxDefaultCb
 
 /*==========================================================================
 
-  FUNCTION    WLANTL_STARxDefaultCb
+  FUNCTION   WLANTL_BAPRxDefaultCb
 
   DESCRIPTION
     Default BAP rx callback: asserts all the time. If this function gets
@@ -10238,7 +10267,7 @@ WLANTL_STARxDefaultCb
        "WLAN TL: No registered STA client rx cb for STAID: %d dropping pkt",
                ucSTAId));
   vos_pkt_return_packet(vosDataBuff);
-  return VOS_STATUS_E_FAILURE;
+  return VOS_STATUS_SUCCESS;
 }/*WLANTL_MgmtFrmRxDefaultCb*/
 
 

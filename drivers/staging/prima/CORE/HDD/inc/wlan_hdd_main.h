@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -200,11 +200,55 @@
 #define HDD_PNO_SCAN_TIMERS_SET_MULTIPLE 6
 #endif
 
-#define HDD_MAC_ADDR_LEN    6
-typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
+#define MAX_USER_COMMAND_SIZE 4096
 
 #define HDD_MAC_ADDR_LEN    6
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
+
+/*
+ * Generic asynchronous request/response support
+ *
+ * Many of the APIs supported by HDD require a call to SME to
+ * perform an action or to retrieve some data.  In most cases SME
+ * performs the operation asynchronously, and will execute a provided
+ * callback function when the request has completed.  In order to
+ * synchronize this the HDD API allocates a context which is then
+ * passed to SME, and which is then, in turn, passed back to the
+ * callback function when the operation completes.  The callback
+ * function then sets a completion variable inside the context which
+ * the HDD API is waiting on.  In an ideal world the HDD API would
+ * wait forever (or at least for a long time) for the response to be
+ * received and for the completion variable to be set.  However in
+ * most cases these HDD APIs are being invoked in the context of a
+ * userspace thread which has invoked either a cfg80211 API or a
+ * wireless extensions ioctl and which has taken the kernel rtnl_lock.
+ * Since this lock is used to synchronize many of the kernel tasks, we
+ * do not want to hold it for a long time.  In addition we do not want
+ * to block userspace threads (such as the wpa supplicant's main
+ * thread) for an extended time.  Therefore we only block for a short
+ * time waiting for the response before we timeout.  This means that
+ * it is possible for the HDD API to timeout, and for the callback to
+ * be invoked afterwards.  In order for the callback function to
+ * determine if the HDD API is still waiting, a magic value is also
+ * stored in the shared context.  Only if the context has a valid
+ * magic will the callback routine do any work.  In order to further
+ * synchronize these activities a spinlock is used so that if any HDD
+ * API timeout coincides with its callback, the operations of the two
+ * threads will be serialized.
+ */
+struct statsContext
+{
+   struct completion completion;
+   hdd_adapter_t *pAdapter;
+   unsigned int magic;
+};
+
+extern spinlock_t hdd_context_lock;
+
+#define STATS_CONTEXT_MAGIC 0x53544154   //STAT
+#define RSSI_CONTEXT_MAGIC  0x52535349   //RSSI
+#define POWER_CONTEXT_MAGIC 0x504F5752   //POWR
+#define SNR_CONTEXT_MAGIC   0x534E5200   //SNR
 
 typedef struct hdd_tx_rx_stats_s
 {
@@ -702,12 +746,6 @@ struct hdd_adapter_s
 
    /** Handle to the network device */
    struct net_device *dev;
-
-#ifdef WLAN_NS_OFFLOAD
-   /** IPv6 notifier callback for handling NS offload on change in IP */
-   struct notifier_block ipv6_notifier;
-   struct work_struct  ipv6NotifierWorkQueue;
-#endif
     
    //TODO Move this to sta Ctx
    struct wireless_dev wdev ;
@@ -1057,6 +1095,8 @@ struct hdd_context_s
     vos_timer_t    tx_rx_trafficTmr;
     v_U8_t         drvr_miracast;
     v_U8_t         issplitscan_enabled;
+
+    v_BOOL_t btCoexModeSet;
 };
 
 
@@ -1139,10 +1179,5 @@ v_BOOL_t hdd_is_valid_mac_address(const tANI_U8* pMacAddr);
 int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType, tANI_U8 sessionId);
 #endif
 VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
-
-#ifdef WLAN_NS_OFFLOAD
-void hdd_ipv6_notifier_work_queue(struct work_struct *work);
-#endif
-
 int hdd_wmmps_helper(hdd_adapter_t *pAdapter, tANI_U8 *ptr);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

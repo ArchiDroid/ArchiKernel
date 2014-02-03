@@ -455,6 +455,15 @@ typedef struct sSirRemainOnChnReq
     tANI_U8  probeRspIe[1];
 }tSirRemainOnChnReq, *tpSirRemainOnChnReq;
 
+/* Structure for vendor specific IE of debug marker frame
+   to debug remain on channel issues */
+typedef struct publicVendorSpecific
+{
+    tANI_U8 category;
+    tANI_U8 elementid;
+    tANI_U8 length;
+} publicVendorSpecific;
+
 typedef struct sSirRegisterMgmtFrame
 {
     tANI_U16 messageType;
@@ -1041,7 +1050,8 @@ typedef struct sSirSmeJoinReq
     tANI_U8             txBFIniFeatureEnabled;
     tANI_U8             txBFCsnValue;
 #endif
-
+    tAniBool            isWMEenabled;
+    tAniBool            isQosEnabled;
     tAniTitanCBNeighborInfo cbNeighbors;
     tAniBool            spectrumMgtIndicator;
     tSirMacPowerCapInfo powerCap;

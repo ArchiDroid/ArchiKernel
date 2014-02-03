@@ -504,11 +504,29 @@ VOS_STATUS vos_preStart( v_CONTEXT_t vosContext )
    VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_INFO,
              "vos prestart");
 
-   VOS_ASSERT(gpVosContext == pVosContext);
+   if (gpVosContext != pVosContext)
+   {
+      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                "%s: Context mismatch", __func__);
+      VOS_ASSERT(0);
+      return VOS_STATUS_E_INVAL;
+   }
 
-   VOS_ASSERT( NULL != pVosContext->pMACContext);
+   if (pVosContext->pMACContext == NULL)
+   {
+       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+            "%s: MAC NULL context", __func__);
+       VOS_ASSERT(0);
+       return VOS_STATUS_E_INVAL;
+   }
 
-   VOS_ASSERT( NULL != pVosContext->pWDAContext);
+   if (pVosContext->pWDAContext == NULL)
+   {
+       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+          "%s: WDA NULL context", __func__);
+       VOS_ASSERT(0);
+       return VOS_STATUS_E_INVAL;
+   }
 
    /* call macPreStart */
    vStatus = macPreStart(gpVosContext->pMACContext);
@@ -1145,6 +1163,31 @@ void vos_set_load_unload_in_progress(VOS_MODULE_ID moduleId, v_U8_t value)
 
    gpVosContext->isLoadUnloadInProgress = value;
 }
+
+v_U8_t vos_is_reinit_in_progress(VOS_MODULE_ID moduleId, v_VOID_t *moduleContext)
+{
+  if (gpVosContext == NULL)
+  {
+    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+        "%s: global voss context is NULL", __func__);
+    return 1;
+  }
+
+   return gpVosContext->isReInitInProgress;
+}
+
+void vos_set_reinit_in_progress(VOS_MODULE_ID moduleId, v_U8_t value)
+{
+  if (gpVosContext == NULL)
+  {
+    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+        "%s: global voss context is NULL", __func__);
+    return;
+  }
+
+   gpVosContext->isReInitInProgress = value;
+}
+
 
 /**---------------------------------------------------------------------------
   
@@ -1957,14 +2000,6 @@ VOS_STATUS vos_shutdown(v_CONTEXT_t vosContext)
   }
 
   ((pVosContextType)vosContext)->pMACContext = NULL;
-
-  vosStatus = vos_nv_close();
-  if (!VOS_IS_STATUS_SUCCESS(vosStatus))
-  {
-     VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-         "%s: Failed to close NV", __func__);
-     VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
-  }
 
   vosStatus = sysClose( vosContext );
   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
