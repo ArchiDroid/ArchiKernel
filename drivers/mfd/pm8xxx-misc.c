@@ -740,6 +740,7 @@ int pm8xxx_coincell_chg_config(struct pm8xxx_coincell_chg *chg_config)
 					REG_PM8058_COIN_CHG, reg);
 			break;
 		case PM8XXX_VERSION_8921:
+		case PM8XXX_VERSION_8038:
 		case PM8XXX_VERSION_8917:
 			rc = pm8xxx_writeb(chip->dev->parent,
 					REG_PM8921_COIN_CHG, reg);
