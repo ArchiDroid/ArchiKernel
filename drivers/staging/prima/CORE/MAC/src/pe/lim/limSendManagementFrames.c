@@ -868,7 +868,18 @@ limSendProbeRspMgmtFrame(tpAniSirGlobal pMac,
                             &noaIe[0], total_noaLen) != eHAL_STATUS_SUCCESS)
         {
             limLog(pMac, LOGE,
-                  FL("Not able to insert NoA because of length constraint"));
+                  FL("Not able to insert NoA because of length constraint."
+                                        "Total Length is :%d"),total_noaLen);
+            vos_mem_free(addIE);
+            vos_mem_free(pFrm);
+            palPktFree( pMac->hHdd, HAL_TXRX_FRM_802_11_MGMT,
+                       ( void* ) pFrame, ( void* ) pPacket );
+            return;
+        }
+        else
+        {
+            vos_mem_copy( &pFrame[nBytes - (total_noaLen)],
+                            &noaIe[0], total_noaLen);
         }
     }
 
