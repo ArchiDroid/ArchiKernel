@@ -32,8 +32,9 @@
  * (6)'zzmod'	-> ZaneZam moderate	-> NEW! new balanced setting with mainly 2 cores online based on 'zzopt' and optimized for newer roms
  * (7)'zzopt' 	-> ZaneZam optimized	-> balanced setting with no focus in any direction DEV-NOTE: relict from back in the days, even though some people still like it!
  * (8)'zzperf' 	-> ZaneZam performance	-> all you can get from zzmoove in terms of performance but still has the fast down scaling/hotplugging behaving of zzmoove
+ * (9)'zzins'	-> ZaneZam Insane	-> based on performance with new insane scaling active
  *
- * NOTE: be aware with setting tuneables which have a 'must' in comment below that a 'wrong' values will not be applied in the governor!
+ * NOTE: be aware with setting tuneables which have a 'should' in comment below that a 'wrong' values will give odd results!
  */
 
 static char profiles_file_version[20] = "0.1";
@@ -74,6 +75,7 @@ struct zzmoove_profile {
 	unsigned int hotplug_block_up_cycles;
 	unsigned int hotplug_block_down_cycles;
 	unsigned int hotplug_idle_threshold;
+	unsigned int hotplug_idle_freq;
 	unsigned int hotplug_sleep;
 	unsigned int ignore_nice_load;
 	int lcdfreq_enable;
@@ -121,20 +123,20 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		0,		// disable_hotplug (1=disable hotplugging, 0=enable hotplugging)
 		0,		// disable_hotplug_sleep (1=disable hotplugging, 0=enable hotplugging)
 		52,		// down_threshold (range from 11 to 100 and must be lower than up_threshold)
-		55,		// down_threshold_hotplug1 (range from 1 to 100 and must be lower than up_threshold_hotplug1)
-		55,		// down_threshold_hotplug2 (range from 1 to 100 and must be lower than up_threshold_hotplug2)
-		55,		// down_threshold_hotplug3 (range from 1 to 100 and must be lower than up_threshold_hotplug3)
-		55,		// down_threshold_hotplug4 (range from 1 to 100 and must be lower than up_threshold_hotplug4)
-		55,		// down_threshold_hotplug5 (range from 1 to 100 and must be lower than up_threshold_hotplug5)
-		55,		// down_threshold_hotplug6 (range from 1 to 100 and must be lower than up_threshold_hotplug6)
-		55,		// down_threshold_hotplug7 (range from 1 to 100 and must be lower than up_threshold_hotplug7)
-		0,		// down_threshold_hotplug_freq1 (range from 0 to scaling max and must be lower than up_threshold_hotplug_freq1)
-		0,		// down_threshold_hotplug_freq2 (range from 0 to scaling max and must be lower than up_threshold_hotplug_freq2)
-		0,		// down_threshold_hotplug_freq3 (range from 0 to scaling max and must be lower than up_threshold_hotplug_freq3)
-		0,		// down_threshold_hotplug_freq4 (range from 0 to scaling max and must be lower than up_threshold_hotplug_freq4)
-		0,		// down_threshold_hotplug_freq5 (range from 0 to scaling max and must be lower than up_threshold_hotplug_freq5)
-		0,		// down_threshold_hotplug_freq6 (range from 0 to scaling max and must be lower than up_threshold_hotplug_freq6)
-		0,		// down_threshold_hotplug_freq7 (range from 0 to scaling max and must be lower than up_threshold_hotplug_freq7)
+		55,		// down_threshold_hotplug1 (range from 1 to 100 and should be lower than up_threshold_hotplug1)
+		55,		// down_threshold_hotplug2 (range from 1 to 100 and should be lower than up_threshold_hotplug2)
+		55,		// down_threshold_hotplug3 (range from 1 to 100 and should be lower than up_threshold_hotplug3)
+		55,		// down_threshold_hotplug4 (range from 1 to 100 and should be lower than up_threshold_hotplug4)
+		55,		// down_threshold_hotplug5 (range from 1 to 100 and should be lower than up_threshold_hotplug5)
+		55,		// down_threshold_hotplug6 (range from 1 to 100 and should be lower than up_threshold_hotplug6)
+		55,		// down_threshold_hotplug7 (range from 1 to 100 and should be lower than up_threshold_hotplug7)
+		0,		// down_threshold_hotplug_freq1 (range from 0 to scaling max and should be lower than up_threshold_hotplug_freq1)
+		0,		// down_threshold_hotplug_freq2 (range from 0 to scaling max and should be lower than up_threshold_hotplug_freq2)
+		0,		// down_threshold_hotplug_freq3 (range from 0 to scaling max and should be lower than up_threshold_hotplug_freq3)
+		0,		// down_threshold_hotplug_freq4 (range from 0 to scaling max and should be lower than up_threshold_hotplug_freq4)
+		0,		// down_threshold_hotplug_freq5 (range from 0 to scaling max and should be lower than up_threshold_hotplug_freq5)
+		0,		// down_threshold_hotplug_freq6 (range from 0 to scaling max and should be lower than up_threshold_hotplug_freq6)
+		0,		// down_threshold_hotplug_freq7 (range from 0 to scaling max and should be lower than up_threshold_hotplug_freq7)
 		44,		// down_threshold_sleep (range from 11 to 100)
 		0,		// early_demand (any value=enable, 0=disable)
 		1,		// early_demand_sleep (any value=enable, 0=disable)
@@ -148,7 +150,8 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		30,		// grad_up_threshold_sleep (range from 1 to 100)
 		5,		// hotplug_up_block_cycles (0=disable, any value above 0)
 		5,		// hotplug_down_block_cycles (0=disable, any value above 0)
-		0,		// hotplug_idle_threshold (range from 1 to 100)
+		0,		// hotplug_idle_threshold (0=disable, range from 1 to 100)
+		0,		// hotplug_idle_freq (0=disable, range in system table from freq->min to freq->max in khz)
 		0,		// hotplug_sleep (0=all cores enabled, range 1 to MAX_CORES - 1)
 		0,		// ignore_nice_load (0=disable, 1=enable)
 		0,		// lcdfreq_enable (0=disable, 1=enable)
@@ -171,20 +174,20 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		75,		// smooth_up (range from 1 to 100)
 		100,		// smooth_up_sleep (range from 1 to 100)
 		70,		// up_threshold (range 1 to 100 and must be higher than down_threshold)
-		68,		// up_threshold_hotplug1 (range 1 to 100 and must be higher than down_threshold_hotplug1)
-		68,		// up_threshold_hotplug2 (range 1 to 100 and must be higher than down_threshold_hotplug2)
-		68,		// up_threshold_hotplug3 (range 1 to 100 and must be higher than down_threshold_hotplug3)
-		68,		// up_threshold_hotplug4 (range 1 to 100 and must be higher than down_threshold_hotplug4)
-		68,		// up_threshold_hotplug5 (range 1 to 100 and must be higher than down_threshold_hotplug5)
-		68,		// up_threshold_hotplug6 (range 1 to 100 and must be higher than down_threshold_hotplug6)
-		68,		// up_threshold_hotplug7 (range 1 to 100 and must be higher than down_threshold_hotplug7)
-		0,		// up_threshold_hotplug_freq1 (0 to disable core, range from 1 to scaling max and must be higher than down_threshold_hotplug_freq1)
-		0,		// up_threshold_hotplug_freq2 (0 to disable core, range from 1 to scaling max and must be higher than down_threshold_hotplug_freq2)
-		0,		// up_threshold_hotplug_freq3 (0 to disable core, range from 1 to scaling max and must be higher than down_threshold_hotplug_freq3)
-		0,		// up_threshold_hotplug_freq4 (0 to disable core, range from 1 to scaling max and must be higher than down_threshold_hotplug_freq4)
-		0,		// up_threshold_hotplug_freq5 (0 to disable core, range from 1 to scaling max and must be higher than down_threshold_hotplug_freq5)
-		0,		// up_threshold_hotplug_freq6 (0 to disable core, range from 1 to scaling max and must be higher than down_threshold_hotplug_freq6)
-		0,		// up_threshold_hotplug_freq7 (0 to disable core, range from 1 to scaling max and must be higher than down_threshold_hotplug_freq7)
+		68,		// up_threshold_hotplug1 (range 1 to 100 and should be higher than down_threshold_hotplug1)
+		68,		// up_threshold_hotplug2 (range 1 to 100 and should be higher than down_threshold_hotplug2)
+		68,		// up_threshold_hotplug3 (range 1 to 100 and should be higher than down_threshold_hotplug3)
+		68,		// up_threshold_hotplug4 (range 1 to 100 and should be higher than down_threshold_hotplug4)
+		68,		// up_threshold_hotplug5 (range 1 to 100 and should be higher than down_threshold_hotplug5)
+		68,		// up_threshold_hotplug6 (range 1 to 100 and should be higher than down_threshold_hotplug6)
+		68,		// up_threshold_hotplug7 (range 1 to 100 and should be higher than down_threshold_hotplug7)
+		0,		// up_threshold_hotplug_freq1 (0 to disable core, range from 1 to scaling max and should be higher than down_threshold_hotplug_freq1)
+		0,		// up_threshold_hotplug_freq2 (0 to disable core, range from 1 to scaling max and should be higher than down_threshold_hotplug_freq2)
+		0,		// up_threshold_hotplug_freq3 (0 to disable core, range from 1 to scaling max and should be higher than down_threshold_hotplug_freq3)
+		0,		// up_threshold_hotplug_freq4 (0 to disable core, range from 1 to scaling max and should be higher than down_threshold_hotplug_freq4)
+		0,		// up_threshold_hotplug_freq5 (0 to disable core, range from 1 to scaling max and should be higher than down_threshold_hotplug_freq5)
+		0,		// up_threshold_hotplug_freq6 (0 to disable core, range from 1 to scaling max and should be higher than down_threshold_hotplug_freq6)
+		0,		// up_threshold_hotplug_freq7 (0 to disable core, range from 1 to scaling max and should be higher than down_threshold_hotplug_freq7)
 		90,		// up_threshold_sleep; (range from above down_threshold_sleep to 100)
 		0,		// legacy_mode (if enabled by LEGACY_MODE macro 0=disabled, 1=enabled)
 	},
@@ -222,6 +225,7 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		5,		// hotplug_up_block_cycles
 		5,		// hotplug_down_block_cycles
 		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
 		1,		// hotplug_sleep
 		0,		// ignore_nice_load
 		0,		// lcdfreq_enable
@@ -295,6 +299,7 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		5,		// hotplug_up_block_cycles
 		5,		// hotplug_down_block_cycles
 		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
 		1,		// hotplug_sleep
 		0,		// ignore_nice_load
 		0,		// lcdfreq_enable
@@ -368,6 +373,7 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		5,		// hotplug_up_block_cycles
 		5,		// hotplug_down_block_cycles
 		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
 		1,		// hotplug_sleep
 		0,		// ignore_nice_load
 		0,		// lcdfreq_enable
@@ -441,6 +447,7 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		5,		// hotplug_up_block_cycles
 		5,		// hotplug_down_block_cycles
 		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
 		1,		// hotplug_sleep
 		0,		// ignore_nice_load
 		0,		// lcdfreq_enable
@@ -482,7 +489,7 @@ struct zzmoove_profile zzmoove_profiles[] = {
 	},
 	{
 		6,
-		"zzmod",	// ZaneZam optimized profile (please don't remove this profile)
+		"zzmod",	// ZaneZam moderate profile (please don't remove this profile)
 		0,		// disable_hotplug
 		0,		// disable_hotplug_sleep
 		52,		// down_threshold
@@ -514,6 +521,7 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		15,		// hotplug_up_block_cycles
 		0,		// hotplug_down_block_cycles
 		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
 		1,		// hotplug_sleep
 		0,		// ignore_nice_load
 		0,		// lcdfreq_enable
@@ -587,6 +595,7 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		5,		// hotplug_up_block_cycles
 		5,		// hotplug_down_block_cycles
 		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
 		1,		// hotplug_sleep
 		0,		// ignore_nice_load
 		0,		// lcdfreq_enable
@@ -660,6 +669,81 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		5,		// hotplug_up_block_cycles
 		5,		// hotplug_down_block_cycles
 		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
+		1,		// hotplug_sleep
+		0,		// ignore_nice_load
+		0,		// lcdfreq_enable
+		0,		// lcdfreq_kick_in_cores
+		5,		// lcdfreq_kick_in_down_delay
+		500000,		// lcdfreq_kick_in_freq
+		1,		// lcdfreq_kick_in_up_delay
+		4,		// sampling_down_factor
+		50,		// sampling_down_max_momentum
+		25,		// sampling_down_momentum_sensitivity
+		40000,		// sampling_rate
+		100000,		// sampling_rate_idle
+		0,		// sampling_rate_idle_delay
+		40,		// sampling_rate_idle_threshold
+		4,		// sampling_rate_sleep_multiplier
+		100,		// scaling_block_cycles
+		1200000,	// scaling_block_freq
+		10,		// scaling_block_threshold
+		2,		// scaling_block_force_down
+		70,		// smooth_up
+		100,		// smooth_up_sleep
+		60,		// up_threshold
+		65,		// up_threshold_hotplug1
+		75,		// up_threshold_hotplug2
+		85,		// up_threshold_hotplug3
+		68,		// up_threshold_hotplug4
+		68,		// up_threshold_hotplug5
+		68,		// up_threshold_hotplug6
+		68,		// up_threshold_hotplug7
+		400000,		// up_threshold_hotplug_freq1
+		800000,		// up_threshold_hotplug_freq2
+		1000000,	// up_threshold_hotplug_freq3
+		0,		// up_threshold_hotplug_freq4
+		0,		// up_threshold_hotplug_freq5
+		0,		// up_threshold_hotplug_freq6
+		0,		// up_threshold_hotplug_freq7
+		100,		// up_threshold_sleep
+		0,		// legacy_mode
+	},
+	{
+		9,
+		"zzins",	// ZaneZam insane profile (please don't remove this profile)
+		0,		// disable_hotplug
+		0,		// disable_hotplug_sleep
+		20,		// down_threshold
+		25,		// down_threshold_hotplug1
+		35,		// down_threshold_hotplug2
+		45,		// down_threshold_hotplug3
+		55,		// down_threshold_hotplug4
+		55,		// down_threshold_hotplug5
+		55,		// down_threshold_hotplug6
+		55,		// down_threshold_hotplug7
+		300000,		// down_threshold_hotplug_freq1
+		700000,		// down_threshold_hotplug_freq2
+		900000,		// down_threshold_hotplug_freq3
+		0,		// down_threshold_hotplug_freq4
+		0,		// down_threshold_hotplug_freq5
+		0,		// down_threshold_hotplug_freq6
+		0,		// down_threshold_hotplug_freq7
+		60,		// down_threshold_sleep
+		1,		// early_demand
+		1,		// early_demand_sleep
+		13,		// fast_scaling
+		2,		// fast_scaling_sleep
+		0,		// freq_limit
+		500000,		// freq_limit_sleep
+		25,		// freq_step
+		1,		// freq_step_sleep
+		25,		// grad_up_threshold
+		30,		// grad_up_threshold_sleep
+		5,		// hotplug_up_block_cycles
+		5,		// hotplug_down_block_cycles
+		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
 		1,		// hotplug_sleep
 		0,		// ignore_nice_load
 		0,		// lcdfreq_enable
@@ -733,6 +817,7 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		0,		// hotplug_up_block_cycles
 		0,		// hotplug_down_block_cycles
 		0,		// hotplug_idle_threshold
+		0,		// hotplug_idle_freq
 		0,		// hotplug_sleep
 		0,		// ignore_nice_load
 		0,		// lcdfreq_enable
