@@ -680,7 +680,7 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
             // Lets do abort scan to ensure smooth authentication for client
             if ((pScanInfo != NULL) && pScanInfo->mScanPending)
             {
-                hdd_abort_mac_scan(pHddCtx);
+                hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
             }
 
             break;
@@ -1419,15 +1419,15 @@ static iw_softap_getassoc_stamacaddr(struct net_device *dev,
     } 
     spin_unlock_bh( &pHostapdAdapter->staInfo_lock );
 
+    wrqu->data.length -= len;
     if (copy_to_user((void *)wrqu->data.pointer + maclist_index,
                      (void *)&maclist_null, sizeof(maclist_null)) ||
         copy_to_user((void *)wrqu->data.pointer,
-                     (void *)&wrqu->data.length, sizeof(wrqu->data.length)))
+                     (void *)&wrqu->data.length, sizeof(unsigned long int)))
     {
         hddLog(LOG1, "%s: failed to copy data to user buffer", __func__);
         return -EFAULT;
     }
-    wrqu->data.length -= len;
 
     return 0;
 }

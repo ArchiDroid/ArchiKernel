@@ -2317,7 +2317,7 @@ static int wlan_hdd_cfg80211_stop_ap (struct wiphy *wiphy,
     if ((pScanInfo != NULL) && pScanInfo->mScanPending)
     {
         INIT_COMPLETION(pScanInfo->abortscan_event_var);
-        hdd_abort_mac_scan(staAdapter->pHddCtx);
+        hdd_abort_mac_scan(staAdapter->pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
         status = wait_for_completion_interruptible_timeout(
                            &pScanInfo->abortscan_event_var,
                            msecs_to_jiffies(WLAN_WAIT_TIME_ABORTSCAN));
@@ -5773,13 +5773,7 @@ int wlan_hdd_cfg80211_set_privacy( hdd_adapter_t *pAdapter,
 
     if (req->crypto.wpa_versions)
     {
-        if ( (NL80211_WPA_VERSION_1 == req->crypto.wpa_versions)
-            && ( (req->ie_len)
-           && (hdd_isWPAIEPresent(req->ie, req->ie_len) ) ) )
-           // Make sure that it is including a WPA IE.
-           /* Currently NL is putting WPA version 1 even for open,
-            * since p2p ie is also put in same buffer.
-            * */
+        if (NL80211_WPA_VERSION_1 == req->crypto.wpa_versions)
         {
             pWextState->wpaVersion = IW_AUTH_WPA_VERSION_WPA;
         }
@@ -6140,9 +6134,9 @@ static int wlan_hdd_cfg80211_disconnect( struct wiphy *wiphy,
             pScanInfo =  &pHddCtx->scan_info;
             if (pScanInfo->mScanPending)
             {
-               hddLog(VOS_TRACE_LEVEL_INFO, "Disconnect is in progress, "
+                hddLog(VOS_TRACE_LEVEL_INFO, "Disconnect is in progress, "
                               "Aborting Scan");
-                hdd_abort_mac_scan(pHddCtx);
+                hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
             }
 
 #ifdef FEATURE_WLAN_TDLS

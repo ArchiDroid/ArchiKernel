@@ -157,7 +157,6 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WE_SET_HIGHER_DTIM_TRANSITION   8
 #define WE_SET_TM_LEVEL      9
 #define WE_ENABLE_STRICT_FCC_REG  10
-#define WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD    13
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
@@ -230,6 +229,7 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #endif
 
 #define WE_MTRACE_DUMP_CMD    8
+#define WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD    9
 
 #ifdef FEATURE_WLAN_TDLS
 #undef  MAX_VAR_ARGS
@@ -1776,7 +1776,7 @@ static int iw_get_genie(struct net_device *dev,
         hddLog(LOG1, "%s: failed to copy data to user buffer", __func__);
         return -EFAULT;
     }
-    vos_mem_copy( extra, (v_VOID_t*)genIeBytes, wrqu->data.length);
+    vos_mem_copy( extra, (v_VOID_t*)genIeBytes, length);
     wrqu->data.length = length;
 
     hddLog(LOG1,"%s: RSN IE of %d bytes returned\n", __func__, wrqu->data.length );
@@ -2923,6 +2923,7 @@ static int iw_set_priv(struct net_device *dev,
             VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                        "%s: SME Change Country code fail", __func__);
             kfree(cmd);
+            return -EINVAL;
         }
     }
     else if( strncasecmp(cmd, "rssi", 4) == 0 )
@@ -4058,15 +4059,6 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
            break;
         }
 
-        case WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD:
-        {
-           hddLog(LOG1, "%s: SELECTIVE_MODULE_LOG %d arg1",
-                  __func__, set_value);
-           vosTraceEnable(set_value);
-
-           break;
-        }
-
         case WE_ENABLE_STRICT_FCC_REG:
         {
            hdd_context_t *hddCtxt = WLAN_HDD_GET_CTX(pAdapter);
@@ -4611,6 +4603,21 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
         }
         case WE_INIT_AP:
         {
+          /*FIX ME: Need to be revisited if multiple SAPs to be supported */
+
+          /* As Soft AP mode might been changed to STA already with
+           * killing of Hostapd, need to find the adpater by name
+           * rather than mode */
+          hdd_adapter_t* pAdapter_to_stop =
+                hdd_get_adapter_by_name(WLAN_HDD_GET_CTX(pAdapter), "softap.0");
+          if( pAdapter_to_stop )
+          {
+              VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                       "Adapter with name softap.0 already "
+                       "exist, ignoring the request.\nRemove the "
+                       "adapter and try again\n");
+              break;
+          }
           pr_info("Init AP trigger\n");
           hdd_open_adapter( WLAN_HDD_GET_CTX(pAdapter), WLAN_HDD_SOFTAP, "softap.%d",
                  wlan_hdd_get_intf_addr( WLAN_HDD_GET_CTX(pAdapter) ),TRUE);
@@ -4859,6 +4866,14 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
 
                 hdd_setP2pPs(dev, &p2pNoA);
 
+            }
+            break;
+
+        case WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD:
+            {
+                hddLog(LOG1, "%s: SELECTIVE_MODULE_LOG %d arg1 %d arg2",
+                        __func__, apps_args[0], apps_args[1]);
+                vosTraceEnable(apps_args[0], apps_args[1]);
             }
             break;
 
@@ -6770,7 +6785,23 @@ int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr)
                 "%s: Current band value = %u, new setting %u ",
                  __func__, currBand, band);
 
-        if (hdd_connIsConnected(WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)))
+        /* We need to change the band and flush the scan results here itself
+         * as we may get timeout for disconnection in which we will return
+         * with out doing any of these
+         */
+        if (eHAL_STATUS_SUCCESS != sme_SetFreqBand(hHal, (eCsrBand)band))
+        {
+             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+                     "%s: failed to set the band value to %u ",
+                        __func__, band);
+             return -EINVAL;
+        }
+        wlan_hdd_cfg80211_update_band(pHddCtx->wiphy, (eCsrBand)band);
+        hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DUE_TO_BAND_CHANGE);
+        sme_FilterScanResults(hHal, pAdapter->sessionId);
+
+        if (band != eCSR_BAND_ALL &&
+            hdd_connIsConnected(WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)))
         {
              hdd_station_ctx_t *pHddStaCtx = &(pAdapter)->sessionCtx.station;
              eHalStatus status = eHAL_STATUS_SUCCESS;
@@ -6809,20 +6840,6 @@ int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr)
                 return (0 == lrc) ? -ETIMEDOUT : -EINTR;
              }
         }
-
-        hdd_abort_mac_scan(pHddCtx);
-        sme_ScanFlushResult(hHal, pAdapter->sessionId);
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-        sme_UpdateBgScanConfigIniChannelList(hHal, (eCsrBand) band);
-#endif
-        if (eHAL_STATUS_SUCCESS != sme_SetFreqBand(hHal, (eCsrBand)band))
-        {
-             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                     "%s: failed to set the band value to %u ",
-                        __func__, band);
-             return -EINVAL;
-        }
-        wlan_hdd_cfg80211_update_band(pHddCtx->wiphy, (eCsrBand)band);
     }
     return 0;
 }
@@ -7201,11 +7218,6 @@ static const struct iw_priv_args we_private_args[] = {
         0,
         "setStrictFCCreg" },
 
-    {   WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD,
-        IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-        0,
-        "setdumplog" },
-
     /* handlers for main ioctl */
     {   WLAN_PRIV_SET_NONE_GET_INT,
         0,
@@ -7419,6 +7431,11 @@ static const struct iw_priv_args we_private_args[] = {
         "dump" },
 
     /* handlers for sub-ioctl */
+    {   WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD,
+        IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
+        0,
+        "setdumplog" },
+
     {   WE_MTRACE_DUMP_CMD,
         IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
         0,
