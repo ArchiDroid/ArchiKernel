@@ -36,6 +36,107 @@
 #endif
 #define EARLYSUSPEND_HOTPLUGLOCK 1
 
+ /*
+ * runqueue average
+ */
+
+#define RQ_AVG_TIMER_RATE	10
+
+struct runqueue_data {
+	unsigned int nr_run_avg;
+	unsigned int update_rate;
+	int64_t last_time;
+	int64_t total_time;
+	struct delayed_work work;
+	struct workqueue_struct *nr_run_wq;
+	spinlock_t lock;
+};
+
+static struct runqueue_data *rq_data;
+static void rq_work_fn(struct work_struct *work);
+
+static void start_rq_work(void)
+{
+	rq_data->nr_run_avg = 0;
+	rq_data->last_time = 0;
+	rq_data->total_time = 0;
+	if (rq_data->nr_run_wq == NULL)
+		rq_data->nr_run_wq =
+			create_singlethread_workqueue("nr_run_avg");
+
+	queue_delayed_work(rq_data->nr_run_wq, &rq_data->work,
+			   msecs_to_jiffies(rq_data->update_rate));
+	return;
+}
+
+static void stop_rq_work(void)
+{
+	if (rq_data->nr_run_wq)
+		cancel_delayed_work(&rq_data->work);
+	return;
+}
+
+static int __init init_rq_avg(void)
+{
+	rq_data = kzalloc(sizeof(struct runqueue_data), GFP_KERNEL);
+	if (rq_data == NULL) {
+		pr_err("%s cannot allocate memory\n", __func__);
+		return -ENOMEM;
+	}
+	spin_lock_init(&rq_data->lock);
+	rq_data->update_rate = RQ_AVG_TIMER_RATE;
+	INIT_DELAYED_WORK_DEFERRABLE(&rq_data->work, rq_work_fn);
+
+	return 0;
+}
+
+static void rq_work_fn(struct work_struct *work)
+{
+	int64_t time_diff = 0;
+	int64_t nr_run = 0;
+	unsigned long flags = 0;
+	int64_t cur_time = ktime_to_ns(ktime_get());
+
+	spin_lock_irqsave(&rq_data->lock, flags);
+
+	if (rq_data->last_time == 0)
+		rq_data->last_time = cur_time;
+	if (rq_data->nr_run_avg == 0)
+		rq_data->total_time = 0;
+
+	nr_run = nr_running() * 100;
+	time_diff = cur_time - rq_data->last_time;
+	do_div(time_diff, 1000 * 1000);
+
+	if (time_diff != 0 && rq_data->total_time != 0) {
+		nr_run = (nr_run * time_diff) +
+			(rq_data->nr_run_avg * rq_data->total_time);
+		do_div(nr_run, rq_data->total_time + time_diff);
+	}
+	rq_data->nr_run_avg = nr_run;
+	rq_data->total_time += time_diff;
+	rq_data->last_time = cur_time;
+
+	if (rq_data->update_rate != 0)
+		queue_delayed_work(rq_data->nr_run_wq, &rq_data->work,
+				   msecs_to_jiffies(rq_data->update_rate));
+
+	spin_unlock_irqrestore(&rq_data->lock, flags);
+}
+
+static unsigned int get_nr_run_avg(void)
+{
+	unsigned int nr_run_avg;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&rq_data->lock, flags);
+	nr_run_avg = rq_data->nr_run_avg;
+	rq_data->nr_run_avg = 0;
+	spin_unlock_irqrestore(&rq_data->lock, flags);
+
+	return nr_run_avg;
+}
+
 /*
  * dbs is used in this file as a shortform for demandbased switching
  * It helps to keep variable names smaller, simpler
@@ -1154,8 +1255,8 @@ static void debug_hotplug_check(int which, int rq_avg, int freq,
 			 struct cpu_usage *usage)
 {
 	int cpu;
-	printk(KERN_ERR "CHECK %s rq %d freq %d [", which ? "up" : "down",
-	       (rq_avg * 100) >> FSHIFT, freq);
+	printk(KERN_ERR "CHECK %s rq %d.%02d freq %d [", which ? "up" : "down",
+	       rq_avg / 100, rq_avg % 100, freq);
 	for_each_online_cpu(cpu) {
 		printk(KERN_ERR "(%d, %d), ", cpu, usage->load[cpu]);
 	}
@@ -1212,8 +1313,6 @@ static int check_up(void)
 		if (dbs_tuners_ins.dvfs_debug)
 			debug_hotplug_check(1, rq_avg, freq, usage);
 	}
-
-	min_rq_avg = (min_rq_avg * 100) >> FSHIFT;
 
 	if (min_freq >= up_freq && min_rq_avg > up_rq) {
 		if (online >= dbs_tuners_ins.cpu_online_bias_count) {
@@ -1279,8 +1378,6 @@ static int check_down(void)
 			debug_hotplug_check(0, rq_avg, freq, usage);
 	}
 
-	max_rq_avg = (max_rq_avg * 100) >> FSHIFT;
-
 	if ((max_freq <= down_freq && max_rq_avg <= down_rq)
 		|| (online >= (dbs_tuners_ins.cpu_online_bias_count + 1) 
 		    && max_avg_load < dbs_tuners_ins.cpu_online_bias_down_threshold)) {
@@ -1329,7 +1426,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	if(hp_s_delay <= 1){
 #endif
 		
-	hotplug_historyplus->usage[num_hist].rq_avg = avg_nr_running();
+	hotplug_historyplus->usage[num_hist].rq_avg = get_nr_run_avg();
 	++hotplug_historyplus->num_hist;
 	
 #ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_FLEXRATE
@@ -1781,6 +1878,7 @@ static void cpufreq_pegasusqplus_early_suspend(struct early_suspend *h)
 	atomic_set(&g_hotplug_lock,
 	    (dbs_tuners_ins.min_cpu_lock) ? dbs_tuners_ins.min_cpu_lock : 1);
 	apply_hotplug_lock();
+	stop_rq_work();
 #endif
 }
 static void cpufreq_pegasusqplus_late_resume(struct early_suspend *h)
@@ -1796,6 +1894,7 @@ static void cpufreq_pegasusqplus_late_resume(struct early_suspend *h)
 	dbs_tuners_ins.sampling_rate = prev_sampling_rateplus;
 #if EARLYSUSPEND_HOTPLUGLOCK
 	apply_hotplug_lock();
+	start_rq_work();
 #endif
 }
 #endif
@@ -1818,6 +1917,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		dbs_tuners_ins.max_freq = policy->max;
 		dbs_tuners_ins.min_freq = policy->min;
 		hotplug_historyplus->num_hist = 0;
+		start_rq_work();
 
 		mutex_lock(&dbs_mutex);
 
@@ -1890,6 +1990,8 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		dbs_enable--;
 		mutex_unlock(&dbs_mutex);
+		
+		stop_rq_work();
 
 		if (!dbs_enable)
 			sysfs_remove_group(cpufreq_global_kobject,
@@ -1918,6 +2020,10 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 static int __init cpufreq_gov_dbs_init(void)
 {
 	int ret;
+
+	ret = init_rq_avg();
+	if (ret)
+		return ret;
 
 	hotplug_historyplus = kzalloc(sizeof(struct cpu_usage_history), GFP_KERNEL);
 	if (!hotplug_historyplus) {
@@ -1950,6 +2056,7 @@ err_reg:
 err_queue:
 	kfree(hotplug_historyplus);
 err_hist:
+	kfree(rq_data);
 	return ret;
 }
 
@@ -1958,6 +2065,7 @@ static void __exit cpufreq_gov_dbs_exit(void)
 	cpufreq_unregister_governor(&cpufreq_gov_pegasusqplus);
 	destroy_workqueue(dvfs_workqueueplus);
 	kfree(hotplug_historyplus);
+	kfree(rq_data);
 }
 
 MODULE_AUTHOR("ByungChang Cha <bc.cha@samsung.com>");
