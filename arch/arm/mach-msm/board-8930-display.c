@@ -121,12 +121,12 @@ static int msm_fb_dsi_client_reset(int hold)
 			retVal = -ENODEV;
 			goto error;
 		}
-		
+
 		retVal = gpio_tlmm_config(GPIO_CFG(DISP_RST_GPIO , 0, GPIO_CFG_OUTPUT,
 									GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 		isGPIOInit = 1;
 	}
-	
+
 	if (hold) {
 		retVal = gpio_direction_output(DISP_RST_GPIO , 0);
 	} else {
@@ -137,7 +137,7 @@ static int msm_fb_dsi_client_reset(int hold)
 		msleep(2);
 		retVal |= gpio_direction_output(DISP_RST_GPIO , 1);
 	}
-	
+
 error:
 
 	if (retVal != 0) {
@@ -192,11 +192,11 @@ static int mipi_dsi_panel_power(int on)
 			retVal = -EINVAL;
 			goto error;
 		}
-		
+
 		/* INIT IOVDD FOR LCD*/
 		phaseid = fih_get_product_phase();
 		if(phaseid == PHASE_EVM ){
-			pr_info("[DISPLAY]Get L18\n");
+		pr_info("[DISPLAY]Get L18\n");
 			reg_iovdd = regulator_get(&msm_mipi_dsi1_device.dev,
 				"lcd_iovdd");
 		}else{
@@ -219,6 +219,7 @@ static int mipi_dsi_panel_power(int on)
 				goto error;
 			}
 		}
+
 		dsi_power_on = true;
 	}
 
@@ -300,7 +301,7 @@ static int mipi_dsi_panel_power(int on)
 			goto error;
 		}
 	}
-	
+
 error:
 
 	return retVal;
@@ -482,13 +483,13 @@ static struct platform_device mipi_dsi_toshiba_panel_device = {
 		.platform_data = &toshiba_pdata,
 	}
 };
-
+#if 0
 static struct platform_device mipi_dsi_NT35590_panel_device = {
 	.name = "mipi_NT35590",
 	.id = 0,
 	/* todo: add any platform data */
 };
-
+#endif
 #define FPGA_3D_GPIO_CONFIG_ADDR	0xB5
 
 static struct mipi_dsi_phy_ctrl dsi_novatek_cmd_mode_phy_db = {
@@ -825,11 +826,11 @@ static bool hdmi_platform_source(void)
 }
 
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL */
+
 void __init msm8930_init_fb(void)
 {
 	platform_device_register(&msm_fb_device);
 
-	platform_device_register(&mipi_dsi_NT35590_panel_device);
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 	platform_device_register(&wfd_panel_device);
 	platform_device_register(&wfd_device);

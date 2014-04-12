@@ -83,6 +83,7 @@ static struct msm_camera_i2c_reg_conf hm03d5_recommend_settings[] = {
     {0x0093, 0x12,},//update analgo gain table               20120706
     {0x0094, 0x13,},//update analog gain table               20120706
     {0x0095, 0x17,},//update analgo gain table               20120706
+    {0x0085, 0x50,},//ADC speed               20131211 /*MM-UW-fix bad front camera preview-00+{*/
     {0x0086, 0x82,},//for dark sun issue                       20120711
     {0x0080, 0x80,},//SF current turn on only CDS          20120711
     {0x00A0, 0xA1,},//turn on thick oxide support           20120820

@@ -237,7 +237,9 @@ static void bmm_dump_reg(struct i2c_client *client)
 				(((i + 1) % BYTES_PER_LINE == 0) ? '\n' : ' '));
 	}
 	printk(KERN_DEBUG "%s\n", dbg_buf_str);
+
 }
+
 
 static int bmm_wakeup(struct i2c_client *client)
 {

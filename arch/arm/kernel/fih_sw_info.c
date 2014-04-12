@@ -35,9 +35,6 @@
 #include <asm/io.h>
 #endif
 /* FIH-SW3-KERNEL-EL-write_panic_file-00+] */
-#ifdef CONFIG_MTD	/* MTD-SW3-BSP-AC-Disable_MTD-01+ */
-extern uint32_t fih_get_flash_id(void);
-#endif /* MTD-SW3-BSP-AC-Disable_MTD-01+ */
 
 #define ID2NAME(ID,NAME)  {(unsigned int)(ID), (char*)(NAME)}
 
@@ -312,7 +309,7 @@ static ssize_t fih_flash_id_version_number_show(struct kobject *kobj, struct kob
 
 	unsigned int flash_id =0 ;
 	#ifdef CONFIG_MTD /* MTD-SW3-BSP-AC-Disable_MTD-01+ */
-	flash_id = fih_get_flash_id();
+	//flash_id = fih_get_flash_id();
 	#endif /* MTD-SW3-BSP-AC-Disable_MTD-01+ */
 /* FIH-SW3-KERNEL-EL-fix_coverity-issues-02*[ */
 	s += snprintf(s, PAGE_SIZE - ((size_t)(s-buf)), "%X", flash_id);
@@ -334,9 +331,9 @@ static ssize_t fih_flash_id_version_name_show(struct kobject *kobj, struct kobj_
 	unsigned int flash_id = 0;
 	int idx;
 	int array_max_idx = ARRAY_SIZE(flash_id_map_table) - 1;
-	#ifdef CONFIG_MTD /* MTD-SW3-BSP-AC-Disable_MTD-01+ */
-	flash_id = fih_get_flash_id();
-	#endif /* MTD-SW3-BSP-AC-Disable_MTD-01+ */
+	//#ifdef CONFIG_MTD /* MTD-SW3-BSP-AC-Disable_MTD-01+ */
+	//flash_id = fih_get_flash_id();
+	//#endif /* MTD-SW3-BSP-AC-Disable_MTD-01+ */
 
 	for (idx = 0; idx <= array_max_idx; idx ++)
 	{

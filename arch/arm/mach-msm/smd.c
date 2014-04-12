@@ -48,7 +48,7 @@
 #include "modem_notifier.h"
 
 #include <linux/fih_sw_info.h>     //MTD-BSP-LC-SMEM-00 +
-#include <linux/version_host.h>  //BSP-REXER-GIT-00+
+
 
 #if defined(CONFIG_ARCH_QSD8X50) || defined(CONFIG_ARCH_MSM8X60) \
 	|| defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_FSM9XXX) \
@@ -132,7 +132,6 @@ static unsigned int fih_power_on_cause; //MTD-KERNEL-DL-POC-00
 static int is_warmboot = 0; //MTD-KERNEL-DL-PWRON_CAUSE-00 +
 //MTD-BSP-LC-SMEM-00 +]
 static char fih_amss_version[30] = {0};    //MTD-BSP-LC-Get_Version-00 +
-static char fih_nonHLOS_git_head[64] = {0};  //BSP-REXER-GIT-00+
 
 struct interrupt_config_item {
 	/* must be initialized */
@@ -3578,11 +3577,6 @@ static int restart_notifier_cb(struct notifier_block *this,
 				  unsigned long code,
 				  void *data)
 {
-	/*
-	 * Some SMD or SMSM clients assume SMD/SMSM SSR handling will be
-	 * done in the AFTER_SHUTDOWN level.  If this ever changes, extra
-	 * care should be taken to verify no clients are broken.
-	 */
 	if (code == SUBSYS_AFTER_SHUTDOWN) {
 		struct restart_notifier_block *notifier;
 
@@ -3638,8 +3632,8 @@ void fih_parse_power_on_cause (void)
 			if (*hw_wd_ptr == FIH_HW_WD_SIGNATURE)
 				*pwron_cause_ptr |= MTD_PWR_ON_EVENT_HW_WD_RESET;
 
-			//CORE-DL-AddPocForRPM-00 +[+
-			if (*pwron_cause_ptr == MTD_PWR_ON_EVENT_RPM_WD_RESET)
+			//CORE-DL-AddPocForRPM-00 +[
+			if (*pwron_cause_ptr & MTD_PWR_ON_EVENT_RPM_WD_RESET)
 				printk(KERN_ERR "System was reset by RPM Watchdog Reset!\r\n");
 			//CORE-DL-AddPocForRPM-00 +]
 
@@ -3696,13 +3690,11 @@ void fih_get_oem_info(void)
   printk(KERN_ERR "FIH kernel - fih_band_id = %d \r\n",fih_band_id);
 
   fih_sim_type_value = (fih_hw_id>>SIM_ID_SHIFT_MASK)&0x3;
-  printk(KERN_ERR "FIH kernel - fih_sim_type_value = %d \r\n",fih_sim_type_value);
-
-  printk(KERN_ERR "HLOS git head = %s \r\n",VER_HOST_GIT_COMMIT);  //BSP-REXER-GIT-00+
+  printk(KERN_ERR "FIH kernel - fih_sim_type_value = %d \r\n",fih_sim_type_value);	
 
 //MTD-KERNEL-DL-POC-00 +[
   fih_parse_power_on_cause();
-  printk(KERN_EMERG "FIH kernel - power on cause = 0x%08x \r\n", fih_power_on_cause);
+  printk(KERN_ERR "FIH kernel - power on cause = 0x%08x \r\n", fih_power_on_cause);
 //MTD-KERNEL-DL-POC-00 +]
 } /*fih_get_oem_info*/
 EXPORT_SYMBOL(fih_get_oem_info);
@@ -3732,6 +3724,15 @@ unsigned int fih_get_sim_id(void)
 EXPORT_SYMBOL(fih_get_sim_id);
 //MTD-BSP-LC-SMEM-00 +]
 
+//MTD-KERNEL-DL-FixCoverity-00 +[
+unsigned int fih_get_power_on_cause(void)
+{
+	return fih_power_on_cause;
+}
+EXPORT_SYMBOL(fih_get_power_on_cause);
+module_param_named(poweron_cause, fih_power_on_cause, int, S_IRUGO);
+//MTD-KERNEL-DL-FixCoverity-00 +[
+
 //MTD-BSP-LC-Get_Version-00 +[
 void fih_get_NONHLOS_version(void)
 {
@@ -3744,37 +3745,17 @@ void fih_get_NONHLOS_version(void)
   }
   memcpy(&oem_info, fih_smem_info, sizeof(oem_info));
 
-  //BSP-REXER-GIT-00+[
-  snprintf(fih_nonHLOS_git_head,sizeof(fih_nonHLOS_git_head),oem_info.nonHLOS_git_head);
+  //get AMSS Version
   snprintf(fih_amss_version, sizeof(fih_amss_version), oem_info.amss_version);
-  
-  printk(KERN_ERR "=======================================================");
-  printk(KERN_ERR "nonHLOS git head = %s \r\n",fih_nonHLOS_git_head);
   printk(KERN_ERR "FIH kernel : Non-HLOS Version = %s \r\n",fih_amss_version);
-  printk(KERN_ERR "=======================================================");
-  //BSP-REXER-GIT-00+]
 }
 char *fih_get_amss_version(void)
 {
-	return fih_amss_version;
+       return fih_amss_version;
 } 
 EXPORT_SYMBOL(fih_get_amss_version);
 //MTD-BSP-LC-Get_Version-00 +]
-//BSP-REXER-GIT-00+[
-char *fih_get_nonHLOS_git_head(void)
-{
-       return fih_nonHLOS_git_head;
-} 
-EXPORT_SYMBOL(fih_get_nonHLOS_git_head);
-//BSP-REXER-GIT-00+]
-//MTD-KERNEL-DL-FixCoverity-00 +[
-unsigned int fih_get_power_on_cause(void)
-{
-	return fih_power_on_cause;
-}
-EXPORT_SYMBOL(fih_get_power_on_cause);
-module_param_named(poweron_cause, fih_power_on_cause, int, S_IRUGO);
-//MTD-KERNEL-DL-FixCoverity-00 +[
+
 
 static __init int modem_restart_late_init(void)
 {

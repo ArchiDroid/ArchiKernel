@@ -386,5 +386,5 @@ void mipi_dsi_wait4video_done(void);
 #ifdef CONFIG_FB_MSM_MDP303
 void update_lane_config(struct msm_panel_info *pinfo);
 #endif
-void mipi_dsi_clk_set_rate(void);
+
 #endif /* MIPI_DSI_H */

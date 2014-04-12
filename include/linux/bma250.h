@@ -22,6 +22,7 @@
 #define LEVEL0 0
 #define LEVEL1 1
 #define LEVEL2 2
+#define LEVEL3 3
 #define GSENSOR_DBG
 #ifdef GSENSOR_DBG
 static int gsensor_debug_level = 0;

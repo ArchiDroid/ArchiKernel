@@ -25,6 +25,7 @@
 
 #define TRULY_PANEL_V2_ID 0x46
 #define TRULY_PANEL_V3_ID 0x49
+#define TRULY_PANEL_V4_ID 0x50
 
 #define CMI_PANEL_V2_ID 0x47
 #define CMI_PANEL_V3_ID 0x48
@@ -287,6 +288,115 @@ static char truly_gamma_negitive[17] = {0xE2, 0x02, 0x0B, 0x0E, 0x0E, 0x07,
                                               0x16, 0x0E, 0x14, 0x1E, 0x0A,
                                               0x00}; /* DTYPE_GEN_LWRITE */
 /* Gamma 2.5 - */
+static char truly_gamma24_positive_offset[2] = {0x00, 0x00};
+static char truly_gamma24_positive[17] = {0xe1,0x02,0x09,0x0e,0x0e,0x07,0x0d,0x0b,0x0b,0x02,0x06,0x16,0x11,0x17,0x20,0x0c,0x00}; /* DTYPE_GEN_LWRITE */
+static char truly_gamma24_negitive_offset[2] = {0x00, 0x00};
+static char truly_gamma24_negitive[17] = {0xe2,0x02,0x09,0x0e,0x0e,0x07,0x0d,0x0b,0x0b,0x02,0x06,0x16,0x11,0x17,0x20,0x0c,0x00}; /* DTYPE_GEN_LWRITE */
+static char truly_3gamma_EC[34] = {0xEC,
+            0x40,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x34,
+            0x33,
+            0x33,
+            0x43,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x44,
+            0x55,
+            0x55,
+            0x55,
+            0x04};
+
+static char truly_3gamma_ED[34] = {0xED,
+            0x40,                
+            0x44,                
+            0x44,         
+            0x44,                
+            0x44,                 
+            0x44,                      
+            0x44,                     
+            0x44,                       
+            0x44,                            
+            0x44,              
+            0x44,                        
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x04};
+
+static char truly_3gamma_EE[34] = {0xEE,
+            0x30,                                                                    
+            0x33,                                                                    
+            0x33,                                                                    
+            0x33,                                                                    
+            0x43,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x44,                                                                    
+            0x54,                                                                    
+            0x55,                                                                    
+            0x55,                                                                    
+            0x55,                                                                    
+            0x45,                                                                    
+            0x04};
+
 static char truly_CEEN_offset[2] = {0x00, 0x80};
 static char truly_CEEN[2] = {0xD6, 0x28};
 static char truly_source_output_levels_offset[2] = {0x00, 0xB5};
@@ -375,23 +485,23 @@ static struct dsi_cmd_desc orise_truly_on_cmds[] = {
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_vdd_offset), truly_vdd_offset},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_vdd), truly_vdd},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting3_offset), truly_power_control_setting3_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting3), truly_power_control_setting3},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting3), truly_power_control_setting3},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting3_1_offset), truly_power_control_setting3_1_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting3_1), truly_power_control_setting3_1}, 
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting3_1), truly_power_control_setting3_1},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting2_offset), truly_power_control_setting2_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting2), truly_power_control_setting2},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting2), truly_power_control_setting2},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting2_1_offset), truly_power_control_setting2_1_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting2_1), truly_power_control_setting2_1}, 
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting2_1), truly_power_control_setting2_1},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_vcom_offset), truly_vcom_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_vcom), truly_vcom},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_vcom), truly_vcom},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_osc_ref_offset), truly_osc_ref_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_osc_ref), truly_osc_ref},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_osc_ref), truly_osc_ref},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_osc_adjust_offset), truly_osc_adjust_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_osc_adjust), truly_osc_adjust},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_osc_adjust), truly_osc_adjust},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting1_offset), truly_power_control_setting1_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting1), truly_power_control_setting1},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_control_setting1), truly_power_control_setting1},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_source_driver1_offset), truly_source_driver1_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_source_driver1), truly_source_driver1},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_source_driver1), truly_source_driver1},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_iopad_parameter1_offset), truly_iopad_parameter1_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_iopad_parameter1), truly_iopad_parameter1},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_iopad_parameter3_offset), truly_iopad_parameter3_offset},
@@ -409,9 +519,9 @@ static struct dsi_cmd_desc orise_truly_on_cmds[] = {
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_offset_0), truly_power_off_sequence_disable_offset_0},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_0), truly_power_off_sequence_disable_0},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_offset_1), truly_power_off_sequence_disable_offset_1},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_1), truly_power_off_sequence_disable_1},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_1), truly_power_off_sequence_disable_1},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_offset_2), truly_power_off_sequence_disable_offset_2},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_2), truly_power_off_sequence_disable_2},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_2), truly_power_off_sequence_disable_2},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_offset_3), truly_power_off_sequence_disable_offset_3},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_3), truly_power_off_sequence_disable_3},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_power_off_sequence_disable_offset_4), truly_power_off_sequence_disable_offset_4},
@@ -487,41 +597,43 @@ static struct dsi_cmd_desc orise_truly_on_cmds[] = {
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_goa_signal_toggle1_offset), truly_goa_signal_toggle1_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_goa_signal_toggle1), truly_goa_signal_toggle1},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_goa_signal_toggle2_offset), truly_goa_signal_toggle2_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_goa_signal_toggle2), truly_goa_signal_toggle2},	
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_goa_signal_toggle2), truly_goa_signal_toggle2},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings1_offset), truly_panel_settings1_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings1), truly_panel_settings1},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings2_offset), truly_panel_settings2_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings2), truly_panel_settings2},	
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings2), truly_panel_settings2},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings3_offset), truly_panel_settings3_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings3), truly_panel_settings3},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings4_offset), truly_panel_settings4_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings4), truly_panel_settings4},	
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings4), truly_panel_settings4},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings5_offset), truly_panel_settings5_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings5), truly_panel_settings5},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings6_offset), truly_panel_settings6_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings6), truly_panel_settings6},	
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings6), truly_panel_settings6},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings7_offset), truly_panel_settings7_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings7), truly_panel_settings7},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings8_offset), truly_panel_settings8_offset},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings8), truly_panel_settings8},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings9_offset), truly_panel_settings9_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings9), truly_panel_settings9},		
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings9), truly_panel_settings9},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings10_offset), truly_panel_settings10_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings10), truly_panel_settings10},		
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings10), truly_panel_settings10},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings11_offset), truly_panel_settings11_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings11), truly_panel_settings11},		
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings11), truly_panel_settings11},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings12_offset), truly_panel_settings12_offset},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings12), truly_panel_settings12},		
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings12), truly_panel_settings12},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings13_offset), truly_panel_settings13_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings13), truly_panel_settings13},		
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings13), truly_panel_settings13},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_panel_settings14_offset), truly_panel_settings14_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings14), truly_panel_settings14},	
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_panel_settings14), truly_panel_settings14},
+
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_CEEN_offset), truly_CEEN_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_CEEN), truly_CEEN},
+
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_cmd2_disable_offset), truly_cmd2_disable_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_cmd2_disable), truly_cmd2_disable},	
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_cmd2_disable), truly_cmd2_disable},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_orise_cmd2_disable_offset), truly_orise_cmd2_disable_offset},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_orise_cmd2_disable), truly_orise_cmd2_disable},	
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_orise_cmd2_disable), truly_orise_cmd2_disable},
 #ifdef CONFIG_FIH_SW_LCM_BC
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_pwm_1_offset), truly_pwm_1_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_pwm_1), truly_pwm_1},
@@ -540,11 +652,51 @@ static struct dsi_cmd_desc orise_truly_on_cmds[] = {
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0,	sizeof(write_display_brightness), write_display_brightness}
 #endif
 };
+/* LCM ID 0x49*/
 static struct dsi_cmd_desc orise_truly_v3_on_cmds[] = {
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_cmd2_enable_offset), truly_cmd2_enable_offset},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_cmd2_enable), truly_cmd2_enable},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_orise_cmd2_enable_offset), truly_orise_cmd2_enable_offset},
 	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_orise_cmd2_enable), truly_orise_cmd2_enable},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_CEEN_offset), truly_CEEN_offset},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_CEEN), truly_CEEN},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_cmd2_disable_offset), truly_cmd2_disable_offset},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_cmd2_disable), truly_cmd2_disable},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_orise_cmd2_disable_offset), truly_orise_cmd2_disable_offset},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_orise_cmd2_disable), truly_orise_cmd2_disable},
+#ifdef CONFIG_FIH_SW_LCM_BC
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_pwm_1_offset), truly_pwm_1_offset},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_pwm_1), truly_pwm_1},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_pwm_2_offset), truly_pwm_2_offset},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_pwm_2), truly_pwm_2},
+#endif
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_bc_offset), truly_bc_offset},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(truly_bc), truly_bc},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_tear_on_offset), truly_tear_on_offset},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(truly_tear_on), truly_tear_on},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_sleep_out_offset), truly_sleep_out_offset},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 120, sizeof(truly_sleep_out), truly_sleep_out},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_display_on_offset), truly_display_on_offset},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(truly_display_on), truly_display_on},
+#ifdef CONFIG_FIH_SW_LCM_BC
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0,	sizeof(write_display_brightness), write_display_brightness}
+#endif
+};
+static struct dsi_cmd_desc orise_truly_v4_on_cmds[] = {
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_cmd2_enable_offset), truly_cmd2_enable_offset},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_cmd2_enable), truly_cmd2_enable},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_orise_cmd2_enable_offset), truly_orise_cmd2_enable_offset},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_orise_cmd2_enable), truly_orise_cmd2_enable},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_gamma24_positive_offset), truly_gamma24_positive_offset},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_gamma24_positive), truly_gamma24_positive},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_gamma24_negitive_offset), truly_gamma24_negitive_offset},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_gamma24_negitive), truly_gamma24_negitive},
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(shift_addr00), shift_addr00},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_3gamma_EC), truly_3gamma_EC}, 
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(shift_addr00), shift_addr00},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_3gamma_ED), truly_3gamma_ED}, 
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(shift_addr00), shift_addr00},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, sizeof(truly_3gamma_EE), truly_3gamma_EE}, 
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_CEEN_offset), truly_CEEN_offset},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_CEEN), truly_CEEN},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, sizeof(truly_cmd2_disable_offset), truly_cmd2_disable_offset},
@@ -719,12 +871,12 @@ static char x47_osc_ref_83[3] = {0xC1, 0x50}; /* DTYPE_GEN_LWRITE */
 /* Gamma Correction Characteristics Setting (2.2+) */
 static char x47_gamma_cmdE1[21] = {0xE1, 0x1F, 0x3D, 0x53, 0x63, 0x6E,
 									0x7A, 0x77, 0x9A, 0x83, 0x98, 0x6D,
-									0x57, 0x6A, 0x45, 0x45, 0x42, 0x38, 
+									0x57, 0x6A, 0x45, 0x45, 0x42, 0x38,
 									0x1B, 0x17, 0x11};
 /* Gamma Correction Characteristics Setting (2.2-) */
 static char x47_gamma_cmdE2[21] = {0xE2, 0x1F, 0x3D, 0x53, 0x63, 0x6E,
 									0x7A, 0x77, 0x9A, 0x83, 0x98, 0x6D,
-									0x57, 0x6A, 0x45, 0x45, 0x42, 0x38, 
+									0x57, 0x6A, 0x45, 0x45, 0x42, 0x38,
 									0x1B, 0x17, 0x11};
 static struct dsi_cmd_desc x47_orise_cmi_video_on_cmds[] = {
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
@@ -791,11 +943,11 @@ static struct dsi_cmd_desc x47_orise_cmi_video_on_cmds[] = {
 		sizeof(x47_gamma_cmdE2), x47_gamma_cmdE2},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(shift_addr80), shift_addr80},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, 
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(x47_osc_ref_80), x47_osc_ref_80},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(shift_addr83), shift_addr83},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, 
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(x47_osc_ref_83), x47_osc_ref_83},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(shift_addr00), shift_addr00},
@@ -803,6 +955,7 @@ static struct dsi_cmd_desc x47_orise_cmi_video_on_cmds[] = {
 		sizeof(display_on), display_on}
 };
 
+/* LCM ID 0x48*/
 static struct dsi_cmd_desc x47_orise_cmi_v2_video_on_cmds[] = {
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(shift_addr00), shift_addr00},
@@ -836,17 +989,18 @@ static struct dsi_cmd_desc x47_orise_cmi_v2_video_on_cmds[] = {
 		sizeof(x47_set_F_improve_tear), x47_set_F_improve_tear},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(shift_addr80), shift_addr80},
-	{DTYPE_GEN_LWRITE, 1, 0, 0, 0, 
+	{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(x47_osc_ref_80), x47_osc_ref_80},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(shift_addr83), shift_addr83},
-	{DTYPE_GEN_WRITE1, 1, 0, 0, 0, 
+	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(x47_osc_ref_83), x47_osc_ref_83},
 	{DTYPE_GEN_WRITE1, 1, 0, 0, 0,
 		sizeof(shift_addr00), shift_addr00},
 	{DTYPE_DCS_WRITE, 1, 0, 0, 10,
 		sizeof(display_on), display_on}
 };
+
 static struct dsi_cmd_desc x47_orise_cmi_video_off_cmds[] = {
 	{DTYPE_DCS_WRITE, 1, 0, 0, 40,
 		sizeof(display_off), display_off},
@@ -854,16 +1008,8 @@ static struct dsi_cmd_desc x47_orise_cmi_video_off_cmds[] = {
 		sizeof(enter_sleep), enter_sleep}
 };
 /* ----------- [For CMI V2 panel setting End] ----------- */
-/* MM-KW-CMI_V2-00-} */
-
-#if 0
-static struct dsi_cmd_desc orise_video_bkl_cmds[] = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 0,
-		sizeof(write_display_brightness), write_display_brightness}
-};
-#endif
 static struct dsi_cmd_desc orise_ReadDA = {
-	DTYPE_DCS_READ, 1, 0, 1, 20, sizeof(orise_manufacture_idDA), 
+	DTYPE_DCS_READ, 1, 0, 1, 20, sizeof(orise_manufacture_idDA),
 										orise_manufacture_idDA};
 static int mipi_orise_manufacture_id(struct msm_fb_data_type *mfd)
 {
@@ -899,7 +1045,12 @@ static int mipi_orise_lcd_on(struct platform_device *pdev)
 	if (unlikely(gPanelModel == 0)) {
 		gPanelModel = mipi_orise_manufacture_id(mfd);
 	}
+
 	switch (gPanelModel) {
+		case TRULY_PANEL_V4_ID:
+			rc = mipi_dsi_cmds_tx(&orise_tx_buf, orise_truly_v4_on_cmds,
+					ARRAY_SIZE(orise_truly_v4_on_cmds));
+			break;
 		case TRULY_PANEL_V3_ID:
 			rc = mipi_dsi_cmds_tx(&orise_tx_buf, orise_truly_v3_on_cmds,
 					ARRAY_SIZE(orise_truly_v3_on_cmds));
@@ -918,7 +1069,6 @@ static int mipi_orise_lcd_on(struct platform_device *pdev)
 			rc = mipi_dsi_cmds_tx(&orise_tx_buf, orise_cmi_video_on_cmds,
 					ARRAY_SIZE(orise_cmi_video_on_cmds));
 			break;
-		/* MM-KW-CMI_V2-01+{ */
 		case CMI_PANEL_V3_ID:
 			rc = mipi_dsi_cmds_tx(&orise_tx_buf, x47_orise_cmi_v2_video_on_cmds,
 					ARRAY_SIZE(x47_orise_cmi_v2_video_on_cmds));
@@ -927,7 +1077,6 @@ static int mipi_orise_lcd_on(struct platform_device *pdev)
 			rc = mipi_dsi_cmds_tx(&orise_tx_buf, x47_orise_cmi_video_on_cmds,
 					ARRAY_SIZE(x47_orise_cmi_video_on_cmds));
 			break;
-		/* MM-KW-CMI_V2-01-} */
 		default:
 			printk(KERN_ERR "[DISPLAY] illegal PID <0x%02x>\n", gPanelModel);
 			break;
@@ -962,12 +1111,10 @@ static int mipi_orise_lcd_off(struct platform_device *pdev)
 		return 0;
 
 	mipi_set_tx_power_mode(0);
-	/* MM-KW-CMI_V2-00+{ */
 	if (gPanelModel == CMI_PANEL_V2_ID)
 		mipi_dsi_cmds_tx(&orise_tx_buf, x47_orise_cmi_video_off_cmds,
 				ARRAY_SIZE(x47_orise_cmi_video_off_cmds));
 	else
-	/* MM-KW-CMI_V2-00-} */
 	mipi_dsi_cmds_tx(&orise_tx_buf, orise_video_off_cmds,
 			ARRAY_SIZE(orise_video_off_cmds));
 	mipi_set_tx_power_mode(1);

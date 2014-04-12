@@ -60,17 +60,6 @@ static int ssr_magic_number = 0;
 #define CONFIG_WARMBOOT_S1   0x6F656D53
 //CORE-DL-FOTA-00 +]
 
-//CORE-DL-ADD_SWITCH_FOR_RPM_BACKUP-00 +[
-#ifdef SECURE_RPM_RAM
-#define RPM_MSG_RAM_SRC_PHYS_ADDR 0x00108000
-#define RPM_CODE_RAM_SRC_PHYS_ADDR 0x20000
-
-static void *RPM_MSG_RAM_VIRT_ADDR = 0;
-static void *RPM_MSG_RAM_SRC_VIRT_ADDR = 0;
-static void *RPM_CODE_RAM_VIRT_ADDR = 0;
-static void *RPM_CODE_RAM_SRC_VIRT_ADDR = 0;
-#endif
-//CORE-DL-ADD_SWITCH_FOR_RPM_BACKUP-00 +[
 
 extern unsigned int debug_ramdump_to_sdcard_enable;/*CORE-HC-RAMDUMP-00+*/
 
@@ -151,6 +140,20 @@ void msm_set_restart_mode(int mode)
 #endif
 }
 EXPORT_SYMBOL(msm_set_restart_mode);
+
+//CORE-DL-AdbWriteRestartReason-00 +[
+static int lights_on;
+u32 reboot_reason;
+void msm_write_restart_reason(u32 reason)
+{
+	reboot_reason = reason;
+	lights_on = 1;
+
+	pr_err("ADB write 0x%08x into restart_reason\n", reboot_reason);
+	__raw_writel(reboot_reason, restart_reason);
+}
+EXPORT_SYMBOL(msm_write_restart_reason);
+//CORE-DL-AdbWriteRestartReason-00 +]
 
 static void __msm_power_off(int lower_pshold)
 {
@@ -252,11 +255,11 @@ void set_kernel_crash_magic_number(void)
 }
 #endif /* CONFIG_LGE_CRASH_HANDLER */
 
-void * get_hw_wd_virt_addr(void);
+void * get_hw_wd_virt_addr(void); //CORE-DL-MR2Porting-00+
 
 void msm_restart(char mode, const char *cmd)
 {
-unsigned int *fih_hw_wd_ptr;
+unsigned int *fih_hw_wd_ptr; //CORE-DL-MR2Porting-00+
 
 #ifdef CONFIG_MSM_DLOAD_MODE
 
@@ -299,7 +302,6 @@ unsigned int *fih_hw_wd_ptr;
 		} else if (!strncmp(cmd, "oemF", 4)) {
 			__raw_writel(CONFIG_WARMBOOT_FOTA , restart_reason);
 //CORE-DL-FOTA-00 +]
-//CORE-DL-FIX_ADB_REBOOT-00 +[
 		} else {
 			__raw_writel(0x77665501, restart_reason);
 		}
@@ -307,29 +309,22 @@ unsigned int *fih_hw_wd_ptr;
 		__raw_writel(0x77665501, restart_reason);
 	}
 
+//CORE-DL-AdbWriteRestartReason-00 +[
+	if (lights_on == 1)
+		__raw_writel(reboot_reason, restart_reason);
+//CORE-DL-AdbWriteRestartReason-00 +]
+
+//CORE-DL-MR2Porting-00 +]
 	if ((in_panic == 1) && (debug_ramdump_to_sdcard_enable == 1)) {
 		//Write restart_reason as REBOOT_CRASHDUMP_PANIC
 		__raw_writel(0xC0DEDEAD, restart_reason);
-
-//CORE-DL-ADD_SWITCH_FOR_RPM_BACKUP-00 +[
-#ifdef SECURE_RPM_RAM
-		if (RPM_MSG_RAM_VIRT_ADDR != NULL && RPM_MSG_RAM_SRC_VIRT_ADDR != NULL) {
-			memcpy(RPM_MSG_RAM_VIRT_ADDR, RPM_MSG_RAM_SRC_VIRT_ADDR , RPM_MSG_RAM_SIZE);
-		}
-
-		if (RPM_CODE_RAM_VIRT_ADDR != NULL && RPM_CODE_RAM_SRC_VIRT_ADDR != NULL) {
-			memcpy(RPM_CODE_RAM_VIRT_ADDR, RPM_CODE_RAM_SRC_VIRT_ADDR , RPM_CODE_RAM_SIZE);
-		}
-#endif
-//CORE-DL-ADD_SWITCH_FOR_RPM_BACKUP-00 +]
 	}
 
 	fih_hw_wd_ptr = (unsigned int*) get_hw_wd_virt_addr();
 	if (fih_hw_wd_ptr != NULL)
 		*fih_hw_wd_ptr = MTD_PWR_ON_EVENT_CLEAN_DATA;
-//CORE-DL-FIX_ADB_REBOOT-00 +]
+//CORE-DL-MR2Porting-00 +]
 
-	
 #ifdef CONFIG_LGE_CRASH_HANDLER
 	if (in_panic == 1)
 		set_kernel_crash_magic_number();
@@ -370,42 +365,6 @@ static int __init msm_pmic_restart_init(void)
 #ifdef CONFIG_LGE_CRASH_HANDLER
 	__raw_writel(0x6d63ad00, restart_reason);
 #endif
-
-//CORE-DL-ADD_SWITCH_FOR_RPM_BACKUP-00 +[
-#ifdef SECURE_RPM_RAM
-	if (unlikely(RPM_MSG_RAM_VIRT_ADDR == 0)){
-		RPM_MSG_RAM_VIRT_ADDR = ioremap(RPM_MSG_RAM_PHYS_ADDR, RPM_MSG_RAM_SIZE);
-		if (RPM_MSG_RAM_VIRT_ADDR == NULL) {
-			pr_err("%s: RPM_MSG_RAM_VIRT_ADDR is Null!\n",
-					__func__);
-		}
-	}
-
-	if (unlikely(RPM_MSG_RAM_SRC_VIRT_ADDR == 0)){
-		RPM_MSG_RAM_SRC_VIRT_ADDR = ioremap(RPM_MSG_RAM_SRC_PHYS_ADDR, RPM_MSG_RAM_SIZE);
-		if (RPM_MSG_RAM_SRC_VIRT_ADDR == NULL) {
-			pr_err("%s: RPM_MSG_RAM_SRC_VIRT_ADDR is Null!\n",
-					__func__);
-		}
-	}
-
-	if (unlikely(RPM_CODE_RAM_VIRT_ADDR == 0)){
-		RPM_CODE_RAM_VIRT_ADDR = ioremap(RPM_CODE_RAM_PHYS_ADDR, RPM_CODE_RAM_SIZE);
-		if (RPM_CODE_RAM_VIRT_ADDR == NULL) {
-			pr_err("%s: RPM_CODE_RAM_VIRT_ADDR is Null!\n",
-					__func__);
-		}
-	}
-
-	if (unlikely(RPM_CODE_RAM_SRC_VIRT_ADDR == 0)){
-		RPM_CODE_RAM_SRC_VIRT_ADDR = ioremap(RPM_CODE_RAM_SRC_PHYS_ADDR, RPM_CODE_RAM_SIZE);
-		if (RPM_CODE_RAM_SRC_VIRT_ADDR == NULL) {
-			pr_err("%s: RPM_CODE_RAM_SRC_VIRT_ADDR is Null!\n",
-					__func__);
-		}
-	}
-#endif
-//CORE-DL-ADD_SWITCH_FOR_RPM_BACKUP-00 +]
 
 	return 0;
 }

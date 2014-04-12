@@ -296,10 +296,9 @@ struct mdp4_overlay_pipe {
 	uint32 mixer_num;		/* which mixer used */
 	uint32 mixer_stage;		/* which stage of mixer used */
 	uint32 src_format;
-	uint32 src_width;        /* source img width */
-        uint32 src_height;        /* source img height */
-        uint32 frame_size;        /* TILE frame size */
-        uint32 is_3d;
+	uint32 src_width;	/* source img width */
+	uint32 src_height;	/* source img height */
+	uint32 is_3d;
 	uint32 src_width_3d;	/* source img width */
 	uint32 src_height_3d;	/* source img height */
 	uint32 src_w;		/* roi */

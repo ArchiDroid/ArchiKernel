@@ -1153,6 +1153,7 @@ struct msm_vidc_platform_data vidc_platform_data = {
 	.cont_mode_dpb_count = 18,
 	.fw_addr = 0x9fe00000,
 	.enable_sec_metadata = 0,
+	.vote_high_bw = 0,
 };
 
 struct platform_device msm_device_vidc = {
@@ -1831,20 +1832,6 @@ static struct resource resources_qup_i2c_gsbi4[] = {
 		.end	= GSBI4_QUP_IRQ,
 		.flags	= IORESOURCE_IRQ,
 	},
-/*MTD-PERIPHERAL-CH-I2C_gpio00++[*/
-	{
-		.name	= "i2c_clk",
-		.start	= 21,
-		.end	= 21,
-		.flags	= IORESOURCE_IO,
-	},
-	{
-		.name	= "i2c_sda",
-		.start	= 20,
-		.end	= 20,
-		.flags	= IORESOURCE_IO,
-	},
-/*MTD-PERIPHERAL-CH-I2C_gpio00++]*/
 };
 
 struct platform_device msm8960_device_qup_i2c_gsbi4 = {
@@ -1901,20 +1888,6 @@ static struct resource resources_qup_i2c_gsbi3[] = {
 		.end	= GSBI3_QUP_IRQ,
 		.flags	= IORESOURCE_IRQ,
 	},
-/*MTD-PERIPHERAL-CH-I2C_gpio00++[*/
-	{
-		.name	= "i2c_clk",
-		.start	= 17,
-		.end	= 17,
-		.flags	= IORESOURCE_IO,
-	},
-	{
-		.name	= "i2c_sda",
-		.start	= 16,
-		.end	= 16,
-		.flags	= IORESOURCE_IO,
-	},
-/*MTD-PERIPHERAL-CH-I2C_gpio00++]*/
 };
 
 struct platform_device msm8960_device_qup_i2c_gsbi3 = {
@@ -1923,8 +1896,7 @@ struct platform_device msm8960_device_qup_i2c_gsbi3 = {
 	.num_resources	= ARRAY_SIZE(resources_qup_i2c_gsbi3),
 	.resource	= resources_qup_i2c_gsbi3,
 };
-/* MTD-BSP-VT-GSBI-00-[ */
-#if 0
+
 static struct resource resources_qup_i2c_gsbi9[] = {
 	{
 		.name	= "gsbi_qup_i2c_addr",
@@ -1980,8 +1952,6 @@ struct platform_device msm8960_device_qup_i2c_gsbi10 = {
 	.num_resources	= ARRAY_SIZE(resources_qup_i2c_gsbi10),
 	.resource	= resources_qup_i2c_gsbi10,
 };
-#endif
-/* MTD-BSP-VT-GSBI-00-] */
 
 static struct resource resources_qup_i2c_gsbi12[] = {
 	{
@@ -2002,20 +1972,6 @@ static struct resource resources_qup_i2c_gsbi12[] = {
 		.end	= GSBI12_QUP_IRQ,
 		.flags	= IORESOURCE_IRQ,
 	},
-/*MTD-PERIPHERAL-CH-I2C_gpio00++[*/
-	{
-		.name	= "i2c_clk",
-		.start	= 45,
-		.end	= 45,
-		.flags	= IORESOURCE_IO,
-	},
-	{
-		.name	= "i2c_sda",
-		.start	= 44,
-		.end	= 44,
-		.flags	= IORESOURCE_IO,
-	},
-/*MTD-PERIPHERAL-CH-I2C_gpio00++]*/
 };
 
 struct platform_device msm8960_device_qup_i2c_gsbi12 = {

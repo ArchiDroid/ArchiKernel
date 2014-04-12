@@ -107,6 +107,7 @@ int32_t msm_sensor_get_csi_params(struct msm_sensor_ctrl_t *s_ctrl,
 int32_t msm_sensor_enable_i2c_mux(struct msm_camera_i2c_conf *i2c_conf);
 int32_t msm_sensor_disable_i2c_mux(struct msm_camera_i2c_conf *i2c_conf);
 //FIH-SW-MM-MC-BringUpCameraRawSensorS5k4e1-00+}
+
 struct msm_sensor_ctrl_t *get_sctrl(struct v4l2_subdev *sd);
 int32_t msm_sensor_free_sensor_data(struct msm_sensor_ctrl_t *s_ctrl);
 

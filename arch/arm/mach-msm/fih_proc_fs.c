@@ -163,7 +163,9 @@ static int siminfo_read_proc(char *page, char **start, off_t off,
     return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
-//MTD-BSP-LC-Get_Version-00 +[
+//MTD-BSP-LC-Get_Version-00 *[
+#if 1
+
 static int amss_version_read_proc(char *page, char **start, off_t off,
                                   int count, int *eof, void *data)
 {
@@ -175,7 +177,8 @@ static int amss_version_read_proc(char *page, char **start, off_t off,
 
     return proc_calc_metrics(page, start, off, count, eof, len);
 }
-//MTD-BSP-LC-Get_Version-00 +]
+#endif
+//MTD-BSP-LC-Get_Version-00 *]
 
 
 //MTD-BSP-LC-Show_Version-00 *[
@@ -210,7 +213,7 @@ static int hw_rev_read_proc(char *page, char **start, off_t off,
 }
 
 
-
+#if 0
 //BSP-REXER-GIT-00+[
 static int HLOS_git_head_read_proc(char *page, char **start, off_t off,
                                    int count, int *eof, void *data)
@@ -233,6 +236,8 @@ static int nonHLOS_git_head_read_proc(char *page, char **start, off_t off,
     return proc_calc_metrics(page, start, off, count, eof, len);
 }
 //BSP-REXER-GIT-00+]
+//MTD-BSP-LC-Show_Version-00 *]
+#endif
 
 #if 0
 /* MTD-BSP-VT-RECOVERY-00*[ */
@@ -273,8 +278,8 @@ static struct {
     //{"rebootinfo",	reboot_info_read_proc},  /* MTD-BSP-VT-RECOVERY-00* */
     {"siminfo", siminfo_read_proc},
     //BSP-REXER-GIT-00+[
-    {"nonHLOS_git_head", nonHLOS_git_head_read_proc},
-    {"HLOS_git_head", HLOS_git_head_read_proc},
+    //{"nonHLOS_git_head", nonHLOS_git_head_read_proc},
+    //{"HLOS_git_head", HLOS_git_head_read_proc},
     //BSP-REXER-GIT-00+]
     {NULL,},
 };
@@ -283,7 +288,6 @@ void fih_info_init(void)
 {
     for (p = fih_info; p->name; p++)
         create_proc_read_entry(p->name, 0, NULL, p->read_proc, NULL);
-
 }
 EXPORT_SYMBOL(fih_info_init);
 

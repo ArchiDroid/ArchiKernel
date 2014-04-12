@@ -251,9 +251,9 @@ static struct pm8xxx_adc_amux pm8038_adc_channels_data[] = {
 	{"125v", CHANNEL_125V, CHAN_PATH_SCALING1, AMUX_RSV1,
 		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
 	{"chg_temp", CHANNEL_CHG_TEMP, CHAN_PATH_SCALING1, AMUX_RSV1,
-		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},		
-	{"AMUX_IN", ADC_MPP_1_AMUX4, CHAN_PATH_SCALING1, AMUX_RSV1, 
-		ADC_DECIMATION_TYPE3, ADC_SCALE_SYS_THERM}, 		
+		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
+	{"AMUX_IN", ADC_MPP_1_AMUX4, CHAN_PATH_SCALING1, AMUX_RSV1,
+		ADC_DECIMATION_TYPE3, ADC_SCALE_SYS_THERM},
 //	{"pa_therm1", ADC_MPP_1_AMUX4, CHAN_PATH_SCALING1, AMUX_RSV1,
 //		ADC_DECIMATION_TYPE2, ADC_SCALE_PA_THERM},
 	{"xo_therm", CHANNEL_MUXOFF, CHAN_PATH_SCALING1, AMUX_RSV0,
@@ -315,7 +315,7 @@ static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
 	.max_voltage		= MAX_VOLTAGE_MV,
 	.min_voltage		= 3200,
 	.uvd_thresh_voltage	= 4050,
-	.alarm_low_mv		= 3400,
+	.alarm_low_mv		= 3600,
 	.alarm_high_mv		= 4000,
 	.resume_voltage_delta	= VMAXSEL_NORMAL_DELTA,
 	.resume_charge_percent	= 99,
@@ -511,8 +511,7 @@ static struct pm8038_platform_data pm8038_platform_data __devinitdata = {
 	.leds_pdata		= &pm8xxx_leds_pdata,
 	.ccadc_pdata		= &pm8xxx_ccadc_pdata,
 	.spk_pdata		= &pm8xxx_spk_pdata,
-    .vibrator_pdata  = &pm8038_vib_pdata,   
-	
+	.vibrator_pdata  = &pm8038_vib_pdata,
 };
 
 static struct msm_ssbi_platform_data msm8930_ssbi_pm8038_pdata __devinitdata = {

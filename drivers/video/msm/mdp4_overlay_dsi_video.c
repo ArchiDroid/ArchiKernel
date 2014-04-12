@@ -228,16 +228,6 @@ int mdp4_dsi_video_pipe_commit(int cndx, int wait)
 				 * and not be unset yet
 				 */
 				mdp4_overlay_vsync_commit(pipe);
-				if (pipe->frame_format !=
-						MDP4_FRAME_FORMAT_LINEAR) {
-					spin_lock_irqsave(&vctrl->spin_lock,
-									flags);
-					INIT_COMPLETION(vctrl->dmap_comp);
-					vsync_irq_enable(INTR_DMA_P_DONE,
-								MDP_DMAP_TERM);
-				       spin_unlock_irqrestore(&vctrl->spin_lock,
-								flags);
-				}
 			}
 		}
 	}
@@ -803,10 +793,6 @@ int mdp4_dsi_video_off(struct platform_device *pdev)
 		pr_warn("%s: update_cnt=%d\n", __func__, vp->update_cnt);
 		mdp4_dsi_video_pipe_clean(vp);
 	}
-
-	/* MM-KW-TraceLog-00+ */
-	printk(KERN_INFO "[DISPLAY]%s: pipe %d, cnt %d, e %d\n", 
-			__func__, (pipe != NULL), mfd->ref_cnt, vctrl->vsync_irq_enabled);
 
 	if (pipe) {
 		/* sanity check, free pipes besides base layer */

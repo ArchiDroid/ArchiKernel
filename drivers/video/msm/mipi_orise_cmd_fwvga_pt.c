@@ -28,8 +28,8 @@ static struct mipi_dsi_phy_ctrl dsi_cmd_mode_phy_db = {
 	.strength = {0xff, 0x00, 0x06, 0x00}, /* common 8960 */
 	/* DSIPHY_TIMING_CTRL */
 /* MM-VH-DISPLAY-NICKI17*[ */
-	.timing = { 0x73, 0x26, 0x17,							/* panel specific tCLK-ZERO, tCLK-TRAIL, tCLK-PREPARE*/ 
-				0,					 						/* DSIPHY_TIMING_CTRL_3 = 0 */ 
+	.timing = { 0x73, 0x26, 0x17,							/* panel specific tCLK-ZERO, tCLK-TRAIL, tCLK-PREPARE*/
+				0,					 						/* DSIPHY_TIMING_CTRL_3 = 0 */
 				0x3C, 0x46, 0x21, 0x2A, 0x1C, 0x03, 0x04}, 	/* panel specific tHS-EXIT, tHS-ZERO, tHS-PREPARE, tHS-TRAIL, tHS-RQST, tTA-SURE, tTA-GO, tTA-GET*/
 /* MM-VH-DISPLAY-NICKI17*] */
 	/* DSIPHY_PLL_CTRL */
@@ -39,14 +39,14 @@ static struct mipi_dsi_phy_ctrl dsi_cmd_mode_phy_db = {
 	0x80, 0x30 , 0xc0, /* panel specific */
 /* MM-VH-DISPLAY-NICKI14*] */
 	0x00, 0x10, 0x08, 0x62,
-	0x71, 0x88, 0x99, /* Auto update by dsi-mipi driver */ 0x00, 0x14, 0x03, 0x00, 0x02, /* common 8960 */ 0x00, 0x20, 0x00, 0x01 }, /* common 8960 */ 
+	0x71, 0x88, 0x99, /* Auto update by dsi-mipi driver */ 0x00, 0x14, 0x03, 0x00, 0x02, /* common 8960 */ 0x00, 0x20, 0x00, 0x01 }, /* common 8960 */
 };
 
 static int __init mipi_cmd_orise_pt_init(void)
 {
 	int ret;
 	pr_info("[DISPLAY] +%s\n", __func__);
-	
+
 	pinfo.xres = 480;
 	pinfo.yres = 854;
 	pinfo.type = MIPI_CMD_PANEL;
@@ -64,7 +64,7 @@ static int __init mipi_cmd_orise_pt_init(void)
 /* MM-VH-DISPLAY-NICKI14*] */
 
 	/* Make sure change this value after modified pinfo.pll*/
-	
+
 	pinfo.clk_rate = 400000000;
 	pinfo.lcdc.border_clr = 0;	/* blk */
 	pinfo.lcdc.underflow_clr = 0xf0;	/* blue */

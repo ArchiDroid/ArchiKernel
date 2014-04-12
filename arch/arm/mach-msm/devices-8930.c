@@ -962,26 +962,26 @@ static struct msm_bus_vectors vidc_venc_1080p_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_HD_CODEC_PORT0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 400000000,
-		.ib  = 2560000000U,
+		.ab  = 222298112,
+		.ib  = 3522000000U,
 	},
 	{
 		.src = MSM_BUS_MASTER_HD_CODEC_PORT1,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 550000000,
-		.ib  = 2560000000U,
+		.ab  = 330301440,
+		.ib  = 3522000000U,
 	},
 	{
 		.src = MSM_BUS_MASTER_AMPSS_M0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 2500000,
-		.ib  = 5000000,
+		.ib  = 700000000,
 	},
 	{
 		.src = MSM_BUS_MASTER_AMPSS_M0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 2500000,
-		.ib  = 5000000,
+		.ib  = 10000000,
 	},
 };
 static struct msm_bus_vectors vidc_vdec_1080p_vectors[] = {
@@ -1142,6 +1142,7 @@ struct msm_vidc_platform_data apq8930_vidc_platform_data = {
 	.cont_mode_dpb_count = 18,
 	.fw_addr = 0x9fe00000,
 	.enable_sec_metadata = 0,
+	.vote_high_bw = 1,
 };
 
 struct platform_device apq8930_msm_device_vidc = {

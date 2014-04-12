@@ -618,7 +618,7 @@ static int bma250_calibration_xyz(struct i2c_client *client, unsigned char XYZ)
     {
         msleep(150);
         bma250_smbus_read_byte(client, BMA250_OFFSET1_REG, &data);
-        GSENSOR_DEBUG(LEVEL1, "Reg[0x%2x] = 0x%2x(%d)", BMA250_OFFSET1_REG, data, i+1);
+        GSENSOR_DEBUG(LEVEL2, "Reg[0x%2x] = 0x%2x(%d)", BMA250_OFFSET1_REG, data, i+1);
         if (data & BMA250_CAL_RDY)
             return 0;
     }
@@ -635,7 +635,7 @@ static void bma250_irq_work(struct work_struct *work)
         bma250_read_accel_xyz(bma250);
 
         if (bma250->polling_times == 0 || (bma250->polling_times >= (bma250->polling_count-1)))
-            GSENSOR_DEBUG(LEVEL0, "%d) x = %3d, y = %3d, z = %3d", bma250->polling_times,\
+            GSENSOR_DEBUG(LEVEL1, "%d) x = %3d, y = %3d, z = %3d", bma250->polling_times,\
                                                                                                           bma250->value.x,\
                                                                                                           bma250->value.y,\
                                                                                                           bma250->value.z);
@@ -681,7 +681,7 @@ static int bma250_calibration_store(struct i2c_client *client)
     {
         msleep(10);
         bma250_smbus_read_byte(client, BMA250_EEPROM_CTRL_REG, &data);
-        GSENSOR_DEBUG(LEVEL1, "Reg[0x%2x] = 0x%2x(%d)", BMA250_EEPROM_CTRL_REG, data, i+1);
+        GSENSOR_DEBUG(LEVEL2, "Reg[0x%2x] = 0x%2x(%d)", BMA250_EEPROM_CTRL_REG, data, i+1);
         if (data & BMA250_NVM_RDY)
             break;
     }
@@ -694,7 +694,7 @@ static int bma250_calibration_store(struct i2c_client *client)
         return -EIO;
 
     bma250_smbus_read_byte(client, BMA250_EEPROM_CTRL_REG, &data);
-    GSENSOR_DEBUG(LEVEL1, "Reg[0x%2x] = 0x%2x", BMA250_EEPROM_CTRL_REG, data);
+    GSENSOR_DEBUG(LEVEL2, "Reg[0x%2x] = 0x%2x", BMA250_EEPROM_CTRL_REG, data);
 
     GSENSOR_DEBUG(LEVEL0, "Done.");
     return 0;
@@ -838,7 +838,7 @@ static ssize_t bma250_bandwidth_store(struct device *dev, struct device_attribut
     if (bma250_set_bandwidth(bma250->client, (unsigned char)data) < 0)
         GSENSOR_DEBUG(LEVEL0, "Failed.");
 
-    GSENSOR_DEBUG(LEVEL1, "%ld", data);
+    GSENSOR_DEBUG(LEVEL2, "%ld", data);
     return count;
 }
 
@@ -890,7 +890,7 @@ static ssize_t bma250_delay_store(struct device *dev, struct device_attribute *a
 
     bma250_set_delay(bma250->client, (unsigned int)data);
 
-    GSENSOR_DEBUG(LEVEL1, "%ldms", data);
+    GSENSOR_DEBUG(LEVEL2, "%ldms", data);
     return count;
 }
 
@@ -915,7 +915,7 @@ static ssize_t bma250_enable_store(struct device *dev, struct device_attribute *
 
     bma250_set_enable(bma250->client, (bool)data);
 
-    GSENSOR_DEBUG(LEVEL1, "%ld", data);
+    GSENSOR_DEBUG(LEVEL2, "%ld", data);
     return count;
 }
 
@@ -958,7 +958,7 @@ static ssize_t bma250_interrupt_store(struct device *dev, struct device_attribut
         }
     }
 
-    GSENSOR_DEBUG(LEVEL1, "%ld", data);
+    GSENSOR_DEBUG(LEVEL2, "%ld", data);
     return count;
 }
 
@@ -988,7 +988,7 @@ static ssize_t bma250_mode_store(struct device *dev, struct device_attribute *at
     if (bma250_set_mode(bma250->client, (unsigned char)data) < 0)
         GSENSOR_DEBUG(LEVEL0, "Failed.");
 
-    GSENSOR_DEBUG(LEVEL1, "%ld", data);
+    GSENSOR_DEBUG(LEVEL2, "%ld", data);
     return count;
 }
 
@@ -1018,7 +1018,7 @@ static ssize_t bma250_range_store(struct device *dev, struct device_attribute *a
     if (bma250_set_range(bma250->client, (unsigned char)data) < 0)
         GSENSOR_DEBUG(LEVEL0, "Failed.");
 
-    GSENSOR_DEBUG(LEVEL1, "%ld", data);
+    GSENSOR_DEBUG(LEVEL2, "%ld", data);
     return count;
 }
 
@@ -1061,7 +1061,7 @@ static ssize_t bma250_reg_store(struct device *dev, struct device_attribute *att
         if (bma250_smbus_write_byte(bma250->client, (unsigned char)addr, (unsigned char)data) < 0)
             GSENSOR_DEBUG(LEVEL0, "Failed.");
 
-        GSENSOR_DEBUG(LEVEL1, "Reg[0x%2lx] = 0x%2lx", addr, data);
+        GSENSOR_DEBUG(LEVEL2, "Reg[0x%2lx] = 0x%2lx", addr, data);
     }
 
     GSENSOR_DEBUG(LEVEL2, "%s", buf);
@@ -1077,7 +1077,7 @@ static ssize_t bma250_value_show(struct device *dev, struct device_attribute *at
     acc_value = bma250->value;
     mutex_unlock(&bma250->value_mutex);
 
-    GSENSOR_DEBUG(LEVEL1, "x = %3d, y = %3d, z = %3d", acc_value.x, acc_value.y, acc_value.z);
+    GSENSOR_DEBUG(LEVEL2, "x = %3d, y = %3d, z = %3d", acc_value.x, acc_value.y, acc_value.z);
     return snprintf(buf, PAGE_SIZE, "%d %d %d\n", acc_value.x, acc_value.y, acc_value.z);
 }
 
@@ -1094,7 +1094,7 @@ static ssize_t bma250_value_store(struct device *dev, struct device_attribute *a
 
     bma250_set_value(bma250->client, (unsigned int)data);
 
-    GSENSOR_DEBUG(LEVEL1, "%ld", data);
+    GSENSOR_DEBUG(LEVEL2, "%ld", data);
     return count;
 }
 
@@ -1288,12 +1288,12 @@ static DEVICE_ATTR(mode, 0660, bma250_mode_show, bma250_mode_store);
 static DEVICE_ATTR(range, 0660, bma250_range_show, bma250_range_store);
 static DEVICE_ATTR(reg, 0660, bma250_reg_show, bma250_reg_store);
 static DEVICE_ATTR(value, 0640, bma250_value_show, bma250_value_store);
-static DEVICE_ATTR(update, 0640,NULL, bma250_update_store);
-static DEVICE_ATTR(selftest, 0640,bma250_selftest_show, bma250_selftest_store);
+static DEVICE_ATTR(update, 0660,NULL, bma250_update_store);
+static DEVICE_ATTR(selftest, 0660,bma250_selftest_show, bma250_selftest_store);
 /*PERI-AC-Interrupt-00+{*/
-static DEVICE_ATTR(axi, 0640,NULL, bma250_gaxi_store);
-static DEVICE_ATTR(count, 0640,NULL, bma250_polling_count_store);
-static DEVICE_ATTR(pd, 0640,NULL, bma250_pdelay_store);
+static DEVICE_ATTR(axi, 0660,NULL, bma250_gaxi_store);
+static DEVICE_ATTR(count, 0660,NULL, bma250_polling_count_store);
+static DEVICE_ATTR(pd, 0660,NULL, bma250_pdelay_store);
 /*PERI-AC-Interrupt-00+}*/
 static struct attribute *bma250_attributes[] = {
     &dev_attr_bandwidth.attr,
@@ -1408,7 +1408,7 @@ static void bma250_early_suspend(struct early_suspend *h)
       *Then driver suspend function can control LDO to low power mode*/
     bma250_power_control(data, 0);
 /*MTD-PERIPHERAL-AC-VREG_CONTROL-00+}*/
-    GSENSOR_DEBUG(LEVEL1, "Done.");
+    GSENSOR_DEBUG(LEVEL2, "Done.");
     return;
 }
 
@@ -1419,7 +1419,7 @@ static void bma250_late_resume(struct early_suspend *h)
     /*As resume, driver can control LDO from low power mdoe to normal mode*/
     bma250_power_control(data, 1);
 /*MTD-PERIPHERAL-AC-VREG_CONTROL-00+}*/
-    GSENSOR_DEBUG(LEVEL1, "Done.");
+    GSENSOR_DEBUG(LEVEL2, "Done.");
     return;
 }
 #endif	/* CONFIG_HAS_EARLYSUSPEND */
@@ -1429,7 +1429,7 @@ static int bma250_suspend(struct device *dev)
 {
     //struct bma250_data *data = dev_get_drvdata(dev);
 
-    GSENSOR_DEBUG(LEVEL1, "Done.");
+    GSENSOR_DEBUG(LEVEL2, "Done.");
     return 0;
 }
 
@@ -1437,7 +1437,7 @@ static int bma250_resume(struct device *dev)
 {
     //struct bma250_data *data = dev_get_drvdata(dev);
 
-    GSENSOR_DEBUG(LEVEL1, "Done.");
+    GSENSOR_DEBUG(LEVEL2, "Done.");
     return 0;
 }
 
@@ -1600,13 +1600,13 @@ static struct i2c_driver bma250_driver = {
 
 static int __init bma250_init(void)
 {
-    GSENSOR_DEBUG(LEVEL1, "Done.");
+    GSENSOR_DEBUG(LEVEL2, "Done.");
     return i2c_add_driver(&bma250_driver);
 }
 
 static void __exit bma250_exit(void)
 {
-    GSENSOR_DEBUG(LEVEL1, "Done.");
+    GSENSOR_DEBUG(LEVEL2, "Done.");
     i2c_del_driver(&bma250_driver);
 }
 

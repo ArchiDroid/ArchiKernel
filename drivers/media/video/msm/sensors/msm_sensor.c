@@ -123,6 +123,7 @@ int32_t msm_sensor_write_res_settings(struct msm_sensor_ctrl_t *s_ctrl,
 	if (rc < 0)
 		return rc;
     
+    //FIH-SW-MM-MC-BringUpCameraYUVSensorForHM03D5-00+{
     if (s_ctrl->sensor_output_reg_addr->x_output == 0xFFFF && 
         s_ctrl->sensor_output_reg_addr->y_output == 0xFFFF)
     {
@@ -130,6 +131,7 @@ int32_t msm_sensor_write_res_settings(struct msm_sensor_ctrl_t *s_ctrl,
                 , s_ctrl->sensordata->sensor_name);
         return 0;
     }
+    //FIH-SW-MM-MC-BringUpCameraYUVSensorForHM03D5-00+}
 
 	rc = msm_sensor_write_output_settings(s_ctrl, res);
 	if (rc < 0)

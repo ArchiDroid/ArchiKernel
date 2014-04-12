@@ -1321,7 +1321,14 @@ rndis_function_bind_config(struct android_usb_function *f,
 		rndis->ethaddr[0], rndis->ethaddr[1], rndis->ethaddr[2],
 		rndis->ethaddr[3], rndis->ethaddr[4], rndis->ethaddr[5]);
 
-	ret = gether_setup_name(c->cdev->gadget, rndis->ethaddr, "usb");
+	//CONN-EC-WIFI-JBMR2-00957- ret = gether_setup_name(c->cdev->gadget, rndis->ethaddr, "usb");
+    //CONN-EC-WIFI-JBMR2-00957+[
+    if (rndis->ethaddr[0])
+	    ret = gether_setup_name(c->cdev->gadget, NULL, "usb");
+    else
+	    ret = gether_setup_name(c->cdev->gadget, rndis->ethaddr, "usb");
+    //CONN-EC-WIFI-JBMR2-00957+]
+
 	if (ret) {
 		pr_err("%s: gether_setup failed\n", __func__);
 		return ret;
@@ -1616,7 +1623,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	if (dev->pdata && dev->pdata->can_stall) {
 		config->fsg.can_stall = dev->pdata->can_stall;
 	}
-	
+
 	config->fsg.vendor_name = "SONY";
 	config->fsg.product_name = "Mass storage";
 #else

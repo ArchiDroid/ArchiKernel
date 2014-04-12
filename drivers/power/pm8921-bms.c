@@ -453,12 +453,17 @@ static int usb_chg_plugged_in(struct pm8921_bms_chip *chip)
 
 	/* if the charger driver was not initialized, use the restart reason */
 	if (val == -EINVAL) {
-		if (pm8xxx_restart_reason(chip->dev->parent)
-				== PM8XXX_RESTART_CHG)
+		u8 restart_reason = pm8xxx_restart_reason(chip->dev->parent);
+		
+		if (restart_reason == PM8XXX_RESTART_CHG)
 			val = 1;
 		else
 			val = 0;
+
+		pr_debug("val = %d %d", val, restart_reason);
 	}
+	else
+		pr_debug("val = %d", val);
 
 	return val;
 }

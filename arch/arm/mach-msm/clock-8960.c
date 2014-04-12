@@ -4350,7 +4350,7 @@ static struct rcg_clk vcodec_clk = {
 		.dbg_name = "vcodec_clk",
 		.ops = &clk_ops_rcg,
 		VDD_DIG_FMAX_MAP3(LOW,  100000000, NOMINAL, 200000000,
-				  HIGH, 228570000),
+				  HIGH, 228571000),
 		CLK_INIT(vcodec_clk.c),
 		.depends = &vcodec_axi_clk.c,
 	},
@@ -6099,10 +6099,8 @@ static struct clk_lookup msm_clocks_8930[] = {
 	CLK_LOOKUP("iface_clk",		gsbi8_p_clk.c,		"qup_i2c.8"),
 	/* used on 8930 SGLTE for Primary IPC */
 	CLK_LOOKUP("iface_clk",         gsbi9_p_clk.c,	"msm_serial_hs.1"),
-#if 0
 	CLK_LOOKUP("iface_clk",		gsbi9_p_clk.c,		"qup_i2c.0"),
 	CLK_LOOKUP("iface_clk",		gsbi10_p_clk.c,		"qup_i2c.10"),
-#endif
 	/* used on 8930 SGLTE for serial console */
 	CLK_LOOKUP("iface_clk",         gsbi10_p_clk.c, "msm_serial_hsl.1"),
 	CLK_LOOKUP("iface_clk",		gsbi11_p_clk.c,	"msm_serial_hsl.2"),
@@ -6122,6 +6120,7 @@ static struct clk_lookup msm_clocks_8930[] = {
 	CLK_LOOKUP("iface_clk",		pmic_arb1_p_clk.c,	""),
 	CLK_LOOKUP("core_clk",		pmic_ssbi2_clk.c,	""),
 	CLK_LOOKUP("mem_clk",		rpm_msg_ram_p_clk.c,	""),
+//FIH-SW-MM-MC-BringUpCameraRawSensorS5k4e1-00+{
 #ifndef CONFIG_FIH_CAMERA
 	CLK_LOOKUP("cam_clk",		cam0_clk.c,	"4-001a"),
 	CLK_LOOKUP("cam_clk",		cam1_clk.c,	"4-006c"),
@@ -6129,6 +6128,7 @@ static struct clk_lookup msm_clocks_8930[] = {
 	CLK_LOOKUP("cam_clk",		cam2_clk.c,		NULL),
 	CLK_LOOKUP("cam_clk",		cam0_clk.c,	"4-0020"),
 #endif
+
 #if (defined(CONFIG_S5K4E1) || defined(CONFIG_S5K4E1_2ND) || defined(CONFIG_AR0543))
     CLK_LOOKUP("cam_clk",       cam0_clk.c, "4-006c"),
 #endif
@@ -6141,13 +6141,7 @@ static struct clk_lookup msm_clocks_8930[] = {
 #ifdef CONFIG_HM03D5
     CLK_LOOKUP("cam_clk",       cam1_clk.c, "4-0060"),
 #endif
-	CLK_LOOKUP("cam_clk",		cam0_clk.c,	"8-001a"),
-	CLK_LOOKUP("cam_clk",		cam0_clk.c,	"8-0036"),
-	CLK_LOOKUP("cam_clk",		cam1_clk.c,	"8-006c"),
-	CLK_LOOKUP("cam_clk",		cam1_clk.c,	"8-0010"),
-	CLK_LOOKUP("cam_clk",		cam1_clk.c,	"8-0048"),
-	CLK_LOOKUP("cam_clk",		cam2_clk.c,		NULL),
-	CLK_LOOKUP("cam_clk",		cam0_clk.c,	"8-0020"),
+//FIH-SW-MM-MC-BringUpCameraRawSensorS5k4e1-00+}
 	CLK_LOOKUP("csi_src_clk",	csi0_src_clk.c,		"msm_csid.0"),
 	CLK_LOOKUP("csi_src_clk",	csi1_src_clk.c,		"msm_csid.1"),
 	CLK_LOOKUP("csi_src_clk",	csi2_src_clk.c,		"msm_csid.2"),

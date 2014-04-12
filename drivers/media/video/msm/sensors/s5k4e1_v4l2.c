@@ -1,4 +1,5 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
  * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1305,7 +1306,7 @@ static inline uint8_t s5k4e1_byte(uint16_t word, uint8_t offset)
 }
 
 static int32_t s5k4e1_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
-	uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain)
+						uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain)
 {
 	uint16_t max_legal_gain = 0x0200;
 	int32_t rc = 0;
@@ -1334,10 +1335,14 @@ static int32_t s5k4e1_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 	if (line > (s_ctrl->curr_frame_length_lines - offset)) {
 		fl_lines = line + offset;
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
+			  /* MM-SL-FixMMSCantNotRecord23s-00*{ */
               /* MM-UW-Fix MMS can't record 23s-00+{ */
-              if(s_ctrl->fps_divider > 2000)
+              if(s_ctrl->fps_divider > 2000){
                  fl_lines = fl_lines * 23/10;  /*let fps lower than 15*/
+				 line = line * 23/10;
+              }
               /* MM-UW-Fix MMS can't record 23s-00+} */
+			  /* MM-SL-FixMMSCantNotRecord23s-00*} */
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 			s_ctrl->sensor_output_reg_addr->frame_length_lines,
 			s5k4e1_byte(fl_lines, MSB),
@@ -1360,10 +1365,14 @@ static int32_t s5k4e1_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 		fl_lines = line + offset; 
 		if (fl_lines < s_ctrl->curr_frame_length_lines)
 			fl_lines = s_ctrl->curr_frame_length_lines;  
+			  /* MM-SL-FixMMSCantNotRecord23s-00*{ */
               /* MM-UW-Fix MMS can't record 23s-00+{ */
-              if(s_ctrl->fps_divider > 2000)
+              if(s_ctrl->fps_divider > 2000){
                  fl_lines = fl_lines * 23/10;  /*let fps lower than 15*/
+			     line = line * 23/10;
+			  }
               /* MM-UW-Fix MMS can't record 23s-00+} */
+			  /* MM-SL-FixMMSCantNotRecord23s-00*} */
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
 		/* Coarse Integration Time */
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
@@ -1794,17 +1803,17 @@ static struct msm_sensor_fn_t s5k4e1_func_tbl = {
 	.sensor_set_fps = msm_sensor_set_fps,
 	.sensor_write_exp_gain = s5k4e1_write_prev_exp_gain,
 	.sensor_write_snapshot_exp_gain = s5k4e1_write_pict_exp_gain,
-	.sensor_setting = msm_sensor_setting,
+	.sensor_setting = msm_sensor_setting,  //v
 	.sensor_csi_setting = msm_sensor_setting1,
 	.sensor_set_sensor_mode = msm_sensor_set_sensor_mode,
 	.sensor_mode_init = msm_sensor_mode_init,
-	.sensor_get_output_info = S5k4e1_get_output_info,/* MM-MC-ImplementRegSwitchMechanismForShading-00+ */
+	.sensor_get_output_info = S5k4e1_get_output_info,/* MM-MC-ImplementRegSwitchMechanismForShading-00+ */  //v
 	.sensor_config = msm_sensor_config,
-	.sensor_power_up = s5k4e1_power_up,//,msm_sensor_power_up,//FIH-SW-MM-MC-BringUpCameraRawSensorS5k4e1-00*
-	.sensor_power_down = s5k4e1_power_down,//msm_sensor_power_down,//FIH-SW-MM-MC-BringUpCameraRawSensorS5k4e1-00*
-	.sensor_adjust_frame_lines = msm_sensor_adjust_frame_lines1,
-	.sensor_get_csi_params = msm_sensor_get_csi_params,
-	.sensor_match_id = S5k4e1_match_id,//MM-MC-ImplementReadOtpDataFeature-00+
+	.sensor_power_up = s5k4e1_power_up,//,msm_sensor_power_up,//FIH-SW-MM-MC-BringUpCameraRawSensorS5k4e1-00*                   //v
+	.sensor_power_down = s5k4e1_power_down,//msm_sensor_power_down,//FIH-SW-MM-MC-BringUpCameraRawSensorS5k4e1-00*         //v
+	.sensor_adjust_frame_lines = msm_sensor_adjust_frame_lines1,                                //v
+	.sensor_get_csi_params = msm_sensor_get_csi_params,                                           //v
+	.sensor_match_id = S5k4e1_match_id,//MM-MC-ImplementReadOtpDataFeature-00+              //v
 };
 
 static struct msm_sensor_reg_t s5k4e1_regs = {

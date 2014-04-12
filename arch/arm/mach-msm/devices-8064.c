@@ -1553,6 +1553,7 @@ struct msm_vidc_platform_data apq8064_vidc_platform_data = {
 	.cont_mode_dpb_count = 18,
 	.fw_addr = 0x9fe00000,
 	.enable_sec_metadata = 1,
+        .vote_high_bw = 0,
 };
 
 struct platform_device apq8064_msm_device_vidc = {

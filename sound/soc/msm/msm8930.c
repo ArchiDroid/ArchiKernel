@@ -44,7 +44,7 @@
 #define DEFAULT_PMIC_SPK_GAIN 0x0D
 #define SITAR_EXT_CLK_RATE 12288000
 
-#define SITAR_MBHC_DEF_BUTTONS 8
+#define SITAR_MBHC_DEF_BUTTONS 4
 #define SITAR_MBHC_DEF_RLOADS 5
 
 #define GPIO_AUX_PCM_DOUT 63
@@ -178,7 +178,6 @@ static int msm8930_cfg_spkr_gpio(int gpio,
 
 	return ret;
 }
-static struct mutex cdc_mclk_mutex;
 
 static void msm8960_ext_spk_power_amp_on(u32 spk)
 {
@@ -734,6 +733,7 @@ static void *def_sitar_mbhc_cal(void)
 	btn_high[2] = 400;
 	btn_low[3] = 401;
 	btn_high[3] = 700;
+#if 0
 	btn_low[4] = 701;
 	btn_high[4] = 800;
 	btn_low[5] = 801;
@@ -742,6 +742,7 @@ static void *def_sitar_mbhc_cal(void)
 	btn_high[6] = 1000;
 	btn_low[7] = 1001;
 	btn_high[7] = 1100;
+#endif
 	n_ready = sitar_mbhc_cal_btn_det_mp(btn_cfg, SITAR_BTN_DET_N_READY);
 	n_ready[0] = 48;
 	n_ready[1] = 38;

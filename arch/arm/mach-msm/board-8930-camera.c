@@ -171,18 +171,6 @@ static struct msm_gpiomux_config msm8930_cam_common_configs[] = {
     },
 };
 
-#ifndef CONFIG_FIH_CAMERA
-static struct msm_gpiomux_config msm8930_evt_cam_configs[] = {
-	{
-		.gpio = 75,
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &cam_settings[2],
-			[GPIOMUX_SUSPENDED] = &cam_settings[0],
-		},
-	},
-};
-#endif
-
 static struct msm_gpiomux_config msm8930_cam_2d_configs[] = {
     /*
 	{
@@ -217,6 +205,16 @@ static struct msm_gpiomux_config msm8930_cam_2d_configs[] = {
 };
 
 #ifndef CONFIG_FIH_CAMERA
+static struct msm_gpiomux_config msm8930_evt_cam_configs[] = {
+	{
+		.gpio = 75,
+		.settings = {
+			[GPIOMUX_ACTIVE]    = &cam_settings[2],
+			[GPIOMUX_SUSPENDED] = &cam_settings[0],
+		},
+	},
+};
+
 static struct msm_gpiomux_config msm8930_evt_cam_2d_configs[] = {
 	{
 		.gpio = 36,
@@ -374,8 +372,8 @@ static struct msm_bus_vectors cam_video_ls_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VFE,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 348192000,
-		.ib  = 617103360,
+		.ab  = 800000000,
+		.ib  = 3522000000UL,
 	},
 	{
 		.src = MSM_BUS_MASTER_VPE,
@@ -412,30 +410,6 @@ static struct msm_bus_vectors cam_dual_vectors[] = {
 	},
 };
 
-/*
-static struct msm_bus_vectors cam_adv_video_vectors[] = {
-	{
-		.src = MSM_BUS_MASTER_VFE,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 274406400,
-		.ib  = 2656000000UL,
-	},
-	{
-		.src = MSM_BUS_MASTER_VPE,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 206807040,
-		.ib  = 488816640,
-	},
-	{
-		.src = MSM_BUS_MASTER_JPEG_ENC,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 0,
-		.ib  = 0,
-	},
-};
-*/
-
-
 static struct msm_bus_paths cam_bus_client_config[] = {
 	{
 		ARRAY_SIZE(cam_init_vectors),
@@ -465,13 +439,6 @@ static struct msm_bus_paths cam_bus_client_config[] = {
 		ARRAY_SIZE(cam_dual_vectors),
 		cam_dual_vectors,
 	},
-/*
-	{
-		ARRAY_SIZE(cam_adv_video_vectors),
-		cam_adv_video_vectors,
-	},
-*/
-
 };
 
 static struct msm_bus_scale_pdata cam_bus_client_pdata = {
@@ -810,6 +777,8 @@ static struct gpio fih_common_cam_gpio[] = {
     {5, GPIOF_DIR_IN, "CAMIF_MCLK"},
     //CAM_MCLK1
     {4, GPIOF_DIR_IN, "CAMIF_MCLK"},
+    {20, GPIOF_DIR_IN, "CAMIF_I2C_DATA"},
+    {21, GPIOF_DIR_IN, "CAMIF_I2C_CLK"},
 };
 
 static struct gpio fih_front_cam_gpio[] = {
@@ -822,7 +791,8 @@ static struct gpio fih_front_cam_gpio[] = {
 };
 
 static struct gpio fih_back_cam_gpio[] = {
-#if defined(CONFIG_S5K4E1) || defined(CONFIG_S5K4E1_2ND)|| defined(CONFIG_AR0543)//MM-MC-ImplementSlaveAddressSwitchMechanism-00*
+//MM-MC-BringUpCameraRawSensorS5k4e1-00+{
+#if defined(CONFIG_S5K4E1) || defined(CONFIG_S5K4E1_2ND)|| defined(CONFIG_AR0543)
     {93, GPIOF_DIR_OUT, "CAM_5M_RESET"},
     //Add for power enable
     {96, GPIOF_DIR_OUT, "CAM_5M_VDDIO_V1P8"},
@@ -968,6 +938,18 @@ static struct msm_actuator_info msm_act_main_cam_fih_0_info = {
 	.vcm_pwd        = 54,//CAM_VCM_PWDN pin
 	.vcm_enable     = 1,//Enable if use HW PWDN pin
 };
+
+/*static struct i2c_board_info msm_act_main_cam_i2c_info = {
+	I2C_BOARD_INFO("msm_actuator", 0x11),
+};
+
+static struct msm_actuator_info msm_act_main_cam_fih_0_info = {
+	.board_info     = &msm_act_main_cam_i2c_info,
+	.cam_name   = MSM_ACTUATOR_MAIN_CAM_0,
+	.bus_id         = MSM_8930_GSBI4_QUP_I2C_BUS_ID,
+	.vcm_pwd        = 0,
+	.vcm_enable     = 0,
+};*/
 
 static struct msm_camera_sensor_info msm_camera_sensor_s5k4e1_data = {
 	.sensor_name    = "s5k4e1",

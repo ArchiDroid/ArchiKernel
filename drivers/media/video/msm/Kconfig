@@ -253,11 +253,11 @@ config MSM_EEPROM
 
 config IMX074_EEPROM
 	bool "IMX074 EEPROM support"
-	depends on MSM_CAMERA
+	depends on MSM_CAMERA && MSM_EEPROM
 
 config IMX091_EEPROM
 	bool "IMX091 EEPROM support"
-	depends on MSM_CAMERA
+	depends on MSM_CAMERA && MSM_EEPROM
 
 config MSM_GEMINI
 	tristate "Qualcomm MSM Gemini Jpeg Engine support"

@@ -482,10 +482,7 @@ int msm_mctl_buf_done_proc(
 		buf->vidbuf.v4l2_buf.timestamp = cam_ts->timestamp;
 		buf->vidbuf.v4l2_buf.sequence  = cam_ts->frame_id;
 	}
-	/*MM-SL-RecordingFailAfterMerge3032-00-{ */
-	/*Recording fail after merge 3032 to 3030, it is failed by following patch from 3032, so roll back it to let recording could work normally*/
-	//pcam_inst->sequence = buf->vidbuf.v4l2_buf.sequence;
-	/*MM-SL-RecordingFailAfterMerge3032-00-} */
+	pcam_inst->sequence = buf->vidbuf.v4l2_buf.sequence;
 	D("%s Notify user about buffer %d image_mode %d frame_id %d", __func__,
 		buf->vidbuf.v4l2_buf.index, pcam_inst->image_mode,
 		buf->vidbuf.v4l2_buf.sequence);

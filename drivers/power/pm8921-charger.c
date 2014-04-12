@@ -163,7 +163,6 @@ do {\
 #define CHG_COMP_OVR		0x20A
 #define IUSB_FINE_RES		0x2B6
 #define OVP_USB_UVD		0x2B7
-#define PM8921_USB_TRIM_SEL	0x339
 
 /* Since interrupt mode doesn't support alien battery,
   * we use polling mode instead, until Qualcomm giving
@@ -525,6 +524,7 @@ struct pm8921_chg_chip {
 	enum charger_type			chg_type; 
 	int 							bat_temp_init;
 	enum chg_sony_state		chg_state;
+	enum chg_sony_state		last_chg_state; /* record last chg_state */
 	unsigned int					safety_timer;
 	unsigned int 					maintenance_timer;
 	struct delayed_work 			info_reveal_work;
@@ -549,8 +549,16 @@ static struct pm8921_chg_chip *the_chip;
 static struct pm8xxx_adc_arb_btm_param btm_config;
 #endif
 
+static int usb_valid_irq = 0;
+
 static void set_v_and_c(struct pm8921_chg_chip *chip, bool resume_down, const char* fname, int line);
 static void set_rv(struct pm8921_chg_chip *chip, bool resume_down, const char* fname, int line) ;
+
+static void set_chg_sony_state(struct pm8921_chg_chip *chip, enum chg_sony_state new_state, const char* fname, int line) {
+	pr_track("change chg state %d %d(%s:%d)", chip->last_chg_state, new_state, fname, line);
+	chip->last_chg_state = chip->chg_state;
+	chip->chg_state = new_state;
+}
 
 static int pm_chg_masked_write(struct pm8921_chg_chip *chip, u16 addr,
 							u8 mask, u8 val)
@@ -583,6 +591,21 @@ static int pm_chg_get_rt_status(struct pm8921_chg_chip *chip, int irq_id)
 static int is_usb_chg_plugged_in(struct pm8921_chg_chip *chip)
 {
 	return pm_chg_get_rt_status(chip, USBIN_VALID_IRQ);
+}
+
+static int is_usb_chg_plugged_in_ex(struct pm8921_chg_chip *chip)
+{
+	int usb_plugged = is_usb_chg_plugged_in(chip);
+
+	if (usb_plugged != usb_valid_irq)
+		pr_err("usb_plugged = %d but usb_valid_irq = %d", usb_plugged, usb_valid_irq);
+
+	if (usb_plugged)
+		return usb_plugged;
+	else { 
+		pr_track("return usb_valid_irq = %d", usb_valid_irq);
+		return usb_valid_irq;
+	}
 }
 
 /* Treat OverVoltage/UnderVoltage as source missing */
@@ -802,7 +825,7 @@ static int pm_chg_vddmax_set(struct pm8921_chg_chip *chip, int voltage)
 		return 0;
 
 	/* Only change in increments when USB is present */
-	if (is_usb_chg_plugged_in(chip)) {
+	if (is_usb_chg_plugged_in_ex(chip)) {
 		if (current_mv < voltage) {
 			steps = (voltage - current_mv) / PM8921_CHG_V_STEP_MV;
 			increase = true;
@@ -1005,44 +1028,6 @@ struct usb_ma_limit_entry {
 };
 
 /* USB Trim tables */
-static int usb_trim_pm8921_table_1[USB_TRIM_ENTRIES] = {
-	0x0,
-	0x0,
-	-0x5,
-	0x0,
-	-0x7,
-	0x0,
-	-0x9,
-	-0xA,
-	0x0,
-	0x0,
-	-0xE,
-	0x0,
-	-0xF,
-	0x0,
-	-0x10,
-	0x0
-};
-
-static int usb_trim_pm8921_table_2[USB_TRIM_ENTRIES] = {
-	0x0,
-	0x0,
-	-0x2,
-	0x0,
-	-0x4,
-	0x0,
-	-0x4,
-	-0x5,
-	0x0,
-	0x0,
-	-0x6,
-	0x0,
-	-0x6,
-	0x0,
-	-0x6,
-	0x0
-};
-
 static int usb_trim_8038_table[USB_TRIM_ENTRIES] = {
 	0x0,
 	0x0,
@@ -1107,10 +1092,6 @@ static struct usb_ma_limit_entry usb_ma_table[] = {
 #define USB_OVP_TRIM_MIN	0x00
 #define REG_USB_OVP_TRIM_ORIG_LSB	0x10A
 #define REG_USB_OVP_TRIM_ORIG_MSB	0x09C
-#define REG_USB_OVP_TRIM_PM8917		0x2B5
-#define REG_USB_OVP_TRIM_PM8917_BIT	BIT(0)
-#define USB_TRIM_MAX_DATA_PM8917	0x3F
-#define USB_TRIM_POLARITY_PM8917_BIT	BIT(6)
 static int pm_chg_usb_trim(struct pm8921_chg_chip *chip, int index)
 {
 	u8 temp, sbi_config, msb, lsb;
@@ -1670,7 +1651,7 @@ static int pm_power_get_property_mains(struct power_supply *psy,
 
 		/* USB with max current greater than 500 mA connected */
 		if (the_chip->chg_type == CHARGER_TYPE_AC)
-			val->intval = is_usb_chg_plugged_in(the_chip);
+			val->intval = is_usb_chg_plugged_in_ex(the_chip);
 			return 0;
 
 		break;
@@ -1768,7 +1749,7 @@ static int pm_power_get_property_usb(struct power_supply *psy,
 
 		/* USB charging */
 		if (the_chip->chg_type == CHARGER_TYPE_USB)
-			val->intval = is_usb_chg_plugged_in(the_chip);
+			val->intval = is_usb_chg_plugged_in_ex(the_chip);
 		else
 		    return 0;
 		break;
@@ -2094,6 +2075,29 @@ static int set_fake_temp_param(const char *val, struct kernel_param *kp)
 module_param_call(fake_temp, set_fake_temp_param, param_get_uint,
 					&fake_temp, 0644);
 
+//CORE-DL-AdbWriteRestartReason-00 +[
+u32 reason;
+void msm_write_restart_reason(u32 reason);
+static int write_restart_reason(const char *val, struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_uint(val, kp);
+	if (ret) {
+		pr_err("error setting value %d\n", ret);
+		return ret;
+	}
+
+	if (reason)
+		msm_write_restart_reason(reason);
+
+	return 0;
+}
+module_param_call(restart_reason, write_restart_reason, NULL,
+					&reason, 0644);
+//CORE-DL-AdbWriteRestartReason-00 +]
+
+#define MAN_CP_100 95
 static int update_soc(struct pm8921_chg_chip *chip)
 {
 	int soc = get_prop_batt_capacity(chip);
@@ -2101,6 +2105,10 @@ static int update_soc(struct pm8921_chg_chip *chip)
 		return soc;
 
 	chip->soc[SOC_TRUE] = soc;
+
+	/* snoop real cp to 100 when in maintenance state */
+	if (chip->chg_state >= CSS_MAINTENANCE_60 && soc >= MAN_CP_100) 
+		soc = 100;
 
 	if (!chip->soc[SOC_TRUE])
 		chip->soc[SOC_SMOOTH] = 0;
@@ -2431,7 +2439,7 @@ int pm8921_is_usb_chg_plugged_in(void)
 		pr_err("called before init\n");
 		return -EINVAL;
 	}
-	return is_usb_chg_plugged_in(the_chip);
+	return is_usb_chg_plugged_in_ex(the_chip);
 }
 EXPORT_SYMBOL(pm8921_is_usb_chg_plugged_in);
 
@@ -2647,7 +2655,7 @@ bool pm8921_is_battery_charging(int *source)
 
 	/* the battery is charging, the source is requested, find it */
 	dc_present = is_dc_chg_plugged_in(the_chip);
-	usb_present = is_usb_chg_plugged_in(the_chip);
+	usb_present = is_usb_chg_plugged_in_ex(the_chip);
 
 	if (dc_present && !usb_present)
 		*source = PM8921_CHG_SRC_DC;
@@ -2714,7 +2722,7 @@ static void handle_usb_insertion_removal(struct pm8921_chg_chip *chip, const cha
 	unsigned long flags;
 
 	pm_chg_failed_clear(chip, 1);
-	usb_present = is_usb_chg_plugged_in(chip);
+	usb_present = is_usb_chg_plugged_in_ex(chip);
 
 	pr_track("%d %d %s %d\n", chip->usb_present, usb_present, fname, line);
 
@@ -2726,7 +2734,7 @@ static void handle_usb_insertion_removal(struct pm8921_chg_chip *chip, const cha
 		chip->resume_voltage_delta = VMAXSEL_NORMAL_DELTA;
 		chip->safety_timer = 0;
 		chip->maintenance_timer = 0;
-		chip->chg_state = CSS_GENERAL;
+		set_chg_sony_state(chip, CSS_GENERAL, __func__, __LINE__);
 #if (DETECT_ALIEN_BATTERY == 1)		
 		chip->bat_temp_init = INVALID_BATTERY_TEMP;
 #endif
@@ -2934,7 +2942,7 @@ static int is_active_chg_plugged_in(struct pm8921_chg_chip *chip,
 						u8 active_chg_mask)
 {
 	if (active_chg_mask & USB_ACTIVE_BIT)
-		return pm_chg_get_rt_status(chip, USBIN_VALID_IRQ);
+		return is_usb_chg_plugged_in_ex(chip);
 	else if (active_chg_mask & DC_ACTIVE_BIT)
 		return pm_chg_get_rt_status(chip, DCIN_VALID_IRQ);
 	else
@@ -2950,7 +2958,7 @@ static void unplug_ovp_fet_open(struct pm8921_chg_chip *chip)
 	u8 active_mask = 0;
 	u16 ovpreg, ovptestreg;
 
-	if (is_usb_chg_plugged_in(chip) &&
+	if (is_usb_chg_plugged_in_ex(chip) &&
 		(chip->active_path & USB_ACTIVE_BIT)) {
 		ovpreg = USB_OVP_CONTROL;
 		ovptestreg = USB_OVP_TEST;
@@ -3058,7 +3066,7 @@ static void vin_collapse_check_worker(struct work_struct *work)
 	 * such a case reset usb current to 500mA and decrease the target.
 	 * The AICL algorithm will step up the current from 500mA to target
 	 */
-	if (is_usb_chg_plugged_in(chip)
+	if (is_usb_chg_plugged_in_ex(chip)
 		&& usb_target_ma > USB_WALL_THRESHOLD_MA) {
 		/* decrease usb_target_ma */
 		decrease_usb_ma_value(&usb_target_ma);
@@ -3078,9 +3086,14 @@ static void vin_collapse_check_worker(struct work_struct *work)
 #define VIN_MIN_COLLAPSE_CHECK_MS	50
 static irqreturn_t usbin_valid_irq_handler(int irq, void *data)
 {
+	usb_valid_irq = is_usb_chg_plugged_in(the_chip);
+
+	pr_track("usb_valid_irq = %d, usb_target_ma = %d\n", usb_valid_irq, usb_target_ma);
+
 	if (usb_target_ma)
 		schedule_delayed_work(&the_chip->vin_collapse_check_work,
-			      msecs_to_jiffies(VIN_MIN_COLLAPSE_CHECK_MS));
+				      round_jiffies_relative(msecs_to_jiffies
+						(VIN_MIN_COLLAPSE_CHECK_MS)));
 	else
 	    handle_usb_insertion_removal(data, __func__, __LINE__);
 	return IRQ_HANDLED;
@@ -3105,7 +3118,6 @@ static irqreturn_t vbatdet_low_irq_handler(int irq, void *data)
 {
 	struct pm8921_chg_chip *chip = data;
 	int 						high_transition;
-	enum chg_sony_state	old_chg_state = chip->chg_state;
 	unsigned long 			flags;	
 
 	high_transition = pm_chg_get_rt_status(chip, VBATDET_LOW_IRQ);
@@ -3132,7 +3144,7 @@ static irqreturn_t vbatdet_low_irq_handler(int irq, void *data)
 				chip->resume_voltage_delta = VMAXSEL_NORMAL_DELTA;
 				chip->safety_timer = 0;
 				chip->maintenance_timer = 0;
-				chip->chg_state = CSS_GENERAL;
+				set_chg_sony_state(chip, CSS_GENERAL, __func__, __LINE__);
 				spin_unlock_irqrestore(&sony_alg_lock, flags);
 			}
 
@@ -3147,7 +3159,7 @@ static irqreturn_t vbatdet_low_irq_handler(int irq, void *data)
 	power_supply_changed(&chip->dc_psy);
 
 	pr_track("fsm_state=%d %d %d %d\n", pm_chg_get_fsm_state(data), 
-		high_transition, old_chg_state, chip->chg_state);
+		high_transition, chip->last_chg_state, chip->chg_state);
 	
 	return IRQ_HANDLED;
 }
@@ -3319,7 +3331,7 @@ static void unplug_check_worker(struct work_struct *work)
 		pr_debug("DC charger active\n");
 	} else {
 		/* No charger active */
-		if (!(is_usb_chg_plugged_in(chip)
+		if (!(is_usb_chg_plugged_in_ex(chip)
 				&& !(is_dc_chg_plugged_in(chip)))) {
 			pr_debug(
 			"Stop: chg removed reg_loop = %d, fsm = %d ibat = %d\n",
@@ -3513,7 +3525,7 @@ static irqreturn_t chg_gone_irq_handler(int irq, void *data)
 	struct pm8921_chg_chip *chip = data;
 	int chg_gone, usb_chg_plugged_in;
 
-	usb_chg_plugged_in = is_usb_chg_plugged_in(chip);
+	usb_chg_plugged_in = is_usb_chg_plugged_in_ex(chip);
 	chg_gone = pm_chg_get_rt_status(chip, CHG_GONE_IRQ);
 
 	pr_track("chg_gone=%d, usb_valid = %d\n", chg_gone, usb_chg_plugged_in);
@@ -3654,25 +3666,34 @@ static irqreturn_t wdog_tout_irq_handler(int irq, void *data)
  *
  */
 #define LOW_SOC_HEARTBEAT_MS	1000 /*20000*/
+#define MAIN_SOC_HEARTBEAT_MS	(5*60*1000) 
+
 static void update_heartbeat(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct pm8921_chg_chip *chip = container_of(dwork,
 				struct pm8921_chg_chip, update_heartbeat_work);
+	static unsigned int update_time = 0;
 
 	(void)update_soc(chip);
 
-
 	pm_chg_failed_clear(chip, 1);
 	power_supply_changed(&chip->batt_psy);
+
 	if (chip->recent_reported_soc <= 20)
-		schedule_delayed_work(&chip->update_heartbeat_work,
-			      round_jiffies_relative(msecs_to_jiffies
-						     (LOW_SOC_HEARTBEAT_MS)));
+		update_time = LOW_SOC_HEARTBEAT_MS;
+	/* If the case happens, the max time shows 99% from 100% 
+	    would be MAIN_SOC_HEARTBEAT_MS*2 */
+	else if ((chip->chg_state >= CSS_MAINTENANCE_60 ||
+			chip->last_chg_state >= CSS_MAINTENANCE_60) && 
+			chip->soc[SOC_SMOOTH] == 100 &&
+			chip->soc[SOC_TRUE] != 100)
+		update_time = MAIN_SOC_HEARTBEAT_MS;
 	else
-		schedule_delayed_work(&chip->update_heartbeat_work,
-			      round_jiffies_relative(msecs_to_jiffies
-						     (chip->update_time)));
+		update_time = chip->update_time;
+
+	schedule_delayed_work(&chip->update_heartbeat_work,
+		      round_jiffies_relative(msecs_to_jiffies(update_time)));
 }
 #define VDD_LOOP_ACTIVE_BIT	BIT(3)
 #define VDD_MAX_INCREASE_MV	400
@@ -3935,7 +3956,7 @@ static void eoc_worker(struct work_struct *work)
 		chgdone_irq_handler(chip->pmic_chg_irq[CHGDONE_IRQ], chip);
 
 		spin_lock_irqsave(&sony_alg_lock, flags);
-		chip->chg_state = CSS_MAINTENANCE_60;
+		set_chg_sony_state(chip, CSS_MAINTENANCE_60, __func__, __LINE__);
 		chip->resume_voltage_delta = VMAXSEL_MAINTENACE60_DELTA;
 		set_rv(chip, true, __func__, __LINE__);
 		spin_unlock_irqrestore(&sony_alg_lock, flags);
@@ -4282,18 +4303,15 @@ static void free_irqs(struct pm8921_chg_chip *chip)
 		}
 }
 
-#define PM8921_USB_TRIM_SEL_BIT		BIT(6)
 /* determines the initial present states */
 static void __devinit determine_initial_state(struct pm8921_chg_chip *chip)
 {
 	unsigned long flags;
 	int fsm_state;
 	int is_fast_chg;
-	int rc = 0;
-	u8 trim_sel_reg = 0, regsbi;
 
 	chip->dc_present = !!is_dc_chg_plugged_in(chip);
-	chip->usb_present = !!is_usb_chg_plugged_in(chip);
+	chip->usb_present = !!is_usb_chg_plugged_in_ex(chip);
 
 	notify_usb_of_the_plugin_event(chip->usb_present);
 	if (chip->usb_present || chip->dc_present) {
@@ -4355,26 +4373,10 @@ static void __devinit determine_initial_state(struct pm8921_chg_chip *chip)
 			fsm_state);
 
 	/* Determine which USB trim column to use */
-	if (pm8xxx_get_version(chip->dev->parent) == PM8XXX_VERSION_8917) {
+	if (pm8xxx_get_version(chip->dev->parent) == PM8XXX_VERSION_8917)
 		chip->usb_trim_table = usb_trim_8917_table;
-	} else if (pm8xxx_get_version(chip->dev->parent) ==
-						PM8XXX_VERSION_8038) {
+	else if (pm8xxx_get_version(chip->dev->parent) == PM8XXX_VERSION_8038)
 		chip->usb_trim_table = usb_trim_8038_table;
-	} else if (pm8xxx_get_version(chip->dev->parent) ==
-						PM8XXX_VERSION_8921) {
-		rc = pm8xxx_readb(chip->dev->parent, REG_SBI_CONFIG, &regsbi);
-		rc |= pm8xxx_writeb(chip->dev->parent, REG_SBI_CONFIG, 0x5E);
-		rc |= pm8xxx_readb(chip->dev->parent, PM8921_USB_TRIM_SEL,
-								&trim_sel_reg);
-		rc |= pm8xxx_writeb(chip->dev->parent, REG_SBI_CONFIG, regsbi);
-		if (rc)
-			pr_err("Failed to read trim sel register rc=%d\n", rc);
-
-		if (trim_sel_reg & PM8921_USB_TRIM_SEL_BIT)
-			chip->usb_trim_table = usb_trim_pm8921_table_1;
-		else
-			chip->usb_trim_table = usb_trim_pm8921_table_2;
-	}
 }
 
 struct pm_chg_irq_init_data {
@@ -5169,7 +5171,7 @@ static int pm8921_charger_suspend(struct device *dev)
 	}
 #endif	
 
-	if (is_usb_chg_plugged_in(chip)) {
+	if (is_usb_chg_plugged_in_ex(chip)) {
 		pm8921_chg_enable_irq(chip, LOOP_CHANGE_IRQ);
 		enable_irq_wake(chip->pmic_chg_irq[LOOP_CHANGE_IRQ]);
 	}
@@ -5396,7 +5398,7 @@ static void brain(struct work_struct *work)
 		if (chip->chg_state == CSS_GENERAL && chip->chg_type == CHARGER_TYPE_AC) {
 			chip->safety_timer += CHECK_ALIEN_PERIOD_DELAY;
 			if (chip->safety_timer >= SAFTY_TIMER) {
-				chip->chg_state = CSS_SAFETY_TIMEOUT;
+				set_chg_sony_state(chip, CSS_SAFETY_TIMEOUT, __func__, __LINE__);
 				my_next_action |= NEXT_ACTION_SAFETY_TIMEOUT;
 			}
 		}
@@ -5414,7 +5416,7 @@ static void brain(struct work_struct *work)
 			if (chip->maintenance_timer >= MAINTENACE60_T) {
 				my_next_action |= NEXT_ACTION_MAN_60_to_200;
 				chip->resume_voltage_delta = VMAXSEL_MAINTENACE200_DELTA;
-				chip->chg_state = CSS_MAINTENANCE_200;
+				set_chg_sony_state(chip, CSS_MAINTENANCE_200, __func__, __LINE__);
 			}
 		}
 		else{
@@ -5423,7 +5425,7 @@ static void brain(struct work_struct *work)
 				chip->resume_voltage_delta = VMAXSEL_NORMAL_DELTA;
 				chip->safety_timer = 0;
 				chip->maintenance_timer = 0;
-				chip->chg_state = CSS_GENERAL;
+				set_chg_sony_state(chip, CSS_GENERAL, __func__, __LINE__);
 			}
 		}
 	}
@@ -5631,6 +5633,7 @@ static int __devinit pm8921_charger_probe(struct platform_device *pdev)
 	chip->bat_temp_status = BATTERY_TEMP_STATUS_NORMAL;
 	chip->chg_type = CHARGER_TYPE_INVALID;
 	chip->chg_state = CSS_GENERAL;
+	chip->last_chg_state = CSS_GENERAL;
 	chip->maintenance_timer = 0;
 	chip->safety_timer = 0;
 	

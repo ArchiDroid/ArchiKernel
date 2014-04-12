@@ -5,7 +5,7 @@
 #include "msm_sensor.h"
 #include "fih_read_otp.h"
 
-#define OTP_INFO_MAX 9
+#define OTP_INFO_MAX 10
 
 /* REG define */
 #define OTP_SWITCH_REG   0x304C
@@ -14,12 +14,13 @@
 #define OTP_PID_REG      0x3800 /* Product ID */
 #define OTP_SID_1_REG    0x3802 /* Serial No */
 #define OTP_SID_2_REG    0x3804 /* Serial No */
-#define OTP_AWB_RG_REG   0x3802 /* AWB-RG */
-#define OTP_AWB_BG_REG   0x3804 /* AWB-BG */
-#define OTP_AWB_GRGB_REG 0x3802 /* AWB-GrGb */
-#define OTP_AF_INFINITY_REG 0x3804 /* Infinity (DAC code) */
-#define OTP_AF_100CM_REG    0x3802 /* 100cm (DAC code) */
-#define OTP_AF_10CM_REG     0x3804 /* 10cm (DAC code) */
+#define OTP_AWB_RG_REG   0x3806 /* AWB-RG */
+#define OTP_AWB_BG_REG   0x3808 /* AWB-BG */
+#define OTP_AWB_GRGB_REG 0x380A /* AWB-GrGb */
+#define OTP_AF_INFINITY_REG 0x380C /* Infinity (DAC code) */
+#define OTP_AF_100CM_REG    0x380E /* 100cm (DAC code) */
+#define OTP_AF_10CM_REG     0x3810 /* 10cm (DAC code) */
+#define OTP_SHADING_INDEX_REG 0x3812 
 
 #define TYPE_MAX 3
 enum otp_type_index {
@@ -227,12 +228,16 @@ int32_t fih_get_otp_data_ar0543(int32_t id, int32_t* val)
         otp_val = otp_data_ar0543[6];
         break;
     case OTP_AF_100CM_DAC:
-        otp_val = otp_data_ar0543[7];;
+        otp_val = otp_data_ar0543[7];
         break;
     case OTP_AF_10CM_DAC:
         otp_val = otp_data_ar0543[8];
         break;
-        
+    /* MM-MC-ImplementRegSwitchMechanismForShading-01+{ */
+    case OTP_SHADING_INDEX:
+        otp_val = otp_data_ar0543[9];
+        break;
+    /* MM-MC-ImplementRegSwitchMechanismForShading-01+} */
     default:
         pr_err("fih_get_otp_data_ar0543: ERR: Invalid ID !\n");
         rc = -EFAULT;

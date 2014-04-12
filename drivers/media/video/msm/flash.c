@@ -25,17 +25,17 @@
 #include <mach/gpio.h>
 #include "msm_camera_i2c.h"
 
-#ifndef CONFIG_MSM_CAMERA_FLASH_LM3642
 struct flash_work {
 	struct work_struct my_work;
 	int    x;
 };
 struct flash_work *work;
+#ifndef CONFIG_MSM_CAMERA_FLASH_LM3642
 static struct timer_list flash_timer;
 static int timer_state;
 static struct workqueue_struct *flash_wq;
-#endif
 struct i2c_client *sx150x_client;
+#endif
 struct timer_list timer_flash;
 static struct msm_camera_sensor_info *sensor_data;
 static struct msm_camera_i2c_client i2c_client;

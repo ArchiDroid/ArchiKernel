@@ -4,7 +4,10 @@
 #include <linux/fih_pwm_lib.h>
 //MTD-SW3-PERIPHERAL-OH-LED_Porting-00*}
 
+#define POWER_OFF_CHARGING_MECHANISM_SUPPORT
+#ifdef POWER_OFF_CHARGING_MECHANISM_SUPPORT
 #include <linux/mfd/pm8xxx/pm8921-charger.h>//PERI-BJ-Modify_Power_Off_Led_Init-00+
+#endif
 
 static const char			*select_func[]		= { "GPIO", "MPP", "SYS_GPIO", "LUT" }; //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
 static const char			*current_sink_table[]	= { "5mA", "10mA", "15mA", "20mA", "25mA", "30mA", "35mA", "40mA" };
@@ -20,13 +23,15 @@ static struct workqueue_struct	*work_queue_diff;//for led fadin/out different ti
 static unsigned int		timeout_buf=0;
 //MTD-SW3-PERIPHERAL-BJ-LED_FADE_IN_OUT_DIFF-00*}
 
+static int		flag_fade = -1;//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+
+
 //MTD-SW3-PERIPHERAL-BJ-LED_DEBUG_MSG-00*{
 
 #define LED_ERR(fmt, args...) printk(KERN_ERR "[%s][ERR] Driver_LED : "fmt" \n", __func__, ##args)
 #define LED_WAN(fmt, args...) printk(KERN_WARNING"[%s][WAN] Driver_LED : "fmt" \n", __func__, ##args)
 #define LED_MSG(fmt, args...) printk(KERN_INFO "[%s][MSG] Driver_LED : "fmt" \n", __func__, ##args)
 
-#define DEBUG_LED
+//#define DEBUG_LED
 #ifdef DEBUG_LED
 #define LED_DBG_DIFF(fmt, args...) //printk(KERN_DEBUG "[%s][DBG] Driver_LED : "fmt" \n", __func__, ##args)//PERI-BJ-DISABLE_LOG_FADE_diff-00-
 #define LED_DBG(fmt, args...) printk(KERN_DEBUG "[%s][DBG] Driver_LED : "fmt" \n", __func__, ##args)
@@ -48,12 +53,16 @@ enum {
 };
 //MTD-SW3-PERIPHERAL-BJ-LED_FADE_IN_OUT_DIFF-00*}
 
+#ifdef POWER_OFF_CHARGING_MECHANISM_SUPPORT
 extern bool is_power_off_charging(void);//PERI-BJ-Modify_Power_Off_Led_Init-00+
+#endif
+
 
 static void	led_on_off_set( struct led_data *data, struct command_parameter *parameter )
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -64,7 +73,7 @@ static void	led_on_off_set( struct led_data *data, struct command_parameter *par
 			LED_MSG( "MSM GPIO-%d(%s) %s", msm_data->msm_pin, data->name, parameter->para1 == LED_TURN_OFF ? "off" : "on" );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -75,6 +84,11 @@ static void	led_on_off_set( struct led_data *data, struct command_parameter *par
 			pmic_data->command	= SMEM_CMD_LED_ON_OFF;
 			pmic_data->hardware	= data->use_hw;
 			pmic_data->control	= parameter->para1;
+
+			//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+{
+			if(parameter->para1 == LED_TURN_ON)
+				flag_fade = LED_TURN_ON;
+			//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+}
 
 			//MTD-SW3-PERIPHERAL-OH-LED_Porting-00+{
 			//smem_proc_oem_light_control( ( int* )pmic_data, sizeof( struct led_pmic_data ) );
@@ -96,6 +110,7 @@ static void	led_blinking_set( struct led_data *data, struct command_parameter *p
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -106,7 +121,7 @@ static void	led_blinking_set( struct led_data *data, struct command_parameter *p
 			LED_MSG( "MSM GPIO-%d(%s) does not support blinking", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -117,6 +132,11 @@ static void	led_blinking_set( struct led_data *data, struct command_parameter *p
 			pmic_data->command	= SMEM_CMD_LED_BLINKING;
 			pmic_data->hardware	= data->use_hw;
 			pmic_data->control	= parameter->para1;
+
+			//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+{
+			if(parameter->para1 == LED_TURN_ON)
+				flag_fade = LED_TURN_ON;
+			//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+}
 
 			//MTD-SW3-PERIPHERAL-OH-LED_Porting-00+{
 			//smem_proc_oem_light_control( ( int* )pmic_data, sizeof( struct led_pmic_data ) );
@@ -138,6 +158,7 @@ static void	led_fade_in_out_set( struct led_data *data, struct command_parameter
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -148,7 +169,7 @@ static void	led_fade_in_out_set( struct led_data *data, struct command_parameter
 			LED_MSG( "MSM GPIO-%d(%s) does not support fade in/out", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -191,6 +212,7 @@ static void	led_fade_in_out_once_set( struct led_data *data, struct command_para
 
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -201,12 +223,16 @@ static void	led_fade_in_out_once_set( struct led_data *data, struct command_para
 			LED_MSG( "MSM GPIO-%d(%s) does not support fade in/out", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
 		{
 			mutex_lock( &destination_r->lock );
+
+			//LED_DBG("[LED_Driver/%d:%s() : parameter->para1=%d, parameter->para3=%d]",__LINE__,__FUNCTION__,parameter->para1, parameter->para3);
+			flag_fade = parameter->para3;//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+
+
 			//R
 			pmic_data_r->control	= parameter->para1;
 			pmic_data_r->interval = (parameter->para2 > 500) ? parameter->para2 : 500;
@@ -276,6 +302,7 @@ static void	led_sw_blinking_set( struct led_data *data, struct command_parameter
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -286,7 +313,7 @@ static void	led_sw_blinking_set( struct led_data *data, struct command_parameter
 			LED_MSG( "MSM GPIO-%d(%s) does not support blinking", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -327,6 +354,7 @@ static void	led_sw_fade_in_out_set( struct led_data *data, struct command_parame
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -337,7 +365,7 @@ static void	led_sw_fade_in_out_set( struct led_data *data, struct command_parame
 			LED_MSG( "MSM GPIO-%d(%s) does not support fade in/out", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -402,6 +430,7 @@ static void	led_on_brightness_set( struct led_data *data, struct command_paramet
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -409,7 +438,7 @@ static void	led_on_brightness_set( struct led_data *data, struct command_paramet
 			LED_MSG( "MSM GPIO-%d(%s) can't set brightness", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -433,6 +462,7 @@ static void	led_blinking_brightness_set( struct led_data *data, struct command_p
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -440,7 +470,7 @@ static void	led_blinking_brightness_set( struct led_data *data, struct command_p
 			LED_MSG( "MSM GPIO-%d(%s) can't set brightness", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -465,6 +495,7 @@ static void	led_fade_in_out_interval_set( struct led_data *data, struct command_
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -472,7 +503,7 @@ static void	led_fade_in_out_interval_set( struct led_data *data, struct command_
 			LED_MSG( "MSM GPIO-%d(%s) can't set interval", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -496,6 +527,7 @@ static void	led_blinking_time_set( struct led_data *data, struct command_paramet
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -503,7 +535,7 @@ static void	led_blinking_time_set( struct led_data *data, struct command_paramet
 			LED_MSG( "MSM GPIO-%d(%s) can't set blinking time", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -532,6 +564,7 @@ static void	led_mode_set( struct led_data *data, struct command_parameter *param
 
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -539,7 +572,7 @@ static void	led_mode_set( struct led_data *data, struct command_parameter *param
 			LED_MSG( "MSM GPIO-%d(%s), %s mode", msm_data->msm_pin, data->name, data->special_mode ? "Special" : "Normal" );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -558,6 +591,7 @@ static void	led_set_clk_div_exp( struct led_data *data, struct command_parameter
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -565,7 +599,7 @@ static void	led_set_clk_div_exp( struct led_data *data, struct command_parameter
 			LED_MSG( "MSM GPIO-%d(%s) can't set clk, div & exp", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -591,6 +625,7 @@ static void	led_set_clk( struct led_data *data, struct command_parameter *parame
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -598,7 +633,7 @@ static void	led_set_clk( struct led_data *data, struct command_parameter *parame
 			LED_MSG( "MSM GPIO-%d(%s) can't set clk", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -622,6 +657,7 @@ static void	led_set_div( struct led_data *data, struct command_parameter *parame
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -629,7 +665,7 @@ static void	led_set_div( struct led_data *data, struct command_parameter *parame
 			LED_MSG( "MSM GPIO-%d(%s) can't set div", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -653,6 +689,7 @@ static void	led_set_exp( struct led_data *data, struct command_parameter *parame
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -660,7 +697,7 @@ static void	led_set_exp( struct led_data *data, struct command_parameter *parame
 			LED_MSG( "MSM GPIO-%d(%s) can't set exp", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -684,6 +721,7 @@ static void	led_set_toggle_loop_ramp( struct led_data *data, struct command_para
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -691,7 +729,7 @@ static void	led_set_toggle_loop_ramp( struct led_data *data, struct command_para
 			LED_MSG( "MSM GPIO-%d(%s) can't set toggle, loop & ramp", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -717,6 +755,7 @@ static void	led_set_toggle( struct led_data *data, struct command_parameter *par
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -724,7 +763,7 @@ static void	led_set_toggle( struct led_data *data, struct command_parameter *par
 			LED_MSG( "MSM GPIO-%d(%s) can't set toggle", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -748,6 +787,7 @@ static void	led_set_loop( struct led_data *data, struct command_parameter *param
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -755,7 +795,7 @@ static void	led_set_loop( struct led_data *data, struct command_parameter *param
 			LED_MSG( "MSM GPIO-%d(%s) can't set loop", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -779,6 +819,7 @@ static void	led_set_ramp( struct led_data *data, struct command_parameter *param
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -786,7 +827,7 @@ static void	led_set_ramp( struct led_data *data, struct command_parameter *param
 			LED_MSG( "MSM GPIO-%d(%s) can't set ramp", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -810,6 +851,7 @@ static void	led_fade_in_out_brightness_set( struct led_data *data, struct comman
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -817,7 +859,7 @@ static void	led_fade_in_out_brightness_set( struct led_data *data, struct comman
 			LED_MSG( "MSM GPIO-%d(%s) can't set fade in/out brightness", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -841,6 +883,7 @@ static void	led_set_invert( struct led_data *data, struct command_parameter *par
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -848,7 +891,7 @@ static void	led_set_invert( struct led_data *data, struct command_parameter *par
 			LED_MSG( "MSM GPIO-%d(%s) can't set invert", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		{
 			struct led_pmic_data	*pmic_data	= &data->detail.pmic_data;
@@ -876,6 +919,7 @@ static void	led_set_current_sink( struct led_data *data, struct command_paramete
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -883,7 +927,7 @@ static void	led_set_current_sink( struct led_data *data, struct command_paramete
 			LED_MSG( "MSM GPIO-%d(%s) can't set current sink", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		{
 			LED_MSG( "PMIC %s led(%s) can't set current sink", *( select_func + data->use_hw ), data->name );
@@ -936,6 +980,7 @@ static void	led_set_pin( struct led_data *data, struct command_parameter *parame
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -946,7 +991,7 @@ static void	led_set_pin( struct led_data *data, struct command_parameter *parame
 			LED_MSG( "MSM GPIO-%d(%s), set pin(%d)", msm_data->msm_pin, data->name, msm_data->msm_pin );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -970,6 +1015,7 @@ static void	led_set_on_off_level( struct led_data *data, struct command_paramete
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -981,7 +1027,7 @@ static void	led_set_on_off_level( struct led_data *data, struct command_paramete
 			LED_MSG( "MSM GPIO-%d(%s), level[on:off]=[%s:%s]", msm_data->msm_pin, data->name, msm_data->led_on_level ? "High" : "Low", msm_data->led_off_level ? "High" : "Low" );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -1000,6 +1046,7 @@ static void	led_set_lpg_out( struct led_data *data, struct command_parameter *pa
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -1007,7 +1054,7 @@ static void	led_set_lpg_out( struct led_data *data, struct command_parameter *pa
 			LED_MSG( "MSM GPIO-%d(%s) can't set LPG out", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -1031,6 +1078,7 @@ static void	led_set_lut_table_range( struct led_data *data, struct command_param
 {
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -1038,7 +1086,7 @@ static void	led_set_lut_table_range( struct led_data *data, struct command_param
 			LED_MSG( "MSM GPIO-%d(%s) can't set range of LUT table", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -1067,6 +1115,7 @@ static void	led_set_on_off_state( struct led_data *data, struct command_paramete
 
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -1074,7 +1123,7 @@ static void	led_set_on_off_state( struct led_data *data, struct command_paramete
 			LED_MSG( "MSM GPIO-%d(%s), the state is %s", msm_data->msm_pin, data->name, data->on_off_state ? "On" : "Off" );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00+
@@ -1132,6 +1181,7 @@ static void led_fade_in_out_time_diff(struct led_data *data, struct command_para
 
 	switch( data->use_hw )
 	{
+#ifdef CONFIG_HW_MSM_GPIO
 		case	LED_HW_MSM_GPIO :
 		{
 			struct led_gpio_data	*msm_data	= &data->detail.gpio_data;
@@ -1142,7 +1192,7 @@ static void led_fade_in_out_time_diff(struct led_data *data, struct command_para
 			LED_MSG( "MSM GPIO-%d(%s) does not support fade in/out", msm_data->msm_pin, data->name );
 			break;
 		}
-
+#endif
 		case	LED_HW_PMIC_GPIO :
 		case	LED_HW_PMIC_MPP :
 		case	LED_HW_PMIC_LPG:
@@ -1277,6 +1327,8 @@ static void led_sched_fade_in_out_diff( struct work_struct *work )
 		//Do Fade out
 
 		mutex_lock( &destination_r->lock );
+		flag_fade = LED_TURN_ON;//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+
+
 		pmic_data_r->control	= LED_TURN_ON;
 		pmic_data_r->command	= SMEM_CMD_LED_FADE_IN_OUT;
 		pmic_data_r->hardware = destination_r->use_hw;
@@ -1329,6 +1381,8 @@ static void led_sched_fade_in_out_diff( struct work_struct *work )
 		//Do Fade in
 
 		mutex_lock( &destination_r->lock );
+		flag_fade = LED_TURN_ON;//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+
+
 		//pmic_data_r->control	= (pmic_data_r->fade_in_out_pwm) ? LED_TURN_ON : LED_TURN_OFF; //fade_in_out_pwm as 0,no turn on
 		pmic_data_r->control	= LED_TURN_ON;
 		pmic_data_r->command	= SMEM_CMD_LED_FADE_IN_OUT;
@@ -1665,6 +1719,7 @@ static ssize_t led_info( void *node_data, struct device_attribute *attr, char *b
 
 		switch( led_info->use_hw )
 		{
+#ifdef CONFIG_HW_MSM_GPIO
 			case	LED_HW_MSM_GPIO :
 			{
 				struct led_gpio_data	*msm_data	= &led_info->detail.gpio_data;
@@ -1681,7 +1736,7 @@ static ssize_t led_info( void *node_data, struct device_attribute *attr, char *b
 						     );
 				break;
 			}
-
+#endif
 //PERI-BJ-SetCurrent-00+{
 			case	LED_HW_PMIC_GPIO :
 			{
@@ -1793,6 +1848,28 @@ static void	led_early_suspend_function(struct early_suspend *handler)
 	for( loop = 0 ; loop < count ; ++loop )
 		if( !( ( struct led_data* )( led_datas + loop )->data )->on_off_state )
 			led_on_off_check_mode( ( struct led_data* )( led_datas + loop )->data, &parameter );
+
+	//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+{
+	LED_DBG("flag_fade=%d",flag_fade);
+	if(flag_fade == 0){
+		struct led_data 	*destination_r	= leds_data + 2;
+		struct led_data 	*destination_g	= leds_data + 1;
+		struct led_data 	*destination_b	= leds_data + 0;
+
+		struct led_pmic_data	*pmic_data_r	= &destination_r->detail.pmic_data;
+		struct led_pmic_data	*pmic_data_g	= &destination_g->detail.pmic_data;
+		struct led_pmic_data	*pmic_data_b	= &destination_b->detail.pmic_data;
+
+		pmic_data_r->control	= LED_TURN_OFF;
+		pmic_data_g->control	= LED_TURN_OFF;
+		pmic_data_b->control	= LED_TURN_OFF;
+
+		LED_MSG("fade off state, and led turn off while suspend!!");
+		control_fade_nonsync_leds(destination_r->pwm_dev, pmic_data_r, destination_g->pwm_dev, pmic_data_g, destination_b->pwm_dev, pmic_data_b);
+		flag_fade = -1;
+	}
+	//PERI-BJ-DO_LED_OFF_AFTER_FADEOUT-00+}
+
 }
 
 static void	led_late_resume_function(struct early_suspend *handler)
@@ -1893,16 +1970,19 @@ static int msm_pmic_led_probe(struct platform_device *pdev)
 
 		switch( source->use_hw )
 		{
+#ifdef CONFIG_HW_MSM_GPIO
 			case	LED_HW_MSM_GPIO :
 				if( gpio_request(source->detail.gpio_data.msm_pin, source->name) )
 					LED_ERR("Failed to request GPIO-%d(%s)", source->detail.gpio_data.msm_pin, source->name );
 				break;
-
+#endif
 			case	LED_HW_PMIC_GPIO :
 			case	LED_HW_PMIC_MPP :
 				break;
 
 			case	LED_HW_PMIC_LPG: //MTD-SW3-PERIPHERAL-OH-LED_Porting-00*
+
+#ifdef POWER_OFF_CHARGING_MECHANISM_SUPPORT
 //PERI-BJ-Modify_Power_Off_Led_Init-00*{
 				if(!is_power_off_charging()){
 					LED_MSG("Not in power off charging. To set_default_pwm_register");
@@ -1920,6 +2000,7 @@ static int msm_pmic_led_probe(struct platform_device *pdev)
 					//PERI-BJ-Fix_Coverity_Explicit_null_dereferenced-00*}
 				}
 //PERI-BJ-Modify_Power_Off_Led_Init-00*}
+#endif
 				break;
 		}
 
@@ -1929,6 +2010,7 @@ static int msm_pmic_led_probe(struct platform_device *pdev)
 			parameter.para1	= LED_TURN_OFF;
 			led_on_off_set( destination, &parameter );
 
+#ifdef POWER_OFF_CHARGING_MECHANISM_SUPPORT
 //PERI-BJ-Modify_Power_Off_Led_Init-00+{
 			if(is_power_off_charging()){
 				LED_MSG("In power off charging state. To turn on red color");
@@ -1943,6 +2025,8 @@ static int msm_pmic_led_probe(struct platform_device *pdev)
 				}
 			}
 //PERI-BJ-Modify_Power_Off_Led_Init-00+}
+#endif
+
 		}
 
 	}

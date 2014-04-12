@@ -49,8 +49,10 @@
 #define CONTROL_INT_ISR_REPORT        0x00
 #define CONTROL_ALS                   0x01
 #define CONTROL_PS                    0x02
-
 static int record_init_fail = 0;
+/*PERI-AC-Zero_Lux-Checking-00+{*/
+static int clearcount=0;
+/*PERI-AC-Zero_Lux-Checking-00+}*/
 //static void sensor_irq_do_work(struct work_struct *work);
 //static DECLARE_WORK(sensor_irq_work, sensor_irq_do_work);
 
@@ -284,19 +286,25 @@ static int get_ls_adc_value(uint16_t *als_step, bool resume)
 		lpi->top_tresh=(*als_step)+50;
 
 /*PERI-AC-Zero_Lux-Checking-00+{*/
-    if((*als_step-50) < 0)
-    {
-        if(*als_step < 3)
-            lpi->bottom_tresh=0;
-        else
-            lpi->bottom_tresh=3;
-    }
-    else
-    {
-        lpi->bottom_tresh=(*als_step)-50;
-    }
+	if((*als_step-50) < 0)
+	{
+		if(clearcount==0)
+		{
+			lpi->bottom_tresh=3;
+			clearcount++;
+		}
+		else
+		{
+			lpi->bottom_tresh=0;
+		}
+	}
+	else
+	{
+		clearcount=0;
+		lpi->bottom_tresh=(*als_step)-50;
+	}
 /*PERI-AC-Zero_Lux-Checking-00+}*/
-
+    
 /*MTD-PERIPHERAL-CH-PS_conf00++[*/
 #ifdef LS_cal
 	if(lpi->k_data.done_LS)

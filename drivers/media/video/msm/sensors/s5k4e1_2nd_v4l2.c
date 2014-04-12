@@ -709,7 +709,7 @@ static struct msm_camera_i2c_reg_conf s5k4e1_2nd_recommend_settings1[] = {
 };
 
 static struct msm_camera_i2c_reg_conf s5k4e1_2nd_recommend_settings2[] = {
-    {0x0100, 0x00},
+     {0x0100, 0x00},
     {0x3030, 0x06},
     
     /* [4E1EVT3][GlobalV1][MIPI2lane][Mclk=24Mhz] */
@@ -779,7 +779,7 @@ static struct msm_camera_i2c_reg_conf s5k4e1_2nd_recommend_settings2[] = {
 
     /* MM-MC-UpdateTuningForColorShadingIn20130411-00*{ */
     /* corner_60% */
-    {0x3096, 0x40},
+     {0x3096, 0x40},
  
     {0x3097, 0x52}, //sh4ch_blk_width = 82
     {0x3098, 0x3e}, //sh4ch_blk_height = 123
@@ -1232,7 +1232,7 @@ static struct msm_camera_i2c_reg_conf s5k4e1_2nd_recommend_settings2[] = {
     {0x33ad, 0x00},
     {0x33ae, 0x0c},
     {0x33af, 0x10},
-    /* MM-UW-UpdateTuningForColorShading-00*} */     
+    /* MM-UW-UpdateTuningForColorShading-00*} */               
     {0x3096, 0x60},
     {0x3096, 0x40},
     /* MM-MC-UpdateTuningForColorShadingIn20130411-00*} */
@@ -1309,7 +1309,7 @@ static inline uint8_t s5k4e1_2nd_byte(uint16_t word, uint8_t offset)
 }
 
 static int32_t s5k4e1_2nd_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
-						uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain)/* MM-MC-SyncQct3030-00* */
+						uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain)
 {
 	uint16_t max_legal_gain = 0x0200;
 	int32_t rc = 0;
@@ -1336,6 +1336,14 @@ static int32_t s5k4e1_2nd_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 	if (line > (s_ctrl->curr_frame_length_lines - offset)) {
 		fl_lines = line + offset;
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
+		/* MM-SL-FixMMSCantNotRecord23s-00*{ */
+		/* MM-UW-Fix MMS can't record 23s-00+{ */
+		if(s_ctrl->fps_divider > 2000){
+			fl_lines = fl_lines * 23/10;  /*let fps lower than 15*/
+			line = line * 23/10;
+		}
+		/* MM-UW-Fix MMS can't record 23s-00+} */
+		/* MM-SL-FixMMSCantNotRecord23s-00*} */
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
 			s_ctrl->sensor_output_reg_addr->frame_length_lines,
 			s5k4e1_2nd_byte(fl_lines, MSB),
@@ -1358,7 +1366,14 @@ static int32_t s5k4e1_2nd_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 		fl_lines = line + offset;
 		if (fl_lines < s_ctrl->curr_frame_length_lines)
 			fl_lines = s_ctrl->curr_frame_length_lines;
-
+		 /* MM-SL-FixMMSCantNotRecord23s-00*{ */
+		 /* MM-UW-Fix MMS can't record 23s-00+{ */
+		 if(s_ctrl->fps_divider > 2000){
+		 	fl_lines = fl_lines * 23/10;  /*let fps lower than 15*/
+			line = line * 23/10;
+		 }
+		 /* MM-UW-Fix MMS can't record 23s-00+} */
+		 /* MM-SL-FixMMSCantNotRecord23s-00*} */
 		s_ctrl->func_tbl->sensor_group_hold_on(s_ctrl);
 		/* Coarse Integration Time */
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
@@ -1396,7 +1411,7 @@ static int32_t s5k4e1_2nd_write_prev_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 }
 
 static int32_t s5k4e1_2nd_write_pict_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
-		uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain)/* MM-MC-SyncQct3030-00* */
+		uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain)
 {
 	uint16_t max_legal_gain = 0x0200;
 	uint16_t min_ll_pck = 0x0AB2;

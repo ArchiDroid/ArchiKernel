@@ -127,12 +127,12 @@ static int mipi_dsi_off(struct platform_device *pdev)
 
 	mipi_dsi_ahb_ctrl(0);
 	spin_unlock_bh(&dsi_clk_lock);
-	
-	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_client_reset)
-		mipi_dsi_pdata->dsi_client_reset(1);
-		
+
 	mipi_dsi_unprepare_clocks();
 	mipi_dsi_unprepare_ahb_clocks();
+	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_client_reset)
+		mipi_dsi_pdata->dsi_client_reset(1);
+
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(0);
 
@@ -166,15 +166,11 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	fbi = mfd->fbi;
 	var = &fbi->var;
 	pinfo = &mfd->panel_info;
-	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
+
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_client_reset)
 		mipi_dsi_pdata->dsi_client_reset(1);
-	mipi_dsi_clk_set_rate();
 
-	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
-		mipi_dsi_pdata->dsi_power_save(1);
-
-	cont_splash_clk_ctrl(0);
+	/* cont_splash_clk_ctrl(0); */
 	mipi_dsi_prepare_ahb_clocks();
 
 	mipi_dsi_ahb_ctrl(1);
@@ -353,10 +349,12 @@ static int mipi_dsi_early_off(struct platform_device *pdev)
 	return panel_next_early_off(pdev);
 }
 
+
 static int mipi_dsi_late_init(struct platform_device *pdev)
 {
 	return panel_next_late_init(pdev);
 }
+
 
 static int mipi_dsi_resource_initialized;
 
