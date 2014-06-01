@@ -1582,8 +1582,8 @@ static int cm36283_probe(struct i2c_client *client,
 /*MTD-PERIPHERAL-CH-PS_conf00++[*/
 if(fih_get_product_phase() >= PHASE_TP2_MP)
 {
-	lpi->ps_away_thd_set = 0x2D;
-    lpi->ps_close_thd_set = 0x31;	
+	lpi->ps_away_thd_set = 0x5;
+    lpi->ps_close_thd_set = 0xa;	
     lpi->ps_conf1_val = 0x4025;
 }
 else
