@@ -1055,6 +1055,11 @@ void set_led_lut_table(struct pwm_device *pwm_dev, struct led_pmic_data *pmic_da
 	PWM_DBG("pmic_data->fade_in_out_pwm=%d, ramp_up_percentage_size = %d, raw_percent =%d", 
 			pmic_data->fade_in_out_pwm, ramp_up_percentage_size, raw_percent);
 
+	//PERI-BJ-Adjust_fade_out_color_to_let_color_as_expected-00+{
+	if (raw_percent > 0 && raw_percent < (lut_table_length - 2))
+		raw_percent = lut_table_length - 2;
+	//PERI-BJ-Adjust_fade_out_color_to_let_color_as_expected-00+}
+
 	cal_component_val(lut_table_length - 2, ramp_up_percentage_size, raw_percent, &cX, &cY);
 	PWM_DBG("cX = %d, cY =%d", cX, cY);
 
