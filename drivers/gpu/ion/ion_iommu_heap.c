@@ -20,13 +20,13 @@
 #include <linux/vmalloc.h>
 #include <linux/iommu.h>
 #include <linux/pfn.h>
+#include <linux/dma-mapping.h>
 #include "ion_priv.h"
 
 #include <asm/mach/map.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <mach/iommu_domains.h>
-#include <linux/dma-mapping.h>
 
 struct ion_iommu_heap {
 	struct ion_heap heap;

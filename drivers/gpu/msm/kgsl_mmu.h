@@ -21,8 +21,10 @@
  */
 #define KGSL_IOMMU_GLOBAL_MEM_BASE	0xf8000000
 #define KGSL_IOMMU_GLOBAL_MEM_SIZE	SZ_4M
+#define KGSL_IOMMU_ALIGN_MASK     (~((1 << PAGE_SHIFT) - 1))
 
-#define KGSL_MMU_ALIGN_MASK     (~((1 << PAGE_SHIFT) - 1))
+#define KGSL_MMU_ALIGN_SHIFT    13
+#define KGSL_MMU_ALIGN_MASK     (~((1 << KGSL_MMU_ALIGN_SHIFT) - 1))
 
 /* Identifier for the global page table */
 /* Per process page tables will probably pass in the thread group

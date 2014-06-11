@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
+#include <linux/msm_ion.h>
 #include <mach/iommu_domains.h>
 
 #include <asm/cacheflush.h>
@@ -34,6 +35,7 @@ struct ion_cma_buffer_info {
 	void *cpu_addr;
 	dma_addr_t handle;
 	struct sg_table *table;
+	bool is_cached;
 };
 
 static int cma_heap_has_outer_cache;
@@ -72,7 +74,12 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		return ION_CMA_ALLOCATE_FAILED;
 	}
 
-	info->cpu_addr = dma_alloc_writecombine(dev, len, &(info->handle), 0);
+	if (!ION_IS_CACHED(flags))
+		info->cpu_addr = dma_alloc_writecombine(dev, len,
+					&(info->handle), 0);
+	else
+		info->cpu_addr = dma_alloc_nonconsistent(dev, len,
+					&(info->handle), 0);
 
 	if (!info->cpu_addr) {
 		dev_err(dev, "Fail to allocate buffer\n");
@@ -84,6 +91,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		dev_err(dev, "Fail to allocate sg table\n");
 		goto err;
 	}
+
+	info->is_cached = ION_IS_CACHED(flags);
 
 	ion_cma_get_sgtable(dev,
 			info->table, info->cpu_addr, info->handle, len);
@@ -148,8 +157,7 @@ static int ion_cma_mmap(struct ion_heap *mapper, struct ion_buffer *buffer,
 	struct device *dev = buffer->heap->priv;
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
-
-	if (ION_IS_CACHED(buffer->flags))
+	if (info->is_cached)
 		return dma_mmap_nonconsistent(dev, vma, info->cpu_addr,
 				info->handle, buffer->size);
 	else
@@ -171,7 +179,6 @@ static void ion_cma_unmap_kernel(struct ion_heap *heap,
 	return;
 }
 
-
 int ion_cma_map_iommu(struct ion_buffer *buffer,
 				struct ion_iommu_map *data,
 				unsigned int domain_num,
@@ -188,13 +195,13 @@ int ion_cma_map_iommu(struct ion_buffer *buffer,
 	struct sg_table *table = info->table;
 	int prot = IOMMU_WRITE | IOMMU_READ;
 
+	data->mapped_size = iova_length;
+
 	if (!msm_use_iommu()) {
 		data->iova_addr = info->handle;
-		data->mapped_size = iova_length;
 		return 0;
 	}
 
-	data->mapped_size = iova_length;
 	extra = iova_length - buffer->size;
 
 	ret = msm_allocate_iova_address(domain_num, partition_num,
@@ -313,35 +320,6 @@ int ion_cma_cache_ops(struct ion_heap *heap,
 	return 0;
 }
 
-static int ion_cma_print_debug(struct ion_heap *heap, struct seq_file *s,
-			const struct rb_root *mem_map)
-{
-	if (mem_map) {
-		struct rb_node *n;
-
-		seq_printf(s, "\nMemory Map\n");
-		seq_printf(s, "%16.s %14.s %14.s %14.s\n",
-			   "client", "start address", "end address",
-			   "size (hex)");
-
-		for (n = rb_first(mem_map); n; n = rb_next(n)) {
-			struct mem_map_data *data =
-					rb_entry(n, struct mem_map_data, node);
-			const char *client_name = "(null)";
-
-
-			if (data->client_name)
-				client_name = data->client_name;
-
-			seq_printf(s, "%16.s %14lx %14lx %14lu (%lx)\n",
-				   client_name, data->addr,
-				   data->addr_end,
-				   data->size, data->size);
-		}
-	}
-	return 0;
-}
-
 static struct ion_heap_ops ion_cma_ops = {
 	.allocate = ion_cma_allocate,
 	.free = ion_cma_free,
@@ -354,7 +332,6 @@ static struct ion_heap_ops ion_cma_ops = {
 	.map_iommu = ion_cma_map_iommu,
 	.unmap_iommu = ion_cma_unmap_iommu,
 	.cache_op = ion_cma_cache_ops,
-	.print_debug = ion_cma_print_debug,
 };
 
 struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
