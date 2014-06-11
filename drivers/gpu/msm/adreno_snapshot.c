@@ -162,6 +162,12 @@ static unsigned int sp_vs_pvt_mem_addr;
 static unsigned int sp_fs_pvt_mem_addr;
 
 /*
+ * Cached value of SP_VS_OBJ_START_REG and SP_FS_OBJ_START_REG.
+ */
+static unsigned int sp_vs_obj_start_reg;
+static unsigned int sp_fs_obj_start_reg;
+
+/*
  * Each load state block has two possible types.  Each type has a different
  * number of dwords per unit.  Use this handy lookup table to make sure
  * we dump the right amount of data from the indirect buffer
@@ -177,10 +183,11 @@ static int load_state_unit_sizes[7][2] = {
 	{ 8, 2 },
 };
 
-static void ib_parse_load_state(struct kgsl_device *device, unsigned int *pkt,
+static int ib_parse_load_state(struct kgsl_device *device, unsigned int *pkt,
 	unsigned int ptbase)
 {
 	unsigned int block, source, type;
+	int ret = 0;
 
 	/*
 	 * The object here is to find indirect shaders i.e - shaders loaded from
@@ -192,7 +199,7 @@ static void ib_parse_load_state(struct kgsl_device *device, unsigned int *pkt,
 	 */
 
 	if (type3_pkt_size(pkt[0]) < 2)
-		return;
+		return 0;
 
 	/*
 	 * pkt[1] 18:16 - source
@@ -220,8 +227,14 @@ static void ib_parse_load_state(struct kgsl_device *device, unsigned int *pkt,
 				pkt[2] & 0xFFFFFFFC,
 				(((pkt[1] >> 22) & 0x03FF) * unitsize) << 2,
 				SNAPSHOT_GPU_OBJECT_SHADER);
+
+		if (ret < 0)
+			return -EINVAL;
+
 		snapshot_frozen_objsize += ret;
 	}
+
+	return ret;
 }
 
 /*
@@ -229,23 +242,31 @@ static void ib_parse_load_state(struct kgsl_device *device, unsigned int *pkt,
  * visiblity stream size buffer.
  */
 
-static void ib_parse_set_bin_data(struct kgsl_device *device, unsigned int *pkt,
+static int ib_parse_set_bin_data(struct kgsl_device *device, unsigned int *pkt,
 	unsigned int ptbase)
 {
 	int ret;
 
 	if (type3_pkt_size(pkt[0]) < 2)
-		return;
+		return 0;
 
 	/* Visiblity stream buffer */
 	ret = kgsl_snapshot_get_object(device, ptbase, pkt[1], 0,
 			SNAPSHOT_GPU_OBJECT_GENERIC);
+
+	if (ret < 0)
+		return -EINVAL;
+
 	snapshot_frozen_objsize += ret;
 
 	/* visiblity stream size buffer (fixed size 8 dwords) */
 	ret = kgsl_snapshot_get_object(device, ptbase, pkt[2], 32,
 			SNAPSHOT_GPU_OBJECT_GENERIC);
-	snapshot_frozen_objsize += ret;
+
+	if (ret >= 0)
+		snapshot_frozen_objsize += ret;
+
+	return ret;
 }
 
 /*
@@ -254,13 +275,13 @@ static void ib_parse_set_bin_data(struct kgsl_device *device, unsigned int *pkt,
  * buffers that are written to as frozen
  */
 
-static void ib_parse_mem_write(struct kgsl_device *device, unsigned int *pkt,
+static int ib_parse_mem_write(struct kgsl_device *device, unsigned int *pkt,
 	unsigned int ptbase)
 {
 	int ret;
 
 	if (type3_pkt_size(pkt[0]) < 1)
-		return;
+		return 0;
 
 	/*
 	 * The address is where the data in the rest of this packet is written
@@ -272,7 +293,10 @@ static void ib_parse_mem_write(struct kgsl_device *device, unsigned int *pkt,
 	ret = kgsl_snapshot_get_object(device, ptbase, pkt[1] & 0xFFFFFFFC, 0,
 		SNAPSHOT_GPU_OBJECT_GENERIC);
 
-	snapshot_frozen_objsize += ret;
+	if (ret >= 0)
+		snapshot_frozen_objsize += ret;
+
+	return ret;
 }
 
 /*
@@ -282,19 +306,22 @@ static void ib_parse_mem_write(struct kgsl_device *device, unsigned int *pkt,
  * frozen with the others
  */
 
-static void ib_parse_draw_indx(struct kgsl_device *device, unsigned int *pkt,
+static int ib_parse_draw_indx(struct kgsl_device *device, unsigned int *pkt,
 	unsigned int ptbase)
 {
-	int ret, i;
+	int ret = 0, i;
 
 	if (type3_pkt_size(pkt[0]) < 3)
-		return;
+		return 0;
 
 	/*  DRAW_IDX may have a index buffer pointer */
 
 	if (type3_pkt_size(pkt[0]) > 3) {
 		ret = kgsl_snapshot_get_object(device, ptbase, pkt[4], pkt[5],
 			SNAPSHOT_GPU_OBJECT_GENERIC);
+		if (ret < 0)
+			return -EINVAL;
+
 		snapshot_frozen_objsize += ret;
 	}
 
@@ -310,6 +337,9 @@ static void ib_parse_draw_indx(struct kgsl_device *device, unsigned int *pkt,
 			ret = kgsl_snapshot_get_object(device, ptbase,
 				vsc_pipe[i].base, vsc_pipe[i].size,
 				SNAPSHOT_GPU_OBJECT_GENERIC);
+			if (ret < 0)
+				return -EINVAL;
+
 			snapshot_frozen_objsize += ret;
 		}
 	}
@@ -320,6 +350,9 @@ static void ib_parse_draw_indx(struct kgsl_device *device, unsigned int *pkt,
 		ret = kgsl_snapshot_get_object(device, ptbase,
 				vsc_size_address, 32,
 				SNAPSHOT_GPU_OBJECT_GENERIC);
+		if (ret < 0)
+			return -EINVAL;
+
 		snapshot_frozen_objsize += ret;
 	}
 
@@ -328,15 +361,42 @@ static void ib_parse_draw_indx(struct kgsl_device *device, unsigned int *pkt,
 		ret = kgsl_snapshot_get_object(device, ptbase,
 				sp_vs_pvt_mem_addr, 8192,
 				SNAPSHOT_GPU_OBJECT_GENERIC);
+		if (ret < 0)
+			return -EINVAL;
 
 		snapshot_frozen_objsize += ret;
+		sp_vs_pvt_mem_addr = 0;
 	}
 
 	if (sp_fs_pvt_mem_addr) {
 		ret = kgsl_snapshot_get_object(device, ptbase,
 				sp_fs_pvt_mem_addr, 8192,
 				SNAPSHOT_GPU_OBJECT_GENERIC);
+		if (ret < 0)
+			return -EINVAL;
+
 		snapshot_frozen_objsize += ret;
+		sp_fs_pvt_mem_addr = 0;
+	}
+
+	if (sp_vs_obj_start_reg) {
+		ret = kgsl_snapshot_get_object(device, ptbase,
+			sp_vs_obj_start_reg & 0xFFFFFFE0, 0,
+			SNAPSHOT_GPU_OBJECT_GENERIC);
+		if (ret < 0)
+			return -EINVAL;
+		snapshot_frozen_objsize += ret;
+		sp_vs_obj_start_reg = 0;
+	}
+
+	if (sp_fs_obj_start_reg) {
+		ret = kgsl_snapshot_get_object(device, ptbase,
+			sp_fs_obj_start_reg & 0xFFFFFFE0, 0,
+			SNAPSHOT_GPU_OBJECT_GENERIC);
+		if (ret < 0)
+			return -EINVAL;
+		snapshot_frozen_objsize += ret;
+		sp_fs_obj_start_reg = 0;
 	}
 
 	/* Finally: VBOs */
@@ -357,9 +417,20 @@ static void ib_parse_draw_indx(struct kgsl_device *device, unsigned int *pkt,
 			ret = kgsl_snapshot_get_object(device, ptbase,
 				vbo[i].base,
 				0, SNAPSHOT_GPU_OBJECT_GENERIC);
+			if (ret < 0)
+				return -EINVAL;
+
 			snapshot_frozen_objsize += ret;
 		}
+
+		vbo[i].base = 0;
+		vbo[i].stride = 0;
 	}
+
+	vfd_control_0 = 0;
+	vfd_index_max = 0;
+
+	return ret;
 }
 
 /*
@@ -367,23 +438,21 @@ static void ib_parse_draw_indx(struct kgsl_device *device, unsigned int *pkt,
  * such as additional GPU buffers to grab or a draw initator
  */
 
-static void ib_parse_type3(struct kgsl_device *device, unsigned int *ptr,
+static int ib_parse_type3(struct kgsl_device *device, unsigned int *ptr,
 	unsigned int ptbase)
 {
-	switch (cp_type3_opcode(*ptr)) {
-	case CP_LOAD_STATE:
-		ib_parse_load_state(device, ptr, ptbase);
-		break;
-	case CP_SET_BIN_DATA:
-		ib_parse_set_bin_data(device, ptr, ptbase);
-		break;
-	case CP_MEM_WRITE:
-		ib_parse_mem_write(device, ptr, ptbase);
-		break;
-	case CP_DRAW_INDX:
-		ib_parse_draw_indx(device, ptr, ptbase);
-		break;
-	}
+	int opcode = cp_type3_opcode(*ptr);
+
+	if (opcode == CP_LOAD_STATE)
+		return ib_parse_load_state(device, ptr, ptbase);
+	else if (opcode == CP_SET_BIN_DATA)
+		return ib_parse_set_bin_data(device, ptr, ptbase);
+	else if (opcode == CP_MEM_WRITE)
+		return ib_parse_mem_write(device, ptr, ptbase);
+	else if (opcode == CP_DRAW_INDX)
+		return ib_parse_draw_indx(device, ptr, ptbase);
+
+	return 0;
 }
 
 /*
@@ -462,40 +531,76 @@ static void ib_parse_type0(struct kgsl_device *device, unsigned int *ptr,
 			case A3XX_SP_FS_PVT_MEM_ADDR_REG:
 				sp_fs_pvt_mem_addr = ptr[i + 1];
 				break;
+			case A3XX_SP_VS_OBJ_START_REG:
+				sp_vs_obj_start_reg = ptr[i + 1];
+				break;
+			case A3XX_SP_FS_OBJ_START_REG:
+				sp_fs_obj_start_reg = ptr[i + 1];
+				break;
 			}
 		}
 	}
 }
 
+static inline int parse_ib(struct kgsl_device *device, unsigned int ptbase,
+		unsigned int gpuaddr, unsigned int dwords);
+
 /* Add an IB as a GPU object, but first, parse it to find more goodies within */
 
-static void ib_add_gpu_object(struct kgsl_device *device, unsigned int ptbase,
+static int ib_add_gpu_object(struct kgsl_device *device, unsigned int ptbase,
 		unsigned int gpuaddr, unsigned int dwords)
 {
 	int i, ret, rem = dwords;
-	unsigned int *src = (unsigned int *) adreno_convertaddr(device, ptbase,
-		gpuaddr, dwords << 2);
+	unsigned int *src;
+
+	/*
+	 * If the object is already in the list, we don't need to parse it again
+	 */
+
+	if (kgsl_snapshot_have_object(device, ptbase, gpuaddr, dwords << 2))
+		return 0;
+
+	src = (unsigned int *) adreno_convertaddr(device, ptbase, gpuaddr,
+		dwords << 2);
 
 	if (src == NULL)
-		return;
+		return -EINVAL;
 
-	for (i = 0; rem != 0; rem--, i++) {
+	for (i = 0; rem > 0; rem--, i++) {
 		int pktsize;
 
+		/* If the packet isn't a type 1 or a type 3, then don't bother
+		 * parsing it - it is likely corrupted */
+
 		if (!pkt_is_type0(src[i]) && !pkt_is_type3(src[i]))
-			continue;
+			break;
 
 		pktsize = type3_pkt_size(src[i]);
 
-		if ((pktsize + 1) > rem)
+		if (!pktsize || (pktsize + 1) > rem)
 			break;
 
 		if (pkt_is_type3(src[i])) {
-			if (adreno_cmd_is_ib(src[i]))
-				ib_add_gpu_object(device, ptbase,
-					src[i + 1], src[i + 2]);
-			else
-				ib_parse_type3(device, &src[i], ptbase);
+			if (adreno_cmd_is_ib(src[i])) {
+				unsigned int gpuaddr = src[i + 1];
+				unsigned int size = src[i + 2];
+
+				ret = parse_ib(device, ptbase, gpuaddr, size);
+
+				/* If adding the IB failed then stop parsing */
+				if (ret < 0)
+					goto done;
+			} else {
+				ret = ib_parse_type3(device, &src[i], ptbase);
+				/*
+				 * If the parse function failed (probably
+				 * because of a bad decode) then bail out and
+				 * just capture the binary IB data
+				 */
+
+				if (ret < 0)
+					goto done;
+			}
 		} else if (pkt_is_type0(src[i])) {
 			ib_parse_type0(device, &src[i], ptbase);
 		}
@@ -504,35 +609,44 @@ static void ib_add_gpu_object(struct kgsl_device *device, unsigned int ptbase,
 		rem -= pktsize;
 	}
 
+done:
 	ret = kgsl_snapshot_get_object(device, ptbase, gpuaddr, dwords << 2,
 		SNAPSHOT_GPU_OBJECT_IB);
 
-	snapshot_frozen_objsize += ret;
+	if (ret >= 0)
+		snapshot_frozen_objsize += ret;
+
+	return ret;
 }
 
-/* Snapshot the istore memory */
-static int snapshot_istore(struct kgsl_device *device, void *snapshot,
-	int remain, void *priv)
+/*
+ * We want to store the last executed IB1 and IB2 in the static region to ensure
+ * that we get at least some information out of the snapshot even if we can't
+ * access the dynamic data from the sysfs file.  Push all other IBs on the
+ * dynamic list
+ */
+static inline int parse_ib(struct kgsl_device *device, unsigned int ptbase,
+		unsigned int gpuaddr, unsigned int dwords)
 {
-	struct kgsl_snapshot_istore *header = snapshot;
-	unsigned int *data = snapshot + sizeof(*header);
-	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-	int count, i;
+	unsigned int ib1base, ib2base;
+	int ret = 0;
 
-	count = adreno_dev->istore_size * adreno_dev->instruction_size;
+	/*
+	 * Check the IB address - if it is either the last executed IB1 or the
+	 * last executed IB2 then push it into the static blob otherwise put
+	 * it in the dynamic list
+	 */
 
-	if (remain < (count * 4) + sizeof(*header)) {
-		KGSL_DRV_ERR(device,
-			"snapshot: Not enough memory for the istore section");
-		return 0;
-	}
+	kgsl_regread(device, REG_CP_IB1_BASE, &ib1base);
+	kgsl_regread(device, REG_CP_IB2_BASE, &ib2base);
 
-	header->count = adreno_dev->istore_size;
+	if (gpuaddr == ib1base || gpuaddr == ib2base)
+		push_object(device, SNAPSHOT_OBJ_TYPE_IB, ptbase,
+			gpuaddr, dwords);
+	else
+		ret = ib_add_gpu_object(device, ptbase, gpuaddr, dwords);
 
-	for (i = 0; i < count; i++)
-		kgsl_regread(device, ADRENO_ISTORE_START + i, &data[i]);
-
-	return (count * 4) + sizeof(*header);
+	return ret;
 }
 
 /* Snapshot the ringbuffer memory */
@@ -650,27 +764,11 @@ static int snapshot_rb(struct kgsl_device *device, void *snapshot,
 		*data = rbptr[index];
 
 		/*
-		 * Sometimes the rptr is located in the middle of a packet.
-		 * try to adust for that by modifying the rptr to match a
-		 * packet boundary. Unfortunately for us, it is hard to tell
-		 * which dwords are legitimate type0 header and which are just
-		 * random data so only do the adjustments for type3 packets
-		 */
-
-		if (pkt_is_type3(rbptr[index])) {
-			unsigned int pktsize =
-				type3_pkt_size(rbptr[index]);
-			if (index +  pktsize > rptr)
-				rptr = (index + pktsize) %
-					rb->sizedwords;
-		}
-
-		/*
 		 * Only parse IBs between the start and the rptr or the next
 		 * context switch, whichever comes first
 		 */
 
-		if (index == ib_parse_start)
+		if (parse_ibs == 0 && index == ib_parse_start)
 			parse_ibs = 1;
 		else if (index == rptr || adreno_rb_ctxtswitch(&rbptr[index]))
 			parse_ibs = 0;
@@ -701,12 +799,11 @@ static int snapshot_rb(struct kgsl_device *device, void *snapshot,
 			 * others get marked at GPU objects
 			 */
 
-			if (ibaddr == ibbase || memdesc != NULL)
+			if (memdesc != NULL)
 				push_object(device, SNAPSHOT_OBJ_TYPE_IB,
 					ptbase, ibaddr, ibsize);
 			else
-				ib_add_gpu_object(device, ptbase, ibaddr,
-					ibsize);
+				parse_ib(device, ptbase, ibaddr, ibsize);
 		}
 
 		index = index + 1;
@@ -721,6 +818,64 @@ static int snapshot_rb(struct kgsl_device *device, void *snapshot,
 	return size + sizeof(*header);
 }
 
+static int snapshot_capture_mem_list(struct kgsl_device *device, void *snapshot,
+			int remain, void *priv)
+{
+	struct kgsl_snapshot_replay_mem_list *header = snapshot;
+	struct kgsl_process_private *private;
+	unsigned int ptbase;
+	struct rb_node *node;
+	struct kgsl_mem_entry *entry = NULL;
+	int num_mem;
+	unsigned int *data = snapshot + sizeof(*header);
+
+	ptbase = kgsl_mmu_get_current_ptbase(&device->mmu);
+	mutex_lock(&kgsl_driver.process_mutex);
+	list_for_each_entry(private, &kgsl_driver.process_list, list) {
+		if (kgsl_mmu_pt_equal(&device->mmu, private->pagetable,
+			ptbase))
+			break;
+	}
+	mutex_unlock(&kgsl_driver.process_mutex);
+	if (!private) {
+		KGSL_DRV_ERR(device,
+		"Failed to get pointer to process private structure\n");
+		return 0;
+	}
+	/* We need to know the number of memory objects that the process has */
+	spin_lock(&private->mem_lock);
+	for (node = rb_first(&private->mem_rb), num_mem = 0; node; ) {
+		entry = rb_entry(node, struct kgsl_mem_entry, node);
+		node = rb_next(&entry->node);
+		num_mem++;
+	}
+
+	if (remain < ((num_mem * 3 * sizeof(unsigned int)) +
+			sizeof(*header))) {
+		KGSL_DRV_ERR(device,
+			"snapshot: Not enough memory for the mem list section");
+		spin_unlock(&private->mem_lock);
+		return 0;
+	}
+	header->num_entries = num_mem;
+	header->ptbase = ptbase;
+	/*
+	 * Walk throught the memory list and store the
+	 * tuples(gpuaddr, size, memtype) in snapshot
+	 */
+	for (node = rb_first(&private->mem_rb); node; ) {
+		entry = rb_entry(node, struct kgsl_mem_entry, node);
+		node = rb_next(&entry->node);
+
+		*data++ = entry->memdesc.gpuaddr;
+		*data++ = entry->memdesc.size;
+		*data++ = (entry->memdesc.priv & KGSL_MEMTYPE_MASK) >>
+							KGSL_MEMTYPE_SHIFT;
+	}
+	spin_unlock(&private->mem_lock);
+	return sizeof(*header) + (num_mem * 3 * sizeof(unsigned int));
+}
+
 /* Snapshot the memory for an indirect buffer */
 static int snapshot_ib(struct kgsl_device *device, void *snapshot,
 	int remain, void *priv)
@@ -729,7 +884,7 @@ static int snapshot_ib(struct kgsl_device *device, void *snapshot,
 	struct kgsl_snapshot_obj *obj = priv;
 	unsigned int *src = obj->ptr;
 	unsigned int *dst = snapshot + sizeof(*header);
-	int i;
+	int i, ret;
 
 	if (remain < (obj->dwords << 2) + sizeof(*header)) {
 		KGSL_DRV_ERR(device,
@@ -751,10 +906,14 @@ static int snapshot_ib(struct kgsl_device *device, void *snapshot,
 				continue;
 
 			if (adreno_cmd_is_ib(*src))
-				push_object(device, SNAPSHOT_OBJ_TYPE_IB,
-					obj->ptbase, src[1], src[2]);
+				ret = parse_ib(device, obj->ptbase, src[1],
+					src[2]);
 			else
-				ib_parse_type3(device, src, obj->ptbase);
+				ret = ib_parse_type3(device, src, obj->ptbase);
+
+			/* Stop parsing if the type3 decode fails */
+			if (ret < 0)
+				break;
 		}
 	}
 
@@ -820,6 +979,13 @@ void *adreno_snapshot(struct kgsl_device *device, void *snapshot, int *remain,
 		snapshot, remain, snapshot_rb, NULL);
 
 	/*
+	 * Add a section that lists (gpuaddr, size, memtype) tuples of the
+	 * hanging process
+	 */
+	snapshot = kgsl_snapshot_add_section(device,
+			KGSL_SNAPSHOT_SECTION_MEMLIST, snapshot, remain,
+			snapshot_capture_mem_list, NULL);
+	/*
 	 * Make sure that the last IB1 that was being executed is dumped.
 	 * Since this was the last IB1 that was processed, we should have
 	 * already added it to the list during the ringbuffer parse but we
@@ -866,17 +1032,6 @@ void *adreno_snapshot(struct kgsl_device *device, void *snapshot, int *remain,
 	 */
 	for (i = 0; i < objbufptr; i++)
 		snapshot = dump_object(device, i, snapshot, remain);
-
-	/*
-	 * Only dump the istore on a hang - reading it on a running system
-	 * has a non 0 chance of hanging the GPU
-	 */
-
-	if (hang) {
-		snapshot = kgsl_snapshot_add_section(device,
-			KGSL_SNAPSHOT_SECTION_ISTORE, snapshot, remain,
-			snapshot_istore, NULL);
-	}
 
 	/* Add GPU specific sections - registers mainly, but other stuff too */
 	if (adreno_dev->gpudev->snapshot)

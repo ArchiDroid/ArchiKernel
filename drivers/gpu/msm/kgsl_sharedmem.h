@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,6 +19,7 @@
 #include "kgsl_mmu.h"
 #include <linux/slab.h>
 #include <linux/kmemleak.h>
+#include <linux/iommu.h>
 
 #include "kgsl_log.h"
 
@@ -83,6 +84,18 @@ kgsl_memdesc_get_align(const struct kgsl_memdesc *memdesc)
 }
 
 /*
+ * kgsl_memdesc_get_cachemode - Get cache mode of a memdesc
+ * @memdesc: the memdesc
+ *
+ * Returns a KGSL_CACHEMODE* value.
+ */
+static inline int
+kgsl_memdesc_get_cachemode(const struct kgsl_memdesc *memdesc)
+{
+	return (memdesc->flags & KGSL_CACHEMODE_MASK) >> KGSL_CACHEMODE_SHIFT;
+}
+
+/*
  * kgsl_memdesc_set_align - Set alignment flags of a memdesc
  * @memdesc - the memdesc
  * @align - alignment requested, as a power of 2 exponent.
@@ -125,6 +138,9 @@ kgsl_sharedmem_map_vma(struct vm_area_struct *vma,
 
 static inline void *kgsl_sg_alloc(unsigned int sglen)
 {
+	if ((sglen == 0) || (sglen >= ULONG_MAX / sizeof(struct scatterlist)))
+		return NULL;
+
 	if ((sglen * sizeof(struct scatterlist)) <  PAGE_SIZE)
 		return kzalloc(sglen * sizeof(struct scatterlist), GFP_KERNEL);
 	else {
@@ -163,18 +179,79 @@ memdesc_sg_phys(struct kgsl_memdesc *memdesc,
 }
 
 /*
+ * kgsl_memdesc_is_global - is this a globally mapped buffer?
+ * @memdesc: the memdesc
+ *
+ * Returns nonzero if this is a global mapping, 0 otherwise
+ */
+static inline int kgsl_memdesc_is_global(const struct kgsl_memdesc *memdesc)
+{
+	return (memdesc->priv & KGSL_MEMDESC_GLOBAL) != 0;
+}
+
+/*
+ * kgsl_memdesc_has_guard_page - is the last page a guard page?
+ * @memdesc - the memdesc
+ *
+ * Returns nonzero if there is a guard page, 0 otherwise
+ */
+static inline int
+kgsl_memdesc_has_guard_page(const struct kgsl_memdesc *memdesc)
+{
+	return (memdesc->priv & KGSL_MEMDESC_GUARD_PAGE) != 0;
+}
+
+/*
  * kgsl_memdesc_protflags - get mmu protection flags
  * @memdesc - the memdesc
- * Returns a mask of GSL_PT_PAGE* values based on the
- * memdesc flags.
+ * Returns a mask of GSL_PT_PAGE* or IOMMU* values based
+ * on the memdesc flags.
  */
 static inline unsigned int
 kgsl_memdesc_protflags(const struct kgsl_memdesc *memdesc)
 {
-	unsigned int protflags = GSL_PT_PAGE_RV;
-	if (!(memdesc->flags & KGSL_MEMFLAGS_GPUREADONLY))
-		protflags |= GSL_PT_PAGE_WV;
+	unsigned int protflags = 0;
+	enum kgsl_mmutype mmutype = kgsl_mmu_get_mmutype();
+
+	if (mmutype == KGSL_MMU_TYPE_GPU) {
+		protflags = GSL_PT_PAGE_RV;
+		if (!(memdesc->flags & KGSL_MEMFLAGS_GPUREADONLY))
+			protflags |= GSL_PT_PAGE_WV;
+	} else if (mmutype == KGSL_MMU_TYPE_IOMMU) {
+		protflags = IOMMU_READ;
+		if (!(memdesc->flags & KGSL_MEMFLAGS_GPUREADONLY))
+			protflags |= IOMMU_WRITE;
+	}
 	return protflags;
+}
+
+/*
+ * kgsl_memdesc_use_cpu_map - use the same virtual mapping on CPU and GPU?
+ * @memdesc - the memdesc
+ */
+static inline int
+kgsl_memdesc_use_cpu_map(const struct kgsl_memdesc *memdesc)
+{
+	return (memdesc->flags & KGSL_MEMFLAGS_USE_CPU_MAP) != 0;
+}
+
+/*
+ * kgsl_memdesc_mmapsize - get the size of the mmap region
+ * @memdesc - the memdesc
+ *
+ * The entire memdesc must be mapped. Additionally if the
+ * CPU mapping is going to be mirrored, there must be room
+ * for the guard page to be mapped so that the address spaces
+ * match up.
+ */
+static inline unsigned int
+kgsl_memdesc_mmapsize(const struct kgsl_memdesc *memdesc)
+{
+	unsigned int size = memdesc->size;
+	if (kgsl_memdesc_use_cpu_map(memdesc) &&
+		kgsl_memdesc_has_guard_page(memdesc))
+		size += SZ_4K;
+	return size;
 }
 
 static inline int
@@ -189,8 +266,12 @@ kgsl_allocate(struct kgsl_memdesc *memdesc,
 	ret = kgsl_sharedmem_page_alloc(memdesc, pagetable, size);
 	if (ret)
 		return ret;
-	ret = kgsl_mmu_map(pagetable, memdesc,
-			   kgsl_memdesc_protflags(memdesc));
+	ret = kgsl_mmu_get_gpuaddr(pagetable, memdesc);
+	if (ret) {
+		kgsl_sharedmem_free(memdesc);
+		return ret;
+	}
+	ret = kgsl_mmu_map(pagetable, memdesc);
 	if (ret)
 		kgsl_sharedmem_free(memdesc);
 	return ret;
@@ -227,15 +308,4 @@ kgsl_allocate_contiguous(struct kgsl_memdesc *memdesc, size_t size)
 	return ret;
 }
 
-static inline int kgsl_sg_size(struct scatterlist *sg, int sglen)
-{
-	int i, size = 0;
-	struct scatterlist *s;
-
-	for_each_sg(sg, s, sglen, i) {
-		size += s->length;
-	}
-
-	return size;
-}
 #endif /* __KGSL_SHAREDMEM_H */

@@ -332,7 +332,6 @@ kgsl_gem_free_object(struct drm_gem_object *obj)
 	kgsl_gem_free_mmap_offset(obj);
 	drm_gem_object_release(obj);
 	kfree(obj->driver_private);
-	kfree(obj);
 }
 
 static int
