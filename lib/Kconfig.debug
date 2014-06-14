@@ -38,6 +38,16 @@ config DEFAULT_MESSAGE_LOGLEVEL
 	  that are auditing their logs closely may want to set it to a lower
 	  priority.
 
+config DEFAULT_CONSOLE_LOGLEVEL
+        int "Default console log level (1-7)"
+        range 1 7
+        default "7"
+        help
+          Default console log level setting for printk statements.
+
+          This was hard-coded to KERN_INFO (7) since at least 2.6.12. You may
+          wish to turn this down to 4 for a quieter console.
+
 config ENABLE_WARN_DEPRECATED
 	bool "Enable __deprecated logic"
 	default y
