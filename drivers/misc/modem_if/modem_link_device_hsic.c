@@ -269,7 +269,7 @@ static void usb_rx_complete(struct urb *urb)
 		switch (pipe_data->format) {
 		case IF_USB_FMT_EP:
 			if (usb_ld->if_usb_is_main) {
-				pr_urb("IPC-RX", urb);
+				//pr_urb("IPC-RX", urb);
 				iod_format = IPC_FMT;
 			} else {
 				iod_format = IPC_BOOT;
@@ -478,12 +478,13 @@ static int _usb_tx_work(struct sk_buff *skb)
 	if (!pipe_data)
 		return -ENOENT;
 
+/*
 	if (iod->format == IPC_FMT && usb_ld->if_usb_is_main)
 		pr_skb("IPC-TX", skb);
 
 	if (iod->format == IPC_RAW)
 		mif_debug("TX[RAW]\n");
-
+*/
 	return usb_tx_urb_with_skb(usb_ld->usbdev, skb,	pipe_data);
 }
 
@@ -741,11 +742,11 @@ static inline int link_pm_slave_wake(struct link_pm_data *pm_data)
 				!= HOSTWAKE_TRIGLEVEL) {
 		if (gpio_get_value(pm_data->gpio_link_slavewake)) {
 			gpio_set_value(pm_data->gpio_link_slavewake, 0);
-			mif_info("gpio [SWK] set [0]\n");
+			mif_debug("gpio [SWK] set [0]\n");
 			mdelay(5);
 		}
 		gpio_set_value(pm_data->gpio_link_slavewake, 1);
-		mif_info("gpio [SWK] set [1]\n");
+		mif_debug("gpio [SWK] set [1]\n");
 		mdelay(5);
 
 		/* wait host wake signal*/
@@ -860,7 +861,7 @@ static irqreturn_t link_pm_irq_handler(int irq, void *data)
 		runtime pm status changes to ACTIVE
 	*/
 	value = gpio_get_value(pm_data->gpio_link_hostwake);
-	mif_info("gpio [HWK] get [%d]\n", value);
+	mif_debug("gpio [HWK] get [%d]\n", value);
 
 	/*
 	* igonore host wakeup interrupt at suspending kernel
