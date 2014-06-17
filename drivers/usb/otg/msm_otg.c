@@ -79,7 +79,7 @@ enum msm_otg_phy_reg_mode {
 	USB_PHY_REG_LPM_OFF,
 };
 
-static bool floated_charger_enable;
+static bool floated_charger_enable = true;
 module_param(floated_charger_enable , bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(floated_charger_enable,
 	"Whether to enable floated charger");
