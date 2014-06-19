@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -679,6 +679,7 @@ static int mipi_truly_lcd_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
 	struct mipi_panel_info *mipi;
+	struct dcs_cmd_req cmdreq;
 
 	mfd = platform_get_drvdata(pdev);
 
@@ -692,14 +693,21 @@ static int mipi_truly_lcd_on(struct platform_device *pdev)
 	pr_info("%s: mode = %d\n", __func__, mipi->mode);
 	msleep(120);
 
+	memset(&cmdreq, 0, sizeof(cmdreq));
 	if (mipi->mode == DSI_VIDEO_MODE) {
-		mipi_dsi_cmds_tx(&truly_tx_buf,
-			truly_video_display_on_cmds,
-			ARRAY_SIZE(truly_video_display_on_cmds));
+		cmdreq.cmds = truly_video_display_on_cmds;
+		cmdreq.cmds_cnt = ARRAY_SIZE(truly_video_display_on_cmds);
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
+		mipi_dsi_cmdlist_put(&cmdreq);
 	} else if (mipi->mode == DSI_CMD_MODE) {
-		mipi_dsi_cmds_tx(&truly_tx_buf,
-			truly_cmd_display_on_cmds,
-			ARRAY_SIZE(truly_cmd_display_on_cmds));
+		cmdreq.cmds = truly_cmd_display_on_cmds;
+		cmdreq.cmds_cnt = ARRAY_SIZE(truly_cmd_display_on_cmds);
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
+		mipi_dsi_cmdlist_put(&cmdreq);
 	}
 
 	return 0;
@@ -708,6 +716,7 @@ static int mipi_truly_lcd_on(struct platform_device *pdev)
 static int mipi_truly_lcd_off(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
+	struct dcs_cmd_req cmdreq;
 
 	mfd = platform_get_drvdata(pdev);
 
@@ -716,8 +725,13 @@ static int mipi_truly_lcd_off(struct platform_device *pdev)
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
 
-	mipi_dsi_cmds_tx(&truly_tx_buf, truly_display_off_cmds,
-			ARRAY_SIZE(truly_display_off_cmds));
+	memset(&cmdreq, 0, sizeof(cmdreq));
+	cmdreq.cmds = truly_display_off_cmds;
+	cmdreq.cmds_cnt = ARRAY_SIZE(truly_display_off_cmds);
+	cmdreq.flags = CMD_REQ_COMMIT;
+	cmdreq.rlen = 0;
+	cmdreq.cb = NULL;
+	mipi_dsi_cmdlist_put(&cmdreq);
 
 	return 0;
 }
@@ -786,8 +800,6 @@ static int __devinit mipi_truly_lcd_probe(struct platform_device *pdev)
 		mipi_truly_pdata = pdev->dev.platform_data;
 		if (mipi_truly_pdata->bl_lock)
 			spin_lock_init(&mipi_truly_pdata->bl_spinlock);
-		else
-			mipi_truly_bl_ctrl = 1;
 		return rc;
 	}
 

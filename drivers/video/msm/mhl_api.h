@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,9 +15,9 @@
 #define __MHL_API_H__
 
 #ifdef CONFIG_FB_MSM_HDMI_MHL_8334
-bool mhl_is_connected(void);
+bool mhl_is_enabled(void);
 #else
-static bool mhl_is_connected(void)
+static bool mhl_is_enabled(void)
 {
 	return false;
 }

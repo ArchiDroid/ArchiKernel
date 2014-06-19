@@ -10,6 +10,8 @@ config FB_MSM
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select SYNC
+	select SW_SYNC
 	---help---
 	  Support for MSM Framebuffer.
 
@@ -38,6 +40,9 @@ config FB_MSM_TRIPLE_BUFFER
 config FB_MSM_MDP_HW
 	bool
 	default n
+
+config FB_MSM_MDSS_COMMON
+	bool
 
 choice
 	prompt "MDP HW version"
@@ -68,16 +73,6 @@ config FB_MSM_MDP303
 	  required for msm7x2xA platform.
 	  Say Y here if this is msm7x2xA variant platform.
 
-config FB_MSM_MDP_LUT_ENABLE
-	depends on FB_MSM_MDP30
-	depends on FB_MSM_MDP303
-	bool "MDP HW ver3.03"
-	default n
-	---help---
-	  Support for MSM MDP LUT enable. This is Look Up Table to support the features
-	  required for msm7x2xA platform.
-	  Say Y here if this is msm7x2xA variant platform.
-
 config FB_MSM_MDP31
 	select FB_MSM_LCDC_HW
 	select FB_MSM_MDP_HW
@@ -96,6 +91,7 @@ config FB_MSM_MDP40
 
 config FB_MSM_MDSS
 	bool "MDSS HW"
+	select FB_MSM_MDSS_COMMON
 	---help---
 	The Mobile Display Sub System (MDSS) driver supports devices which
 	contain MDSS hardware block.
@@ -110,6 +106,10 @@ config FB_MSM_MDP_NONE
 	  Say Y here if this is mdm platform.
 
 endchoice
+
+config FB_MSM_QPIC
+	bool
+	select FB_MSM_MDSS_COMMON
 
 config FB_MSM_EBI2
 	bool
@@ -132,7 +132,7 @@ config FB_MSM_LVDS
 	default n
 
 config FB_MSM_OVERLAY
-	depends on FB_MSM_MDP40 && ANDROID_PMEM
+	depends on FB_MSM_MDP40
 	bool "MDP4 overlay support"
 	default n
 
@@ -245,7 +245,6 @@ config FB_MSM_MIPI_DSI_NT35516
 config FB_MSM_MIPI_DSI_TC358764_DSI2LVDS
 	bool
 	select FB_MSM_MIPI_DSI
-	default n
 	---help---
 	  Support for Toshiba MIPI DSI-to-LVDS bridge.
 	  The chip supports 1366x768 24-bit
@@ -793,7 +792,7 @@ config FB_MSM_MIPI_SIMULATOR_VIDEO_PANEL
 config FB_MSM_MIPI_LG4573B_VIDEO_WVGA_PT_PANEL
 	bool "MIPI LG4573B Command WVGA PT Panel"
 	select FB_MSM_MIPI_LG4573B_VIDEO_WVGA_PT
-#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting	
+#LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
 
 config FB_MSM_EBI2_TMD_QVGA_EPSON_QCIF
 	bool "EBI2 TMD QVGA Epson QCIF Dual Panel"
@@ -908,14 +907,6 @@ config FB_MSM_HDMI_MSM_PANEL_DVI_SUPPORT
 	default n
 	---help---
 	  Support for DVI mode for MSM HDMI 1080p Panel
-
-config FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
-	depends on FB_MSM_HDMI_MSM_PANEL
-	bool "Use HDCP mode"
-	default y
-	---help---
-	  Support for HDCP mode for MSM HDMI 1080p Panel
-	  Choose to enable HDCP
 
 config FB_MSM_HDMI_MSM_PANEL_CEC_SUPPORT
 	depends on FB_MSM_HDMI_MSM_PANEL
@@ -1044,6 +1035,21 @@ config FB_MSM_EBI2_PANEL_DETECT
 	default n
 	---help---
 	  Support for EBI2 panel auto detect
+
+config FB_MSM_QPIC_ILI_QVGA_PANEL
+	bool "Qpic MIPI ILI QVGA Panel"
+	select FB_MSM_QPIC
+	---help---
+	  Support for MIPI ILI QVGA (240x320) panel
+	  ILI TECHNOLOGY 9341
+	  with on-chip full display RAM
+	  use parallel interface
+
+config FB_MSM_QPIC_PANEL_DETECT
+	bool "Qpic Panel Detect"
+	select FB_MSM_QPIC_ILI_QVGA_PANEL
+	---help---
+	  Support for Qpic panel auto detect
 
 if FB_MSM_MDSS
 	source "drivers/video/msm/mdss/Kconfig"

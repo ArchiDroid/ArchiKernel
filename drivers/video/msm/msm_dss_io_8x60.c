@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -553,12 +553,8 @@ void hdmi_msm_reset_core(void)
 	hdmi_msm_clk(1);
 
 	clk_reset(hdmi_msm_state->hdmi_app_clk, CLK_RESET_ASSERT);
-	clk_reset(hdmi_msm_state->hdmi_m_pclk, CLK_RESET_ASSERT);
-	clk_reset(hdmi_msm_state->hdmi_s_pclk, CLK_RESET_ASSERT);
 	udelay(20);
 	clk_reset(hdmi_msm_state->hdmi_app_clk, CLK_RESET_DEASSERT);
-	clk_reset(hdmi_msm_state->hdmi_m_pclk, CLK_RESET_DEASSERT);
-	clk_reset(hdmi_msm_state->hdmi_s_pclk, CLK_RESET_DEASSERT);
 }
 
 void hdmi_msm_init_phy(int video_format)

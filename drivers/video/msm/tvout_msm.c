@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -232,7 +232,6 @@ static void tvout_msm_hpd_work_timer(unsigned long data)
 static int tvout_on(struct platform_device *pdev)
 {
 	uint32 reg = 0;
-	uint32 userformat = 0;
 	struct fb_var_screeninfo *var;
 	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
 
@@ -253,9 +252,8 @@ static int tvout_on(struct platform_device *pdev)
 #endif
 
 	var = &mfd->fbi->var;
-	userformat = var->reserved[3] >> 16;
-	if (userformat >= NTSC_M && userformat <= PAL_N)
-		external_common_state->video_resolution = userformat;
+	if (var->reserved[3] >= NTSC_M && var->reserved[3] <= PAL_N)
+		external_common_state->video_resolution = var->reserved[3];
 
 	tvout_msm_state->pdev = pdev;
 	if (del_timer(&tvout_msm_state->hpd_work_timer))
