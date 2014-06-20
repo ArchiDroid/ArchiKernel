@@ -345,3 +345,11 @@ config EARLY_SUSPEND_DELAY
 	---help---
 	  A simple sysfs interface to user customizable
 	  pause to allow CRT off animation to be shown.
+
+config SPEEDUP_KEYRESUME
+	bool "Speed up late resume"
+	depends on SUSPEND
+	default y
+	---help---
+	  Speed up system resume
+	  
