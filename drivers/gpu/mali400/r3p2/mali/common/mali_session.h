@@ -34,6 +34,7 @@ struct mali_session_data
 	_MALI_OSK_LIST_HEAD(link); /**< Link for list of all sessions */
 
 	_MALI_OSK_LIST_HEAD(job_list); /**< List of all jobs on this session */
+	mali_bool is_compositor;       /**< Gives compositor priority to jobs from this session if TRUE */
 };
 
 _mali_osk_errcode_t mali_session_initialize(void);

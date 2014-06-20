@@ -46,7 +46,7 @@ int mali_stream_create_empty_fence(int tl_fd);
  * This stops the timer of the empty fence and returns wether or not the fence
  * is still suitable for use.
  *
- * Returns -ETIME if fence is already signalled, in which case it can not be
+ * Returns -ETIMEDOUT if fence is already signalled, in which case it can not be
  * used, or 0 when the timer was stopped and the fence is OK to use.
  */
 int mali_sync_timed_commit(struct sync_pt *pt);
@@ -85,7 +85,7 @@ struct sync_pt *mali_sync_pt_alloc(struct sync_timeline *parent);
  * Sync points must be triggered in *exactly* the same order as they are allocated.
  *
  * Timed sync points should be backed by a proper event before reaching the
- * timeout. If timeout is reached the fence will be signalled with an error (-ETIME).
+ * timeout. If timeout is reached the fence will be signalled with an error (-ETIMEDOUT).
  */
 struct sync_pt *mali_sync_timed_pt_alloc(struct sync_timeline *parent);
 

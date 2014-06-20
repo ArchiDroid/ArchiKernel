@@ -241,6 +241,13 @@ _mali_osk_errcode_t _mali_ukk_post_notification( _mali_uk_post_notification_s *a
  */
 _mali_osk_errcode_t _mali_ukk_get_api_version( _mali_uk_get_api_version_s *args );
 
+
+/* Make a U/K call to _mali_ukk_compositor_priority().
+ * Used to set that the current process is doing graphical compositing. Gives its rendering jobs higher priority
+ */
+void _mali_ukk_compositor_priority(void * session_ptr);
+
+
 /** @brief Get the user space settings applicable for calling process.
  *
  * @param args see _mali_uk_get_user_settings_s in "mali_utgard_uk_types.h"

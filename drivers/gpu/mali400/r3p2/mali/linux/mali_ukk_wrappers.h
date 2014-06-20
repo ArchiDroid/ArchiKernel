@@ -26,6 +26,7 @@ extern "C"
 
 int wait_for_notification_wrapper(struct mali_session_data *session_data, _mali_uk_wait_for_notification_s __user *uargs);
 int get_api_version_wrapper(struct mali_session_data *session_data, _mali_uk_get_api_version_s __user *uargs);
+int compositor_priority_wrapper(struct mali_session_data *session_data);
 int get_user_settings_wrapper(struct mali_session_data *session_data, _mali_uk_get_user_settings_s __user *uargs);
 #if defined(CONFIG_SYNC)
 int stream_create_wrapper(struct mali_session_data *session_data, _mali_uk_stream_create_s __user *uargs);

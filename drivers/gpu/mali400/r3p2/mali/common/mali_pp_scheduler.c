@@ -74,6 +74,8 @@ static enum
 }
 virtual_group_state = VIRTUAL_GROUP_IDLE;            /* Flag which indicates whether the virtual group is working or idle */
 
+mali_bool mali_pp_scheduler_blocked_on_compositor = MALI_FALSE;
+
 /* Number of physical cores */
 static u32 num_cores = 0;
 static u32 enabled_cores = 0;
@@ -317,6 +319,19 @@ MALI_STATIC_INLINE struct mali_pp_job *mali_pp_scheduler_get_physical_job(void)
 		MALI_DEBUG_ASSERT(job_queue_depth > 0);
 		job = _MALI_OSK_LIST_ENTRY(job_queue.next, struct mali_pp_job, list);
 
+		if (mali_pp_scheduler_blocked_on_compositor)
+		{
+			/* Skip scheduling other jobs if there is some composition work going on */
+			if(!job->session->is_compositor)
+			{
+				if (!_mali_osk_list_empty(&group_list_idle))
+				{
+					MALI_DEBUG_PRINT(3, ("PP job start blocked on pending compositor\n"));
+				}
+				return NULL;
+			}
+		}
+
 		if (!mali_pp_job_has_active_barrier(job))
 		{
 			return job;
@@ -356,6 +371,19 @@ MALI_STATIC_INLINE struct mali_pp_job *mali_pp_scheduler_get_virtual_job(void)
 		MALI_DEBUG_ASSERT(virtual_job_queue_depth > 0);
 		job = _MALI_OSK_LIST_ENTRY(virtual_job_queue.next, struct mali_pp_job, list);
 
+		if (mali_pp_scheduler_blocked_on_compositor)
+		{
+			/* Skip scheduling other jobs if there is some composition work going on */
+			if(!job->session->is_compositor)
+			{
+				if (VIRTUAL_GROUP_IDLE==virtual_group_state)
+				{
+					MALI_DEBUG_PRINT(3, ("PP job start blocked on pending compositor\n"));
+				}
+				return NULL;
+			}
+		}
+
 		if (!mali_pp_job_has_active_barrier(job))
 		{
 			return job;
@@ -373,6 +401,20 @@ MALI_STATIC_INLINE void mali_pp_scheduler_dequeue_virtual_job(struct mali_pp_job
 	/* Remove job from queue */
 	_mali_osk_list_delinit(&job->list);
 	--virtual_job_queue_depth;
+}
+
+MALI_STATIC_INLINE void mali_pp_scheduler_compsitor_unblock(struct mali_pp_job *job)
+{
+	if (mali_pp_scheduler_blocked_on_compositor)
+	{
+		/* If starting to schedule the compositor job, then allow other
+		 * jobs to be started also. The compositor jobs are first in
+		 * the queue. */
+		if(job->session->is_compositor)
+		{
+			mali_pp_scheduler_blocked_on_compositor = MALI_FALSE;
+		}
+	}
 }
 
 /**
@@ -425,7 +467,7 @@ MALI_STATIC_INLINE struct mali_group *mali_pp_scheduler_acquire_physical_group(v
 	return NULL;
 }
 
-static void mali_pp_scheduler_schedule(void)
+void mali_pp_scheduler_schedule(void)
 {
 	struct mali_group* physical_groups_to_start[MALI_MAX_NUMBER_OF_PP_GROUPS-1];
 	struct mali_pp_job* physical_jobs_to_start[MALI_MAX_NUMBER_OF_PP_GROUPS-1];
@@ -481,6 +523,8 @@ static void mali_pp_scheduler_schedule(void)
 
 		MALI_DEBUG_PRINT(4, ("Mali PP scheduler: Acquired physical group %p\n", group));
 
+		mali_pp_scheduler_compsitor_unblock(job);
+
 		/* Mark subjob as started */
 		subjob = mali_pp_job_get_first_unstarted_sub_job(job);
 		mali_pp_job_mark_sub_job_started(job, subjob);
@@ -511,6 +555,8 @@ static void mali_pp_scheduler_schedule(void)
 				MALI_DEBUG_ASSERT(mali_pp_job_is_virtual(job));
 				MALI_DEBUG_ASSERT(mali_pp_job_has_unstarted_sub_jobs(job));
 				MALI_DEBUG_ASSERT(1 == mali_pp_job_get_sub_job_count(job));
+
+				mali_pp_scheduler_compsitor_unblock(job);
 
 				/* Mark the one and only subjob as started */
 				mali_pp_job_mark_sub_job_started(job, 0);
@@ -800,6 +846,8 @@ void mali_pp_scheduler_job_done(struct mali_group *group, struct mali_pp_job *jo
 			physical_job = mali_pp_scheduler_get_physical_job();
 			MALI_DEBUG_ASSERT(mali_pp_job_has_unstarted_sub_jobs(physical_job));
 
+			mali_pp_scheduler_compsitor_unblock(physical_job);
+
 			/* Mark subjob as started */
 			sub_job = mali_pp_job_get_first_unstarted_sub_job(physical_job);
 			mali_pp_job_mark_sub_job_started(physical_job, sub_job);
@@ -825,6 +873,8 @@ void mali_pp_scheduler_job_done(struct mali_group *group, struct mali_pp_job *jo
 			MALI_DEBUG_ASSERT(mali_pp_job_is_virtual(job));
 			MALI_DEBUG_ASSERT(mali_pp_job_has_unstarted_sub_jobs(job));
 			MALI_DEBUG_ASSERT(1 == mali_pp_job_get_sub_job_count(job));
+
+			mali_pp_scheduler_compsitor_unblock(job);
 
 			mali_pp_job_mark_sub_job_started(job, 0);
 
@@ -875,6 +925,8 @@ void mali_pp_scheduler_job_done(struct mali_group *group, struct mali_pp_job *jo
 		{
 			/* There is a runnable physical job */
 			MALI_DEBUG_ASSERT(mali_pp_job_has_unstarted_sub_jobs(job));
+
+			mali_pp_scheduler_compsitor_unblock(job);
 
 			/* Mark subjob as started */
 			sub_job = mali_pp_job_get_first_unstarted_sub_job(job);
@@ -990,12 +1042,44 @@ MALI_STATIC_INLINE void mali_pp_scheduler_queue_job(struct mali_pp_job *job, str
 	{
 		/* Virtual job */
 		virtual_job_queue_depth += 1;
-		_mali_osk_list_addtail(&job->list, &virtual_job_queue);
+
+		/* Put compositor jobs on front */
+		if(job->session->is_compositor)
+		{
+			struct mali_pp_job *iter, *tmp;
+
+			_MALI_OSK_LIST_FOREACHENTRY(iter, tmp, &virtual_job_queue, struct mali_pp_job, list)
+			{
+				if (iter->session != job->session) break;
+			}
+
+			_mali_osk_list_addtail(&job->list, &iter->list);
+		}
+		else
+		{
+			_mali_osk_list_addtail(&job->list, &virtual_job_queue);
+		}
 	}
 	else
 	{
 		job_queue_depth += mali_pp_job_get_sub_job_count(job);
-		_mali_osk_list_addtail(&job->list, &job_queue);
+
+		/* Put compository jobs on front */
+		if(job->session->is_compositor)
+		{
+			struct mali_pp_job *iter, *tmp;
+
+			_MALI_OSK_LIST_FOREACHENTRY(iter, tmp, &job_queue, struct mali_pp_job, list)
+			{
+				if (iter->session != job->session) break;
+			}
+
+			_mali_osk_list_addtail(&job->list, &iter->list);
+		}
+		else
+		{
+			_mali_osk_list_addtail(&job->list, &job_queue);
+		}
 	}
 
 	if (mali_pp_job_has_active_barrier(job) && _mali_osk_list_empty(&session->job_list))
@@ -1052,7 +1136,7 @@ static void sync_callback_work(void *arg)
 		/* Fence signaled error */
 		MALI_DEBUG_PRINT(3, ("Mali sync: Job %d abort due to sync error\n", mali_pp_job_get_id(job)));
 
-		if (job->sync_point) mali_sync_signal_pt(job->sync_point, err);
+		if (job->sync_point) mali_sync_signal_pt(job->sync_point, -EFAULT);
 
 		mali_pp_job_mark_sub_job_completed(job, MALI_FALSE); /* Flagging the job as failed. */
 		mali_pp_scheduler_return_job_to_user(job, MALI_FALSE); /* This will also delete the job object */
@@ -1230,7 +1314,7 @@ _mali_osk_errcode_t _mali_ukk_pp_start_job(void *ctx, _mali_uk_pp_start_job_s *u
 		else if (0 > err)
 		{
 			/* Sync fail */
-			if (job->sync_point) mali_sync_signal_pt(job->sync_point, err);
+			if (job->sync_point) mali_sync_signal_pt(job->sync_point, -EFAULT);
 			mali_pp_job_mark_sub_job_completed(job, MALI_FALSE); /* Flagging the job as failed. */
 			mali_pp_scheduler_return_job_to_user(job, MALI_FALSE); /* This will also delete the job object */
 			return _MALI_OSK_ERR_OK; /* User is notified via a notification, so this call is ok */

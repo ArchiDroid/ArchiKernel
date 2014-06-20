@@ -186,7 +186,7 @@ static void mali_sync_timed_pt_timeout(unsigned long data)
 
 	MALI_DEBUG_ASSERT_POINTER(pt);
 
-	mali_sync_signal_pt(pt, -ETIME);
+	mali_sync_signal_pt(pt, -ETIMEDOUT);
 }
 
 struct sync_pt *mali_sync_timed_pt_alloc(struct sync_timeline *parent)
@@ -211,7 +211,7 @@ struct sync_pt *mali_sync_timed_pt_alloc(struct sync_timeline *parent)
 }
 
 /*
- * Returns 0 if sync_pt has been committed and are ready for use, -ETIME if
+ * Returns 0 if sync_pt has been committed and is ready for use, -ETIMEDOUT if
  * timeout already happened and the fence has been signalled.
  *
  * If an error occurs the sync point can not be used.
@@ -231,7 +231,7 @@ int mali_sync_timed_commit(struct sync_pt *pt)
 
 	if (0 == ret)
 	{
-		return -ETIME;
+		return -ETIMEDOUT;
 	}
 
 	MALI_DEBUG_ASSERT(0 == timeline_has_signaled(pt));

@@ -31,6 +31,10 @@ void mali_pp_scheduler_job_done(struct mali_group *group, struct mali_pp_job *jo
 void mali_pp_scheduler_suspend(void);
 void mali_pp_scheduler_resume(void);
 
+void mali_pp_scheduler_schedule(void);
+
+extern mali_bool mali_pp_scheduler_blocked_on_compositor;
+
 /** @brief Abort all PP jobs from session running or queued
  *
  * This functions aborts all PP jobs from the specified session. Queued jobs are removed from the queue and jobs

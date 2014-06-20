@@ -41,6 +41,19 @@ int get_api_version_wrapper(struct mali_session_data *session_data, _mali_uk_get
     return 0;
 }
 
+int compositor_priority_wrapper(struct mali_session_data *session_data)
+{
+#ifndef CONFIG_SYNC
+	/* Compositor super priority is currently only needed and supported in
+	 * systems without linux fences */
+	_mali_ukk_compositor_priority(session_data);
+#else
+	MALI_DEBUG_PRINT(2, ("Compositor Pid: %d - Using native fence\n", _mali_osk_get_pid() ));
+#endif
+
+	return 0;
+}
+
 int wait_for_notification_wrapper(struct mali_session_data *session_data, _mali_uk_wait_for_notification_s __user *uargs)
 {
     _mali_uk_wait_for_notification_s kargs;

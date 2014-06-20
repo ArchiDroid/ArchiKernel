@@ -18,9 +18,13 @@ _mali_osk_lock_t *mali_sessions_lock;
 
 _mali_osk_errcode_t mali_session_initialize(void)
 {
+	const _mali_osk_lock_flags_t lock_flags = _MALI_OSK_LOCKFLAG_READERWRITER |
+	                                          _MALI_OSK_LOCKFLAG_ORDERED |
+	                                          _MALI_OSK_LOCKFLAG_NONINTERRUPTABLE;
+
 	_MALI_OSK_INIT_LIST_HEAD(&mali_sessions);
 
-	mali_sessions_lock = _mali_osk_lock_init(_MALI_OSK_LOCKFLAG_READERWRITER | _MALI_OSK_LOCKFLAG_ORDERED, 0, _MALI_OSK_LOCK_ORDER_SESSIONS);
+	mali_sessions_lock = _mali_osk_lock_init(lock_flags, 0, _MALI_OSK_LOCK_ORDER_SESSIONS);
 
 	if (NULL == mali_sessions_lock) return _MALI_OSK_ERR_NOMEM;
 

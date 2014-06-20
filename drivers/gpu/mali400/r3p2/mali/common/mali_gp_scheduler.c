@@ -227,6 +227,15 @@ void mali_gp_scheduler_job_done(struct mali_group *group, struct mali_gp_job *jo
 {
 	MALI_DEBUG_PRINT(3, ("Mali GP scheduler: Job %u (0x%08X) completed (%s)\n", mali_gp_job_get_id(job), job, success ? "success" : "failure"));
 
+	if (!success)
+	{
+		if (job->session->is_compositor)
+		{
+			mali_pp_scheduler_blocked_on_compositor = MALI_FALSE;
+			mali_pp_scheduler_schedule();
+		}
+	}
+
 	mali_gp_scheduler_return_job_to_user(job, success);
 
 	mali_gp_scheduler_lock();
@@ -323,10 +332,23 @@ _mali_osk_errcode_t _mali_ukk_gp_start_job(void *ctx, _mali_uk_gp_start_job_s *u
 	mali_gp_scheduler_job_queued();
 
 	mali_gp_scheduler_lock();
-	_mali_osk_list_addtail(&job->list, &job_queue);
+
+	/* Put compositor's jobs on front of queue, and block non-compositor PP
+	 * jobs from starting. */
+	if(job->session->is_compositor)
+	{
+		mali_pp_scheduler_blocked_on_compositor = MALI_TRUE;
+		_mali_osk_list_add(&job->list, &job_queue);
+	}
+	else
+	{
+		_mali_osk_list_addtail(&job->list, &job_queue);
+	}
+
 	mali_gp_scheduler_unlock();
 
-	MALI_DEBUG_PRINT(3, ("Mali GP scheduler: Job %u (0x%08X) queued\n", mali_gp_job_get_id(job), job));
+	MALI_DEBUG_PRINT(3, ("Mali GP scheduler: Job %u (0x%08X) queued. %s\n",
+						mali_gp_job_get_id(job), job, job->session->is_compositor? "Compositor": "Normal"));
 
 	mali_gp_scheduler_schedule();
 

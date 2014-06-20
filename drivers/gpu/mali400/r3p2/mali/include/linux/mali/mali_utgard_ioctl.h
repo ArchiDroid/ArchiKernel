@@ -47,6 +47,7 @@ extern "C"
 #define MALI_IOC_STREAM_CREATE              _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_STREAM_CREATE, _mali_uk_stream_create_s *)
 #define MALI_IOC_FENCE_CREATE_EMPTY         _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_FENCE_CREATE_EMPTY, _mali_uk_fence_create_empty_s *)
 #define MALI_IOC_FENCE_VALIDATE             _IOR(MALI_IOC_CORE_BASE, _MALI_UK_FENCE_VALIDATE, _mali_uk_fence_validate_s *)
+#define MALI_IOC_COMPOSITOR_PRIORITY        _IOW (MALI_IOC_CORE_BASE, _MALI_UK_COMPOSITOR_PRIORITY, _mali_uk_compositor_priority_s *)
 
 #define MALI_IOC_MEM_GET_BIG_BLOCK          _IOWR(MALI_IOC_MEMORY_BASE, _MALI_UK_GET_BIG_BLOCK, void *)
 #define MALI_IOC_MEM_FREE_BIG_BLOCK         _IOW (MALI_IOC_MEMORY_BASE, _MALI_UK_FREE_BIG_BLOCK, void *)
