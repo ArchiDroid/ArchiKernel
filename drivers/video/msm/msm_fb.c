@@ -3924,9 +3924,9 @@ static int msmfb_handle_buf_sync_ioctl(struct msm_fb_data_type *mfd,
 	if (ret)
 		goto buf_sync_err_1;
 	mfd->acq_fen_cnt = fence_cnt;
-	if (buf_sync->flags & MDP_BUF_SYNC_FLAG_WAIT)
+	if (buf_sync->flags & MDP_BUF_SYNC_FLAG_WAIT) {
 		msm_fb_wait_for_fence(mfd);
-
+	}
 	mfd->cur_rel_sync_pt = sw_sync_pt_create(mfd->timeline,
 			mfd->timeline_value + 2);
 	if (mfd->cur_rel_sync_pt == NULL) {
