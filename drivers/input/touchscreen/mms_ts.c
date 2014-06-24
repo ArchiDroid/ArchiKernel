@@ -149,6 +149,7 @@ struct device *sec_touchscreen;
 static struct device *bus_dev;
 
 int touch_is_pressed = 0;
+static bool knockon_reset = false;
 
 #if defined(CONFIG_TARGET_LOCALE_KOR)
 static int noise_mode_indicator;
@@ -783,7 +784,18 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 	}
 
 #ifdef CONFIG_TOUCH_WAKE
-  touch_press();
+	if (knockon) {
+		if (touch_is_pressed == 0) {
+			if (knockon_reset) {
+				knockon_reset = false;
+				touch_press();
+			} else {
+				knockon_reset = true;
+			}
+		}
+	} else {
+		touch_press();
+	}
 #endif
 
 #if TOUCH_BOOSTER
