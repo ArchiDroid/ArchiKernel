@@ -1,0 +1,183 @@
+menu "ArchiKernel settings"
+
+choice
+	prompt "Target system"
+	default AOSP
+	help
+		Kernel target. This variable determines needed hacks and workarounds to make kernel work properly in specific environment. This includes camera hacks, specifying USB gadget and more.
+
+config ARCHIKERNEL_TARGET_SYSTEM_AOSP
+	bool "AOSP"
+	select ARCHIKERNEL_TARGET_SYSTEM_NO_SLICE_ENCODING
+	help
+		Select this option if the kernel should work properly in pure AOSP envioronment, i.e. CyanogenMod or Omni.
+
+config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	bool "Samsung"
+	select USB_ANDROID_SAMSUNG_COMPOSITE
+	select USB_ANDROID_SAMSUNG_MTP
+	help
+		Select this option if the kernel should work properly in Samsung environment, i.e. XXUGND5 or XXUGNA8.
+
+config ARCHIKERNEL_TARGET_SYSTEM_UNKNOWN
+	bool "Unknown"
+	help
+		TODO.
+endchoice
+
+config ARCHIKERNEL_TARGET_SYSTEM_NO_SLICE_ENCODING
+	bool "System does not support slice encoding"
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	help
+		This option disables slice encoding, which is active by default on smdk4x12 board. For some reason slice encoding support doesn't work well with AOSP.
+
+config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG_CUSTOM
+	bool "System is not a standard Samsung system (i.e. ArchiPort)"
+	depends on ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	select ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
+	help
+		TODO
+
+config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
+	bool "System has broken ZRAM"
+	help
+		Some systems may have broken ZRAM i.e. ArchiPort. This option disables ZRAM for Android, which apparently fixes the issue.
+
+choice
+	prompt "Target architecture"
+	default ARMv7a
+	help
+		TODO.
+
+config ARCHIKERNEL_TARGET_ARCH_ARMV7A
+	bool "ARMv7a"
+	help
+		TODO.
+
+config ARCHIKERNEL_TARGET_ARCH_UNKNOWN
+	bool "Unknown"
+	help
+		TODO.
+endchoice
+
+choice
+	prompt "Target CPU"
+	default CortexA9
+	help
+		TODO.
+
+config ARCHIKERNEL_TARGET_CPU_CORTEXA9
+	bool "CortexA9"
+	select ARCHIKERNEL_TARGET_CPU_SUPPORTS_NEON
+	help
+		TODO.
+
+config ARCHIKERNEL_TARGET_CPU_UNKNOWN
+	bool "Unknown"
+	help
+		TODO.
+endchoice
+
+config ARCHIKERNEL_TARGET_CPU_SUPPORTS_NEON
+	bool "CPU supports NEON"
+	help
+		TODO.
+
+choice
+	prompt "Main optimization level"
+	default -O2
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_OFAST
+	bool "-Ofast"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_O3
+	bool "-O3"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_O2
+	bool "-O2"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_OS
+	bool "-Os"
+	select CC_OPTIMIZE_FOR_SIZE
+	help
+		TODO.
+endchoice
+
+config ARCHIKERNEL_OPTI_DNDEBUG
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FSECTION_ANCHORS
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FUNSAFE_LOOP_OPTIMIZATIONS
+	bool "Allow optimizations for floating-point arithmetic that assume that arguments and results are valid and may violate IEEE or ANSI standards"
+	help
+		Allow optimizations for floating-point arithmetic that (a) assume that arguments and results are valid and (b) may violate IEEE or ANSI standards. When used at link-time, it may include libraries or startup files that change the default FPU control word or other similar optimizations. This option is not turned on by any -O option since it can result in incorrect output for programs that depend on an exact implementation of IEEE or ISO rules/specifications for math functions. It may, however, yield faster code for programs that do not require the guarantees of these specifications. Enables -fno-signed-zeros, -fno-trapping-math, -fassociative-math and -freciprocal-math. The default is -fno-unsafe-math-optimizations. 
+
+config ARCHIKERNEL_OPTI_FIVOPTS
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FTREE_LOOP_IM
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FTREE_LOOP_IVCANON
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FUNSWITCH_LOOPS
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FRENAME_REGISTERS
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FGCSE_SM
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FGCSE_LAS
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FWEB
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FTRACER
+	bool "TODO"
+	help
+		TODO.
+
+config ARCHIKERNEL_OPTI_FIPA_PTA
+	bool "Perform interprocedural pointer analysis and interprocedural modification and reference analysis"
+	help
+		Perform interprocedural pointer analysis and interprocedural modification and reference analysis. This option can cause excessive memory and compile-time usage on large compilation units. It is not enabled by default at any optimization level.
+
+
+
+
+
+endmenu

@@ -561,11 +561,75 @@ endif # $(dot-config)
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
-ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS	+= -Os
-else
+# ArchiKernel flags
+ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7A
+KBUILD_CFLAGS	+= -march=armv7-a
+endif
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA9
+KBUILD_CFLAGS	+= -mcpu=cortex-a9 -mtune=cortex-a9
+endif
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_SUPPORTS_NEON
+KBUILD_CFLAGS	+= -mfpu=neon
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_OFAST
+KBUILD_CFLAGS	+= -Ofast
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_O3
+KBUILD_CFLAGS	+= -O3
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_O2
 KBUILD_CFLAGS	+= -O2
 endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_OS
+KBUILD_CFLAGS	+= -Os
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_DNDEBUG
+KBUILD_CFLAGS	+= -DNDEBUG
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FSECTION_ANCHORS
+KBUILD_CFLAGS	+= -fsection-anchors
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FUNSAFE_LOOP_OPTIMIZATIONS
+KBUILD_CFLAGS	+= -funsafe-loop-optimizations
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FIVOPTS
+KBUILD_CFLAGS	+= -fivopts
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FTREE_LOOP_IM
+KBUILD_CFLAGS	+= -ftree-loop-im
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FTREE_LOOP_IVCANON
+KBUILD_CFLAGS	+= -ftree-loop-ivcanon
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FUNSWITCH_LOOPS
+KBUILD_CFLAGS	+= -funswitch-loops
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FRENAME_REGISTERS
+KBUILD_CFLAGS	+= -frename-registers
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FGCSE_SM
+KBUILD_CFLAGS	+= -fgcse-sm
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FGCSE_LAS
+KBUILD_CFLAGS	+= -fgcse-las
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FWEB
+KBUILD_CFLAGS	+= -fweb
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FTRACER
+KBUILD_CFLAGS	+= -ftracer
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_FIPA_PTA
+KBUILD_CFLAGS	+= -fipa-pta
+endif
+
+#ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+#KBUILD_CFLAGS	+= -Os
+#else
+#KBUILD_CFLAGS	+= -O2
+#endif
 
 ifdef CONFIG_CC_CHECK_WARNING_STRICTLY
 KBUILD_CFLAGS	+= -fdiagnostics-show-option -Werror \
