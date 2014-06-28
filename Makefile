@@ -563,13 +563,16 @@ all: vmlinux
 
 # ArchiKernel flags
 ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7A
-KBUILD_CFLAGS	+= -march=armv7-a
+KBUILD_CFLAGS	+= -marm -march=armv7-a
 endif
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA9
 KBUILD_CFLAGS	+= -mcpu=cortex-a9 -mtune=cortex-a9
 endif
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_SOFT
 KBUILD_CFLAGS	+= -mfloat-abi=soft
+endif
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_SOFTFP
+KBUILD_CFLAGS	+= -mfloat-abi=softfp
 endif
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_HARD
 KBUILD_CFLAGS	+= -mfloat-abi=hard

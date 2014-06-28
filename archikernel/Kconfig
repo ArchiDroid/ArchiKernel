@@ -113,6 +113,12 @@ config ARCHIKERNEL_TARGET_CPU_ABI_SOFT
 	help
 		Causes GCC to generate output containing library calls for 
 		floating-point operations.
+		
+config ARCHIKERNEL_TARGET_CPU_ABI_SOFTFP
+	bool "Softfp"
+	help
+		Allows the generation of code using hardware floating-point
+		instructions, but still uses the soft-float calling conventions.
 
 config ARCHIKERNEL_TARGET_CPU_ABI_HARD
 	bool "Hard"
