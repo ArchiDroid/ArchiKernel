@@ -10,7 +10,8 @@ choice
 
 config ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	bool "AOSP"
-	select ARCHIKERNEL_TARGET_SYSTEM_NO_SLICE_ENCODING
+	select ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
+	select ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
 	help
 		Select this option if the kernel should work properly in pure AOSP 
 		envioronment, i.e. CyanogenMod or Omni.
@@ -31,7 +32,7 @@ config ARCHIKERNEL_TARGET_SYSTEM_UNKNOWN
 		all dependencies yourself
 endchoice
 
-config ARCHIKERNEL_TARGET_SYSTEM_NO_SLICE_ENCODING
+config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
 	bool "System does not support slice encoding"
 	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 	help
@@ -39,9 +40,15 @@ config ARCHIKERNEL_TARGET_SYSTEM_NO_SLICE_ENCODING
 		smdk4x12 board. For some reason slice encoding support doesn't work 
 		well with AOSP.
 
+config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
+	bool "System has broken S5C73M3 firmware"
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	help
+		This option forces system to use system's firmware only if it's newer than data's one. Stock behaviour is to use system's firmware also if it's equal to data's one.
+
 config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG_CUSTOM
 	bool "System is not a standard Samsung system (i.e. ArchiPort)"
-	depends on ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	select ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
 	help
 		For now, this assumes that Samsung target you specified above is a 
