@@ -315,4 +315,10 @@ config ARCHIKERNEL_LED_SETTINGS
 		This option enables additional sys interfaces to control
 		the notification LED's speed, intensitiy, slope and blinking style.
 		
+config ARCHIKERNEL_HAPTIC_CONTROL_AOSP
+	bool "Enable haptic control on AOSP roms like CM/Omni"
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	help
+		This option enables the haptic feedback control on AOSP roms.
+		
 endmenu

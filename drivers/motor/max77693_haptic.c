@@ -22,8 +22,11 @@
 #include <linux/mfd/max77693.h>
 #include <linux/mfd/max77693-private.h>
 
+//#define SEC_DEBUG_VIB
+#ifdef CONFIG_ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 static unsigned long pwm_val = 50; /* duty in percent */
 static int pwm_duty = 27787; /* duty value, 37050=100%, 27787=50%, 18525=0% */
+#endif
 
 struct max77693_haptic_data {
 	struct max77693_dev *max77693;
@@ -157,8 +160,12 @@ static void haptic_work(struct work_struct *work)
 			return;
 
 		max77693_haptic_i2c(hap_data, true);
-
+#ifdef CONFIG_ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 		pwm_config(hap_data->pwm, pwm_duty, hap_data->pdata->period);
+#else
+		pwm_config(hap_data->pwm, hap_data->pdata->duty,
+			   hap_data->pdata->period);
+#endif
 		pwm_enable(hap_data->pwm);
 
 		if (hap_data->pdata->motor_en)
@@ -236,12 +243,30 @@ void vibtonz_pwm(int nForce)
 {
 	/* add to avoid the glitch issue */
 	static int prev_duty;
+#ifdef CONFIG_ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 	int pwm_period = 0;
-
+#else
+	int pwm_period = 0, pwm_duty = 0;
+#endif
 	if (g_hap_data == NULL) {
+	  
+#ifdef CONFIG_ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 		pr_err("[VIB] %s: the motor is not ready!!!", __func__);
+#else
+		printk(KERN_ERR "[VIB] the motor is not ready!!!");
+#endif
 		return ;
 	}
+	
+#ifndef CONFIG_ARCHIKERNEL_HAPTIC_CONTROL_AOSP
+	pwm_period = g_hap_data->pdata->period;
+	pwm_duty = pwm_period / 2 + ((pwm_period / 2 - 2) * nForce) / 127;
+
+	if (pwm_duty > g_hap_data->pdata->duty)
+		pwm_duty = g_hap_data->pdata->duty;
+	else if (pwm_period - pwm_duty > g_hap_data->pdata->duty)
+		pwm_duty = pwm_period - g_hap_data->pdata->duty;
+#endif
 
 	/* add to avoid the glitch issue */
 	if (prev_duty != pwm_duty) {
@@ -256,6 +281,7 @@ void vibtonz_pwm(int nForce)
 EXPORT_SYMBOL(vibtonz_pwm);
 #endif
 
+#ifdef CONFIG_ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 static ssize_t pwm_val_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -317,6 +343,7 @@ static int create_vibrator_sysfs(void)
 
 	return 0;
 }
+#endif
 
 static int max77693_haptic_probe(struct platform_device *pdev)
 {
@@ -379,9 +406,11 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	hap_data->tout_dev.name = "vibrator";
 	hap_data->tout_dev.get_time = haptic_get_time;
 	hap_data->tout_dev.enable = haptic_enable;
-
+	
+#ifdef CONFIG_ARCHIKERNEL_HAPTIC_CONTROL_AOSP
     create_vibrator_sysfs();
-
+#endif
+    
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	error = timed_output_dev_register(&hap_data->tout_dev);
 	if (error < 0) {
@@ -390,6 +419,8 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 		goto err_timed_output_register;
 	}
 #endif
+
+#ifdef CONFIG_ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 	pr_err("[VIB] timed_output device is registrated\n");
 
 	/* User controllable pwm level */
@@ -397,7 +428,9 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	if (error < 0) {
 		pr_err("[VIB] create sysfs fail: pwm_value\n");
 	}
-
+#else
+	printk(KERN_DEBUG "[VIB] timed_output device is registrated\n");
+#endif
 	pr_debug("[VIB] -- %s\n", __func__);
 
 	return error;
