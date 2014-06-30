@@ -320,5 +320,10 @@ config ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 	help
 		This option enables the haptic feedback control on AOSP roms.
+
+config ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
+	bool "Ebable voltage control of the CPU"
+	help
+		This option enables the voltage control interface of the CPU.
 		
 endmenu

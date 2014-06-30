@@ -608,11 +608,12 @@ static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 	return policy->governor->show_setspeed(policy, buf);
 }
 
-
+#ifdef CONFIG_ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
 /* sysfs interface for UV control */
 extern ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf);
 extern ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
                                       const char *buf, size_t count);
+#endif
 
 /* sysfs interface for ASV level */
 extern ssize_t show_asv_level(struct cpufreq_policy *policy, char *buf);
@@ -648,8 +649,11 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
+
+#ifdef CONFIG_ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
 /* UV table */
 cpufreq_freq_attr_rw(UV_mV_table);
+#endif
 /* ASV level */
 cpufreq_freq_attr_rw(asv_level);
 
@@ -665,7 +669,9 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+#ifdef CONFIG_ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
 	&UV_mV_table.attr,
+#endif
 	&asv_level.attr,
 	NULL
 };
