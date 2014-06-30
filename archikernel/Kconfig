@@ -308,5 +308,11 @@ config ARCHIKERNEL_OPTI_FIPA_PTA
 		modification and reference analysis. This option can cause excessive
 		memory and compile-time usage on large compilation units. It is not 
 		enabled by default at any optimization level.
-
+		
+config ARCHIKERNEL_LED_SETTINGS
+	bool "Enables LED fading/blinking support"
+	help
+		This option enables additional sys interfaces to control
+		the notification LED's speed, intensitiy, slope and blinking style.
+		
 endmenu
