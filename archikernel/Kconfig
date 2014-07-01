@@ -377,5 +377,10 @@ config ARCHIKERNEL_GPU_CONTROL
 	help
 		This enables a sysfs interface to control gpu clock and voltage.
 
-		
+config ARCHIKERNEL_TOUCH_LED_CONTROL
+	bool "Enable touch LED control"
+	help
+		This option enable the touch LED control to enable/disable the backlight
+		of the hardware buttons.
+
 endmenu

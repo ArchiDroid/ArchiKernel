@@ -178,8 +178,10 @@ struct touchkey_i2c {
 	struct early_suspend early_suspend;
 	struct mutex lock;
 	struct device *dev;
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_LED_CONTROL
 	struct work_struct work;
 	struct workqueue_struct *wq;
+#endif
 	int irq;
 	int module_ver;
 	int firmware_ver;
