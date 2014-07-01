@@ -38,7 +38,7 @@
 #include "mali_profiling_internal.h"
 #endif
 
-#ifdef CONFIG_GPU_CLOCK_CONTROL
+#ifdef CONFIG_ARCHIKERNEL_GPU_CONTROL
 #include <gpu_clock_control.h>
 #include <gpu_voltage_control.h>
 #endif
@@ -947,7 +947,7 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 	err = mali_utilization_init();
 	if (_MALI_OSK_ERR_OK != err) goto utilization_init_failed;
 
-#ifdef CONFIG_GPU_CLOCK_CONTROL
+#ifdef CONFIG_ARCHIKERNEL_GPU_CONTROL
   	gpu_clock_control_start();
   	gpu_voltage_control_start();
 #endif

@@ -612,7 +612,11 @@ static mali_bool change_mali_dvfs_status(u32 step, mali_bool boostup )
 #ifdef EXYNOS4_ASV_ENABLED
 extern unsigned int exynos_result_of_asv;
 
+#ifdef CONFIG_ARCHIKERNEL_GPU_CONTROL
 mali_bool mali_dvfs_table_update(void)
+#else
+static mali_bool mali_dvfs_table_update(void)
+#endif
 {
 	unsigned int i, tmp, g3d_lock_volt = 0;
 	unsigned int step_num = MALI_DVFS_STEPS;
