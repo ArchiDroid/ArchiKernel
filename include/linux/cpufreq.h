@@ -436,6 +436,8 @@ void cpufreq_frequency_table_put_attr(unsigned int cpu);
 
 #endif /* _LINUX_CPUFREQ_H */
 
+#ifdef CONFIG_ARCHIKERNEL_CPU_OC_1600
 #define SCALING_MAX_COUPLED 1
 #define SCALING_MAX_UNDEFINED 0
 #define SCALING_MAX_UNCOUPLED -1
+#endif

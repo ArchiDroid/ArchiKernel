@@ -32,6 +32,8 @@
 
 #include <trace/events/power.h>
 
+#ifdef CONFIG_ARCHIKERNEL_CPU_OC_1600
+
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_ARCH_EXYNOS4)
 #define CONFIG_DVFS_LIMIT
 #endif
@@ -42,6 +44,7 @@
 #define VALID_LEVEL 1
 #endif
 
+#endif
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -404,6 +407,7 @@ static ssize_t store_##file_name					\
 
 store_one(scaling_min_freq, min);
 
+#ifdef CONFIG_ARCHIKERNEL_CPU_OC_1600
 /* Yank555.lu - while storing scaling_max also set cpufreq_max_limit accordingly */
 /* store_one(scaling_max_freq, max); */
 static ssize_t store_scaling_max_freq
@@ -449,6 +453,9 @@ static ssize_t store_scaling_max_freq
 
 	return ret ? ret : count;
 }
+#else
+store_one(scaling_max_freq, max);
+#endif
 
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware

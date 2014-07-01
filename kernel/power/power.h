@@ -3,8 +3,10 @@
 #include <linux/utsname.h>
 #include <linux/freezer.h>
 
+#ifdef CONFIG_ARCHIKERNEL_CPU_OC_1600
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_ARCH_EXYNOS4)
 #define CONFIG_DVFS_LIMIT
+#endif
 #endif
 
 struct swsusp_info {
@@ -293,9 +295,11 @@ static inline void pm_wd_add_timer(struct timer_list *timer,
 static inline void pm_wd_del_timer(struct timer_list *timer) { }
 #endif
 
+#ifdef CONFIG_ARCHIKERNEL_CPU_OC_1600
 /* Yank555.lu - Make current max limit available globally */
 #ifdef CONFIG_DVFS_LIMIT
 int get_cpufreq_level(unsigned int freq, unsigned int *level);
 extern int cpufreq_max_limit_val;
 extern int cpufreq_max_limit_coupled;
+#endif
 #endif

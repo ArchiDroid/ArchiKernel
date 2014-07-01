@@ -322,8 +322,13 @@ config ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 		This option enables the haptic feedback control on AOSP roms.
 
 config ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
-	bool "Ebable voltage control of the CPU"
+	bool "Enable voltage control of the CPU"
 	help
 		This option enables the voltage control interface of the CPU.
+		
+config ARCHIKERNEL_CPU_OC_1600
+	bool "Enable overclocking of the CPU to 1600Mhz"
+	help
+		This option enables additional CPU clock frequencies up to 1600Mhz.
 		
 endmenu
