@@ -65,10 +65,15 @@ config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
 
 choice
 	prompt "Target architecture"
-	default ARMv7a
+	default Unknown
 	help
 		Target architecture. This enables architecture-specific -march 
 		optimization.
+
+config ARCHIKERNEL_TARGET_ARCH_ARMV7VE
+	bool "ARMv7ve"
+	help
+		ARMv7a with Virtualization Extensions architecture.
 
 config ARCHIKERNEL_TARGET_ARCH_ARMV7A
 	bool "ARMv7a"

@@ -562,6 +562,9 @@ endif # $(dot-config)
 all: vmlinux
 
 # ArchiKernel flags
+ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7VE
+KBUILD_CFLAGS	+= -marm -march=armv7ve
+endif
 ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7A
 KBUILD_CFLAGS	+= -marm -march=armv7-a
 endif
