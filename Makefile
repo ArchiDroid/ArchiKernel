@@ -565,9 +565,14 @@ all: vmlinux
 ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7A
 KBUILD_CFLAGS	+= -marm -march=armv7-a
 endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA15
+KBUILD_CFLAGS	+= -mcpu=cortex-a15 -mtune=cortex-a15
+endif
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA9
 KBUILD_CFLAGS	+= -mcpu=cortex-a9 -mtune=cortex-a9
 endif
+
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_SOFT
 KBUILD_CFLAGS	+= -mfloat-abi=soft
 endif
@@ -576,6 +581,13 @@ KBUILD_CFLAGS	+= -mfloat-abi=softfp
 endif
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_HARD
 KBUILD_CFLAGS	+= -mfloat-abi=hard
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_FPU_NEONVFP4
+KBUILD_CFLAGS	+= -mfpu=neon-vfpv4
+endif
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_FPU_VFP4
+KBUILD_CFLAGS	+= -mfpu=vfpv4
 endif
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_FPU_NEON
 KBUILD_CFLAGS	+= -mfpu=neon

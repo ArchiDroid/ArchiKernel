@@ -84,9 +84,15 @@ endchoice
 
 choice
 	prompt "Target CPU"
-	default CortexA9
+	default Unknown
 	help
 		Target CPU. This enables CPU-speficic -mcpu and -mtune optimizations.
+
+config ARCHIKERNEL_TARGET_CPU_CORTEXA15
+	bool "CortexA15"
+	select ARCHIKERNEL_TARGET_CPU_FPU_NEONVFP4
+	help
+		Cortex A15 CPU.
 
 config ARCHIKERNEL_TARGET_CPU_CORTEXA9
 	bool "CortexA9"
@@ -135,14 +141,24 @@ endchoice
 
 choice
 	prompt "Target floating point optimization"
-	default Neon
+	default Unknown
 	help
 		Target floating point optimization. This specifies what floating point 
 		hardware (or hardware emulation) is available on the target by 
 		specifying -mfpu optimization.
 
+config ARCHIKERNEL_TARGET_CPU_FPU_NEONVFP4
+	bool "VFPv4 with NEON"
+	help
+		VFPv4 with NEON coprocessor.
+
+config ARCHIKERNEL_TARGET_CPU_FPU_VFP4
+	bool "VFPv4"
+	help
+		VFPv4.
+
 config ARCHIKERNEL_TARGET_CPU_FPU_NEON
-	bool "Neon"
+	bool "VFPv3 with NEON"
 	help
 		VFPv3 with NEON coprocessor.
 
