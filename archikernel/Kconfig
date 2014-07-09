@@ -268,10 +268,20 @@ config ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
 		This option enables the voltage control interface of the CPU.
 		
 config ARCHIKERNEL_CPU_OC_1600
-	bool "Enable overclocking of the CPU to 1600Mhz"
+	bool "Enable overclocking of the CPU up to 1600 MHz"
 	help
-		This option enables additional CPU clock frequencies up to 1600Mhz.
-		
+		This option enables additional CPU clock frequencies up to 1600 Mhz.
+
+config ARCHIKERNEL_CPU_OC_1600_DEFAULT
+	bool "Use 1600 MHz overclocking step by default"
+	depends on ARCHIKERNEL_CPU_OC_1600
+	default n
+	help
+		Normally enabling OC will still keep maximum frequency at stock value, while
+		giving user an option to change it as he wish.
+		This option will set maximum frequency to OC frequency by default.
+		Use with caution!
+
 config ARCHIKERNEL_GPU_CONTROL
 	bool "Enable GPU clock control and voltage interface"
 	depends on MALI400
