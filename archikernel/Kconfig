@@ -32,6 +32,24 @@ config ARCHIKERNEL_TARGET_SYSTEM_UNKNOWN
 		all dependencies yourself
 endchoice
 
+choice
+	prompt "Soung Engine"
+	default None
+	help
+		Kernel's sound engine. This mostly adds engine-specific sysfs and
+		a hook, which modifies sound on the kernel level.
+
+config ARCHIKERNEL_SOUND_ENGINE_BOEFFLA
+	bool "Boeffla"
+	help
+		Boeffla sound engine developed by AndiP71.
+
+config ARCHIKERNEL_SOUND_ENGINE_NONE
+	bool "None"
+	help
+		No sound engine.
+endchoice
+
 config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
 	bool "System does not support slice encoding"
 	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
