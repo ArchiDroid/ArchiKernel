@@ -251,7 +251,7 @@ config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
 comment "Core features"
 
 config ARCHIKERNEL_LED_SETTINGS
-	bool "Enables LED fading/blinking support"
+	bool "Enable LED fading/blinking support"
 	help
 		This option enables additional sys interfaces to control
 		the notification LED's speed, intensitiy, slope and blinking style.
