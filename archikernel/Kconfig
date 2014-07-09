@@ -1,5 +1,8 @@
 menu "ArchiKernel settings"
 
+
+comment "Target options"
+
 choice
 	prompt "Target system"
 	default AOSP
@@ -31,55 +34,6 @@ config ARCHIKERNEL_TARGET_SYSTEM_UNKNOWN
 		target system. Select this if you're an expert and you want to cover 
 		all dependencies yourself
 endchoice
-
-choice
-	prompt "Soung Engine"
-	default None
-	help
-		Kernel's sound engine. This mostly adds engine-specific sysfs and
-		a hook, which modifies sound on the kernel level.
-
-config ARCHIKERNEL_SOUND_ENGINE_BOEFFLA
-	bool "Boeffla"
-	help
-		Boeffla sound engine developed by AndiP71.
-
-config ARCHIKERNEL_SOUND_ENGINE_NONE
-	bool "None"
-	help
-		No sound engine.
-endchoice
-
-config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
-	bool "System does not support slice encoding"
-	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-	help
-		This option disables slice encoding, which is active by default on 
-		smdk4x12 board. For some reason slice encoding support doesn't work 
-		well with AOSP.
-
-config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
-	bool "System has broken S5C73M3 firmware"
-	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-	help
-		This option forces system to use system's firmware only if it's newer than data's one. Stock behaviour is to use system's firmware also if it's equal to data's one.
-
-config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG_CUSTOM
-	bool "System is not a standard Samsung system (i.e. ArchiPort)"
-	depends on !ARCHIKERNEL_TARGET_SYSTEM_AOSP
-	select ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
-	help
-		For now, this assumes that Samsung target you specified above is a 
-		ported one and not fully official (ArchiPort and it's derivatives)
-
-config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
-	bool "System has broken ZRAM"
-	help
-		By default kernel uses special optimized zram solution for an Android.
-		Some systems may have broken ZRAM due to that i.e. ArchiPort. While 
-		it's a mystery why it doesn't work properly with them, this option 
-		disables optimized ZRAM for Android, which apparently fixes the issue 
-		and enables typical Linux swapping.
 
 choice
 	prompt "Target architecture"
@@ -196,6 +150,27 @@ config ARCHIKERNEL_TARGET_CPU_FPU_UNKNOWN
 		Unknown FPU, select this if you don't want to apply -mfpu optimization.
 endchoice
 
+
+comment "Core options"
+
+choice
+	prompt "Sound Engine"
+	default None
+	help
+		Kernel's sound engine. This mostly adds engine-specific sysfs and
+		a hook, which modifies sound on the kernel level.
+
+config ARCHIKERNEL_SOUND_ENGINE_BOEFFLA
+	bool "Boeffla"
+	help
+		Boeffla sound engine developed by AndiP71.
+
+config ARCHIKERNEL_SOUND_ENGINE_NONE
+	bool "None"
+	help
+		No sound engine.
+endchoice
+
 choice
 	prompt "Main optimization level"
 	default -O2
@@ -235,6 +210,83 @@ config ARCHIKERNEL_OPTI_OS
 		typically increase code size. It also performs further optimizations 
 		designed to reduce code size.
 endchoice
+
+
+comment "Hacks / Workarounds"
+
+config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
+	bool "System does not support slice encoding"
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	help
+		This option disables slice encoding, which is active by default on 
+		smdk4x12 board. For some reason slice encoding support doesn't work 
+		well with AOSP.
+
+config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
+	bool "System has broken S5C73M3 firmware"
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	help
+		This option forces system to use system's firmware only if it's
+		newer than data's one. Stock behaviour is to use system's firmware
+		also if it's equal to data's one.
+
+config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG_CUSTOM
+	bool "System is not a standard Samsung system (i.e. ArchiPort)"
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_AOSP
+	select ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
+	help
+		For now, this assumes that Samsung target you specified above is a 
+		ported one and not fully official (ArchiPort and it's derivatives)
+
+config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
+	bool "System has broken ZRAM"
+	help
+		By default kernel uses special optimized zram solution for an Android.
+		Some systems may have broken ZRAM due to that i.e. ArchiPort. While 
+		it's a mystery why it doesn't work properly with them, this option 
+		disables optimized ZRAM for Android, which apparently fixes the issue 
+		and enables typical Linux swapping.
+
+
+comment "Core features"
+
+config ARCHIKERNEL_LED_SETTINGS
+	bool "Enables LED fading/blinking support"
+	help
+		This option enables additional sys interfaces to control
+		the notification LED's speed, intensitiy, slope and blinking style.
+		
+config ARCHIKERNEL_HAPTIC_CONTROL_AOSP
+	bool "Enable haptic control on AOSP roms like CM/Omni"
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	help
+		This option enables the haptic feedback control on AOSP roms.
+
+config ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
+	bool "Enable voltage control of the CPU"
+	help
+		This option enables the voltage control interface of the CPU.
+		
+config ARCHIKERNEL_CPU_OC_1600
+	bool "Enable overclocking of the CPU to 1600Mhz"
+	help
+		This option enables additional CPU clock frequencies up to 1600Mhz.
+		
+config ARCHIKERNEL_GPU_CONTROL
+	bool "Enable GPU clock control and voltage interface"
+	depends on MALI400
+	default y
+	help
+		This enables a sysfs interface to control gpu clock and voltage.
+
+config ARCHIKERNEL_TOUCH_LED_CONTROL
+	bool "Enable touch LED control"
+	help
+		This option enable the touch LED control to enable/disable the backlight
+		of the hardware buttons.
+
+
+comment "Optimizations"
 
 config ARCHIKERNEL_OPTI_DNDEBUG
 	bool "Disable debugging assertions"
@@ -347,40 +399,5 @@ config ARCHIKERNEL_OPTI_FIPA_PTA
 		modification and reference analysis. This option can cause excessive
 		memory and compile-time usage on large compilation units. It is not 
 		enabled by default at any optimization level.
-		
-config ARCHIKERNEL_LED_SETTINGS
-	bool "Enables LED fading/blinking support"
-	help
-		This option enables additional sys interfaces to control
-		the notification LED's speed, intensitiy, slope and blinking style.
-		
-config ARCHIKERNEL_HAPTIC_CONTROL_AOSP
-	bool "Enable haptic control on AOSP roms like CM/Omni"
-	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-	help
-		This option enables the haptic feedback control on AOSP roms.
-
-config ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
-	bool "Enable voltage control of the CPU"
-	help
-		This option enables the voltage control interface of the CPU.
-		
-config ARCHIKERNEL_CPU_OC_1600
-	bool "Enable overclocking of the CPU to 1600Mhz"
-	help
-		This option enables additional CPU clock frequencies up to 1600Mhz.
-		
-config ARCHIKERNEL_GPU_CONTROL
-	bool "Enable GPU clock control and voltage interface"
-	depends on MALI400
-	default y
-	help
-		This enables a sysfs interface to control gpu clock and voltage.
-
-config ARCHIKERNEL_TOUCH_LED_CONTROL
-	bool "Enable touch LED control"
-	help
-		This option enable the touch LED control to enable/disable the backlight
-		of the hardware buttons.
 
 endmenu
