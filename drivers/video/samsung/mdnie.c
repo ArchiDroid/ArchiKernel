@@ -803,6 +803,18 @@ static ssize_t accessibility_store(struct device *dev,
 	return count;
 }
 
+static ssize_t negative_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return accessibility_show(dev, attr, buf);
+}
+
+static ssize_t negative_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	return accessibility_store(dev, attr, buf, count);
+}
+
 #if !defined(CONFIG_FB_MDNIE_PWM)
 static ssize_t color_correct_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -832,6 +844,7 @@ static struct device_attribute mdnie_attributes[] = {
 #endif
 	__ATTR(tuning, 0664, tuning_show, tuning_store),
 	__ATTR(accessibility, 0664, accessibility_show, accessibility_store),
+	__ATTR(negative, 0664, negative_show, negative_store),
 #if !defined(CONFIG_FB_MDNIE_PWM)
 	__ATTR(color_correct, 0444, color_correct_show, NULL),
 #endif
