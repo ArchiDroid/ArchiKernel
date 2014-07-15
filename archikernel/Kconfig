@@ -13,8 +13,9 @@ choice
 
 config ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	bool "AOSP"
-	select ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
 	select ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
+	select ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
+	select ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
 	help
 		Select this option if the kernel should work properly in pure AOSP 
 		envioronment, i.e. CyanogenMod or Omni.
@@ -230,22 +231,18 @@ config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
 		newer than data's one. Stock behaviour is to use system's firmware
 		also if it's equal to data's one.
 
-config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG_CUSTOM
-	bool "System is not a standard Samsung system (i.e. ArchiPort)"
-	depends on !ARCHIKERNEL_TARGET_SYSTEM_AOSP
-	select ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
-	help
-		For now, this assumes that Samsung target you specified above is a 
-		ported one and not fully official (ArchiPort and it's derivatives)
-
 config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
 	bool "System has broken ZRAM"
+	depends on ZRAM_FOR_ANDROID
 	help
-		By default kernel uses special optimized zram solution for an Android.
-		Some systems may have broken ZRAM due to that i.e. ArchiPort. While 
-		it's a mystery why it doesn't work properly with them, this option 
-		disables optimized ZRAM for Android, which apparently fixes the issue 
-		and enables typical Linux swapping.
+		Recently Samsung modified ZRAM implementation for their closed-source
+		zram solution in stock ROMs.
+		The side effect is the fact that ZRAM is not anymore controlled by the
+		kernel, but by the binary. Since we don't have this binary on AOSP ROMs,
+		kernel is not swapping anything, even when zram or swap file is enabled.
+		This option will turn off all breaks and returns added by Samsung to the
+		original source. This is absolutely required for AOSP ROMs, and may be
+		required also for stock ROMs, if they want to use kernel-based swap.
 
 
 comment "Core features"
