@@ -25,6 +25,10 @@ struct smem_oem_info
 {
     unsigned int hw_id;
     char   amss_version[32];    //MTD-BSP-LC-Get_Version-00 +
+#ifndef CONFIG_FIH_NICKI_SS_MR2_MODEM
+    char nonHLOS_git_head[64]; //BSP-REXER-GIT-00+
+    unsigned int power_on_cause; //MTD-KERNEL-DL-POC-00 // //Reserve//
+#endif
 };
 //MTD-BSP-LC-SMEM-00 +]
 

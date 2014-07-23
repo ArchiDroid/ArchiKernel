@@ -147,6 +147,13 @@ if FIH_CONFIG_GROUP
             default n
             help
                 Queuing backlight commands before pan display, and send after pan display.
+
+    config FIH_NICKI_SS_MR2_MODEM
+            depends on FIH_PROJECT_S3A
+            bool "Nicki SS JB_MR2 Modem"
+            default n
+            help
+                Suport for Nicki single sim jb mr2 modem.
     endmenu
     # --- FIH_PROJECT_S3A}-------------------------------------------------- END
 endif
