@@ -34,7 +34,16 @@ static void inet_frag_secret_rebuild(unsigned long dummy)
 	for (i = 0; i < INETFRAGS_HASHSZ; i++) {
 		struct inet_frag_queue *q;
 		struct hlist_node *p, *n;
+#if defined(CONFIG_MACH_M0)
+		/* ugly W/A for PLM P130927-02007 */
+		struct hlist_head *h;
 
+		h = &f->hash[i];
+		if (unlikely(!IS_ALIGNED((unsigned long)h->first, 4))) {
+			WARN(1, "%p invalid address\n", h->first);
+			continue;
+		}
+#endif
 		hlist_for_each_entry_safe(q, p, n, &f->hash[i], list) {
 			unsigned int hval = f->hashfn(q);
 

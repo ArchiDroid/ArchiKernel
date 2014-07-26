@@ -221,8 +221,13 @@ static inline struct page *page_cache_alloc_cold(struct address_space *x)
 
 static inline struct page *page_cache_alloc_readahead(struct address_space *x)
 {
+#ifdef CONFIG_DMA_CMA
+	return __page_cache_alloc((mapping_gfp_mask(x) & ~__GFP_MOVABLE) |
+				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN);
+#else
 	return __page_cache_alloc(mapping_gfp_mask(x) |
 				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN);
+#endif
 }
 
 typedef int filler_t(void *, struct page *);
