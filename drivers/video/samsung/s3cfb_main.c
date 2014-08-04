@@ -145,11 +145,17 @@ static irqreturn_t s3cfb_irq_frame(int irq, void *dev_id)
 	if (fbdev[0]->regs != 0)
 		s3cfb_clear_interrupt(fbdev[0]);
 
+#ifdef CONFIG_ARCHIKERNEL_MALI_REVISION_R3P2
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
 	fbdev[0]->vsync_info.timestamp = ktime_get();
 	wake_up_interruptible_all(&fbdev[0]->vsync_info.wait);
 #endif
-
+#else
+	fbdev[0]->vsync_info.timestamp = ktime_get();
+#if defined(CONFIG_FB_S5P_VSYNC_THREAD)
+	wake_up_interruptible_all(&fbdev[0]->vsync_info.wait);
+#endif
+#endif
 	fbdev[0]->wq_count++;
 	wake_up(&fbdev[0]->wq);
 
@@ -211,6 +217,12 @@ int s3cfb_wait_for_vsync(struct s3cfb_global *fbdev, u32 timeout)
 						!ktime_equal(timestamp,
 						fbdev->vsync_info.timestamp));
 	}
+
+#ifdef CONFIG_ARCHIKERNEL_MALI_REVISION_R4P0
+	sysfs_notify(&fbdev->dev->kobj,
+				NULL, "vsync_time");
+#endif
+
 	s3cfb_deactivate_vsync(fbdev);
 
 	pm_runtime_put_sync(fbdev->dev);
