@@ -35,6 +35,7 @@ config FB_S5P_DEBUG
 	depends on FB_S5P
 
 config FB_S5P_VSYNC_THREAD
+	depends on !ARCHIKERNEL_MALI_REVISION_R4P0
 	bool "S5P Framebuffer vsync thread"
 	depends on FB_S5P
 
