@@ -234,6 +234,9 @@ done
         <seekBar description="Knock-On Delay in seconds (Default is 5ms)." 
 		name="Touch-To-Wake Delay" action="touch2wake knockondelay" unit=" sec" min="0" reversed="false" step="1" max="60"/>
    </settingsPane>
+   
+if [ -e /sys/class/sec/sec_touchkey/touch_led_handling ]; then
+
       <settingsPane description="" 
                   name="Hardware Key backlight">
 	   
@@ -250,6 +253,7 @@ done
       label="Disable touch LEDs"/>
 
     </settingsPane> 
+fi
    </settingsTab>
   
     <settingsTab name="LED">
