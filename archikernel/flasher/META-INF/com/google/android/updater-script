@@ -1,0 +1,49 @@
+#     _             _     _ _  __                    _
+#    / \   _ __ ___| |__ (_) |/ /___ _ __ _ __   ___| |
+#   / _ \ | '__/ __| '_ \| | ' // _ \ '__| '_ \ / _ \ |
+#  / ___ \| | | (__| | | | | . \  __/ |  | | | |  __/ |
+# /_/   \_\_|  \___|_| |_|_|_|\_\___|_|  |_| |_|\___|_|
+#
+# Copyright 2014 Łukasz "JustArchi" Domeradzki
+# Contact: JustArchi@JustArchi.net
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+ui_print(">>> ArchiKerel flasher is now loading...");
+#sleep (1);
+assert(getprop("ro.product.device") == "m0" || getprop("ro.build.product") == "m0" || 
+       getprop("ro.product.device") == "i9300" || getprop("ro.build.product") == "i9300" || 
+       getprop("ro.product.device") == "GT-I9300" || getprop("ro.build.product") == "GT-I9300" || abort("This package is for \"m0,i9300,GT-I9300\" devices; this is a \"" + getprop("ro.product.device") + "\"."););
+ui_print("root@ArchiKernel:~# Ready!");
+set_progress(0.1);
+run_program("/sbin/mount", "-t", "auto", "/system");
+
+ui_print("root@ArchiKernel:~# Flashing ArchiKernel");
+set_progress(0.2);
+delete_recursive("/tmp/archikernel");
+package_extract_dir("core", "/tmp/archikernel");
+set_perm(0, 0, 0755, "/tmp/archikernel/init.sh");
+package_extract_file("prebuilt/zImage", "/tmp/archikernel/zImage");
+delete_recursive("/system/lib/modules");
+package_extract_dir("prebuilt/system", "/system");
+set_progress(0.5);
+run_program("/tmp/archikernel/init.sh");
+set_progress(0.8);
+
+ui_print("===================================");
+ui_print("  ArchiKernel Flashed Successfully ");
+ui_print("Please share your experience on XDA");
+ui_print("===================================");
+set_progress(0.9);
+unmount("/system");
+set_progress(1.0);

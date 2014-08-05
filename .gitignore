@@ -46,6 +46,12 @@ modules.builtin
 /Module.symvers
 
 #
+# Generated prebuilt binaries for ArchiKernel flasher
+#
+archikernel/flasher/*.zip
+archikernel/flasher/prebuilt
+
+#
 # git files that we don't want to ignore even it they are dot-files
 #
 !.gitignore
