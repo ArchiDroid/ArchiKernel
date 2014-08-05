@@ -321,6 +321,11 @@ config ARCHIKERNEL_PRINTK_INTERFACE
 		This option enables printk interface developed by AndiP71
 		Notice: May cause audio issues on AOSP ROMs, like random silence
 
+config ARCHIKERNEL_LOGCAT_INTERFACE
+	bool "Enable logcat interface"
+	help
+		This option enables android logger interface developed by AndiP71
+
 
 comment "Optimizations"
 
