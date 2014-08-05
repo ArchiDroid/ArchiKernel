@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y     = sched.o fork.o exec_domain.o panic.o printk.o printk_interface.o\
+obj-y     = sched.o fork.o exec_domain.o panic.o printk.o \
 	    cpu.o exit.o itimer.o time.o softirq.o resource.o \
 	    sysctl.o sysctl_binary.o capability.o ptrace.o timer.o user.o \
 	    signal.o sys.o kmod.o workqueue.o pid.o \
@@ -12,6 +12,10 @@ obj-y     = sched.o fork.o exec_domain.o panic.o printk.o printk_interface.o\
 	    notifier.o ksysfs.o pm_qos_params.o sched_clock.o cred.o \
 	    async.o range.o jump_label.o
 obj-y += groups.o
+
+ifdef CONFIG_ARCHIKERNEL_PRINTK_INTERFACE
+obj-y += printk_interface.o
+endif
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace debug files and internal ftrace files

@@ -290,8 +290,14 @@ config ARCHIKERNEL_TOUCH_LED_CONTROL
 	bool "Enable touch LED control"
 	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 	help
-		This option enable the touch LED control to enable/disable the backlight
+		This option enables the touch LED control to enable/disable the backlight
 		of the hardware buttons.
+
+config ARCHIKERNEL_PRINTK_INTERFACE
+	bool "Enable printk interface"
+	help
+		This option enables printk interface developed by AndiP71
+		Notice: May cause audio issues on AOSP ROMs, like random silence
 
 
 comment "Optimizations"
