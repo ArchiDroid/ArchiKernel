@@ -1,70 +1,4 @@
-#!/system/bin/sh
-
-#     _             _     _ _  __                    _
-#    / \   _ __ ___| |__ (_) |/ /___ _ __ _ __   ___| |
-#   / _ \ | '__/ __| '_ \| | ' // _ \ '__| '_ \ / _ \ |
-#  / ___ \| | | (__| | | | | . \  __/ |  | | | |  __/ |
-# /_/   \_\_|  \___|_| |_|_|_|\_\___|_|  |_| |_|\___|_|
-#
-# Copyright 2014 Łukasz "JustArchi" Domeradzki
-# Contact: JustArchi@JustArchi.net
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-LOG="/data/ArchiKernel.log"
-exec 1>"$LOG"
-exec 2>&1
-
-date
-echo "ArchiKernel-Init called!"
-echo "Version: $(cat /proc/version)"
-
-# Stub
-
-mkdir /data/.archi
-chmod 777 /data/.archi
- 
-. /res/customconfig/customconfig-helper
-
-ccxmlsum=`md5sum /res/customconfig/customconfig.xml | awk '{print $1}'`
-if [ "a${ccxmlsum}" != "a`cat /data/.archi/.ccxmlsum`" ];
-then
-  rm -f /data/.archi/*.profile
-  echo ${ccxmlsum} > /data/.archi/.ccxmlsum
-fi
-[ ! -f /data/.archi/default.profile ] && cp /res/customconfig/default.profile /data/.archi
-[ ! -f /data/.archi/battery.profile ] && cp /res/customconfig/battery.profile /data/.archi
-[ ! -f /data/.archi/balanced.profile ] && cp /res/customconfig/balanced.profile /data/.archi
-[ ! -f /data/.archi/performance.profile ] && cp /res/customconfig/performance.profile /data/.archi
-
-read_defaults
-read_config
-
-#cpu min & max frequencies
-echo "${scaling_min_freq}" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-echo "${scaling_max_freq}" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
-
-echo "${int_scheduler}" > /sys/block/mmcblk0/queue/scheduler
-echo "${int_read_ahead_kb}" > /sys/block/mmcblk0/bdi/read_ahead_kb
-echo "${ext_scheduler}" > /sys/block/mmcblk1/queue/scheduler
-echo "${ext_read_ahead_kb}" > /sys/block/mmcblk1/bdi/read_ahead_kb
-
-# apply STweaks defaults
-export CONFIG_BOOTING=1
-/res/uci.sh apply
-export CONFIG_BOOTING=
-
-##### CPU settings #####
+#!/sbin/busybox sh
 
 case "$default_governor" in
 
@@ -99,6 +33,8 @@ case "$default_governor" in
         echo $pegasusq_up_threshold_at_min_freq > /sys/devices/system/cpu/cpufreq/pegasusq/up_threshold_at_min_freq
         echo $min_cpu_lock > /sys/devices/system/cpu/cpufreq/pegasusq/min_cpu_lock
         echo $max_cpu_lock > /sys/devices/system/cpu/cpufreq/pegasusq/max_cpu_lock
+        
+        echo "PegasusQ settings applied"
   ;; 
   1)
         echo "lulzactiveq" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
@@ -130,50 +66,9 @@ case "$default_governor" in
         echo $lulzactiveq_up_nr_cpus > /sys/devices/system/cpu/cpufreq/lulzactiveq/up_nr_cpus
         echo $min_cpu_lock > /sys/devices/system/cpu/cpufreq/lulzactiveq/min_cpu_lock
         echo $max_cpu_lock > /sys/devices/system/cpu/cpufreq/lulzactiveq/max_cpu_lock
-  ;;
-  2)  
-        echo "pegasusqplus" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-    ;;  
-  3)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "1" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  4)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "2" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  5)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "3" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  6)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "4" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  7)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "5" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  8)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "6" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  9)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "7" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  10)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "8" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  11)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "9" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
-  12)
-        echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-        echo "10" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
-    ;;
+        
+        echo "LulzactiveQ settings applied"
+  ;; 
   13)  
         echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
         echo "0" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
@@ -214,7 +109,7 @@ case "$default_governor" in
         echo $zzmoove_disable_hotplug_sleep > /sys/devices/system/cpu/cpufreq/zzmoove/disable_hotplug_sleep
         echo $zzmoove_freq_limit > /sys/devices/system/cpu/cpufreq/zzmoove/freq_limit
         echo $zzmoove_freq_limit_sleep > /sys/devices/system/cpu/cpufreq/zzmoove/freq_limit_sleep
-        
+   
         echo $zzmoove_early_demand_sleep > /sys/devices/system/cpu/cpufreq/zzmoove/early_demand_sleep
         echo $zzmoove_grad_up_threshold_sleep > /sys/devices/system/cpu/cpufreq/zzmoove/grad_up_threshold_sleep
         echo $zzmoove_hotplug_block_up_cycles > /sys/devices/system/cpu/cpufreq/zzmoove/hotplug_block_up_cycles
@@ -227,9 +122,7 @@ case "$default_governor" in
         echo $zzmoove_scaling_block_freq > /sys/devices/system/cpu/cpufreq/zzmoove/scaling_block_freq
         echo $zzmoove_scaling_block_threshold > /sys/devices/system/cpu/cpufreq/zzmoove/scaling_block_threshold
         echo $zzmoove_scaling_block_force_down > /sys/devices/system/cpu/cpufreq/zzmoove/scaling_block_force_down
+        
+        echo "ZZmoove settings applied"
     ;;
 esac;
-
-echo "ArchiKernel-Init finished!"
-date
-exit 0

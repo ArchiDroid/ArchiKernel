@@ -1,71 +1,18 @@
-#!/system/bin/sh
+#!/sbin/busybox sh
 
-#     _             _     _ _  __                    _
-#    / \   _ __ ___| |__ (_) |/ /___ _ __ _ __   ___| |
-#   / _ \ | '__/ __| '_ \| | ' // _ \ '__| '_ \ / _ \ |
-#  / ___ \| | | (__| | | | | . \  __/ |  | | | |  __/ |
-# /_/   \_\_|  \___|_| |_|_|_|\_\___|_|  |_| |_|\___|_|
-#
-# Copyright 2014 Łukasz "JustArchi" Domeradzki
-# Contact: JustArchi@JustArchi.net
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+if [ "a$2" != "a" ];then
 
-LOG="/data/ArchiKernel.log"
-exec 1>"$LOG"
-exec 2>&1
+filename=$(basename $2)
 
-date
-echo "ArchiKernel-Init called!"
-echo "Version: $(cat /proc/version)"
-
-# Stub
-
-mkdir /data/.archi
-chmod 777 /data/.archi
- 
-. /res/customconfig/customconfig-helper
-
-ccxmlsum=`md5sum /res/customconfig/customconfig.xml | awk '{print $1}'`
-if [ "a${ccxmlsum}" != "a`cat /data/.archi/.ccxmlsum`" ];
-then
-  rm -f /data/.archi/*.profile
-  echo ${ccxmlsum} > /data/.archi/.ccxmlsum
-fi
-[ ! -f /data/.archi/default.profile ] && cp /res/customconfig/default.profile /data/.archi
-[ ! -f /data/.archi/battery.profile ] && cp /res/customconfig/battery.profile /data/.archi
-[ ! -f /data/.archi/balanced.profile ] && cp /res/customconfig/balanced.profile /data/.archi
-[ ! -f /data/.archi/performance.profile ] && cp /res/customconfig/performance.profile /data/.archi
-
-read_defaults
-read_config
-
-#cpu min & max frequencies
-echo "${scaling_min_freq}" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-echo "${scaling_max_freq}" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
-
-echo "${int_scheduler}" > /sys/block/mmcblk0/queue/scheduler
-echo "${int_read_ahead_kb}" > /sys/block/mmcblk0/bdi/read_ahead_kb
-echo "${ext_scheduler}" > /sys/block/mmcblk1/queue/scheduler
-echo "${ext_read_ahead_kb}" > /sys/block/mmcblk1/bdi/read_ahead_kb
-
-# apply STweaks defaults
-export CONFIG_BOOTING=1
-/res/uci.sh apply
-export CONFIG_BOOTING=
-
-##### CPU settings #####
-
+if [ "a$3" == "a" ];then
+  evalcmd='eval "echo \$$filename"'
+  eval $evalcmd
+else
+  evalcmd='eval "$filename=$3"'
+  eval $evalcmd
+  evalcmd='eval "echo \$$filename"'
+  eval $evalcmd
+  
 case "$default_governor" in
 
   0)
@@ -133,7 +80,7 @@ case "$default_governor" in
   ;;
   2)  
         echo "pegasusqplus" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-    ;;  
+    ;;
   3)
         echo "zzmoove" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
         echo "1" > /sys/devices/system/cpu/cpufreq/zzmoove/profile_number
@@ -230,6 +177,9 @@ case "$default_governor" in
     ;;
 esac;
 
-echo "ArchiKernel-Init finished!"
-date
-exit 0
+echo "Default governor settings applied"
+
+fi
+fi
+
+
