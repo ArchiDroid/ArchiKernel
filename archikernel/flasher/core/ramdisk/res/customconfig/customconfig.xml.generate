@@ -218,6 +218,8 @@ done
              <spinnerItem name="400MHz" value="400000"/> 
              <spinnerItem name="200MHz" value="200000"/> 
        </spinner>
+           <seekBar description="FB earlysuspend delay to run CRT animation when you turn the screen off." 
+		name="FB Earlysuspend Delay" action="generic /sys/kernel/early_suspend/early_suspend_delay" unit=" ms" min="0" reversed="false" step="100" max="700"/>
       </settingsPane>
      <settingsPane description="Touch-to-Wake settings" name="Touch-to-Wake Settings">
        <spinner description="Touch-to-Wake" name="Touch-to-Wake" action="touch2wake touchwake">
@@ -416,6 +418,8 @@ fi
 
   <settingsTab name="Misc">
     <settingsPane description="Misc Settings" name="Misc Settings">
+    
+      <checkbox description="Dynamic Fsync switch" name="Dynamic Fsync switch" action="generic01 /sys/kernel/dyn_fsync/Dyn_fsync_active" label="Dynamic Fsync"/>
     
       <spinner description="This will set the default I/O scheduler for Internal Storage" name="Default I/O Scheduler for Internal Storage" action="iosched_int /tmp/int_scheduler">
 	     <spinnerItem name="deadline" value="deadline"/> 

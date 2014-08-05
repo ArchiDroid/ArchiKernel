@@ -188,3 +188,5 @@ touchwake=0
 touchwakedelay=5
 knockon=0
 knockondelay=5
+Dyn_fsync_active=on
+early_suspend_delay=100
