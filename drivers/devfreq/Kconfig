@@ -1,4 +1,5 @@
 menuconfig PM_DEVFREQ
+	depends on !ARCHIKERNEL_MALI_REVISION_R3P2
 	bool "Generic Dynamic Voltage and Frequency Scaling (DVFS) support"
 	help
 	  A device may have a list of frequencies and voltages available.

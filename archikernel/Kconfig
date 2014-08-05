@@ -212,6 +212,28 @@ config ARCHIKERNEL_OPTI_OS
 		designed to reduce code size.
 endchoice
 
+choice
+	prompt "Mali GPU revision"
+	default r3p2
+	help
+		Kernel's sound engine. This mostly adds engine-specific sysfs and
+		a hook, which modifies sound on the kernel level.
+
+config ARCHIKERNEL_MALI_REVISION_R3P2
+	bool "r3p2"
+	select MALI_VER_R3P2
+	select FB_S5P_VSYNC_THREAD
+	help
+		Mali GPU revision r3p2
+
+config ARCHIKERNEL_MALI_REVISION_R4P0
+	bool "r4p0"
+      	select MALI_VER_R4P0
+      	select PM_DEVFREQ
+	help
+		Mali GPU revision r4p0		
+endchoice
+
 
 comment "Hacks / Workarounds"
 

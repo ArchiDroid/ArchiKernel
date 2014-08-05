@@ -39,8 +39,16 @@
 #include <mach/gpufreq.h>
 #endif
 
+#ifdef CONFIG_ARCHIKERNEL_MALI_REVISION_R3P2
 #ifdef CONFIG_FAST_BOOT
 #include <linux/fake_shut_down.h>
+#endif
+#else
+#if defined(CONFIG_CPU_EXYNOS4412) && defined(CONFIG_MALI400) \
+		&& defined(CONFIG_MALI_DVFS)
+extern int mali_dvfs_bottom_lock_push(int lock_step);
+extern int mali_dvfs_bottom_lock_pop(void);
+#endif
 #endif
 
 #include "power.h"
