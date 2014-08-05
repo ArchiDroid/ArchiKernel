@@ -32,14 +32,15 @@ BARE=0 # --bare -> This will finish the script as soon as the kernel is compiled
 # You may need to change these variables
 HOME="$(dirname ~)$(basename ~)" # This workaround is required because arm-eabi-nm has problems following ~. Don't change it
 TOOLCHAIN="$HOME/TC/bin" # This is where your toolchain is located. This path must contain arm-eabi-* binaries, typically Toolchaindir/bin
-TARGETDIR="$HOME/shared/kernel/m0" # This is the general output path. You should unpack AK in zip format somewhere, then put proper path here
+TARGETDIR="archikernel/flasher" # This is the general output path. You should unpack AK in zip format somewhere, then put proper path here
+TARGETZIPDIR="$HOME/shared/kernel/m0" # If not empty, output zip will be moved here
 TARGETCONFIG="aosp_ak_defconfig" # This is default config, which is overrided if extra argument is given
 BEEP=1 # This will beep three times on finish to wake me up :). Works even through SSH!
 
 # This should be enough, changing below things shouldn't be required
 CROSS_COMPILE="$TOOLCHAIN/arm-eabi-" # You should not change this prefix unless you know what you're doing
-TARGETDIRKERNEL="$TARGETDIR/core" # This is where zImage is put. If you keep AK directory structure, you don't need to edit that
-TARGETDIRMODULES="$TARGETDIR/system/lib/modules" # Similar to above, but for modules
+TARGETDIRKERNEL="$TARGETDIR/prebuilt" # This is where zImage is put. If you keep AK directory structure, you don't need to edit that
+TARGETDIRMODULES="$TARGETDIRKERNEL/system/lib/modules" # Similar to above, but for modules
 TARGETZIPNAME="ArchiKernel_$(date '+%d%m%y_%H%M%S')" # Name of output zip. If you keep date here, zips will be unique, if you declare this as static, we'll overwrite specific one
 JOBS="$(grep -c "processor" "/proc/cpuinfo")" # Maximum number of jobs, can be declared statically if needed, default to number of threads of the CPU
 
@@ -100,6 +101,10 @@ done
 
 cd "$TARGETDIR"
 zip -ry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
+
+if [[ ! -z "$TARGETZIPDIR" ]] ;then
+	mv "$TARGETZIPNAME.zip" "$TARGETZIPDIR"
+fi
 
 if [[ "$BEEP" -eq 1 ]]; then
 	echo -e "\a"
