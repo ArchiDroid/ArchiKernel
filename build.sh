@@ -102,7 +102,7 @@ done
 cd "$TARGETDIR"
 zip -ry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
 
-if [[ ! -z "$TARGETZIPDIR" ]] ;then
+if [[ ! -z "$TARGETZIPDIR" ]]; then
 	mv "$TARGETZIPNAME.zip" "$TARGETZIPDIR"
 fi
 
