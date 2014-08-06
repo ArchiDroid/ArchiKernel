@@ -85,14 +85,17 @@ if [ -f "$AKDROP/boot.img-ramdisk.gz" ]; then
 		if [ -d "$AK/ramdisk" ]; then
 			echo "INFO: Overwriting ramdisk with custom content"
 			find "$AK/ramdisk" -mindepth 1 -maxdepth 1 | while read line; do
-				cp -R "$line" .
+				cp -pR "$line" .
 			done
 		fi
 
-		# If we have our Init, chmod it
-		if [ -f "$AKDROP/ramdisk/sbin/ArchiKernel-Init" ]; then
-			chmod 755 "$AKDROP/ramdisk/sbin/ArchiKernel-Init"
-		fi
+		# If we have any executable files/folders, chmod them
+		TO755="sbin/ArchiKernel-Init res/uci.sh"
+		for FILE in $TO755; do
+			if [ -e "$AKDROP/ramdisk/$FILE" ]; then
+				chmod 755 "$AKDROP/ramdisk/$FILE"
+			fi
+		done
 
 		# Add ArchiKernel Init if required
 		if [ "$(grep -qi "ArchiKernel-Init" "$AKDROP/ramdisk/init.rc"; echo $?)" -ne 0 ]; then
