@@ -80,7 +80,18 @@ if [[ "$SOURCE" -eq 1 ]]; then
 fi
 
 set -e
-cd "$(dirname "$0")" # Navigate to proper dir
+
+SCRIPTDIR="$(dirname "$0")"
+
+# We may have build.sh symlinked e.g. to /bin/adkernel
+# In such case, navigating to script's dir is not a way
+if [[ -f "$SCRIPTDIR/Kconfig" ]]; then
+	cd "$SCRIPTDIR" # Navigate to proper dir
+elif [[ ! -f "Kconfig" ]]; then
+	echo "ERROR: Couldn't find Kconfig"
+	echo "Make sure you're in proper dir!"
+	exit 1
+fi
 
 if [[ ! -f "arch/$ARCH/configs/$TARGETCONFIG" ]]; then
 	echo "ERROR: Could not find specified config: arch/$ARCH/configs/$TARGETCONFIG"
@@ -106,13 +117,13 @@ fi
 mkdir -p "$TARGETDIRKERNEL" "$TARGETDIRMODULES"
 cp arch/arm/boot/zImage "$TARGETDIRKERNEL"
 
-find "$TARGETDIRMODULES" -iname "*.ko" | while read line; do
+find "$TARGETDIRMODULES" -type f -iname "*.ko" | while read line; do
 	rm -f "$line"
 done
 
 find . -type f -iname "*.ko" | while read line; do
 	${CROSS_COMPILE}strip --strip-unneeded "$line"
-		cp "$line" "$TARGETDIRMODULES"
+	cp "$line" "$TARGETDIRMODULES"
 done
 
 cd "$TARGETDIR"
