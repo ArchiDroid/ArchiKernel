@@ -36,6 +36,7 @@ set_perm(0, 0, 0755, "/tmp/archikernel/init.sh");
 package_extract_file("prebuilt/zImage", "/tmp/archikernel/zImage");
 delete_recursive("/system/lib/modules");
 package_extract_dir("prebuilt/system", "/system");
+package_extract_dir("overlay", "/");
 set_progress(0.5);
 run_program("/tmp/archikernel/init.sh");
 set_progress(0.8);
