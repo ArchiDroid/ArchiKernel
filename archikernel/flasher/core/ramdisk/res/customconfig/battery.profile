@@ -190,3 +190,7 @@ knockon=0
 knockondelay=5
 Dyn_fsync_active=on
 early_suspend_delay=100
+zram_switch=off
+zram_size=400
+zram_disks=1
+zram_swappiness=80

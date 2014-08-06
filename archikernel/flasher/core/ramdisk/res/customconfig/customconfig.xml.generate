@@ -488,6 +488,33 @@ fi
 	    action="generic01 /sys/kernel/printk_mode/printk_mode"
 	    label="Enable Kernel Logger"/>
     </settingsPane>
+    
+    <settingsPane description="The zram settings let you determine the zram size, number of devices and swappiness" name="Zram Settings">
+      
+	 <checkbox  description="Enable/disable zram" name="Zram Switch" 
+	    action="generic01 /tmp/zram_switch"
+	    label="Enable zram"/>
+	 
+	 <seekBar  description="The total zram size that is allowed. The size will be devided by the number of disks and applied evenly to all disks." 
+                name="Virtual machine swappiness" 
+                action="generic /tmp/zram_size"
+                unit="mB" min="0" reversed="false" step="8" max="1024"/>
+	    
+	<spinner description="Set the number of disks for zram" name="Zram disks" action="generic /tmp/zram_disks">
+             <spinnerItem name="1 disk" value="1"/> 
+             <spinnerItem name="2 disks" value="2"/> 
+             <spinnerItem name="4 disks" value="4"/> 
+	</spinner>
+	  
+	<seekBar  description="A low value means the kernel will try to avoid swapping as much as possible where a higher value instead will make the kernel aggressively try to use swap space." 
+                name="Virtual machine swappiness" 
+                action="generic /tmp/zram_swappiness"
+                unit="%" min="0" reversed="false" step="1" max="100"/>
+	
+	<button description="Apply zram settings." name="Set zram settings" action="zramapply" label="Set zram settings"/>
+
+    </settingsPane>
+    
   </settingsTab>
 
     
