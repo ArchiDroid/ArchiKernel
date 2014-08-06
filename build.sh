@@ -38,7 +38,6 @@ TARGETCONFIG="aosp_ak_defconfig" # This is default config, which is overrided if
 BEEP=1 # This will beep three times on finish to wake me up :). Works even through SSH!
 
 # This should be enough, changing below things shouldn't be required
-CROSS_COMPILE="$TOOLCHAIN/arm-eabi-" # You should not change this prefix unless you know what you're doing
 TARGETDIRKERNEL="$TARGETDIR/prebuilt" # This is where zImage is put. If you keep AK directory structure, you don't need to edit that
 TARGETDIRMODULES="$TARGETDIRKERNEL/system/lib/modules" # Similar to above, but for modules
 TARGETZIPNAME="ArchiKernel_$(date '+%d%m%y_%H%M%S')" # Name of output zip. If you keep date here, zips will be unique, if you declare this as static, we'll overwrite specific one
@@ -55,6 +54,23 @@ for ARG in "$@"; do
 		*) TARGETCONFIG="$ARG" ;;
 	esac
 done
+
+PREFIXES="arm-linux-gnueabihf arm-eabi" # Linaro uses gnueabihf, while Google uses eabi
+for PREFIX in $PREFIXES; do
+	if [[ -x "$TOOLCHAIN/${PREFIX}-gcc" ]]; then
+		CROSS_COMPILE="$TOOLCHAIN/${PREFIX}-"
+		echo "Found ${PREFIX} toolchain!"
+		echo
+		break
+	fi
+done
+
+if [[ -z "$CROSS_COMPILE" ]]; then
+	echo "ERROR: Could not find any valid toolchain prefix!"
+	echo "Make sure that $TOOLCHAIN/PREFIX-gcc exists"
+	echo "Where PREFIX must be one of the following: $PREFIXES"
+	exit 1
+fi
 
 export ARCH=arm
 export CROSS_COMPILE="$CROSS_COMPILE"
