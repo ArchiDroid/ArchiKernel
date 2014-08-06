@@ -72,13 +72,13 @@ cat << ENDCONFIG
     <settingsPane description="Decreasing voltage will lower power consumption of the CPU. Increasing it on overclocked frequencies improves stability. Too low voltage may cause instabilities and freezes." 
                   name="CPU voltage control">
 `
-cat /sys/devices/system/cpu/cpu0/cpufreq/UV_mV_table | \
+cat /sys/devices/system/cpu/cpu0/cpufreq/UV_uV_table | \
 sed -e 's/mhz//g;s/://g' | awk '{ print $1, $2 }' | \
-while read FREQ MVOLT; do
-  echo '      <seekBar  description="Default voltage: '$MVOLT'mV"
+while read FREQ UVOLT; do
+  echo '      <seekBar  description="Default voltage: '$UVOLT'µV"
 	        name="'${FREQ}' MHz step" 
                 action="cpuvolt '${FREQ}'"
-                unit=" mV" min="600" reversed="false" step="25" max="1400"/>'
+                unit=" µV" min="600000" reversed="false" step="12500" max="1400000"/>'
   CPUFREQLIST="$CPUFREQLIST $FREQ"
 done
 `
@@ -189,15 +189,15 @@ done
     
     <settingsPane description="GPU Voltage Levels." name="GPU Voltage Levels">
       <seekBar description="GPU Voltage for the first (lowest) step" 
-		name="GPU Voltage Level1" action="gpu-voltage 1" unit="µV" min="600000" reversed="false" step="25000" max="1200000"/>
+		name="GPU Voltage Level1" action="gpu-voltage 1" unit="µV" min="600000" reversed="false" step="12500" max="1200000"/>
       <seekBar description="GPU Voltage for the second step" 
-		name="GPU Voltage Level2" action="gpu-voltage 2" unit="µV" min="600000" reversed="false" step="25000" max="1200000"/>
+		name="GPU Voltage Level2" action="gpu-voltage 2" unit="µV" min="600000" reversed="false" step="12500" max="1200000"/>
       <seekBar description="GPU Voltage for the third step" 
-		name="GPU Voltage Level3" action="gpu-voltage 3" unit="µV" min="600000" reversed="false" step="25000" max="1200000"/>
+		name="GPU Voltage Level3" action="gpu-voltage 3" unit="µV" min="600000" reversed="false" step="12500" max="1200000"/>
       <seekBar description="GPU Voltage for the fourth step" 
-		name="GPU Voltage Level4" action="gpu-voltage 4" unit="µV" min="600000" reversed="false" step="25000" max="1200000"/>
+		name="GPU Voltage Level4" action="gpu-voltage 4" unit="µV" min="600000" reversed="false" step="12500" max="1200000"/>
       <seekBar description="GPU Voltage for the fifth step" 
-		name="GPU Voltage Level5" action="gpu-voltage 5" unit="µV" min="600000" reversed="false" step="25000" max="1200000"/>
+		name="GPU Voltage Level5" action="gpu-voltage 5" unit="µV" min="600000" reversed="false" step="12500" max="1200000"/>
     </settingsPane>
   </settingsTab>  
   
