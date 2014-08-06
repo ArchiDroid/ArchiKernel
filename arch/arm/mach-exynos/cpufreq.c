@@ -874,7 +874,7 @@ late_initcall(exynos_cpufreq_init);
 
 #ifdef CONFIG_ARCHIKERNEL_CPU_VOLTAGE_INTERFACE
 /* sysfs interface for UV control */
-ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf) {
+ssize_t show_UV_uV_table(struct cpufreq_policy *policy, char *buf) {
 
   int i, len = 0;
   if (buf)
@@ -882,14 +882,14 @@ ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf) {
     for (i = exynos_info->max_support_idx; i<=exynos_info->min_support_idx; i++)
     {
       if(exynos_info->freq_table[i].frequency==CPUFREQ_ENTRY_INVALID) continue;
-      len += sprintf(buf + len, "%dmhz: %d mV\n", exynos_info->freq_table[i].frequency/1000,
-					((exynos_info->volt_table[i] % 1000) + exynos_info->volt_table[i])/1000);
+      len += sprintf(buf + len, "%dmhz: %d uV\n", exynos_info->freq_table[i].frequency/1000,
+					exynos_info->volt_table[i]);
     }
   }
   return len;
 }
 
-ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
+ssize_t store_UV_uV_table(struct cpufreq_policy *policy,
                                       const char *buf, size_t count) {
 
 	unsigned int ret = -EINVAL;
@@ -911,11 +911,6 @@ ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
 
 	for( i = 0; i < 15; i++ )
 	{
-		u[i] *= 1000;
-		// round down voltages - thx to AndreiLux
-		if(u[i] % 12500)
-			u[i] = (u[i] / 12500) * 12500;
-
 		if (u[i] > CPU_UV_MV_MAX) {
 			u[i] = CPU_UV_MV_MAX;
 		}
