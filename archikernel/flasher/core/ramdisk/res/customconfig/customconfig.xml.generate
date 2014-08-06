@@ -226,15 +226,15 @@ done
              <spinnerItem name="Disabled" value="0"/> 
              <spinnerItem name="Enabled" value="1"/> 
         </spinner>
-      <seekBar description="Touch-To-Wake Delay in seconds (Default is 5ms). Setting Delay to 0 makes Touch-to-Wake permanently active !" 
+      <seekBar description="Touch-To-Wake Delay in seconds (Default is 5s). Setting Delay to 0 makes Touch-to-Wake permanently active !" 
 		name="Touch-To-Wake Delay" action="touch2wake touchwakedelay" unit=" sec" min="0" reversed="false" step="1" max="60"/>
 		
        <spinner description="Knock-On" name="Knock-On" action="touch2wake knockon">
              <spinnerItem name="Disabled" value="0"/> 
              <spinnerItem name="Enabled" value="1"/> 
         </spinner>        
-        <seekBar description="Knock-On Delay in seconds (Default is 5ms)." 
-		name="Touch-To-Wake Delay" action="touch2wake knockondelay" unit=" sec" min="0" reversed="false" step="1" max="60"/>
+        <seekBar description="Knock-On Delay between knocks in milliseconds (Default is 500ms)." 
+		name="Knock-On Delay" action="touch2wake knockondelay" unit=" msec" min="0" reversed="false" step="50" max="1000"/>
    </settingsPane>
    
 if [ -e /sys/class/sec/sec_touchkey/touch_led_handling ]; then
