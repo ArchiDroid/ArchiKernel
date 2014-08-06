@@ -423,7 +423,8 @@ fi
     
       <spinner description="This will set the default I/O scheduler for Internal Storage" name="Default I/O Scheduler for Internal Storage" action="iosched_int /tmp/int_scheduler">
 	     <spinnerItem name="deadline" value="deadline"/> 
-             <spinnerItem name="noop" value="noop"/> 
+             <spinnerItem name="noop" value="noop"/>
+             <spinnerItem name="bfq" value="bfq"/>
       </spinner>
       <seekBar  description="The read-ahead value for the internal storage." 
                 name="Internal storage read-ahead" 
@@ -432,7 +433,8 @@ fi
 
       <spinner description="This will set the default I/O scheduler for the external Storage (SD-Card)" name="Default I/O Scheduler for SD-Card Storage" action="iosched_ext /tmp/ext_scheduler">
              <spinnerItem name="deadline" value="deadline"/> 
-             <spinnerItem name="noop" value="noop"/> 
+             <spinnerItem name="noop" value="noop"/>
+             <spinnerItem name="bfq" value="bfq"/>
       </spinner>
 
       <seekBar  description="The read-ahead value for the external storage (SD-Card)." 
@@ -496,7 +498,7 @@ fi
 	    label="Enable zram"/>
 	 
 	 <seekBar  description="The total zram size that is allowed. The size will be devided by the number of disks and applied evenly to all disks." 
-                name="Virtual machine swappiness" 
+                name="Zram size" 
                 action="generic /tmp/zram_size"
                 unit="mB" min="0" reversed="false" step="8" max="1024"/>
 	    
