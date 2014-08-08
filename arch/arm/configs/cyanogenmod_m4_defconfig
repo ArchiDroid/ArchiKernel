@@ -1507,6 +1507,7 @@ CONFIG_WLAN=y
 CONFIG_LIBRA_SDIOIF=m
 # CONFIG_ATH6K_LEGACY_EXT is not set
 # CONFIG_WCNSS_CORE is not set
+CONFIG_WCNSS_MEM_PRE_ALLOC=y
 # CONFIG_ATH_COMMON is not set
 # CONFIG_BCMDHD is not set
 # CONFIG_BRCMFMAC is not set
@@ -2924,7 +2925,6 @@ CONFIG_LGE_DEATHPENDING_LMK=y
 # Qualcomm Atheros Prima WLAN module Legacy
 #
 # CONFIG_PRIMA_WLAN_LEGACY is not set
-
 #
 # Qualcomm MSM specific device drivers
 #
