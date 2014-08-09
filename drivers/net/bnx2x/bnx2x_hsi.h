@@ -263,7 +263,20 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_FAULT_MODULE_LED_GPIO2		      0x00000200
 #define PORT_HW_CFG_FAULT_MODULE_LED_GPIO3		      0x00000300
 #define PORT_HW_CFG_FAULT_MODULE_LED_DISABLED		      0x00000400
-	u32 Reserved01[12];				    /* 0x158 */
+
+	u32 Reserved01[10];				    /* 0x158 */
+
+	u32 aeu_int_mask;					/* 0x190 */
+
+	u32 media_type;					/* 0x194 */
+#define PORT_HW_CFG_MEDIA_TYPE_PHY0_MASK		      0x000000FF
+#define PORT_HW_CFG_MEDIA_TYPE_PHY0_SHIFT		      0
+
+#define PORT_HW_CFG_MEDIA_TYPE_PHY1_MASK		      0x0000FF00
+#define PORT_HW_CFG_MEDIA_TYPE_PHY1_SHIFT		      8
+
+#define PORT_HW_CFG_MEDIA_TYPE_PHY2_MASK		      0x00FF0000
+#define PORT_HW_CFG_MEDIA_TYPE_PHY2_SHIFT		      16
 	/*  for external PHY, or forced mode or during AN */
 	u16 xgxs_config_rx[4];				    /* 0x198 */
 
@@ -417,6 +430,7 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84823     0x00000b00
 #define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM54640     0x00000c00
 #define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84833     0x00000d00
+#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8722	    0x00000f00
 #define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_FAILURE	    0x0000fd00
 #define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_NOT_CONN     0x0000ff00
 
@@ -453,6 +467,7 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_SHIFT	    24
 #define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_DIRECT	    0x00000000
 #define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_BCM5482     0x01000000
+#define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_DIRECT_SD   0x02000000
 #define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_NOT_CONN    0xff000000
 
 #define PORT_HW_CFG_SERDES_EXT_PHY_ADDR_MASK	    0x00ff0000
@@ -473,6 +488,7 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC   0x00000a00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823	    0x00000b00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833	    0x00000d00
+#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8722	    0x00000f00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE	    0x0000fd00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN	    0x0000ff00
 
