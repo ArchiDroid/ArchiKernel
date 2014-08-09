@@ -714,9 +714,9 @@ static void dump_sample(struct perf_session *session, union perf_event *event,
 	if (!dump_trace)
 		return;
 
-	printf("(IP, %d): %d/%d: %#" PRIx64 " period: %" PRIu64 "\n",
+	printf("(IP, %d): %d/%d: %#" PRIx64 " period: %" PRIu64 " addr: %#" PRIx64 "\n",
 	       event->header.misc, sample->pid, sample->tid, sample->ip,
-	       sample->period);
+	       sample->period, sample->addr);
 
 	if (session->sample_type & PERF_SAMPLE_CALLCHAIN)
 		callchain__printf(sample);
@@ -1208,9 +1208,10 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 	return NULL;
 }
 
-void perf_session__print_symbols(union perf_event *event,
-				struct perf_sample *sample,
-				struct perf_session *session)
+void perf_session__print_ip(union perf_event *event,
+			    struct perf_sample *sample,
+			    struct perf_session *session,
+			    int print_sym, int print_dso)
 {
 	struct addr_location al;
 	const char *symname, *dsoname;
@@ -1239,32 +1240,46 @@ void perf_session__print_symbols(union perf_event *event,
 			if (!node)
 				break;
 
-			if (node->sym && node->sym->name)
-				symname = node->sym->name;
-			else
-				symname = "";
+			printf("\t%16" PRIx64, node->ip);
+			if (print_sym) {
+				if (node->sym && node->sym->name)
+					symname = node->sym->name;
+				else
+					symname = "";
 
-			if (node->map && node->map->dso && node->map->dso->name)
-				dsoname = node->map->dso->name;
-			else
-				dsoname = "";
+				printf(" %s", symname);
+			}
+			if (print_dso) {
+				if (node->map && node->map->dso && node->map->dso->name)
+					dsoname = node->map->dso->name;
+				else
+					dsoname = "";
 
-			printf("\t%16" PRIx64 " %s (%s)\n", node->ip, symname, dsoname);
+				printf(" (%s)", dsoname);
+			}
+			printf("\n");
 
 			callchain_cursor_advance(cursor);
 		}
 
 	} else {
-		if (al.sym && al.sym->name)
-			symname = al.sym->name;
-		else
-			symname = "";
+		printf("%16" PRIx64, al.addr);
+		if (print_sym) {
+			if (al.sym && al.sym->name)
+				symname = al.sym->name;
+			else
+				symname = "";
 
-		if (al.map && al.map->dso && al.map->dso->name)
-			dsoname = al.map->dso->name;
-		else
-			dsoname = "";
+			printf(" %s", symname);
+		}
 
-		printf("%16" PRIx64 " %s (%s)", al.addr, symname, dsoname);
+		if (print_dso) {
+			if (al.map && al.map->dso && al.map->dso->name)
+				dsoname = al.map->dso->name;
+			else
+				dsoname = "";
+
+			printf(" (%s)", dsoname);
+		}
 	}
 }
