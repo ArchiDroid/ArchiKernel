@@ -41,14 +41,12 @@
 #define HPOUT2L 4
 #define HPOUT2R 8
 
-#define WM8915_NUM_SUPPLIES 6
+#define WM8915_NUM_SUPPLIES 4
 static const char *wm8915_supply_names[WM8915_NUM_SUPPLIES] = {
-	"DCVDD",
 	"DBVDD",
 	"AVDD1",
 	"AVDD2",
 	"CPVDD",
-	"MICVDD",
 };
 
 struct wm8915_priv {
@@ -113,8 +111,6 @@ WM8915_REGULATOR_EVENT(0)
 WM8915_REGULATOR_EVENT(1)
 WM8915_REGULATOR_EVENT(2)
 WM8915_REGULATOR_EVENT(3)
-WM8915_REGULATOR_EVENT(4)
-WM8915_REGULATOR_EVENT(5)
 
 static const u16 wm8915_reg[WM8915_MAX_REGISTER] = {
 	[WM8915_SOFTWARE_RESET] = 0x8915,
@@ -2293,6 +2289,12 @@ static void wm8915_micd(struct snd_soc_codec *codec)
 				    SND_JACK_HEADSET | SND_JACK_BTN_0);
 		wm8915->jack_mic = true;
 		wm8915->detecting = false;
+
+		/* Increase poll rate to give better responsiveness
+		 * for buttons */
+		snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
+				    WM8915_MICD_RATE_MASK,
+				    5 << WM8915_MICD_RATE_SHIFT);
 	}
 
 	/* If we detected a lower impedence during initial startup
@@ -2333,15 +2335,17 @@ static void wm8915_micd(struct snd_soc_codec *codec)
 					    SND_JACK_HEADPHONE,
 					    SND_JACK_HEADSET |
 					    SND_JACK_BTN_0);
+
+			/* Increase the detection rate a bit for
+			 * responsiveness.
+			 */
+			snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
+					    WM8915_MICD_RATE_MASK,
+					    7 << WM8915_MICD_RATE_SHIFT);
+
 			wm8915->detecting = false;
 		}
 	}
-
-	/* Increase poll rate to give better responsiveness for buttons */
-	if (!wm8915->detecting)
-		snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
-				    WM8915_MICD_RATE_MASK,
-				    5 << WM8915_MICD_RATE_SHIFT);
 }
 
 static irqreturn_t wm8915_irq(int irq, void *data)
@@ -2381,6 +2385,20 @@ static irqreturn_t wm8915_irq(int irq, void *data)
 	} else {
 		return IRQ_NONE;
 	}
+}
+
+static irqreturn_t wm8915_edge_irq(int irq, void *data)
+{
+	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t val;
+
+	do {
+		val = wm8915_irq(irq, data);
+		if (val != IRQ_NONE)
+			ret = val;
+	} while (val != IRQ_NONE);
+
+	return ret;
 }
 
 static void wm8915_retune_mobile_pdata(struct snd_soc_codec *codec)
@@ -2482,8 +2500,6 @@ static int wm8915_probe(struct snd_soc_codec *codec)
 	wm8915->disable_nb[1].notifier_call = wm8915_regulator_event_1;
 	wm8915->disable_nb[2].notifier_call = wm8915_regulator_event_2;
 	wm8915->disable_nb[3].notifier_call = wm8915_regulator_event_3;
-	wm8915->disable_nb[4].notifier_call = wm8915_regulator_event_4;
-	wm8915->disable_nb[5].notifier_call = wm8915_regulator_event_5;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8915->supplies); i++) {
@@ -2709,8 +2725,14 @@ static int wm8915_probe(struct snd_soc_codec *codec)
 
 		irq_flags |= IRQF_ONESHOT;
 
-		ret = request_threaded_irq(i2c->irq, NULL, wm8915_irq,
-					   irq_flags, "wm8915", codec);
+		if (irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))
+			ret = request_threaded_irq(i2c->irq, NULL,
+						   wm8915_edge_irq,
+						   irq_flags, "wm8915", codec);
+		else
+			ret = request_threaded_irq(i2c->irq, NULL, wm8915_irq,
+						   irq_flags, "wm8915", codec);
+
 		if (ret == 0) {
 			/* Unmask the interrupt */
 			snd_soc_update_bits(codec, WM8915_INTERRUPT_CONTROL,
