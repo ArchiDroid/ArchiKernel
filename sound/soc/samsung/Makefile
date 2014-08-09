@@ -60,6 +60,7 @@ snd-soc-zest-wm1811-objs := zest_wm1811.o
 snd-soc-gd2-wm1811-objs := gd2_wm1811.o
 snd-soc-gc2pd-wm1811-objs := gc2pd_wm1811.o
 snd-soc-watch-ymu831-objs := watch_ymu831.o
+snd-soc-speyside-wm8962-objs := speyside_wm8962.o
 
 obj-$(CONFIG_SND_SOC_SAMSUNG_JIVE_WM8750) += snd-soc-jive-wm8750.o
 obj-$(CONFIG_SND_SOC_SAMSUNG_NEO1973_WM8753) += snd-soc-neo1973-wm8753.o
@@ -101,3 +102,4 @@ obj-$(CONFIG_SND_SOC_SAMSUNG_WATCH_YMU831) += snd-soc-watch-ymu831.o
 obj-$(CONFIG_SND_SAMSUNG_RP)   += srp_ulp/
 obj-$(CONFIG_SND_SAMSUNG_ALP)   += srp_alp/
 
+obj-$(CONFIG_SND_SOC_SPEYSIDE_WM8962) += snd-soc-speyside-wm8962.o
