@@ -28,6 +28,7 @@
 
 #undef DEBUG
 
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -1009,7 +1010,7 @@ static int gelic_card_decode_one_descr(struct gelic_card *card)
 				netdev = card->netdev[i];
 				break;
 			}
-		};
+		}
 		if (GELIC_PORT_MAX <= i) {
 			pr_info("%s: unknown packet vid=%x\n", __func__, vid);
 			goto refill;

@@ -1557,7 +1557,6 @@ struct packet_type {
 	struct list_head	list;
 };
 
-#include <linux/interrupt.h>
 #include <linux/notifier.h>
 
 extern rwlock_t				dev_base_lock;		/* Device list lock */

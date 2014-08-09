@@ -75,6 +75,7 @@ Revision History:
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -1958,7 +1959,7 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 						 IPG_CONVERGE_JIFFIES;
 		lp->ipg_data.ipg = DEFAULT_IPG;
 		lp->ipg_data.ipg_state = CSTATE;
-	};
+	}
 
 	/*  display driver and device information */
 
