@@ -576,7 +576,7 @@ static struct snd_pcm_ops soc_pcm_ops = {
 };
 
 /* create a new pcm */
-static int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
+int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_platform *platform = rtd->platform;
@@ -611,6 +611,9 @@ static int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		printk(KERN_ERR "asoc: can't create pcm for codec %s\n", codec->name);
 		return ret;
 	}
+
+	/* DAPM dai link stream work */
+	INIT_DELAYED_WORK(&rtd->delayed_work, close_delayed_work);
 
 	rtd->pcm = pcm;
 	pcm->private_data = rtd;
