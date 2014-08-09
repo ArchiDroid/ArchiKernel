@@ -55,6 +55,7 @@ struct wm8915_priv {
 	int ldo1ena;
 
 	int sysclk;
+	int sysclk_src;
 
 	int fll_src;
 	int fll_fref;
@@ -1834,6 +1835,9 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 	int src;
 	int old;
 
+	if (freq == wm8915->sysclk && clk_id == wm8915->sysclk_src)
+		return 0;
+
 	/* Disable SYSCLK while we reconfigure */
 	old = snd_soc_read(codec, WM8915_AIF_CLOCKING_1) & WM8915_SYSCLK_ENA;
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
@@ -1884,6 +1888,8 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 	snd_soc_update_bits(codec, WM8915_CLOCKING_1, WM8915_LFCLK_ENA, lfclk);
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
 			    WM8915_SYSCLK_ENA, old);
+
+	wm8915->sysclk_src = clk_id;
 
 	return 0;
 }
@@ -2003,6 +2009,7 @@ static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
 	struct wm8915_priv *wm8915 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct _fll_div fll_div;
 	unsigned long timeout;
 	int ret, reg;
@@ -2089,7 +2096,18 @@ static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	else
 		timeout = msecs_to_jiffies(2);
 
-	wait_for_completion_timeout(&wm8915->fll_lock, timeout);
+	/* Allow substantially longer if we've actually got the IRQ */
+	if (i2c->irq)
+		timeout *= 1000;
+
+	ret = wait_for_completion_timeout(&wm8915->fll_lock, timeout);
+
+	if (ret == 0 && i2c->irq) {
+		dev_err(codec->dev, "Timed out waiting for FLL\n");
+		ret = -ETIMEDOUT;
+	} else {
+		ret = 0;
+	}
 
 	dev_dbg(codec->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
 
@@ -2097,7 +2115,7 @@ static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	wm8915->fll_fout = Fout;
 	wm8915->fll_src = source;
 
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_GPIOLIB
