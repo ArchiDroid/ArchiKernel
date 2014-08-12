@@ -22,6 +22,7 @@
 #include <linux/msm_mdp.h>
 #include <linux/sched.h>
 #include <linux/capability.h>
+#include <linux/module.h>
 
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf-dma-sg.h>

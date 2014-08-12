@@ -32,6 +32,8 @@
 #define MSM8x25_MSM_FB_SIZE	0x3FC000
 #endif
 
+#define MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE 1244160
+
 static unsigned fb_size = MSM_FB_SIZE;
 static int __init fb_size_setup(char *p)
 {
@@ -45,6 +47,14 @@ static struct resource msm_fb_resources[] = {
 		.flags  = IORESOURCE_DMA,
 	}
 };
+
+#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
+static struct resource msm_v4l2_video_overlay_resources[] = {
+	{
+		.flags = IORESOURCE_DMA,
+	}
+};
+#endif
 
 static int msm_fb_detect_panel(const char *name)
 {
@@ -70,8 +80,20 @@ static struct platform_device msm_fb_device = {
 	}
 };
 
+#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
+static struct platform_device msm_v4l2_video_overlay_device = {
+		.name   = "msm_v4l2_overlay_pd",
+		.id     = 0,
+		.num_resources  = ARRAY_SIZE(msm_v4l2_video_overlay_resources),
+		.resource       = msm_v4l2_video_overlay_resources,
+	};
+#endif
+
 static struct platform_device *msm_fb_devices[] __initdata = {
 	&msm_fb_device,
+#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
+	&msm_v4l2_video_overlay_device,
+#endif
 };
 
 
