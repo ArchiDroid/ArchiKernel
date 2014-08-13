@@ -31,6 +31,8 @@ source "drivers/gpu/stub/Kconfig"
 
 source "drivers/gpu/ion/Kconfig"
 
+source "drivers/gpu/vithar/Kconfig"
+
 if !MALI_VER_BEFORE_R3P2
 	source "drivers/gpu/mali400/Kconfig"
 endif

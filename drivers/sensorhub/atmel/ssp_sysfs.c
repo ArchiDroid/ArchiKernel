@@ -211,17 +211,24 @@ static ssize_t set_sensors_enable(struct device *dev,
 	if (uNewEnable == atomic_read(&data->aSensorEnable))
 		return size;
 
-	for (uChangedSensor = 0; uChangedSensor < SENSOR_MAX; uChangedSensor++)
+	for (uChangedSensor = 0; uChangedSensor < SENSOR_MAX; uChangedSensor++) {
 		if ((atomic_read(&data->aSensorEnable) & (1 << uChangedSensor))
 			!= (uNewEnable & (1 << uChangedSensor))) {
 
-			if (uNewEnable & (1 << uChangedSensor))
+			if (uNewEnable & (1 << uChangedSensor)) {
 				ssp_add_sensor(data, uChangedSensor);
-			else
+				/* Change to ADD_SENSOR_STATE from KitKat */
+				if (data->aiCheckStatus[uChangedSensor] !=
+					INITIALIZATION_STATE)
+					data->aiCheckStatus[uChangedSensor] =
+						ADD_SENSOR_STATE;
+			} else {
 				ssp_remove_sensor(data, uChangedSensor,
 					uNewEnable);
+			}
 			break;
 		}
+	}
 
 	atomic_set(&data->aSensorEnable, uNewEnable);
 

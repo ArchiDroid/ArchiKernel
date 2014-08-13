@@ -39,4 +39,4 @@
 #include "mmu_types.h"
 #include "lpae_types.h"
 
-#endif /// _ARM_TYPES_H_
+#endif /* _ARM_TYPES_H_ */

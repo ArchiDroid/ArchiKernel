@@ -2365,7 +2365,10 @@ static int isx012_check_wait_af_complete(struct v4l2_subdev *sd, bool cancel)
 
 static void isx012_af_worker(struct work_struct *work)
 {
-	isx012_start_af(&TO_STATE(work, af_work)->sd);
+	struct isx012_state *state = container_of(work, \
+			struct isx012_state, af_work);
+
+	isx012_start_af(&state->sd);
 }
 
 /* PX: Set focus mode */
@@ -2665,9 +2668,13 @@ static int isx012_control_stream(struct v4l2_subdev *sd, u32 cmd)
 		state->capture.lowlux_night = 0;
 
 		/* We turn flash off if one-shot flash is still on. */
-		if (isx012_is_hwflash_on(sd))
-			isx012_flash_oneshot(sd, ISX012_FLASH_OFF);
-		else
+		if (isx012_is_hwflash_on(sd)){
+			if(state->flash.mode == FLASH_MODE_TORCH){
+				isx012_flash_torch(sd, ISX012_FLASH_OFF);
+			}else{
+				isx012_flash_oneshot(sd, ISX012_FLASH_OFF);
+			}
+		}else
 			state->flash.on = 0;
 
 		if (state->flash.preflash == PREFLASH_ON)
@@ -2716,8 +2723,10 @@ static int isx012_set_flash_mode(struct v4l2_subdev *sd, s32 val)
 		return 0;
 	}
 
-	if (val == FLASH_MODE_TORCH)
+	if (val == FLASH_MODE_TORCH){
+		//if(state->runmode == RUNMODE_INIT) return 0; //prevent turn on flash before initiated(commented because creating prob with third party apps).
 		isx012_flash_torch(sd, ISX012_FLASH_ON);
+	}
 
 	if ((state->flash.mode == FLASH_MODE_TORCH)
 	    && (val == FLASH_MODE_OFF))
@@ -2854,26 +2863,32 @@ static inline void isx012_get_exif_flash(struct v4l2_subdev *sd,
 
 	*flash = 0;
 
-	switch (state->flash.mode) {
-	case FLASH_MODE_OFF:
-		*flash |= EXIF_FLASH_MODE_SUPPRESSION;
-		break;
+	if(state->flash.support)
+	{
+		switch (state->flash.mode)
+		{
+		case FLASH_MODE_OFF:
+			*flash |= EXIF_FLASH_MODE_SUPPRESSION;
+			 break;
 
-	case FLASH_MODE_AUTO:
-		*flash |= EXIF_FLASH_MODE_AUTO;
-		break;
+		case FLASH_MODE_AUTO:
+			*flash |= EXIF_FLASH_MODE_AUTO;
+			 break;
 
-	case FLASH_MODE_ON:
-	case FLASH_MODE_TORCH:
-		*flash |= EXIF_FLASH_MODE_FIRING;
-		break;
+		case FLASH_MODE_ON:
+		case FLASH_MODE_TORCH:
+			*flash |= EXIF_FLASH_MODE_FIRING;
+			 break;
 
-	default:
-		break;
-	}
+		default:
+			break;
+		}
 
-	if (state->flash.on)
-		*flash |= EXIF_FLASH_FIRED;
+		if(state->flash.on)
+			*flash |= EXIF_FLASH_FIRED;
+
+	} else
+		*flash = EXIF_NO_FLASH ;
 }
 
 /* PX: */

@@ -845,19 +845,21 @@ irqreturn_t s5p_mixer_irq(int irq, void *dev_id)
 				mixer_base + S5P_MXR_INT_STATUS);
 			s5p_vp_ctrl_get_src_addr(&top_y_addr, &top_c_addr);
 
-			pre_vp_buff_idx = s5ptv_vp_buff.vp_access_buff_idx;
-			for (i = 0; i < S5PTV_VP_BUFF_CNT; i++) {
-				if (top_y_addr == s5ptv_vp_buff.vp_buffs[i].phy_base) {
-					s5ptv_vp_buff.vp_access_buff_idx = i;
-					break;
+			if (top_y_addr != 0 && top_c_addr != 0) {
+				pre_vp_buff_idx = s5ptv_vp_buff.vp_access_buff_idx;
+				for (i = 0; i < S5PTV_VP_BUFF_CNT; i++) {
+					if (top_y_addr == s5ptv_vp_buff.vp_buffs[i].phy_base) {
+						s5ptv_vp_buff.vp_access_buff_idx = i;
+						break;
+					}
 				}
-			}
 
-			for (i = 0; i < S5PTV_VP_BUFF_CNT - 1; i++) {
-				if (s5ptv_vp_buff.copy_buff_idxs[i]
-					== s5ptv_vp_buff.vp_access_buff_idx) {
-					s5ptv_vp_buff.copy_buff_idxs[i] = pre_vp_buff_idx;
-					break;
+				for (i = 0; i < S5PTV_VP_BUFF_CNT - 1; i++) {
+					if (s5ptv_vp_buff.copy_buff_idxs[i]
+							== s5ptv_vp_buff.vp_access_buff_idx) {
+						s5ptv_vp_buff.copy_buff_idxs[i] = pre_vp_buff_idx;
+						break;
+					}
 				}
 			}
 			wake_up(&s5ptv_wq);

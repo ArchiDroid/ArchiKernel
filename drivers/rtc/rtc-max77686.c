@@ -177,10 +177,8 @@ static inline int max77686_rtc_update(struct max77686_rtc_info *info,
 		dev_err(info->dev, "%s: fail to write update reg(ret=%d, data=0x%x)\n",
 				__func__, ret, data);
 	else {
-                pr_info("%s: Enter IN 16msec msleep.\n", __func__);
 		/* Minimum 16ms delay required before RTC update. */
 		msleep(MAX77686_RTC_UPDATE_DELAY);
-                pr_info("%s: Exit OUT 16msec msleep.\n", __func__);
 	}
 
 	return ret;

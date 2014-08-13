@@ -318,7 +318,7 @@ static int usb_dev_restore(struct device *dev)
 static const struct dev_pm_ops usb_device_pm_ops = {
 	.prepare =	usb_dev_prepare,
 	.complete =	usb_dev_complete,
-#if !defined(CONFIG_MACH_P4NOTE) && !defined(CONFIG_MACH_SP7160LTE)
+#if (!defined(CONFIG_MACH_SP7160LTE))
 	.suspend =	usb_dev_suspend,
 	.resume =	usb_dev_resume,
 #endif

@@ -70,9 +70,9 @@
 /*
  * Some commonly used atomic types.
  */
-typedef ATOMIC(int32)  AtmSInt32 __attribute__ ((aligned (4)));
-typedef ATOMIC(uint32) AtmUInt32 __attribute__ ((aligned (4)));
-typedef ATOMIC(uint64) AtmUInt64 __attribute__ ((aligned (8)));
+typedef ATOMIC(int32)  AtmSInt32 __attribute__((aligned(4)));
+typedef ATOMIC(uint32) AtmUInt32 __attribute__((aligned(4)));
+typedef ATOMIC(uint64) AtmUInt64 __attribute__((aligned(8)));
 
 /*
  * Architecture-dependent implementations.

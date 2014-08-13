@@ -71,33 +71,32 @@
  *
  */
 
-#define MVP_VERSION_CODE 16800037
+#define MVP_VERSION_CODE 16800041
 #define MVP_VERSION_CODE_FORMATSTR       "%s_%d"
-#define MVP_VERSION_CODE_FORMATARGSV(V_) MVP_STRINGIFY(1.5.0), (V_)
-#define MVP_VERSION_CODE_FORMATARGS             \
-   MVP_VERSION_CODE_FORMATARGSV(MVP_VERSION_CODE)
+#define MVP_VERSION_CODE_FORMATARGSV(V_) MVP_STRINGIFY(1.6.0), (V_)
+#define MVP_VERSION_CODE_FORMATARGS	\
+	MVP_VERSION_CODE_FORMATARGSV(MVP_VERSION_CODE)
 
-#define MVP_VERSION_FORMATSTR                        \
-   MVP_VERSION_CODE_FORMATSTR                        \
-   " compiled at %s based on revision %s by user %s."
+#define MVP_VERSION_FORMATSTR				\
+	MVP_VERSION_CODE_FORMATSTR			\
+	" compiled at %s based on revision %s by user %s."
 
-#define MVP_VERSION_FORMATARGS      \
-   MVP_VERSION_CODE_FORMATARGS,     \
-   __DATE__,                        \
-   MVP_STRINGIFY(b9dde5cc454d937417c6454b5620ca203af963e9),     \
-   MVP_STRINGIFY()
+#define MVP_VERSION_FORMATARGS		\
+	MVP_VERSION_CODE_FORMATARGS,	\
+	__DATE__,			\
+	MVP_STRINGIFY(b929bac713959c76f8eb1f485c86be6156df4614),	\
+	MVP_STRINGIFY()
 
-#define MvpVersion_Map(map_, version_)           \
-   ({                                            \
-      uint32 ii_;                                \
-      uint32 versionApi_ = 0;                    \
-      for (ii_ = 0; ii_ < NELEM(map_); ii_++) {  \
-         if (map_[ii_] <= version_) {            \
-            versionApi_ = map_[ii_];             \
-         }                                       \
-      }                                          \
-      versionApi_;                               \
-   })
+#define MvpVersion_Map(map_, version_) ({		\
+	uint32 ii_;					\
+	uint32 versionApi_ = 0;				\
+							\
+	for (ii_ = 0; ii_ < NELEM(map_); ii_++) {	\
+		if (map_[ii_] <= version_)		\
+			versionApi_ = map_[ii_];	\
+	}						\
+	versionApi_;					\
+})
 
 /*
  * MVP.apk must communicate to VVP and OEK on many of its APIs. To
@@ -115,5 +114,6 @@
 
 #define BALLOON_WATCHDOG     16800010
 #define GUEST_SAME_MINFREE   16800033
+#define BALLOON_WATCHDOG_RO  16800039
 
 #endif /* _MVP_VERSION_H_ */

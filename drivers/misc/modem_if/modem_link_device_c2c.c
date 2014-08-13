@@ -685,9 +685,6 @@ static void cmd_phone_start_handler(struct shmem_link_device *shmd)
 	if (wake_lock_active(&shmd->wlock))
 		wake_unlock(&shmd->wlock);
 
-	mif_err("%s: Send 0xC2 (INIT_END)\n", ld->name);
-	send_int2cp(shmd, INT_CMD(INT_CMD_INIT_END));
-
 	s5p_change_irq_type(shmd->irq_ap_wakeup, ap_wakeup);
 	if (ap_wakeup && !wake_lock_active(&shmd->ap_wlock))
 		wake_lock(&shmd->ap_wlock);
@@ -2027,6 +2024,37 @@ static int c2c_init_ipc_map(struct shmem_link_device *shmd)
 
 	return 0;
 }
+static int c2c_init_communication(struct link_device *ld, struct io_device *iod)
+{
+	struct shmem_link_device *shmd = to_shmem_link_device(ld);
+	struct io_device *check_iod;
+
+	if (iod->format == IPC_BOOT)
+		return 0;
+
+	/* send 0xC2 */
+	switch(iod->format) {
+	case IPC_FMT:
+		check_iod = link_get_iod_with_format(ld, IPC_RFS);
+		if (check_iod ? atomic_read(&check_iod->opened) : true) {
+			mif_err("%s: Send 0xC2 (INIT_END)\n", ld->name);
+			send_int2cp(shmd, INT_CMD(INT_CMD_INIT_END));
+		} else
+			mif_err("%s defined but not opened\n", check_iod->name);
+		break;
+	case IPC_RFS:
+		check_iod = link_get_iod_with_format(ld, IPC_FMT);
+		if (check_iod && atomic_read(&check_iod->opened)) {
+			mif_err("%s: Send 0xC2 (INIT_END)\n", ld->name);
+			send_int2cp(shmd, INT_CMD(INT_CMD_INIT_END));
+		} else
+			mif_err("not opened\n");
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
 
 #if 0
 static void c2c_link_terminate(struct link_device *ld, struct io_device *iod)
@@ -2095,6 +2123,7 @@ struct link_device *c2c_create_link_device(struct platform_device *pdev)
 	/*
 	** Set attributes as a link device
 	*/
+	ld->init_comm = c2c_init_communication;
 #if 0
 	ld->terminate_comm = c2c_link_terminate;
 #endif

@@ -33,10 +33,11 @@
 #include "include_check.h"
 
 void  QP_HostInit(void);
-int32 QP_GuestAttachRequest(MvpkmVM *vm,
-                            QPInitArgs *args,
-                            MPN base,
-                            uint32 nr_pages);
+int32
+QP_GuestAttachRequest(struct MvpkmVM *vm,
+		      QPInitArgs *args,
+		      MPN base,
+		      uint32 nr_pages);
 int32 QP_GuestDetachRequest(QPId id);
 void  QP_DetachAll(Mksck_VmId vmID);
 int32 QP_NotifyListener(QPInitArgs *args);

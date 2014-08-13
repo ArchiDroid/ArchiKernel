@@ -415,14 +415,9 @@ static void ssp_early_suspend(struct early_suspend *handler)
 	func_dbg();
 	disable_debug_timer(data);
 
-#ifdef CONFIG_SENSORS_SSP_SENSORHUB
 	/* give notice to user that AP goes to sleep */
 	ssp_sensorhub_report_notice(data, MSG2SSP_AP_STATUS_SLEEP);
-	ssp_sleep_mode(data);
-#else
-	if (atomic_read(&data->aSensorEnable) > 0)
-		ssp_sleep_mode(data);
-#endif
+	ssp_send_status_cmd(data, MSG2SSP_AP_STATUS_SLEEP);
 
 	data->bCheckSuspend = true;
 }
@@ -437,17 +432,12 @@ static void ssp_late_resume(struct early_suspend *handler)
 
 	data->bCheckSuspend = false;
 
-#ifdef CONFIG_SENSORS_SSP_SENSORHUB
 	/* give notice to user that AP goes to sleep */
 	ssp_sensorhub_report_notice(data, MSG2SSP_AP_STATUS_WAKEUP);
-	ssp_resume_mode(data);
-#else
-	if (atomic_read(&data->aSensorEnable) > 0)
-		ssp_resume_mode(data);
-#endif
+	ssp_send_status_cmd(data, MSG2SSP_AP_STATUS_WAKEUP);
 }
 
-#else /* CONFIG_HAS_EARLYSUSPEND */
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
 static int ssp_suspend(struct device *dev)
 {
@@ -455,12 +445,9 @@ static int ssp_suspend(struct device *dev)
 	struct ssp_data *data = i2c_get_clientdata(client);
 
 	func_dbg();
-	disable_debug_timer(data);
 
-	if (atomic_read(&data->aSensorEnable) > 0)
-		ssp_sleep_mode(data);
+	ssp_send_status_cmd(data, MSG2SSP_AP_STATUS_SUSPEND);
 
-	data->bCheckSuspend = true;
 	return 0;
 }
 
@@ -470,12 +457,8 @@ static int ssp_resume(struct device *dev)
 	struct ssp_data *data = i2c_get_clientdata(client);
 
 	func_dbg();
-	enable_debug_timer(data);
 
-	data->bCheckSuspend = false;
-
-	if (atomic_read(&data->aSensorEnable) > 0)
-		ssp_resume_mode(data);
+	ssp_send_status_cmd(data, MSG2SSP_AP_STATUS_RESUME);
 
 	return 0;
 }
@@ -484,8 +467,6 @@ static const struct dev_pm_ops ssp_pm_ops = {
 	.suspend = ssp_suspend,
 	.resume = ssp_resume
 };
-
-#endif /* CONFIG_HAS_EARLYSUSPEND */
 
 static const struct i2c_device_id ssp_id[] = {
 	{"ssp", 0},
@@ -499,9 +480,7 @@ static struct i2c_driver ssp_driver = {
 	.shutdown = ssp_shutdown,
 	.id_table = ssp_id,
 	.driver = {
-#ifndef CONFIG_HAS_EARLYSUSPEND
 		   .pm = &ssp_pm_ops,
-#endif
 		   .owner = THIS_MODULE,
 		   .name = "ssp"
 		},

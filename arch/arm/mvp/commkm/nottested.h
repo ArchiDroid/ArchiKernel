@@ -47,7 +47,7 @@
 #endif
 
 #define NOT_TESTED() NOT_TESTED_JIRA(0)
-#define NOT_TESTED_JIRA(_tkt,...) NotTested(_tkt, __FILE__, __LINE__)
+#define NOT_TESTED_JIRA(_tkt, ...) NotTested(_tkt, __FILE__, __LINE__)
 
 void NotTested(int tkt, char const *file, int line);
 

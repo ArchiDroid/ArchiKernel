@@ -26,6 +26,7 @@
 #include <plat/gpio-cfg.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
@@ -120,6 +121,10 @@ struct max77693_muic_info {
 	struct wake_lock muic_wake_lock;
 
 	enum cable_type_muic	cable_type;
+
+#if defined(CONFIG_MUIC_MAX77693_RESET_WA)
+	struct work_struct	reg_init_work;
+#endif /* CONFIG_MUIC_MAX77693_RESET_WA */
 #if defined(CONFIG_MUIC_MAX77693_SUPPORT_SMART_DOCK) ||\
 	defined(CONFIG_MUIC_MAX77693_SUPPORT_OTG_AUDIO_DOCK)
 	struct delayed_work	dock_work;
@@ -1145,6 +1150,29 @@ static ssize_t max77693_muic_show_regdump(struct device *dev,
 }
 #endif /* CONFIG_MUIC_MAX77693_DEBUG */
 
+#if defined(CONFIG_MUIC_MAX77693_RESET_WA)
+static ssize_t max77693_muic_show_reset(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct max77693_muic_info *info = dev_get_drvdata(dev);
+	u8 muic_irq_mask[3] = {};
+	u8 reset_val = 0x0;
+
+	/* MUIC INT1 ~ INT3 MASK register check */
+	max77693_bulk_read(info->muic, MAX77693_MUIC_REG_INTMASK1,
+			MAX77693_NUM_IRQ_MUIC_REGS, muic_irq_mask);
+
+	if ((reset_val == muic_irq_mask[0])
+			&& (reset_val == muic_irq_mask[1])
+			&& (reset_val == muic_irq_mask[2])) {
+		return sprintf(buf, "RESETED\n");
+	}
+
+	return sprintf(buf, "NORMAL\n");
+}
+#endif /* CONFIG_MUIC_MAX77693_RESET_WA */
+
 static DEVICE_ATTR(uart_sel, 0664, max77693_muic_show_uart_sel,
 		max77693_muic_set_uart_sel);
 static DEVICE_ATTR(usb_state, S_IRUGO, max77693_muic_show_usb_state, NULL);
@@ -1181,6 +1209,10 @@ static DEVICE_ATTR(is_factory_mode, 0664,
 static DEVICE_ATTR(regdump, S_IRUGO, max77693_muic_show_regdump, NULL);
 #endif /* CONFIG_MUIC_MAX77693_DEBUG */
 
+#if defined(CONFIG_MUIC_MAX77693_RESET_WA)
+static DEVICE_ATTR(reset, S_IRUGO, max77693_muic_show_reset, NULL);
+#endif /* CONFIG_MUIC_MAX77693_RESET_WA */
+
 static struct attribute *max77693_muic_attributes[] = {
 	&dev_attr_uart_sel.attr,
 	&dev_attr_usb_state.attr,
@@ -1203,6 +1235,9 @@ static struct attribute *max77693_muic_attributes[] = {
 #if defined(CONFIG_MUIC_MAX77693_DEBUG)
 	&dev_attr_regdump.attr,
 #endif /* CONFIG_MUIC_MAX77693_DEBUG */
+#if defined(CONFIG_MUIC_MAX77693_RESET_WA)
+	&dev_attr_reset.attr,
+#endif /* CONFIG_MUIC_MAX77693_RESET_WA */
 	NULL
 };
 
@@ -2676,21 +2711,44 @@ do {									\
 
 static int max77693_muic_irq_init(struct max77693_muic_info *info)
 {
-	int ret;
 	u8 val;
+	int ret = 0;
 
 	dev_info(info->dev, "%s: system_rev=%x\n", __func__, system_rev);
 
-	/* INTMASK1  3:ADC1K 2:ADCErr 1:ADCLow 0:ADC */
-	/* INTMASK2  0:Chgtype */
-	max77693_write_reg(info->muic, MAX77693_MUIC_REG_INTMASK1, 0x09);
-	max77693_write_reg(info->muic, MAX77693_MUIC_REG_INTMASK2, 0x11);
-	max77693_write_reg(info->muic, MAX77693_MUIC_REG_INTMASK3, 0x00);
+	max77693_read_reg(info->muic, MAX77693_MUIC_REG_INT1, &val);
+	dev_info(info->dev, "%s: reg=%x, val=%x\n", __func__,
+		 MAX77693_MUIC_REG_INT1, val);
+	max77693_read_reg(info->muic, MAX77693_MUIC_REG_INT2, &val);
+	dev_info(info->dev, "%s: reg=%x, val=%x\n", __func__,
+		 MAX77693_MUIC_REG_INT2, val);
+	max77693_read_reg(info->muic, MAX77693_MUIC_REG_INT3, &val);
+	dev_info(info->dev, "%s: reg=%x, val=%x\n", __func__,
+		 MAX77693_MUIC_REG_INT3, val);
 
-	REQUEST_IRQ(info->irq_adc, "muic-adc");
-	REQUEST_IRQ(info->irq_chgtype, "muic-chgtype");
-	REQUEST_IRQ(info->irq_vbvolt, "muic-vbvolt");
-	REQUEST_IRQ(info->irq_adc1k, "muic-adc1k");
+	if (info->max77693 && (info->max77693->irq_base > 0)) {
+		int irq_base = info->max77693->irq_base;
+
+		info->irq_adc = irq_base + MAX77693_MUIC_IRQ_INT1_ADC;
+		REQUEST_IRQ(info->irq_adc, "muic-adc");
+		if (ret < 0)
+			info->irq_adc = 0;
+
+		info->irq_chgtype = irq_base + MAX77693_MUIC_IRQ_INT2_CHGTYP;
+		REQUEST_IRQ(info->irq_chgtype, "muic-chgtype");
+		if (ret < 0)
+			info->irq_chgtype = 0;
+
+		info->irq_vbvolt = irq_base + MAX77693_MUIC_IRQ_INT2_VBVOLT;
+		REQUEST_IRQ(info->irq_vbvolt, "muic-vbvolt");
+		if (ret < 0)
+			info->irq_vbvolt = 0;
+
+		info->irq_adc1k = irq_base + MAX77693_MUIC_IRQ_INT1_ADC1K;
+		REQUEST_IRQ(info->irq_adc1k, "muic-adc1k");
+		if (ret < 0)
+			info->irq_adc1k = 0;
+	}
 
 	dev_info(info->dev, "adc:%d chgtype:%d adc1k:%d vbvolt:%d",
 		info->irq_adc, info->irq_chgtype,
@@ -2708,16 +2766,7 @@ static int max77693_muic_irq_init(struct max77693_muic_info *info)
 	dev_info(info->dev, "%s: reg=%x, val=%x\n", __func__,
 		 MAX77693_MUIC_REG_INTMASK3, val);
 
-	max77693_read_reg(info->muic, MAX77693_MUIC_REG_INT1, &val);
-	dev_info(info->dev, "%s: reg=%x, val=%x\n", __func__,
-		 MAX77693_MUIC_REG_INT1, val);
-	max77693_read_reg(info->muic, MAX77693_MUIC_REG_INT2, &val);
-	dev_info(info->dev, "%s: reg=%x, val=%x\n", __func__,
-		 MAX77693_MUIC_REG_INT2, val);
-	max77693_read_reg(info->muic, MAX77693_MUIC_REG_INT3, &val);
-	dev_info(info->dev, "%s: reg=%x, val=%x\n", __func__,
-		 MAX77693_MUIC_REG_INT3, val);
-	return 0;
+	return ret;
 }
 
 #define CHECK_GPIO(_gpio, _name)					\
@@ -3070,6 +3119,71 @@ void max77693_update_jig_state(struct max77693_muic_info *info)
 	mdata->jig_state(jig_state);
 }
 
+static void max77693_muic_free_irqs(struct max77693_muic_info *info)
+{
+
+	pr_info("%s:%s\n", DEV_NAME, __func__);
+
+	/* free MUIC IRQ */
+	if (info->irq_adc) {
+		free_irq(info->irq_adc, info);
+		pr_info("%s:%s irq(%d) free done\n", DEV_NAME, __func__,
+				info->irq_adc);
+	}
+	if (info->irq_chgtype) {
+		free_irq(info->irq_chgtype, info);
+		pr_info("%s:%s irq(%d) free done\n", DEV_NAME, __func__,
+				info->irq_chgtype);
+	}
+	if (info->irq_vbvolt) {
+		free_irq(info->irq_vbvolt, info);
+		pr_info("%s:%s irq(%d) free done\n", DEV_NAME, __func__,
+				info->irq_vbvolt);
+	}
+	if (info->irq_adc1k) {
+		free_irq(info->irq_adc1k, info);
+		pr_info("%s:%s irq(%d) free done\n", DEV_NAME, __func__,
+				info->irq_adc1k);
+	}
+}
+
+static void max77693_muic_init_regs(struct max77693_muic_info *info)
+{
+	u8 cntl1_val, cntl2_val, cntl3_val;
+	int ret;
+
+	/* Set ADC debounce time: 25ms */
+	max77693_muic_set_adcdbset(info, 2);
+
+	max77693_read_reg(info->muic, MAX77693_MUIC_REG_CTRL1, &cntl1_val);
+	max77693_read_reg(info->muic, MAX77693_MUIC_REG_CTRL2, &cntl2_val);
+	max77693_read_reg(info->muic, MAX77693_MUIC_REG_CTRL3, &cntl3_val);
+	pr_info("%s:%s CONTROL[1:0x%x, 2:0x%x, 3:0x%x]\n", DEV_NAME, __func__,
+			cntl1_val, cntl2_val, cntl3_val);
+
+	ret = max77693_muic_irq_init(info);
+	if (ret < 0) {
+		pr_err("%s:%s Failed to initialize MUIC irq:%d\n", DEV_NAME,
+				__func__, ret);
+		max77693_muic_free_irqs(info);
+	}
+}
+
+#if defined(CONFIG_MUIC_MAX77693_RESET_WA)
+static void max77693_muic_rewrite_regs(struct work_struct *work)
+{
+	struct max77693_muic_info *info =
+	    container_of(work, struct max77693_muic_info, reg_init_work);
+
+	mutex_lock(&info->mutex);
+	pr_info("%s:%s\n", DEV_NAME, __func__);
+
+	max77693_muic_free_irqs(info);
+	max77693_muic_init_regs(info);
+	mutex_unlock(&info->mutex);
+}
+#endif /* CONFIG_MUIC_MAX77693_RESET_WA */
+
 static int __devinit max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
@@ -3077,7 +3191,6 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	struct max77693_muic_info *info;
 
 	int switch_sel;
-	u8 cntl1_val, cntl2_val, cntl3_val;
 	int ret;
 
 	pr_info("func:%s\n", __func__);
@@ -3091,10 +3204,6 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->max77693 = max77693;
 	info->muic = max77693->muic;
-	info->irq_adc = max77693->irq_base + MAX77693_MUIC_IRQ_INT1_ADC;
-	info->irq_chgtype = max77693->irq_base + MAX77693_MUIC_IRQ_INT2_CHGTYP;
-	info->irq_vbvolt = max77693->irq_base + MAX77693_MUIC_IRQ_INT2_VBVOLT;
-	info->irq_adc1k = max77693->irq_base + MAX77693_MUIC_IRQ_INT1_ADC1K;
 	info->muic_data = pdata->muic;
 	info->is_adc_open_prev = true;
 	info->is_otg_test = false;
@@ -3182,23 +3291,17 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 
 	mutex_init(&info->mutex);
 
-	/* Set ADC debounce time: 25ms */
-	max77693_muic_set_adcdbset(info, 2);
-
-	max77693_read_reg(info->muic, MAX77693_MUIC_REG_CTRL1, &cntl1_val);
-	max77693_read_reg(info->muic, MAX77693_MUIC_REG_CTRL2, &cntl2_val);
-	max77693_read_reg(info->muic, MAX77693_MUIC_REG_CTRL3, &cntl3_val);
-	pr_info("%s:%s CONTROL[1:0x%x, 2:0x%x, 3:0x%x]\n", DEV_NAME, __func__,
-			cntl1_val, cntl2_val, cntl3_val);
-
-	ret = max77693_muic_irq_init(info);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to initialize MUIC irq:%d\n", ret);
-		goto fail;
-	}
+	mutex_lock(&info->mutex);
+	max77693_muic_init_regs(info);
+	mutex_unlock(&info->mutex);
 
 	/* init jig state */
 	max77693_update_jig_state(info);
+
+#if defined(CONFIG_MUIC_MAX77693_RESET_WA)
+	INIT_WORK(&info->reg_init_work, max77693_muic_rewrite_regs);
+	max77693->muic_init_work = &info->reg_init_work;
+#endif /* CONFIG_MUIC_MAX77693_RESET_WA */
 
 	/* initial cable detection */
 #if defined(CONFIG_MUIC_MAX77693_SUPPORT_SMART_DOCK) ||\
@@ -3224,14 +3327,6 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	return 0;
 
  fail:
-	if (info->irq_adc)
-		free_irq(info->irq_adc, NULL);
-	if (info->irq_chgtype)
-		free_irq(info->irq_chgtype, NULL);
-	if (info->irq_vbvolt)
-		free_irq(info->irq_vbvolt, NULL);
-	if (info->irq_adc1k)
-		free_irq(info->irq_adc1k, NULL);
 	mutex_destroy(&info->mutex);
  err_input:
 	platform_set_drvdata(pdev, NULL);
@@ -3250,6 +3345,9 @@ static int __devexit max77693_muic_remove(struct platform_device *pdev)
 	if (info) {
 		dev_info(info->dev, "func:%s\n", __func__);
 
+#if defined(CONFIG_MUIC_MAX77693_RESET_WA)
+		cancel_work_sync(&info->reg_init_work);
+#endif /* CONFIG_MUIC_MAX77693_RESET_WA*/
 #if defined(CONFIG_MUIC_MAX77693_SUPPORT_SMART_DOCK) ||\
 	defined(CONFIG_MUIC_MAX77693_SUPPORT_OTG_AUDIO_DOCK)
 		cancel_delayed_work(&info->dock_work);
@@ -3259,10 +3357,7 @@ static int __devexit max77693_muic_remove(struct platform_device *pdev)
 		cancel_delayed_work(&info->usb_work);
 		cancel_delayed_work(&info->mhl_work);
 
-		free_irq(info->irq_adc, info);
-		free_irq(info->irq_chgtype, info);
-		free_irq(info->irq_vbvolt, info);
-		free_irq(info->irq_adc1k, info);
+		max77693_muic_free_irqs(info);
 
 		wake_lock_destroy(&info->muic_wake_lock);
 		mutex_destroy(&info->mutex);

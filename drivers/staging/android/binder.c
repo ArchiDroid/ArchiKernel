@@ -1605,12 +1605,14 @@ static void binder_transaction(struct binder_proc *proc,
 	for (; offp < off_end; offp++) {
 		struct flat_binder_object *fp;
 		if (*offp > t->buffer->data_size - sizeof(*fp) ||
-		    *offp < off_min ||
+				*offp < off_min ||
 		    t->buffer->data_size < sizeof(*fp) ||
 		    !IS_ALIGNED(*offp, sizeof(void *))) {
 			binder_user_error("%d:%d got transaction with invalid offset, %zd (min %zd, max %zd)\n",
-			                   proc->pid, thread->pid, *offp, off_min,
-			                   (t->buffer->data_size - sizeof(*fp)));
+			  proc->pid, thread->pid, *offp,
+			  off_min,
+			  (t->buffer->data_size -
+			  sizeof(*fp)));
 			return_error = BR_FAILED_REPLY;
 			goto err_bad_offset;
 		}

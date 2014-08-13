@@ -710,6 +710,13 @@ struct modem_ctl {
 	unsigned gpio_host_active;
 	unsigned gpio_slave_wakeup;
 
+#ifdef CONFIG_EXYNOS4_CPUFREQ
+	/* cpu/bus frequency lock */
+	unsigned gpio_cpufreq_lock;
+	struct delayed_work work_cpu_lock;
+	struct delayed_work work_cpu_unlock;
+#endif
+
 	unsigned gpio_cp_dump_int;
 	unsigned gpio_ap_dump_int;
 	unsigned gpio_flm_uart_sel;

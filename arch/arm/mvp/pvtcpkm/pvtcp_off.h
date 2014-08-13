@@ -63,7 +63,7 @@ enum PvtcpOffPvskFlags {
  */
 
 typedef struct PvtcpOffBuf {
-   CommOSList link;    // Link in socket queue.
+   CommOSList link;    /* Link in socket queue. */
    unsigned short len;
    unsigned short off;
    char data[1];
@@ -216,5 +216,5 @@ PvskSetFlag(struct PvtcpSock *pvsk,
 
 int PvtcpOffSockInit(PvtcpSock *pvsk, CommChannel channel);
 
-#endif // _PVTCP_OFF_H_
+#endif /* _PVTCP_OFF_H_ */
 

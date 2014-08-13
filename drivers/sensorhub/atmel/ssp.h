@@ -136,6 +136,9 @@ enum {
 #define MSG2SSP_AP_STATUS_WAKEUP		0xD1
 #define MSG2SSP_AP_STATUS_SLEEP			0xD2
 #define MSG2SSP_AP_STATUS_RESET			0xD3
+#define MSG2SSP_AP_STATUS_RESUME		0xD5
+#define MSG2SSP_AP_STATUS_SUSPEND		0xD6
+
 #define MSG2SSP_AP_WHOAMI			0x0F
 #define MSG2SSP_AP_FIRMWARE_REV			0xF0
 #define MSG2SSP_AP_SENSOR_FORMATION		0xF1
@@ -350,8 +353,7 @@ int check_fwbl(struct ssp_data *);
 void remove_input_dev(struct ssp_data *);
 void remove_sysfs(struct ssp_data *);
 void remove_event_symlink(struct ssp_data *);
-int ssp_sleep_mode(struct ssp_data *);
-int ssp_resume_mode(struct ssp_data *);
+int ssp_send_status_cmd(struct ssp_data *, char);
 int send_instruction(struct ssp_data *, u8, u8, u8 *, u8);
 int select_irq_msg(struct ssp_data *);
 int get_chipid(struct ssp_data *);

@@ -46,4 +46,4 @@
 #define TSC_READ(_reg)  ARM_MRC_CP15(CYCLE_COUNT, (_reg))
 #define TSC_WRITE(_reg) ARM_MCR_CP15(CYCLE_COUNT, (_reg))
 
-#endif // ifndef _TSC_H_
+#endif /* ifndef _TSC_H_ */

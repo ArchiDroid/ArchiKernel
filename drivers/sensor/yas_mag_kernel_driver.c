@@ -1448,12 +1448,12 @@ geomagnetic_raw_self_test_show(struct device *dev,
 		"Test6 - err = %d, sensitivity = %d,%d\n"
 		"Test7 - err = %d, offset = %d,%d,%d\n"
 		"Test2 - err = %d\n", __func__,
-		err1, id, err3, err4, x, y1, y2, err5, 0, err6, sx, sy,
+		err1, id, err3, err4, x, y1, y2, err5, dir, err6, sx, sy,
 		err7, ohx, ohy, ohz, err2);
 
 	return sprintf(buf,
 			"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-			err1, id, err3, err4, x, y1, y2, err5, 0, err6, sx,
+			err1, id, err3, err4, x, y1, y2, err5, dir, err6, sx,
 			sy, err7, ohx, ohy, ohz, err2);
 }
 

@@ -1021,6 +1021,7 @@ static int exynos4212_vpll_set_rate(struct clk *clk, unsigned long rate)
 			vpll_con0 |= vpll_div_4212[i].mdiv << PLL36XX_MDIV_SHIFT;
 			vpll_con0 |= vpll_div_4212[i].sdiv << PLL36XX_SDIV_SHIFT;
 			vpll_con1 |= vpll_div_4212[i].k << 0;
+			vpll_con0 |= 1 << 31;
 			break;
 		}
 	}

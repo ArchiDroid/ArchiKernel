@@ -332,43 +332,40 @@ out:
 }
 
 struct scatterlist *mmc_blk_get_sg(struct mmc_card *card,
-		unsigned char *buf, int *sg_len, int size)
+     unsigned char *buf, int *sg_len, int size)
 {
 	struct scatterlist *sg;
 	struct scatterlist *sl;
 	int total_sec_cnt, sec_cnt;
 	int max_seg_size, len;
 
-	sl = kmalloc(sizeof(struct scatterlist) * card->host->max_segs, GFP_KERNEL);
-	if (!sl)
-		return NULL;
-
-	sg = (struct scatterlist *)sl;
-	sg_init_table(sg, card->host->max_segs);
-
 	total_sec_cnt = size;
 	max_seg_size = card->host->max_seg_size;
+	len = (size - 1 + max_seg_size) / max_seg_size;
+	sl = kmalloc(sizeof(struct scatterlist) * len, GFP_KERNEL);
 
-	len = 0;
+	if (!sl) {
+		return NULL;
+	}
+	sg = (struct scatterlist *)sl;
+	sg_init_table(sg, len);
+
 	while (total_sec_cnt) {
 		if (total_sec_cnt < max_seg_size)
 			sec_cnt = total_sec_cnt;
 		else
 			sec_cnt = max_seg_size;
-		sg_set_page(sg, virt_to_page(buf), sec_cnt, offset_in_page(buf));
-		buf = buf + sec_cnt;
-		total_sec_cnt = total_sec_cnt - sec_cnt;
-		len++;
-		if (total_sec_cnt == 0)
-			break;
-		sg = sg_next(sg);
+			sg_set_page(sg, virt_to_page(buf), sec_cnt, offset_in_page(buf));
+			buf = buf + sec_cnt;
+			total_sec_cnt = total_sec_cnt - sec_cnt;
+			if (total_sec_cnt == 0)
+				break;
+			sg = sg_next(sg);
 	}
 
 	if (sg)
 		sg_mark_end(sg);
-
 	*sg_len = len;
-
 	return sl;
 }
 
@@ -529,17 +526,31 @@ cmd_done:
 static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
-#if defined(CONFIG_MMC_CPRM)
 	struct mmc_blk_data *md = bdev->bd_disk->private_data;
 	struct mmc_card *card = md->queue.card;
 
+#if defined(CONFIG_MMC_CPRM)
 	static int i;
 	static unsigned long temp_arg[16] = {0};
 #endif
 	int ret = -EINVAL;
 	if (cmd == MMC_IOC_CMD)
 		ret = mmc_blk_ioctl_cmd(bdev, (struct mmc_ioc_cmd __user *)arg);
+	else if(cmd == MMC_IOC_CLOCK)
+	{
+		unsigned int clock = (unsigned int)arg;
+		if( clock < card->host->f_min )
+			clock = card->host->f_min;
 
+		mmc_set_clock(card->host, clock);
+		ret = 0;
+	}
+	else if(cmd == MMC_IOC_BUSWIDTH)
+	{
+		unsigned int width = (unsigned int)arg;
+		mmc_set_bus_width(card->host, width);
+		ret = 0;
+	}
 #if defined(CONFIG_MMC_CPRM)
 	printk(KERN_DEBUG " %s ], %x ", __func__, cmd);
 

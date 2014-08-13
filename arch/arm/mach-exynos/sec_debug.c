@@ -31,6 +31,7 @@
 #include <asm/mach/map.h>
 #include <plat/regs-watchdog.h>
 
+#include <linux/seq_file.h>
 #include <linux/platform_device.h>
 
 #if defined(CONFIG_SEC_MODEM_P8LTE)
@@ -127,6 +128,21 @@ struct rwsem_debug {
  */
 #define SEC_DEBUG_MAGIC_PA S5P_PA_SDRAM
 #define SEC_DEBUG_MAGIC_VA phys_to_virt(SEC_DEBUG_MAGIC_PA)
+
+#ifdef CONFIG_USER_RESET_DEBUG
+enum sec_debug_reset_reason_t {
+	RR_S = 1,
+	RR_W = 2,
+	RR_D = 3,
+	RR_K = 4,
+	RR_M = 5,
+	RR_P = 6,
+	RR_R = 7,
+	RR_B = 8,
+	RR_N = 9,
+
+};
+#endif
 
 enum sec_debug_upload_cause_t {
 	UPLOAD_CAUSE_INIT = 0xCAFEBABE,
@@ -226,10 +242,13 @@ struct sec_debug_core_t {
  * level = 0x10001 when enable = 1 && enable_user = 1
  * The other cases are not considered
  */
+static int reset_reason = 0;
+
 union sec_debug_level_t sec_debug_level = { .en.kernel_fault = 1, };
 
 module_param_named(enable, sec_debug_level.en.kernel_fault, ushort, 0644);
 module_param_named(enable_user, sec_debug_level.en.user_fault, ushort, 0644);
+module_param_named(reset_reason, reset_reason, uint, 0644);
 module_param_named(level, sec_debug_level.uint_val, uint, 0644);
 
 /* klaatu - schedule log */
@@ -618,6 +637,13 @@ static __exit void sec_cp_upload_exit(void)
 module_init(sec_cp_upload_init);
 module_exit(sec_cp_upload_exit);
 #endif
+
+#ifdef CONFIG_SEC_DEBUG_FUPLOAD_DUMP_MORE
+static void dump_all_task_info(void);
+static void dump_cpu_stat(void);
+static void dump_state_and_upload(void);
+#endif
+
 static int sec_debug_panic_handler(struct notifier_block *nb,
 				   unsigned long l, void *buf)
 {
@@ -644,7 +670,15 @@ static int sec_debug_panic_handler(struct notifier_block *nb,
 #ifdef CONFIG_SEC_WATCHDOG_RESET
 	sec_debug_disable_watchdog();
 #endif
+
+#ifdef CONFIG_SEC_DEBUG_FUPLOAD_DUMP_MORE
+	dump_all_task_info();
+	dump_cpu_stat();
+
+	show_state_filter(TASK_STATE_MAX);	/* no backtrace */
+#else
 	show_state();
+#endif
 
 	sec_debug_dump_stack();
 #if defined(CONFIG_SEC_MODEM_P8LTE)
@@ -1244,6 +1278,59 @@ static int __init sec_debug_user_fault_init(void)
 }
 
 device_initcall(sec_debug_user_fault_init);
+#endif
+
+#ifdef CONFIG_USER_RESET_DEBUG
+static int set_reset_reason_proc_show(struct seq_file *m, void *v)
+{
+	if (reset_reason == RR_S)
+		seq_printf(m, "SPON\n");
+	else if (reset_reason == RR_W)
+		seq_printf(m, "WPON\n");
+	else if (reset_reason == RR_D)
+		seq_printf(m, "DPON\n");
+	else if (reset_reason == RR_K)
+		seq_printf(m, "KPON\n");
+	else if (reset_reason == RR_M)
+		seq_printf(m, "MPON\n");
+	else if (reset_reason == RR_P)
+		seq_printf(m, "PPON\n");
+	else if (reset_reason == RR_R)
+		seq_printf(m, "RPON\n");
+	else if (reset_reason == RR_B)
+		seq_printf(m, "BPON\n");
+	else
+		seq_printf(m, "NPON\n");
+
+	return 0;
+}
+
+static int sec_reset_reason_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, set_reset_reason_proc_show, NULL);
+}
+
+static const struct file_operations sec_reset_reason_proc_fops = {
+	.open = sec_reset_reason_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int __init sec_debug_reset_reason_init(void)
+{
+	struct proc_dir_entry *entry;
+
+	entry = proc_create("reset_reason", S_IWUGO, NULL,
+		&sec_reset_reason_proc_fops);
+
+	if (!entry)
+		return -ENOMEM;
+
+	return 0;
+}
+
+device_initcall(sec_debug_reset_reason_init);
 #endif
 
 int sec_debug_magic_init(void)

@@ -5326,16 +5326,21 @@ wl_cfg80211_check_DFS_channel(struct bcm_cfg80211 *cfg, wl_af_params_t *af_param
 	struct wl_bss_info *bi = NULL;
 	bool result = false;
 	s32 i;
+	chanspec_t chanspec;
 
 	/* If DFS channel is 52~148, check to block it or not */
+	WL_DBG(("af_params->channel=%d\n", af_params->channel));
 	if (af_params &&
 		(af_params->channel >= 52 && af_params->channel <= 148)) {
 		if (!wl_cfgp2p_is_p2p_action(frame, frame_len)) {
+			WL_DBG(("non p2p action frame\n"));
 			bss_list = cfg->bss_list;
 			bi = next_bss(bss_list, bi);
 			for_each_bss(bss_list, bi, i) {
-				if (CHSPEC_IS5G(bi->chanspec) &&
-					((bi->ctl_ch ? bi->ctl_ch : CHSPEC_CHANNEL(bi->chanspec))
+				chanspec = wl_chspec_driver_to_host(bi->chanspec);
+				WL_DBG(("bi->chanspec=%d, chanspec=%d\n", bi->chanspec, chanspec));
+				if (CHSPEC_IS5G(chanspec) &&
+					((bi->ctl_ch ? bi->ctl_ch : CHSPEC_CHANNEL(chanspec))
 					== af_params->channel)) {
 					result = true;	/* do not block the action frame */
 					break;
@@ -9408,7 +9413,7 @@ wl_cfg80211_netdev_notifier_call(struct notifier_block * nb,
 	switch (state) {
 		case NETDEV_DOWN:
 		{
-			int max_wait_timeout = 2;
+			int max_wait_timeout = 5;
 			int max_wait_count = 100;
 			unsigned long limit = jiffies + max_wait_timeout * HZ;
 			while (work_pending(&wdev->cleanup_work)) {

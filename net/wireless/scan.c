@@ -330,8 +330,10 @@ static int cmp_bss(struct cfg80211_bss *a,
 {
 	int r;
 
+#if !(defined(CONFIG_BCM4334) || defined(CONFIG_BCM4334_MODULE))
 	if (a->channel != b->channel)
 		return b->channel->center_freq - a->channel->center_freq;
+#endif /* CONFIG_BCM4334 */
 
 	if (is_mesh_bss(a) && is_mesh_bss(b)) {
 		r = cmp_ies(WLAN_EID_MESH_ID,
@@ -351,6 +353,11 @@ static int cmp_bss(struct cfg80211_bss *a,
 	r = memcmp(a->bssid, b->bssid, ETH_ALEN);
 	if (r)
 		return r;
+
+#if defined(CONFIG_BCM4334) || defined(CONFIG_BCM4334_MODULE)
+	if (a->channel != b->channel)
+		return b->channel->center_freq - a->channel->center_freq;
+#endif /* CONFIG_BCM4334 */
 
 	return cmp_ies(WLAN_EID_SSID,
 		       a->information_elements,

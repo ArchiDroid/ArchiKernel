@@ -393,8 +393,10 @@ static void audit_printk_skb(struct sk_buff *skb)
 		sec_debug_avc_log("type=%d %s\n", nlh->nlmsg_type, data);
 #endif
 	}
-
+#ifndef CONFIG_SAMSUNG_PRODUCT_SHIP
+	// Do not hold skb on SHIP Binary, only print to avc msg.
 	audit_hold_skb(skb);
+#endif
 }
 
 static void kauditd_send_skb(struct sk_buff *skb)
@@ -611,13 +613,13 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	case AUDIT_TTY_SET:
 	case AUDIT_TRIM:
 	case AUDIT_MAKE_EQUIV:
-		if (security_netlink_recv(skb, CAP_AUDIT_CONTROL))
+		if (!capable(CAP_AUDIT_CONTROL))
 			err = -EPERM;
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG ... AUDIT_LAST_USER_MSG:
 	case AUDIT_FIRST_USER_MSG2 ... AUDIT_LAST_USER_MSG2:
-		if (security_netlink_recv(skb, CAP_AUDIT_WRITE))
+		if (!capable(CAP_AUDIT_WRITE))
 			err = -EPERM;
 		break;
 	default:  /* bad msg */

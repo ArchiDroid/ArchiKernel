@@ -33,9 +33,14 @@
 
 #include "mutex.h"
 
-void  Mutex_Init(Mutex *mutex);
-void  Mutex_Destroy(Mutex *mutex);
-void  Mutex_CondSig(Mutex *mutex, uint32 cvi, _Bool all);
-void  Mutex_UnlPoll(Mutex *mutex, MutexMode mode, uint32 cvi, void *filp, void *wait);
+void Mutex_Init(Mutex *mutex);
+void Mutex_Destroy(Mutex *mutex);
+void Mutex_CondSig(Mutex *mutex, uint32 cvi, _Bool all);
+void
+Mutex_UnlPoll(Mutex *mutex,
+	      MutexMode mode,
+	      uint32 cvi,
+	      void *filp,
+	      void *wait);
 
 #endif

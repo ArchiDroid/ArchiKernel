@@ -60,6 +60,8 @@
 #include "mdnie_table_p4note.h"
 #elif defined(CONFIG_FB_S5P_S6D6AA1) && defined(CONFIG_MACH_GD2)
 #include "mdnie_table_gd2.h"
+#elif defined(CONFIG_FB_S5P_S6D6AA1) && defined(CONFIG_MACH_SF2)
+#include "mdnie_table_sf2.h"
 #elif defined(CONFIG_FB_S5P_S6D6AA1)
 #include "mdnie_table_gc1.h"
 #elif defined(CONFIG_FB_S5P_LMS501XX)

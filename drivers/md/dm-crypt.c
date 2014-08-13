@@ -186,7 +186,13 @@ static u8 *iv_of_dmreq(struct crypt_config *cc, struct dm_crypt_request *dmreq);
 
 static struct crypt_cpu *this_crypt_config(struct crypt_config *cc)
 {
-	return this_cpu_ptr(cc->cpu);
+	struct crypt_cpu *this_cc;
+
+	preempt_disable();
+	this_cc = this_cpu_ptr(cc->cpu);
+	preempt_enable();
+
+	return this_cc;
 }
 
 /*

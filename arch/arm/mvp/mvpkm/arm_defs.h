@@ -51,4 +51,4 @@
 #include "ve_defs.h"
 #include "psr_defs.h"
 
-#endif /// _ARM_DEFS_H_
+#endif /* _ARM_DEFS_H_ */

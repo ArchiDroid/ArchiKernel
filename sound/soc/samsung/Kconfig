@@ -380,3 +380,9 @@ config SND_USE_LINEOUT_SWITCH
 config SND_USE_MUIC_SWITCH
 	bool "Use MUIC_SWITCH CONTROL"
 	depends on SND_SOC_SAMSUNG
+	
+config SND_USE_EXTERNAL_LDO_FOR_EARMICBIAS
+	bool "Use EXTERNAL_LDO_FOR_EARMICBIAS"
+	depends on SND_SOC_SAMSUNG	
+	help
+	  Say Y if External LDO is used for EAR MICBIAS.

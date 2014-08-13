@@ -1621,23 +1621,27 @@ static int fimc_is_v4l2_isp_scene_mode(struct fimc_is_dev *dev, int mode)
 		IS_SET_PARAM_BIT(dev, PARAM_ISP_AA);
 		IS_INC_PARAM_NUM(dev);				
 #ifdef USE_NIGHT_SHOT
-		/* ISP stop */
+		/* ISP stop - Removed this code, because camera failed err */
+		/*
 		IS_ISP_SET_PARAM_CONTROL_CMD(dev, CONTROL_COMMAND_STOP);
 		IS_SET_PARAM_BIT(dev, PARAM_ISP_CONTROL);
 		IS_INC_PARAM_NUM(dev);
 		fimc_is_mem_cache_clean((void *)dev->is_p_region,
 			IS_PARAM_SIZE);
 		fimc_is_hw_set_param(dev);
+		*/
 		/* Frame rate setting */
 		dev->sensor.frametime_max_LLS = 125000;
 		IS_ISP_SET_PARAM_OTF_INPUT_FRAMETIME_MIN(dev,0);
 		IS_ISP_SET_PARAM_OTF_INPUT_FRAMETIME_MAX(dev,125000);
 		IS_SET_PARAM_BIT(dev, PARAM_ISP_OTF_INPUT);
 		IS_INC_PARAM_NUM(dev);
-		/* ISP start */
+		/* ISP start - Removed this code, because camera failed err */
+		/*
 		IS_ISP_SET_PARAM_CONTROL_CMD(dev, CONTROL_COMMAND_START);
 		IS_SET_PARAM_BIT(dev, PARAM_ISP_CONTROL);
 		IS_INC_PARAM_NUM(dev);
+		*/
 #endif
 		fimc_is_mem_cache_clean((void *)dev->is_p_region,
 							IS_PARAM_SIZE);

@@ -48,26 +48,26 @@ int CommSvc_ScheduleAIOWork(CommOSWork *work);
 
 int
 CommSvc_Alloc(const CommTranspInitArgs *transpArgs,
-              const CommImpl *impl,
-              int inBH,
-              CommChannel *newChannel);
+	      const CommImpl *impl,
+	      int inBH,
+	      CommChannel *newChannel);
 
 int
 CommSvc_Write(CommChannel channel,
-              const CommPacket *packet,
-              unsigned long long *timeoutMillis);
+	      const CommPacket *packet,
+	      unsigned long long *timeoutMillis);
 
 int
 CommSvc_WriteVec(CommChannel channel,
-                 const CommPacket *packet,
-                 struct kvec **vec,
-                 unsigned int *vecLen,
-                 unsigned long long *timeoutMillis,
-                 unsigned int *iovOffset,
-                 int kern);
+		 const CommPacket *packet,
+		 struct kvec **vec,
+		 unsigned int *vecLen,
+		 unsigned long long *timeoutMillis,
+		 unsigned int *iovOffset,
+		 int kern);
 
 unsigned int CommSvc_RequestInlineEvents(CommChannel channel);
 unsigned int CommSvc_ReleaseInlineEvents(CommChannel channel);
 
-#endif // _COMM_SVC_H_
+#endif /* _COMM_SVC_H_ */
 

@@ -12,6 +12,12 @@ menuconfig NFC_DEVICES
 	  You can say N here if you don't have any Near Field Communication
 	  devices connected to your computer.
 
+config SF2_NFC_TAG
+	bool "NFC TAG driver"
+	default n
+	help
+	NFC TAG Interrput detecting driver
+
 if NFC_DEVICES
 
 config PN544_NFC

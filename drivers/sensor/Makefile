@@ -15,7 +15,11 @@ obj-$(CONFIG_SENSORS_LSM330DLC)	+= lsm330dlc_accel.o lsm330dlc_gyro.o
 obj-$(CONFIG_SENSORS_K330)	+= k330_accel.o k330_gyro.o
 # magnetic_sensor
 obj-$(CONFIG_SENSORS_AK8975C)	+= ak8975.o
+ifeq ($(CONFIG_MACH_SF2),y)
+obj-$(CONFIG_SENSORS_AK8963C)	+= ak8963_sf2.o
+else
 obj-$(CONFIG_SENSORS_AK8963C)	+= ak8963.o
+endif
 obj-$(CONFIG_SENSORS_YAS532)	+= yas_mag_kernel_driver.o
 obj-$(CONFIG_SENSORS_YAS_ORI)	+= yas_ori_kernel_driver.o
 # optical_sensor

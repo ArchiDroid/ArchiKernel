@@ -14,7 +14,7 @@
  */
 #include "ssp.h"
 
-#define SSP_FIRMWARE_REVISION		123105
+#define SSP_FIRMWARE_REVISION		123109
 
 /* Bootload mode cmd */
 #define BL_FW_NAME			"ssp.fw"

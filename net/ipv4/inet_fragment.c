@@ -39,7 +39,8 @@ static void inet_frag_secret_rebuild(unsigned long dummy)
 		struct hlist_head *h;
 
 		h = &f->hash[i];
-		if (unlikely(!IS_ALIGNED((unsigned long)h->first, 4))) {
+		/* Check if h->first has a valid address. */
+		if (h->first && unlikely(!((unsigned int)h->first&0xFF000000))) {
 			WARN(1, "%p invalid address\n", h->first);
 			continue;
 		}

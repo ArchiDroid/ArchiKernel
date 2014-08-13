@@ -45,25 +45,25 @@
  * making it suitable to be used with the macros defined in coproc_defs.h
  *
  * @par For example
- *      mcr_p15 DOMAIN_CONTROL, r3
+ *    mcr_p15 DOMAIN_CONTROL, r3
  * @par replaces
- *      mcr p15, 0, r3, c3, c0, 0
+ *    mcr p15, 0, r3, c3, c0, 0
  * @{
  */
-.macro mcr_p15 op1, op2, op3, op4, reg, cond=al
-   mcr\cond p15, \op1, \reg, \op2, \op3, \op4
+.macro mcr_p15 op1, op2, op3, op4, reg, cond = al
+	mcr\cond p15, \op1, \reg, \op2, \op3, \op4
 .endm
 
-.macro mrc_p15 op1, op2, op3, op4, reg, cond=al
-   mrc\cond p15, \op1, \reg, \op2, \op3, \op4
+.macro mrc_p15 op1, op2, op3, op4, reg, cond = al
+	mrc\cond p15, \op1, \reg, \op2, \op3, \op4
 .endm
 
 .macro mcrr_p15 op1, op2, reg1, reg2
-   mcrr p15, \op1, \reg1, \reg2, \op2
+	mcrr p15, \op1, \reg1, \reg2, \op2
 .endm
 
 .macro mrrc_p15 op1, op2, reg1, reg2
-   mrrc p15, \op1, \reg1, \reg2, \op2
+	mrrc p15, \op1, \reg1, \reg2, \op2
 .endm
 /*@}*/
 
@@ -72,20 +72,20 @@
  * @{
  */
 .macro hvc imm16
-   .word ARM_INSTR_HVC_A1_ENC(\imm16)
+	.word ARM_INSTR_HVC_A1_ENC(\imm16)
 .endm
 
 .macro eret
-   .word ARM_INSTR_ERET_A1_ENC(ARM_INSTR_COND_AL)
+	.word ARM_INSTR_ERET_A1_ENC(ARM_INSTR_COND_AL)
 .endm
 
 .macro msr_ext rm, rn
-   .word ARM_INSTR_MSR_EXT_A1_ENC(ARM_INSTR_COND_AL, \rm, \rn)
+	.word ARM_INSTR_MSR_EXT_A1_ENC(ARM_INSTR_COND_AL, \rm, \rn)
 .endm
 
 .macro mrs_ext rd, rm
-   .word ARM_INSTR_MRS_EXT_A1_ENC(ARM_INSTR_COND_AL, \rd, \rm)
+	.word ARM_INSTR_MRS_EXT_A1_ENC(ARM_INSTR_COND_AL, \rd, \rm)
 .endm
 /*@}*/
 
-#endif /// ifndef _ARM_AS_MACROS_H_
+#endif /* ifndef _ARM_AS_MACROS_H_ */

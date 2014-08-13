@@ -3311,7 +3311,6 @@ static void fimc_buf2bs(struct fimc_buf_set *bs, struct fimc_buf *buf)
 int fimc_qbuf_capture(void *fh, struct v4l2_buffer *b)
 {
 	struct fimc_control *ctrl = fh;
-	struct fimc_buf *buf;
 	struct s3c_platform_fimc *pdata = to_fimc_plat(ctrl->dev);
 	struct fimc_capinfo *cap = ctrl->cap;
 	int idx = b->index;
@@ -3332,8 +3331,16 @@ int fimc_qbuf_capture(void *fh, struct v4l2_buffer *b)
 			return -EINVAL;
 		} else {
 			if (b->memory == V4L2_MEMORY_USERPTR) {
-				buf = (struct fimc_buf *)b->m.userptr;
-				fimc_buf2bs(&cap->bufs[idx], buf);
+				struct fimc_buf buf;
+				int ret = 0;
+
+				ret = copy_from_user(&buf, (struct fimc_buf *)b->m.userptr,
+						sizeof(struct fimc_buf));
+				if (ret < 0) {
+					fimc_err("%s: failed to copy parameter\n", __func__);
+					return ret;
+				}
+				fimc_buf2bs(&cap->bufs[idx], &buf);
 				fimc_hwset_output_address(ctrl,	&cap->bufs[idx], idx);
 #ifdef CONFIG_SLP_DMABUF
 			} else if (b->memory == V4L2_MEMORY_DMABUF) {
@@ -3469,7 +3476,6 @@ int fimc_dqbuf_capture(void *fh, struct v4l2_buffer *b)
 	struct fimc_control *ctrl = fh;
 	struct fimc_capinfo *cap = ctrl->cap;
 	struct fimc_buf_set *bs;
-	struct fimc_buf *buf = (struct fimc_buf *)b->m.userptr;
 	size_t length = 0;
 	int i, pp, ret = 0;
 	phys_addr_t start, end;
@@ -3505,7 +3511,16 @@ int fimc_dqbuf_capture(void *fh, struct v4l2_buffer *b)
 			bs->state = VIDEOBUF_IDLE;
 
 			if (b->memory == V4L2_MEMORY_USERPTR) {
-				fimc_bs2buf(buf, bs);
+				struct fimc_buf buf;
+				int ret = 0;
+				ret = copy_from_user(&buf, (struct fimc_buf *)b->m.userptr,
+						sizeof(struct fimc_buf));
+				if (ret < 0) {
+					fimc_err("%s: failed to copy parameter\n", __func__);
+					spin_unlock_irqrestore(&ctrl->outq_lock, spin_flags);
+					return ret;
+				}
+				fimc_bs2buf(&buf, bs);
 #ifdef CONFIG_SLP_DMABUF
 			} else if (b->memory == V4L2_MEMORY_DMABUF) {
 				struct vb2_buffer *vb;

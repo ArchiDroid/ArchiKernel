@@ -1356,10 +1356,17 @@ static void max77693_softreg_work(struct work_struct *work)
 	u8 dtls_02, byp_dtls;
 	u8 mu_st2, vbvolt;
 	u8 cnfg_09;
+	u8 reg_data;
 	int in_curr = 0;
 	pr_debug("%s\n", __func__);
 
 	mutex_lock(&chg_data->ops_lock);
+
+	max77693_read_reg(chg_data->max77693->i2c,
+		MAX77693_CHG_REG_CHG_INT_MASK, &reg_data);
+	reg_data |= (1 << 6);
+	max77693_write_reg(chg_data->max77693->i2c,
+		MAX77693_CHG_REG_CHG_INT_MASK, reg_data);
 
 	/* charger */
 	max77693_read_reg(chg_data->max77693->i2c,
@@ -1452,6 +1459,11 @@ static void max77693_softreg_work(struct work_struct *work)
 
 		wake_unlock(&chg_data->softreg_wake_lock);
 	}
+	max77693_read_reg(chg_data->max77693->i2c,
+		MAX77693_CHG_REG_CHG_INT_MASK, &reg_data);
+	reg_data &= ~(1 << 6);
+	max77693_write_reg(chg_data->max77693->i2c,
+		MAX77693_CHG_REG_CHG_INT_MASK, reg_data);
 
 	mutex_unlock(&chg_data->ops_lock);
 }

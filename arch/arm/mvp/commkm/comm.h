@@ -65,10 +65,10 @@
  */
 
 typedef struct CommPacket {
-   unsigned int len;                        // Total length
-   unsigned char flags;                     // Operation flags
-   unsigned char opCode;                    // Operation to call
-   unsigned short data16;                   // Auxiliary data
+   unsigned int len;                        /* Total length */
+   unsigned char flags;                     /* Operation flags */
+   unsigned char opCode;                    /* Operation to call */
+   unsigned short data16;                   /* Auxiliary data */
    unsigned long long data64;
    unsigned long long data64ex;
    union {
@@ -175,5 +175,5 @@ Comm_WriteVec(CommChannel channel,
 unsigned int Comm_RequestInlineEvents(CommChannel channel);
 unsigned int Comm_ReleaseInlineEvents(CommChannel channel);
 
-#endif // _COMM_H_
+#endif /* _COMM_H_ */
 

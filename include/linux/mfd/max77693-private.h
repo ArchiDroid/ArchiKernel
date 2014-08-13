@@ -344,6 +344,10 @@ struct max77693_dev {
 	int irq_masks_cur[MAX77693_IRQ_GROUP_NR];
 	int irq_masks_cache[MAX77693_IRQ_GROUP_NR];
 
+#if defined(CONFIG_MUIC_MAX77693_RESET_WA)
+	struct work_struct *muic_init_work;
+#endif
+
 #ifdef CONFIG_HIBERNATION
 	/* For hibernation */
 	u8 reg_pmic_dump[MAX77693_PMIC_REG_END];

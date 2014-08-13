@@ -140,6 +140,29 @@ static inline void rxb_clear(struct mif_rxb *rxb)
 }
 #endif
 
+struct qc_dpram_boot_map {
+	u8 __iomem *buff;
+	u16 __iomem *frame_size;
+	u16 __iomem *tag;
+	u16 __iomem *count;
+};
+
+struct qc_dpram_udl_param {
+	unsigned char *addr;
+	unsigned int size;
+	unsigned int count;
+	unsigned int tag;
+};
+
+struct qc_dpram_udl_check {
+	unsigned int total_size;
+	unsigned int rest_size;
+	unsigned int send_size;
+	unsigned int copy_start;
+	unsigned int copy_complete;
+	unsigned int boot_complete;
+};
+
 struct pld_ext_op;
 
 struct pld_link_device {
@@ -162,7 +185,11 @@ struct pld_link_device {
 	struct modemlink_dpram_data *dpram;
 
 	/* Physical configuration -> logical configuration */
+	union {
 	struct memif_boot_map bt_map;
+		struct qc_dpram_boot_map qc_bt_map;
+	};
+
 	struct memif_dload_map dl_map;
 	struct memif_uload_map ul_map;
 
@@ -193,6 +220,8 @@ struct pld_link_device {
 	struct tasklet_struct dl_tsk;
 	struct completion udl_start_complete;
 	struct completion udl_cmd_complete;
+	struct qc_dpram_udl_check qc_udl_check;
+	struct qc_dpram_udl_param qc_udl_param;
 
 	/* For CP crash dump */
 	struct timer_list crash_ack_timer;

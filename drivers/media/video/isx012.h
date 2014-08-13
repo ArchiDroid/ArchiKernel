@@ -40,7 +40,13 @@ static const char driver_name[] = ISX012_DRIVER_NAME;
  * FEATURE DEFINITIONS
  ************************************/
 #define CONFIG_SUPPORT_AF		true
+
+#if defined(CONFIG_MACH_KONA) || defined(CONFIG_TARGET_TAB3_3G8) || defined(CONFIG_TARGET_TAB3_WIFI8) || defined(CONFIG_TARGET_TAB3_LTE8)
+#define CONFIG_SUPPORT_FLASH		false
+#else
 #define CONFIG_SUPPORT_FLASH		true
+#endif
+
 #define CONFIG_I2C_RW_LE		true /* use little endian */
 #define CONFIG_LOAD_FILE		false /* for tuning */
 
@@ -451,6 +457,7 @@ struct isx012_exif {
 #define EXIF_FLASH_MODE_FIRING		(0x01 << 3)
 #define EXIF_FLASH_MODE_SUPPRESSION	(0x02 << 3)
 #define EXIF_FLASH_MODE_AUTO		(0x03 << 3)
+#define EXIF_NO_FLASH               (0x02 << 4)
 
 struct isx012_stream_time {
 	struct timeval curr_time;

@@ -2385,7 +2385,6 @@ void __init_or_cpufreq exynos4_setup_clocks(void)
 		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
 				clk_fout_epll.name, exynos4_clk_mout_epll.clk.name);
 
-	clk_fout_vpll.enable = exynos4_clk_vpll_ctrl;
 	clk_fout_vpll.ops = &exynos4_vpll_ops;
 
 	clk_set_rate(&exynos4_clk_sclk_apll.clk, 100000000);

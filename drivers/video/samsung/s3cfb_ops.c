@@ -53,6 +53,8 @@
 #include <plat/s5p-sysmmu.h>
 #endif
 
+#define SUPPORT_LPM_PAN_DISPLAY
+
 #ifdef CONFIG_ARCHIKERNEL_SPLASH_LOGO
 #include "logo_archikernel.c"
 #endif
@@ -1120,6 +1122,13 @@ int s3cfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *fb)
 	}
 #endif
 
+#ifdef SUPPORT_LPM_PAN_DISPLAY
+	/* support LPM (off charging mode) display based on FBIOPAN_DISPLAY */
+	s3cfb_check_var(var, fb);
+	s3cfb_set_par(fb);
+	s3cfb_enable_window(fbdev, win->id);
+#endif
+
 	if (var->yoffset + var->yres > var->yres_virtual) {
 		dev_err(fbdev->dev, "invalid yoffset value\n");
 		if (win->id == pdata->default_win)
@@ -1536,6 +1545,18 @@ void s3c_fb_set_busfreq(struct s3cfb_global *fbdev, unsigned int num_of_win)
 
 	dev_lock(fbdev->bus_dev, fbdev->dev, fb_busfreq_table[num_of_win]);
 }
+static void s3c_fd_fence_wait(struct s3cfb_global *fbdev, struct sync_fence *fence)
+{
+	int err = sync_fence_wait(fence, 1000);
+	if (err >= 0)
+		return;
+
+	if (err == -ETIME)
+		err = sync_fence_wait(fence, 10 * MSEC_PER_SEC);
+
+	if (err < 0)
+		dev_warn(fbdev->dev, "error waiting on fence: %d\n", err);
+}
 
 void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 {
@@ -1543,6 +1564,7 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 	unsigned short i;
 	bool wait_for_vsync;
 	struct s3cfb_window *win;
+	struct sync_fence *old_fence[S3C_FB_MAX_WIN];
 
 #if defined(CONFIG_CPU_EXYNOS4212) || defined(CONFIG_CPU_EXYNOS4412)
 #ifdef CONFIG_BUSFREQ_OPP
@@ -1550,6 +1572,13 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 	unsigned int pre_num_of_win = 0;
 	unsigned int shadow_regs = 0;
 	unsigned int clkval = 0;
+	memset(&old_fence, 0, sizeof(old_fence));
+
+	for (i = 0; i < pdata->nr_wins; i++) {
+		old_fence[i] = regs->fence[i];
+		if (regs->fence[i])
+			s3c_fd_fence_wait(fbdev, regs->fence[i]);
+	}
 
 	for (i = 0; i < pdata->nr_wins; i++)
 		if (regs->shadowcon & SHADOWCON_CHx_ENABLE(i))
@@ -1618,7 +1647,11 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 			}
 		}
 	} while (wait_for_vsync);
-
+	
+		for (i = 0; i < pdata->nr_wins; i++) {
+			if (old_fence[i])
+				sync_fence_put(old_fence[i]);
+		}
 		sw_sync_timeline_inc(fbdev->timeline, 1);
 	}
 
@@ -1760,12 +1793,21 @@ static int s3c_fb_set_win_buffer(struct s3cfb_global *fbdev,
 		ret = -EINVAL;
 		goto err_invalid;
 	}
-
+	
 	if (!s3c_fb_validate_x_alignment(fbdev, win_config->x, win_config->w,
 			fb->var.bits_per_pixel)) {
 		ret = -EINVAL;
 		goto err_invalid;
 	}
+	if (win_config->fence_fd >= 0) {
+		regs->fence[win_no] = sync_fence_fdget(win_config->fence_fd);
+		if (!regs->fence[win_no]) {
+			dev_err(fbdev->dev, "failed to import fence fd\n");
+			ret = -EINVAL;
+			goto err_invalid;
+		}
+	} else
+		regs->fence[win_no] = NULL;
 
 	window_size = win_config->stride * win_config->h;
 
@@ -1889,12 +1931,15 @@ static int s3c_fb_set_win_config(struct s3cfb_global *fbdev,
 		if (fbdev->support_fence == FENCE_NOT_SUPPORT) {
 			win_data->fence = -1;
 		} else {
-		fbdev->timeline_max++;
-		pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
-		fence = sync_fence_create("display", pt);
-		sync_fence_install(fence, fd);
-		win_data->fence = fd;
-
+			fbdev->timeline_max++;
+			pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
+			fence = sync_fence_create("display", pt);
+			if (fence != NULL) {
+				sync_fence_install(fence, fd);
+				win_data->fence = fd;
+			} else
+				dev_err(fbdev->dev, "creating fence is failed");
+ 
 			sw_sync_timeline_inc(fbdev->timeline, 1);
 		}
 		mutex_unlock(&fbdev->output_lock);
@@ -1954,15 +1999,18 @@ static int s3c_fb_set_win_config(struct s3cfb_global *fbdev,
 			kfree(regs);
 			win_data->fence = -1;
 		} else {
-		fbdev->timeline_max++;
-		pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
-		fence = sync_fence_create("display", pt);
-		sync_fence_install(fence, fd);
-		win_data->fence = fd;
+			fbdev->timeline_max++;
+			pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
+			fence = sync_fence_create("display", pt);
+			if (fence != NULL) {
+				sync_fence_install(fence, fd);
+				win_data->fence = fd;
+			} else
+				dev_err(fbdev->dev, "creating fence is failed");
 
-		list_add_tail(&regs->list, &fbdev->update_regs_list);
-		mutex_unlock(&fbdev->update_regs_list_lock);
-		queue_kthread_work(&fbdev->update_regs_worker,
+			list_add_tail(&regs->list, &fbdev->update_regs_list);
+			mutex_unlock(&fbdev->update_regs_list_lock);
+			queue_kthread_work(&fbdev->update_regs_worker,
 					&fbdev->update_regs_work);
 		}
 	}

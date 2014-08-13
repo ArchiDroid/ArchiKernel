@@ -143,13 +143,13 @@ int touch_is_pressed;
 
 /* ILJIN panel */
 #define BOOT_VERSION_IJ 0x1
-#define CORE_VERSION_IJ 0x73
-#define FW_VERSION_IJ 0x16
+#define CORE_VERSION_IJ 0x75
+#define FW_VERSION_IJ 0x19
 
 /* EELY panel */
 #define BOOT_VERSION_EL 0x1
-#define CORE_VERSION_EL 0x73
-#define FW_VERSION_EL 0x16
+#define CORE_VERSION_EL 0x75
+#define FW_VERSION_EL 0x19
 
 #define MAX_FW_PATH 255
 #define TSP_FW_FILENAME "melfas_fw.bin"
@@ -1912,11 +1912,11 @@ static void get_config_ver(void *device_data)
 	else if (info->panel == WINTEC)
 		snprintf(buff, sizeof(buff), "T311_Me_0401_WT");
 	else if (info->panel == ILJIN)
-		snprintf(buff, sizeof(buff), "T311_Me_0608_IJ");
+		snprintf(buff, sizeof(buff), "T311_Me_1231_IJ");
 	else if (info->panel == EELY)
-		snprintf(buff, sizeof(buff), "T311_Me_0608_EL");
+		snprintf(buff, sizeof(buff), "T311_Me_1231_EL");
 	else
-		snprintf(buff, sizeof(buff), "T311_Me_0608_UN");
+		snprintf(buff, sizeof(buff), "T311_Me_1231_UN");
 
 	set_cmd_result(info, buff, strnlen(buff, sizeof(buff)));
 	info->cmd_state = 2;

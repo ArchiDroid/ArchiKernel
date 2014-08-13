@@ -1,5 +1,7 @@
 config VMWARE_MVP
        bool "Build VMware Mobile Virtualization Platform modules"
+       select MODULES
+       select MODULE_UNLOAD
        select SYSFS
        select NAMESPACES
        select NET_NS
