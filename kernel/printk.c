@@ -68,7 +68,11 @@ extern void printascii(char *);
 #define MINIMUM_CONSOLE_LOGLEVEL 1 /* Minimum loglevel we let people use */
 
 /* default to 7 -- anything MORE serious than KERN_DEBUG */
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 #define DEFAULT_CONSOLE_LOGLEVEL CONFIG_DEFAULT_CONSOLE_LOGLEVEL
+#else
+#define DEFAULT_CONSOLE_LOGLEVEL MINIMUM_CONSOLE_LOGLEVEL
+#endif
 
 DECLARE_WAIT_QUEUE_HEAD(log_wait);
 

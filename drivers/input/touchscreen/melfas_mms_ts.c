@@ -14,6 +14,7 @@
  *
  */
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 #define DEBUG
 /* #define VERBOSE_DEBUG */
 #define SEC_TSP_DEBUG
@@ -22,6 +23,7 @@
 /* #define FORCE_FW_FLASH */
 /* #define FORCE_FW_PASS */
 /* #define ESD_DEBUG */
+#endif
 
 #define SEC_TSP_FACTORY_TEST
 #define SEC_TSP_FW_UPDATE
@@ -849,8 +851,10 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 
 		if ((tmp[0] & 0x80) == 0) {
 			if (info->finger_state[id] != 0) {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 				dev_notice(&client->dev,
 					"finger [%d] up\n", id);
+#endif
 			}
 			input_mt_slot(info->input_dev, id);
 			input_mt_report_slot_state(info->input_dev,
@@ -893,8 +897,10 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 
 		if (info->finger_state[id] == 0) {
 			info->finger_state[id] = 1;
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 			dev_notice(&client->dev,
 				"finger [%d] down\n", id);
+#endif
 		}
 
 	}
