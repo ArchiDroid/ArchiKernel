@@ -287,6 +287,11 @@ config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
 
 comment "Core features"
 
+config ARCHIKERNEL_SPLASH_LOGO
+	bool "Enable ArchiKernel's splash logo"
+	help
+		This option shows ArchiKernel splash logo right after the kernel is loaded.
+
 config ARCHIKERNEL_LED_SETTINGS
 	bool "Enable LED fading/blinking support"
 	help
