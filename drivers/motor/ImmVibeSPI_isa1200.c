@@ -158,7 +158,9 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex
 
     if (g_bAmpEnabled)
     {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
         DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_AmpDisable.\n"));
+#endif
 
         g_bAmpEnabled = false;
 
@@ -200,7 +202,9 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex)
 
     if (!g_bAmpEnabled)
     {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
         DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_AmpEnable.\n"));
+#endif
         g_bAmpEnabled = true;
 
 #ifdef VIBETONZ_TUNING /* For Resonant Frequency Test */

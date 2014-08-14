@@ -4,6 +4,24 @@ menu "ArchiKernel settings"
 comment "Target options"
 
 choice
+	prompt "Target release"
+	default Production
+	help
+		Target release specifies if kernel should be more or less debuggable.
+
+config ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+	bool "Production"
+	help
+		Production release minimizes debugging to the bare minimum.
+
+config ARCHIKERNEL_TARGET_RELEASE_DEBUG
+	bool "Debug"
+	help
+		Debug release provides more information about what's going on in the
+		kernel. Console is much more verbose to allow easier debugging.
+endchoice
+
+choice
 	prompt "Target system"
 	default AOSP
 	help

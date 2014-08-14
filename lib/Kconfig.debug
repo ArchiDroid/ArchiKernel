@@ -40,6 +40,7 @@ config DEFAULT_MESSAGE_LOGLEVEL
 
 config DEFAULT_CONSOLE_LOGLEVEL
         int "Default console log level (1-7)"
+        depends on !ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
         range 1 7
         default "7"
         help

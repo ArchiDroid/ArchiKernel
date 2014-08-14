@@ -460,20 +460,26 @@ static __devinit int max77693_pmic_probe(struct platform_device *pdev)
 	int i, ret, size;
 	dev_info(&pdev->dev, "%s\n", __func__);
 	if (!pdata) {
-		pr_err("[%s:%d] !pdata\n", __FILE__, __LINE__);
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+		pr_info("[%s:%d] !pdata\n", __FILE__, __LINE__);
+#endif
 		dev_err(pdev->dev.parent, "No platform init data supplied.\n");
 		return -ENODEV;
 	}
 
 	max77693 = kzalloc(sizeof(struct max77693_data), GFP_KERNEL);
 	if (!max77693) {
-		pr_err("[%s:%d] if (!max77693)\n", __FILE__, __LINE__);
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+		pr_info("[%s:%d] if (!max77693)\n", __FILE__, __LINE__);
+#endif
 		return -ENOMEM;
 	}
 	size = sizeof(struct regulator_dev *) * pdata->num_regulators;
 	max77693->rdev = kzalloc(size, GFP_KERNEL);
 	if (!max77693->rdev) {
-		pr_err("[%s:%d] if (!max77693->rdev)\n", __FILE__, __LINE__);
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+		pr_info("[%s:%d] if (!max77693->rdev)\n", __FILE__, __LINE__);
+#endif
 		kfree(max77693);
 		return -ENOMEM;
 	}
@@ -484,14 +490,18 @@ static __devinit int max77693_pmic_probe(struct platform_device *pdev)
 	max77693->num_regulators = pdata->num_regulators;
 	platform_set_drvdata(pdev, max77693);
 	i2c = max77693->iodev->i2c;
-	pr_debug("[%s:%d] pdata->num_regulators:%d\n", __FILE__, __LINE__,
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+	pr_info("[%s:%d] pdata->num_regulators:%d\n", __FILE__, __LINE__,
 		pdata->num_regulators);
+#endif
 	for (i = 0; i < pdata->num_regulators; i++) {
 
 		const struct voltage_map_desc *desc;
 		int id = pdata->regulators[i].id;
-		pr_debug("[%s:%d] for in pdata->num_regulators:%d\n", __FILE__,
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+		pr_info("[%s:%d] for in pdata->num_regulators:%d\n", __FILE__,
 			__LINE__, pdata->num_regulators);
+#endif
 		desc = reg_voltage_map[id];
 		if (id == MAX77693_ESAFEOUT1 || id == MAX77693_ESAFEOUT2)
 			regulators[id].n_voltages = 4;
@@ -510,12 +520,16 @@ static __devinit int max77693_pmic_probe(struct platform_device *pdev)
 
 	return 0;
  err:
-	pr_err("[%s:%d] err:\n", __FILE__, __LINE__);
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+	pr_info("[%s:%d] err:\n", __FILE__, __LINE__);
+#endif
 	for (i = 0; i < max77693->num_regulators; i++)
 		if (rdev[i])
 			regulator_unregister(rdev[i]);
  err_alloc:
-	pr_err("[%s:%d] err_alloc\n", __FILE__, __LINE__);
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+	pr_info("[%s:%d] err_alloc\n", __FILE__, __LINE__);
+#endif
 	kfree(max77693->rdev);
 	kfree(max77693);
 

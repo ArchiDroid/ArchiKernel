@@ -584,7 +584,9 @@ static int suspend(struct platform_device *pdev, pm_message_t state)
 		ret = 0;
 	}
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	DbgOut((KERN_DEBUG "tspdrv: %s (%d).\n", __func__, ret));
+#endif
 	return ret;
 }
 
@@ -600,7 +602,9 @@ static int resume(struct platform_device *pdev)
 	writel(0x0F00, pram);
 	iounmap(pram);
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	DbgOut((KERN_DEBUG "tspdrv: %s.\n", __func__));
+#endif
 	return 0;
 }
 
