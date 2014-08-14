@@ -54,7 +54,7 @@
 #endif
 
 #ifdef CONFIG_ARCHIKERNEL_SPLASH_LOGO
-#include "logo_archikernel.h"
+#include "logo_archikernel.c"
 #endif
 
 #if defined(CONFIG_S6D7AA0_LSL080AL02)
@@ -151,7 +151,7 @@ int s3cfb_draw_logo(struct fb_info *fb)
 	}
 
 #ifdef CONFIG_ARCHIKERNEL_SPLASH_LOGO
-	memcpy(fb->screen_base, LOGO_ARCHIKERNEL, fb->var.yres * fb->fix.line_length);
+	memcpy(fb->screen_base, gimp_image.pixel_data, fb->var.yres * fb->fix.line_length);
 #endif
 
 #endif /* #ifdef RGB_BOOTSCREEN */
