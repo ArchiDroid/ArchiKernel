@@ -24,6 +24,7 @@
 # Usage:
 # build.sh <option1> <option2> <option3> defconfig
 SOURCE=0 # --source -> This will prepare environment for cross compiling (only). Use only in conjuction with "source" command, i.e. source build.sh --source
+REGEN=0 # --regen/--regenerate -> This will regenerate ArchiKernel configs according to current Kconfig
 CLEAN=0 # --clean -> This will clean build directory, same as make clean && make mrproper
 DIRTY=0 # --dirty -> This will not call make clean && make mrproper
 CONFIGTEST=0 # --configtest -> This will call only make clean (without make mrproper) and use .config file instead of $TARGETCONFIG. Useful for config tests
@@ -47,6 +48,7 @@ JOBS="$(grep -c "processor" "/proc/cpuinfo")" # Maximum number of jobs, can be d
 for ARG in "$@"; do
 	case "$ARG" in
 		--source|source) SOURCE=1 ;;
+		--regen|regen|--regenerate|regenerate) REGEN=1 ;;
 		--clean|clean) CLEAN=1 ;;
 		--dirty|dirty) DIRTY=1 ;;
 		--configtest|configtest) CONFIGTEST=1 ;;
@@ -91,6 +93,17 @@ elif [[ ! -f "Kconfig" ]]; then
 	echo "ERROR: Couldn't find Kconfig"
 	echo "Make sure you're in proper dir!"
 	exit 1
+fi
+
+if [[ "$REGEN" -eq 1 ]]; then
+	find "arch/$ARCH/configs" -type f -iname "*_ak_defconfig" | while read TOREGEN; do
+		TOREGENSHORT="$(basename "$TOREGEN")"
+		echo "Regenerating $TOREGENSHORT"
+		make "$TOREGENSHORT"
+		mv .config "$TOREGEN"
+	done
+	echo "All configs are regenerated!"
+	exit 0
 fi
 
 if [[ ! -f "arch/$ARCH/configs/$TARGETCONFIG" ]]; then
