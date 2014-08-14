@@ -79,6 +79,7 @@ export CROSS_COMPILE="$CROSS_COMPILE"
 
 if [[ "$SOURCE" -eq 1 ]]; then
         return
+	exit 0 # If we're in fact sourcing this file, this won't execute
 fi
 
 set -e
@@ -99,9 +100,11 @@ if [[ "$REGEN" -eq 1 ]]; then
 	find "arch/$ARCH/configs" -type f -iname "*_ak_defconfig" | while read TOREGEN; do
 		TOREGENSHORT="$(basename "$TOREGEN")"
 		echo "Regenerating $TOREGENSHORT"
-		make "$TOREGENSHORT"
+		make -j "$JOBS" "$TOREGENSHORT"
 		mv .config "$TOREGEN"
 	done
+	make -j "$JOBS" clean
+	make -j "$JOBS" mrproper
 	echo "All configs are regenerated!"
 	exit 0
 fi
@@ -111,13 +114,13 @@ if [[ ! -f "arch/$ARCH/configs/$TARGETCONFIG" ]]; then
 	exit 1
 fi
 if [[ "$DIRTY" -eq 0 ]]; then
-	make -j"$JOBS" clean
+	make -j "$JOBS" clean
 	if [[ "$CONFIGTEST" -eq 0 ]]; then
 		make -j "$JOBS" mrproper
 		if [[ "$CLEAN" -eq 1 ]]; then
 			exit 0
 		fi
-		make -j"$JOBS" "$TARGETCONFIG"
+		make -j "$JOBS" "$TARGETCONFIG"
 	fi
 fi
 
