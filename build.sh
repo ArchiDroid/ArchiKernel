@@ -145,7 +145,21 @@ if [[ "$DIRTY" -eq 0 ]]; then
 		mv ".configBackup" ".config"
 	else
 		make -j "$JOBS" "$TARGETCONFIG"
+		APPLIEDCONFIG="$(echo $TARGETCONFIG | rev | cut -d'_' -f3- | rev)"
+		APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
 	fi
+fi
+
+if [[ -z "$APPLIEDCONFIG" ]]; then
+	APPLIEDCONFIG="Unknown"
+	CONFIGMD5="$(md5sum .config | awk '{print $1}')"
+	while read TOCHECK; do
+		if [[ "$(md5sum "$TOCHECK" | awk '{print $1}')" = "$CONFIGMD5" ]]; then
+			APPLIEDCONFIG="$(basename "$TOCHECK" | rev | cut -d'_' -f3- | rev)"
+			APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
+			break
+		fi
+	done < <(find "arch/$ARCH/configs" -type f -iname "*_ak_defconfig")
 fi
 
 make -j "$JOBS" all
@@ -167,10 +181,10 @@ find . -type f -iname "*.ko" | while read line; do
 done
 
 cd "$TARGETDIR"
-zip -ry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
+zip -ry -9 "$TARGETZIPNAME-$APPLIEDCONFIG.zip" . -x "*.zip"
 
 if [[ ! -z "$TARGETZIPDIR" && -d "$TARGETZIPDIR" ]]; then
-	mv "$TARGETZIPNAME.zip" "$TARGETZIPDIR"
+	mv "$TARGETZIPNAME-$APPLIEDCONFIG.zip" "$TARGETZIPDIR"
 fi
 
 if [[ "$BEEP" -eq 1 ]]; then
