@@ -30,8 +30,15 @@ DIRTY=0 # --dirty -> This will not call make clean && make mrproper
 CONFIGTEST=0 # --configtest -> This will call only make clean (without make mrproper) and use .config file instead of $TARGETCONFIG. Useful for config tests
 BARE=0 # --bare -> This will finish the script as soon as the kernel is compiled, so no modules stripping or copying files will be done
 
+# Detect HOME properly
+# This workaround is required because arm-eabi-nm has problems following ~. Don't change it
+if [[ "$(dirname ~)" = "/" ]]; then
+	HOME="$(dirname ~)$(basename ~)" # Root
+else
+	HOME="$(dirname ~)/$(basename ~)" # User
+fi
+
 # You may need to change these variables
-HOME="$(dirname ~)$(basename ~)" # This workaround is required because arm-eabi-nm has problems following ~. Don't change it
 TOOLCHAIN="$HOME/TC/bin" # This is where your toolchain is located. This path must contain arm-eabi-* binaries, typically Toolchaindir/bin
 TARGETDIR="archikernel/flasher" # This is the general output path. You should unpack AK in zip format somewhere, then put proper path here
 TARGETZIPDIR="$HOME/shared/kernel/m0" # If not empty, output zip will be moved here
