@@ -358,6 +358,15 @@ config ARCHIKERNEL_OPTI_DNDEBUG
 		Assertions are used only during debugging. Select this if you don't 
 		need them.
 
+config ARCHIKERNEL_OPTI_FLTO
+		bool "Perform Link Time Optimization (LTO)"
+		help
+			This option runs the standard link-time optimizer. When invoked with source
+			code, it generates GIMPLE (one of GCC's internal representations) and writes
+			it to special ELF sections in the object file. When the object files are linked
+			together, all the function bodies are read from these ELF sections and
+			instantiated as if they had been part of the same translation unit.
+
 config ARCHIKERNEL_OPTI_FSECTION_ANCHORS
 	bool "Try to reduce the number of symbolic address calculations"
 	help
