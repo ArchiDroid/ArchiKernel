@@ -23,6 +23,14 @@
 
 # Usage:
 # build.sh <option1> <option2> <option3> defconfig
+
+# Examples:
+# ./build.sh -> Build ArchiKernel for default AOSP variant
+# ./build.sh samsung_ak_defconfig -> Build ArchiKernel for Samsung variant
+# ./build.sh --configtest -> Use currently available .config instead of predefined configs
+# ./build.sh --dirty -> Don't clean, use currentnly available .config and build. Perfect for testing if new commit compiles
+# source build.sh --source -> Append proper variables to current shell, so you can use i.e. make clean/menuconfig/all standalone
+
 SOURCE=0 # --source -> This will prepare environment for cross compiling (only). Use only in conjuction with "source" command, i.e. source build.sh --source
 REGEN=0 # --regen/--regenerate -> This will regenerate ArchiKernel configs according to current Kconfig
 CLEAN=0 # --clean -> This will clean build directory, same as make clean && make mrproper
