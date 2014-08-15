@@ -27,6 +27,10 @@
 #include <linux/slab.h>
 #include <linux/kobject.h>
 
+#ifdef CONFIG_EXYNOS4_EXPORT_TEMP
+#include <linux/exynos4_export_temp.h>
+#endif
+
 #include <asm/irq.h>
 
 #include <mach/regs-tmu.h>
@@ -42,6 +46,10 @@
 #ifdef CONFIG_BUSFREQ_OPP
 #include <mach/busfreq_exynos4.h>
 #include <mach/dev.h>
+#endif
+
+#ifdef CONFIG_EXYNOS4_EXPORT_TEMP
+static unsigned int tmu_curr_temperature;
 #endif
 
 static enum {
@@ -114,8 +122,19 @@ static unsigned int get_curr_temp(struct s5p_tmu_info *info)
 			"so, set to 0 celsius degree!\n", temperature);
 		temperature = 0;
 	}
+#ifdef CONFIG_EXYNOS4_EXPORT_TEMP
+	tmu_curr_temperature = temperature;
+#endif
 	return (unsigned int)temperature;
 }
+
+#ifdef CONFIG_EXYNOS4_EXPORT_TEMP
+unsigned int get_exynos4_temperature(void)
+{
+	return tmu_curr_temperature;
+}
+EXPORT_SYMBOL(get_exynos4_temperature);
+#endif
 
 static ssize_t show_temperature(struct device *dev,
 		struct device_attribute *attr, char *buf)
