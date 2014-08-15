@@ -113,13 +113,22 @@ if [[ ! -f "arch/$ARCH/configs/$TARGETCONFIG" ]]; then
 	echo "ERROR: Could not find specified config: arch/$ARCH/configs/$TARGETCONFIG"
 	exit 1
 fi
+
 if [[ "$DIRTY" -eq 0 ]]; then
 	make -j "$JOBS" clean
-	if [[ "$CONFIGTEST" -eq 0 ]]; then
-		make -j "$JOBS" mrproper
-		if [[ "$CLEAN" -eq 1 ]]; then
-			exit 0
-		fi
+	if [[ "$CONFIGTEST" -eq 1 && -f ".config" ]]; then
+		mv ".config" ".configBackup"
+	else
+		rm -f ".configBackup"
+	fi
+	make -j "$JOBS" mrproper
+	if [[ "$CLEAN" -eq 1 ]]; then
+		rm -f ".configBackup" # Just in case if somebody would call configtest with clean...
+		exit 0
+	fi
+	if [[ "$CONFIGTEST" -eq 1 && -f ".configBackup" ]]; then
+		mv ".configBackup" ".config"
+	else
 		make -j "$JOBS" "$TARGETCONFIG"
 	fi
 fi
