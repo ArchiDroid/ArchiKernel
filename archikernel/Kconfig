@@ -473,4 +473,25 @@ config ARCHIKERNEL_OPTI_FIPA_PTA
 		memory and compile-time usage on large compilation units. It is not 
 		enabled by default at any optimization level.
 
+config ARCHIKERNEL_OPTI_LDFLAGS_O
+		bool "Optimize the output (LD)"
+		help
+			If level is a numeric values greater than zero ld optimizes the output. This
+			might take significantly longer and therefore probably should only be enabled
+			for the final binary.  At the moment this option only affects ELF shared
+			library generation. Future releases of the linker may make more use of this
+			option. Also currently there is no difference in the linker's behaviour for
+			different non-zero values of this option. Again this may change with future
+			releases.
+
+config ARCHIKERNEL_OPTI_LDFLAGS_SORT
+		bool "Sort the common symbols (LD)"
+		help
+			This option tells ld to sort the common symbols by alignment in ascending
+			or descending order when it places them in the appropriate output sections.
+			The symbol alignments considered are sixteen-byte or larger, eight-byte,
+			four-byte, two-byte, and one-byte. This is to prevent gaps between symbols
+			due to alignment constraints.  If no sorting order is specified, then
+			descending order is assumed.
+
 endmenu

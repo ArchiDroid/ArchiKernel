@@ -562,6 +562,7 @@ endif # $(dot-config)
 all: vmlinux
 
 # ArchiKernel flags
+
 ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7VE
 KBUILD_CFLAGS	+= -marm -march=armv7ve
 endif
@@ -617,6 +618,7 @@ KBUILD_CFLAGS	+= -DNDEBUG
 endif
 ifdef CONFIG_ARCHIKERNEL_OPTI_FLTO
 KBUILD_CFLAGS   += -flto
+LDFLAGS         += -flto
 endif
 ifdef CONFIG_ARCHIKERNEL_OPTI_FSECTION_ANCHORS
 KBUILD_CFLAGS	+= -fsection-anchors
@@ -653,6 +655,13 @@ KBUILD_CFLAGS	+= -ftracer
 endif
 ifdef CONFIG_ARCHIKERNEL_OPTI_FIPA_PTA
 KBUILD_CFLAGS	+= -fipa-pta
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_LDFLAGS_O
+LDFLAGS         += -O3
+endif
+ifdef CONFIG_ARCHIKERNEL_OPTI_LDFLAGS_SORT
+LDFLAGS         += --sort-common
 endif
 
 #ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
