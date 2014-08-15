@@ -736,7 +736,7 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 				"finger id[%d]: x=%d y=%d p=%d w=%d major=%d minor=%d angle=%d palm=%d\n",
 				id, x, y, tmp[5], tmp[4], tmp[6], tmp[7]
 				, angle, palm);
-#else
+#elif !defined(CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION)
 			if (info->finger_state[id] != 0) {
 				dev_notice(&client->dev,
 					"finger [%d] up, palm %d\n", id, palm);
@@ -776,8 +776,10 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 #else
 		if (info->finger_state[id] == 0) {
 			info->finger_state[id] = 1;
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 			dev_notice(&client->dev,
 				"finger [%d] down, palm %d\n", id, palm);
+#endif
 		}
 #endif
 	}
