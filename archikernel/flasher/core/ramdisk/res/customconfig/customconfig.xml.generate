@@ -207,6 +207,7 @@ done
                 name="TouchBoost" 
                 action="generic01 /sys/class/misc/touchboost_switch/touchboost_switch"
                 label="TouchBoost"/>
+
         <spinner description="Set CPU freq boost level when you touch the screen. Lower levels will help with the battery with the cost of UI lags" name="Touch Boost Level" action="generic /sys/class/misc/touchboost_switch/touchboost_freq">
              <spinnerItem name="1200MHz" value="1200000"/> 
              <spinnerItem name="1000MHz" value="1000000"/> 
@@ -218,6 +219,12 @@ done
              <spinnerItem name="400MHz" value="400000"/> 
              <spinnerItem name="200MHz" value="200000"/> 
        </spinner>
+
+       <checkbox description="Enable Sharpness Tweak" 
+                name="Sharpness Tweak"
+                action="generic01 /sys/class/misc/mdnie_preset/mdnie_preset"
+                label="Sharpness Tweak"/>
+
            <seekBar description="FB earlysuspend delay to run CRT animation when you turn the screen off." 
 		name="FB Earlysuspend Delay" action="generic /sys/kernel/early_suspend/early_suspend_delay" unit=" ms" min="0" reversed="false" step="100" max="700"/>
       </settingsPane>
