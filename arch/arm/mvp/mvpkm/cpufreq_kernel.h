@@ -33,8 +33,8 @@
 
 /* Scaling factors to convert CPU clock cycles to Rate64 value */
 struct TscToRate64Cb {
-   uint32 mult;
-   uint32 shift;
+	uint32 mult;
+	uint32 shift;
 };
 
 void CpuFreq_Init(void);

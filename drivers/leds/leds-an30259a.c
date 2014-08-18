@@ -1140,10 +1140,13 @@ static int __devinit an30259a_probe(struct i2c_client *client,
 	if (ret) {
 		dev_err(&client->dev,
 			"Failed to create sysfs group for samsung specific led\n");
-		goto exit;
+		goto exit2;
 	}
 #endif
 	return ret;
+
+exit2: 
+	device_destroy(sec_class, 0);
 exit:
 	mutex_destroy(&data->mutex);
 	kfree(data);

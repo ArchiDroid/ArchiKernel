@@ -77,6 +77,7 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"IS", "IS", 1},
 	{"IT", "IT", 1},
 	{"JP", "JP", 5},
+	{"KE", "SA", 0},
 	{"KR", "KR", 24},
 	{"KW", "KW", 1},
 	{"LI", "LI", 1},
@@ -886,14 +887,13 @@ vid_info_t vid_info[] = {
 	{ 2, { 0x99, }, { "semcove" } },
 	{ 0, { 0x00, }, { "samsung" } }
 };
-
 #elif defined(BCM4334_CHIP)
 vid_info_t vid_info[] = {
-	{ 6, { 0x00, 0x00, 0x00,0x33, 0x33, }, { "semco" } },
-	{ 6, { 0x00, 0x00 ,0x00,0xfb, 0x50,}, { "semcosh" } },
+	{ 6, { 0x00, 0x00, 0x00, 0x33, 0x33, }, { "semco" } },
+	{ 6, { 0x00, 0x00, 0x00, 0xfb, 0x50, }, { "semcosh" } },
+	{ 6, { 0x00, 0x20, 0xc7, 0x00, 0x00, }, { "murata" } },
 	{ 0, { 0x00, }, { "murata" } }
 };
-
 #elif defined(BCM4335_CHIP)
 vid_info_t vid_info[] = {
 	{ 3, { 0x33, 0x66, }, { "semcosh" } },		/* B0 Sharp 5G-FEM */

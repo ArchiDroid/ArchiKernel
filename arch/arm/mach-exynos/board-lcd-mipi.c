@@ -79,6 +79,12 @@
  #define DPHY_PLL_P	3
  #define DPHY_PLL_M	123
  #define DPHY_PLL_S	1
+#elif defined(CONFIG_FB_S5P_NT71391)
+ #define DSIM_NO_DATA_LANE	DSIM_DATA_LANE_4
+ /* 230Mbps */
+ #define DPHY_PLL_P	3
+ #define DPHY_PLL_M	115
+ #define DPHY_PLL_S	1
 #else
  #define DSIM_NO_DATA_LANE	DSIM_DATA_LANE_4
  /* 500Mbps */
@@ -186,7 +192,11 @@ static struct s3cfb_lcd lcd_panel_pdata = {
 
 	.freq = 60,
 #if defined(CONFIG_S6E8AA0_AMS480GYXX) || defined(CONFIG_S6E8AA0_AMS465XX)
+#if defined(CONFIG_MACH_M3_JPN_DCM)
+	.freq_limit = 43,
+#else
 	.freq_limit = 40,
+#endif
 #endif
 
 	/* minumun value is 0 except for wr_act time. */
@@ -196,7 +206,20 @@ static struct s3cfb_lcd lcd_panel_pdata = {
 		.wr_act = 1,
 		.wr_hold = 0,
 	},
-
+#if defined(CONFIG_MACH_M3_JPN_DCM)
+	.timing = {
+		.h_fp = 15,
+		.h_bp = 10,
+		.h_sw = 10,
+		.v_fp = 13,
+		.v_fpe = 1,
+		.v_bp = 1,
+		.v_bpe = 1,
+		.v_sw = 2,
+		.cmd_allow_len = 11,
+		.stable_vfp = 2,
+	},
+#else
 	.timing = {
 		.h_fp = 5,
 		.h_bp = 5,
@@ -209,7 +232,7 @@ static struct s3cfb_lcd lcd_panel_pdata = {
 		.cmd_allow_len = 11,
 		.stable_vfp = 2,
 	},
-
+#endif
 	.polarity = {
 		.rise_vclk = 1,
 		.inv_hsync = 0,
@@ -750,6 +773,11 @@ static int lcd_power_on(void *ld, int enable)
 			regulator_put(regulator);
 		}
 	} else {
+#if defined(CONFIG_MACH_SF2)
+#if defined(GPIO_MLCD_RST)
+		gpio_set_value(GPIO_MLCD_RST, GPIO_LEVEL_LOW);
+#endif
+#endif
 		for (i = ARRAY_SIZE(lcd_regulator_arr)-1; i >= 0; i--) {
 			pr_debug("%s: regulator name : %s, enable : %d\n",
 				 __func__, lcd_regulator_arr[i], enable);
@@ -763,8 +791,10 @@ static int lcd_power_on(void *ld, int enable)
 #if defined(GPIO_LCD_POWER_EN)
 		gpio_set_value(GPIO_LCD_POWER_EN, GPIO_LEVEL_LOW);
 #endif
+#if !defined(CONFIG_MACH_SF2)
 #if defined(GPIO_MLCD_RST)
 		gpio_set_value(GPIO_MLCD_RST, GPIO_LEVEL_LOW);
+#endif
 #endif
 	}
 #if defined(CONFIG_FB_S5P_LMS501XX)
@@ -880,6 +910,40 @@ struct platform_device mdnie_device = {
 #endif
 
 #ifdef CONFIG_BACKLIGHT_LP855X
+#if defined(CONFIG_MACH_KONA)
+#define EPROM_CFG5_ADDR 0xA5
+#define EPROM_A5_VAL    0xA0 /* PWM_DIRECT(7)=1, PS_MODE(6:4)=4drivers*/
+#define EPROM_A5_MASK   0x0F /* PWM_FREQ(3:0) : mask */
+
+static struct lp855x_rom_data lp8556_eprom_arr[] = {
+    {EPROM_CFG5_ADDR, EPROM_A5_VAL, EPROM_A5_MASK},
+};
+
+static struct lp855x_platform_data lp8856_bl_pdata = {
+    .mode       = PWM_BASED,
+    .device_control = PWM_CONFIG(LP8556),
+    .load_new_rom_data = 1,
+    .size_program   = ARRAY_SIZE(lp8556_eprom_arr),
+    .rom_data   = lp8556_eprom_arr,
+    .use_gpio_en    = 1,
+    .gpio_en    = GPIO_LED_BACKLIGHT_RESET,
+    .power_on_udelay = 1000,
+};
+
+static struct i2c_board_info i2c_devs24_emul[] __initdata = {
+    {
+        I2C_BOARD_INFO("lp8556", (0x58 >> 1)),
+        .platform_data  = &lp8856_bl_pdata,
+    },
+};
+static int lcd_bl_init(void)
+{
+    i2c_register_board_info(24, i2c_devs24_emul,
+        ARRAY_SIZE(i2c_devs24_emul));
+
+    return 0;
+}
+#else
 #define EPROM_CFG3_ADDR		0xA3
 #define EPROM_CFG5_ADDR		0xA5
 #define EPROM_CFG7_ADDR		0xA7
@@ -949,6 +1013,7 @@ static int lcd_bl_init(void)
 
 	return 0;
 }
+#endif
 #endif
 
 #if defined(CONFIG_LCD_FREQ_SWITCH)

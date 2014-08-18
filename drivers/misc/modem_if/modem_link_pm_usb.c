@@ -87,7 +87,6 @@ static void link_pm_hub_work(struct work_struct *work)
 	int err, cnt;
 	struct link_pm_data *pm_data =
 		container_of(work, struct link_pm_data, link_pm_hub.work);
-	struct usb_link_device *usb_ld = pm_data->usb_ld;
 
 	if (pm_data->hub_status == HUB_STATE_ACTIVE) {
 		end_hub_work(pm_data);
@@ -114,20 +113,8 @@ static void link_pm_hub_work(struct work_struct *work)
 		mif_trace("hub off->on\n");
 
 		/* skip 1st time before first probe */
-		if (pm_data->root_hub) {
-			for (cnt=0;cnt<5;cnt++) {
-				err = pm_runtime_get_sync(pm_data->root_hub);
-				if (err >= 0) {
-					mif_err("pm_runtime_get_sync success\n");
-					break;
-				}
-				mif_err("pm_runtime_get_sync fail %d th\n", cnt);
-				msleep(100);
-			}
-		} else {
-			mif_info("root_hub not defined !!!\n");
-		}
-		mif_info("check done pm_runtime_get_sync\n");
+		if (pm_data->root_hub)
+			pm_runtime_get_sync(pm_data->root_hub);
 
 		for (cnt=0;cnt<5;cnt++) {
 			err = pm_data->port_enable(2, 1);
@@ -160,16 +147,10 @@ static void link_pm_hub_work(struct work_struct *work)
 				pm_runtime_put_sync(pm_data->root_hub);
 
 			mif_err("USB Hub resume fail !!!\n");
-			//panic("MIF: USB Hub resume fail !!!");
-
 			end_hub_work(pm_data);
 		} else {
 			mif_info("hub resumming: %d\n",
 					pm_data->hub_on_retry_cnt);
-			if (pm_data->hub_on_retry_cnt && ((pm_data->hub_on_retry_cnt%20) == 0)) {
-				mif_info("hub resume retry !!!\n");
-				pm_data->port_enable(2, 1);
-			}
 			start_hub_work(pm_data, 200);
 		}
 		break;
@@ -189,14 +170,6 @@ static int link_pm_hub_standby(void *args)
 		return -ENODEV;
 	}
 
-	if (wake_lock_active(&usb_ld->gpiolock) && during_hub_resume) {
-		mif_err("Skip hub off !!!\n");
-		return -ENODEV;
-	}
-
-	mif_err("set hub_suspend gpio !!!\n");
-	gpio_set_value(pm_data->gpio_hub_suspend, 1);
-	
 	err = pm_data->port_enable(2, 0);
 	if (err < 0)
 		mif_err("hub off fail err=%d\n", err);
@@ -206,12 +179,6 @@ static int link_pm_hub_standby(void *args)
 	/* this function is atomic.
 	 * make force disconnect in workqueue..
 	 */
-	if (pm_data->usb_ld->if_usb_connected)
-		schedule_work(&usb_ld->disconnect_work);
-
-	mif_err("unset hub_suspend gpio !!!\n");
-	gpio_set_value(pm_data->gpio_hub_suspend, 0);
-
 	return err;
 }
 
@@ -395,7 +362,6 @@ int link_pm_init(struct usb_link_device *usb_ld, void *data)
 	pm_data->gpio_link_active = pm_pdata->gpio_link_active;
 	pm_data->gpio_link_hostwake = pm_pdata->gpio_link_hostwake;
 	pm_data->gpio_link_slavewake = pm_pdata->gpio_link_slavewake;
-	pm_data->gpio_hub_suspend = pm_pdata->gpio_hub_suspend;
 	pm_data->link_reconnect = pm_pdata->link_reconnect;
 	pm_data->port_enable = pm_pdata->port_enable;
 	pm_data->freq_lock = pm_pdata->freq_lock;

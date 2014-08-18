@@ -41,9 +41,9 @@
  *                    flag to use to map a given page in HKVA space
  */
 typedef struct HkvaMapInfo {
-   uint32 mpn;
-   _Bool write;
-   _Bool exec;
+	uint32 mpn;
+	_Bool write;
+	_Bool exec;
 } HkvaMapInfo;
 
 #endif

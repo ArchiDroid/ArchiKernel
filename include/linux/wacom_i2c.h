@@ -500,6 +500,7 @@ struct wacom_i2c {
 #ifdef BATTERY_SAVING_MODE
 	bool battery_saving_mode;
 #endif
+	bool pwr_flag;
 	bool power_enable;
 	bool boot_mode;
 	bool query_status;

@@ -43,8 +43,8 @@
 
 /* Address structure used by the host user socket interface. */
 struct sockaddr_mk {
-   sa_family_t   mk_family;
-   Mksck_Address mk_addr;
+	sa_family_t   mk_family;
+	Mksck_Address mk_addr;
 };
 
 #endif

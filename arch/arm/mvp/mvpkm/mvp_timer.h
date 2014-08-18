@@ -58,10 +58,10 @@ typedef struct MVPTimer MVPTimer;
  * @brief timer entry struct
  */
 struct MVPTimer {
-   MVPTimer *next;                                ///< next in timers list
-   uint64 when64;                                 ///< absolute expiration
-   void (*entry)(uint64 now64, MVPTimer *timer);  ///< callback entrypoint
-   void *param;                                   ///< callback parameter
+	MVPTimer *next;				/**< next in timers list */
+	uint64 when64;				/**< absolute expiration */
+	void (*entry)(uint64 now64, MVPTimer *timer);/**< callback entrypoint */
+	void *param;				/**< callback parameter */
 };
 
 void   MVPTimer_InitVMX(void);

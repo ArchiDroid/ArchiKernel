@@ -124,26 +124,25 @@ int ssp_i2c_read(struct ssp_data *data, char *pTxData, u16 uTxLength,
 	return ERROR;
 }
 
-int ssp_sleep_mode(struct ssp_data *data)
+int ssp_send_status_cmd(struct ssp_data *data, char chTxBuf)
 {
 	char chRxBuf = 0;
-	char chTxBuf = MSG2SSP_AP_STATUS_SLEEP;
 	int iRet = 0, iRetries = DEFAULT_RETRIES;
 
 	if (waiting_wakeup_mcu(data) < 0)
 		return ERROR;
 
-	/* send to AP_STATUS_SLEEP */
+	/* send to AP_STATUS_CMD */
 	iRet = ssp_i2c_read(data, &chTxBuf, 1, &chRxBuf, 1, DEFAULT_RETRIES);
 	if (iRet != SUCCESS) {
-		pr_err("[SSP]: %s - MSG2SSP_AP_STATUS_SLEEP CMD fail %d\n",
-			__func__, iRet);
+		pr_err("[SSP]: %s - MSG2SSP_AP_STATUS_CMD(0x%x) fail %d\n",
+			__func__, chTxBuf, iRet);
 		return ERROR;
 	} else if (chRxBuf != MSG_ACK) {
 		while (--iRetries > 0) {
 			mdelay(10);
-			pr_err("[SSP]: %s - MSG2SSP_AP_STATUS_SLEEP CMD "
-				"retry...\n", __func__);
+			pr_err("[SSP]: %s - MSG2SSP_AP_STATUS_CMD(0x%x) "
+				"retry...\n", __func__, chTxBuf);
 			iRet = ssp_i2c_read(data, &chTxBuf, 1,
 				&chRxBuf, 1, DEFAULT_RETRIES);
 			if ((iRet == SUCCESS) && (chRxBuf == MSG_ACK))
@@ -157,45 +156,7 @@ int ssp_sleep_mode(struct ssp_data *data)
 	}
 
 	data->uInstFailCnt = 0;
-	ssp_dbg("[SSP]: %s - MSG2SSP_AP_STATUS_SLEEP CMD\n", __func__);
-
-	return SUCCESS;
-}
-
-int ssp_resume_mode(struct ssp_data *data)
-{
-	char chRxBuf = 0;
-	char chTxBuf = MSG2SSP_AP_STATUS_WAKEUP;
-	int iRet = 0, iRetries = DEFAULT_RETRIES;
-
-	if (waiting_wakeup_mcu(data) < 0)
-		return ERROR;
-
-	/* send to MSG2SSP_AP_STATUS_WAKEUP */
-	iRet = ssp_i2c_read(data, &chTxBuf, 1, &chRxBuf, 1, DEFAULT_RETRIES);
-	if (iRet != SUCCESS) {
-		pr_err("[SSP]: %s - MSG2SSP_AP_STATUS_WAKEUP CMD fail %d\n",
-				__func__, iRet);
-		return ERROR;
-	} else if (chRxBuf != MSG_ACK) {
-		while (--iRetries > 0) {
-			mdelay(10);
-			pr_err("[SSP]: %s - MSG2SSP_AP_STATUS_WAKEUP CMD "
-				"retry...\n", __func__);
-			iRet = ssp_i2c_read(data, &chTxBuf, 1, &chRxBuf, 1,
-				DEFAULT_RETRIES);
-			if ((iRet == SUCCESS) && (chRxBuf == MSG_ACK))
-				break;
-		}
-
-		if (iRetries < 0) {
-			data->uInstFailCnt++;
-			return FAIL;
-		}
-	}
-
-	data->uInstFailCnt = 0;
-	ssp_dbg("[SSP]: %s - MSG2SSP_AP_STATUS_WAKEUP CMD\n", __func__);
+	ssp_dbg("[SSP]: %s - MSG2SSP_AP_STATUS_CMD(0x%x)\n", __func__, chTxBuf);
 
 	return SUCCESS;
 }

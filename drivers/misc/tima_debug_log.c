@@ -12,8 +12,14 @@
 #define	SECURE_LOG	0
 #define	DEBUG_LOG	1
 
-#define	DEBUG_LOG_START		(0x46202000)
+#if defined(CONFIG_MACH_M0) // for M0 1 GB RAM
+#define	DEBUG_LOG_START		(0x46102000)
+#define	SECURE_LOG_START	(0x46202000)
+#else			   // for M3 and T0 2GB RAM
+#define	DEBUG_LOG_START		(0x46202000) 
 #define	SECURE_LOG_START	(0x46302000)
+#endif
+
 #define	DEBUG_LOG_SIZE	(1<<20)
 #define	DEBUG_LOG_MAGIC	(0xaabbccdd)
 #define	DEBUG_LOG_ENTRY_SIZE	128

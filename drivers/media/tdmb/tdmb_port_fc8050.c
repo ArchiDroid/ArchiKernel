@@ -42,6 +42,9 @@
 
 static bool fc8050_on_air;
 static bool fc8050_pwr_on;
+
+/* #define TDMB_DEBUG_SCAN */
+#ifdef TDMB_DEBUG_SCAN
 static void __print_ensemble_info(struct ensemble_info_type *e_info)
 {
 	int i = 0;
@@ -60,7 +63,7 @@ static void __print_ensemble_info(struct ensemble_info_type *e_info)
 		DPRINTK("scids(0x%x)\n", e_info->sub_ch[i].scids);
 	}
 }
-
+#endif
 static bool __get_ensemble_info(struct ensemble_info_type *e_info
 							, unsigned long freq)
 {
@@ -125,7 +128,9 @@ static bool __get_ensemble_info(struct ensemble_info_type *e_info
 
 			}
 		}
+#ifdef TDMB_DEBUG_SCAN
 		__print_ensemble_info(e_info);
+#endif
 		return true;
 	} else {
 		return false;

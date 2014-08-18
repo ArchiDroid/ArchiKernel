@@ -38,6 +38,17 @@ config SENSORS_AK8963C_FACTORY
 	  If you say no here you will support
 	  it on the HAL layer.
 
+config SENSORS_AK8975C_FACTORY
+	tristate "AK8975C factory test"
+	default n
+	depends on SENSORS_AK8975C
+	help
+	  If you say yes here you will support
+	  factory test for AK8975C on the
+	  device driver.
+	  If you say no here you will support
+	  it on the HAL layer.
+
 config SENSORS_BMP180
 	depends on I2C && SYSFS
 	tristate "BMP180 digital pressure sensor"

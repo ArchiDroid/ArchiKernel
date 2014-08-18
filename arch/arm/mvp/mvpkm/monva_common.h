@@ -53,29 +53,29 @@
  * Worldswitch page gets mapped right after the stack guard.
  */
 #define MONITOR_VA_WORLDSWITCH \
-   ((MVA)(MONITOR_VA_START + 3 * PAGE_SIZE))
+	((MVA)(MONITOR_VA_START + 3 * PAGE_SIZE))
 
 #define MONITOR_VA_WORLDSWITCH_CODE \
-   (MONITOR_VA_WORLDSWITCH + PAGE_SIZE)
+	(MONITOR_VA_WORLDSWITCH + PAGE_SIZE)
 
 #define MONITOR_VA_UART \
-   (MONITOR_VA_WORLDSWITCH_CODE + PAGE_SIZE)
+	(MONITOR_VA_WORLDSWITCH_CODE + PAGE_SIZE)
 
 /**
  * @brief Type of physmem region mapping that we want the VMX to know about.
  *        Helps to identify Guest page allocations.
  */
 typedef enum {
-   MEMREGION_MAINMEM = 1,
-   MEMREGION_MODULE = 2,
-   MEMREGION_WSP = 3,
-   MEMREGION_MONITOR_MISC = 4,
-   MEMREGION_DEFAULT = 0
+	MEMREGION_MAINMEM = 1,
+	MEMREGION_MODULE = 2,
+	MEMREGION_WSP = 3,
+	MEMREGION_MONITOR_MISC = 4,
+	MEMREGION_DEFAULT = 0
 } PACKED PhysMem_RegionType;
 
-typedef struct MonVA { /* Note that this struct is VE only */
-   MA  l2BaseMA;       ///< MA of monitor L2 page table page
-   MVA excVec;         ///< Monitor exception vector virtual address
+typedef struct MonVA {		/* Note that this struct is VE only */
+	MA  l2BaseMA;		/**< MA of monitor L2 page table page */
+	MVA excVec;		/**< Monitor exception vector virtual address */
 } MonVA;
 
 /**
@@ -85,8 +85,8 @@ typedef struct MonVA { /* Note that this struct is VE only */
  * without making the required update to HMAIR0.
  */
 typedef enum {
-   MVA_MEMORY = 0,
-   MVA_DEVICE = 1
+	MVA_MEMORY = 0,
+	MVA_DEVICE = 1
 } MVAType;
 
 /**

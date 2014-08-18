@@ -69,4 +69,4 @@
 #define ARM_VE_HSR_FS_PERM_L2         0xe
 #define ARM_VE_HSR_FS_PERM_L3         0xf
 
-#endif /// ifndef _VE_DEFS_H_
+#endif /* ifndef _VE_DEFS_H_ */

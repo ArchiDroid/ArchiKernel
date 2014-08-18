@@ -1446,12 +1446,7 @@ static int s5p_tvout_vo_overlay(
 #endif
 	if (i) {
 		s5p_vp_ctrl_start();
-		/* restore vsync interrupt setting */
-		s5p_mixer_set_vsync_interrupt(
-			s5p_mixer_ctrl_get_vsync_interrupt());
 	} else {
-		/* disable vsync interrupt when VP is disabled */
-		s5p_mixer_ctrl_disable_vsync_interrupt();
 		s5p_vp_ctrl_stop();
 	}
 

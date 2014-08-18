@@ -43,8 +43,8 @@ extern void (*commOSModExit)(void);
 
 /* Macro to assign Init and Exit callbacks. */
 #define COMM_OS_MOD_INIT(init, exit)        \
-   int (*commOSModInit)(void *args) = init; \
-   void (*commOSModExit)(void) = exit
+	int (*commOSModInit)(void *args) = init; \
+	void (*commOSModExit)(void) = exit
 
 
 /*
@@ -141,10 +141,10 @@ void CommOS_FlushAIOWork(CommOSWork *work);
 
 int
 CommOS_StartIO(const char *dispatchTaskName,
-               CommOSDispatchFunc dispatchHandler,
-               unsigned int interval,
-               unsigned int maxCycles,
-               const char *aioTaskName);
+	       CommOSDispatchFunc dispatchHandler,
+	       unsigned int interval,
+	       unsigned int maxCycles,
+	       const char *aioTaskName);
 
 
 #endif  /* _COMM_OS_H_ */

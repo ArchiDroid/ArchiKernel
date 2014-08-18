@@ -380,6 +380,13 @@ void cpufreq_pegasusq_min_cpu_unlock(void)
 	lock = atomic_read(&g_hotplug_lock);
 	if (lock == 0)
 		return;
+#if defined(CONFIG_HAS_EARLYSUSPEND) && EARLYSUSPEND_HOTPLUGLOCK
+	if (dbs_tuners_ins.early_suspend >= 0) { /* if LCD is off-state */
+		atomic_set(&g_hotplug_lock, 1);
+		apply_hotplug_lock();
+		return;
+	}
+#endif
 	flag = lock - online;
 	if (flag >= 0)
 		return;

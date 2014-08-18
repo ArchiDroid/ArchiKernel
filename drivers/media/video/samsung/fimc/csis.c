@@ -363,6 +363,8 @@ static int s3c_csis_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	ret = s3c_csis_set_info(pdev);
+	if (ret < 0)
+		return -ENOMEM;
 
 	s3c_csis[pdev->id]->dev = &pdev->dev;
 

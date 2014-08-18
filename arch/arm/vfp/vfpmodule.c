@@ -497,8 +497,8 @@ void vfp_flush_hwstate(struct thread_info *thread)
 		 * Set the context to NULL to force a reload the next time
 		 * the thread uses the VFP.
 		 */
-		vfp_current_hw_state[cpu] = NULL;
 	}
+	vfp_current_hw_state[cpu] = NULL;
 
 #ifdef CONFIG_SMP
 	/*

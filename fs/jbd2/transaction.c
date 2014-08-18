@@ -1557,7 +1557,7 @@ void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
 	__blist_del_buffer(list, jh);
 	jh->b_jlist = BJ_None;
 	if (test_clear_buffer_jbddirty(bh))
-		mark_buffer_dirty(bh);	/* Expose it to the VM */
+		mark_buffer_dirty_sync(bh); /* Expose it to the VM */
 }
 
 /*

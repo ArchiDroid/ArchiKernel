@@ -53,4 +53,4 @@
  */
 #define FLS(n) (32 - CLZ(n))
 
-#endif /// ifndef _MVP_COMPILER_H_
+#endif /* ifndef _MVP_COMPILER_H_ */

@@ -76,7 +76,11 @@ obj-$(CONFIG_VIDEO_S5K4BA) += s5k4ba.o
 obj-$(CONFIG_VIDEO_S5K4EA) += s5k4ea.o
 endif
 obj-$(CONFIG_VIDEO_M5MO)	+= m5mo.o
+ifeq ($(CONFIG_MACH_GC2PD),y)
 obj-$(CONFIG_VIDEO_M9MO)	+= m9mo.o
+else
+obj-$(CONFIG_VIDEO_M9MO)	+= m9mo_sf2.o
+endif
 obj-$(CONFIG_VIDEO_M9MO_SPI)	+= m9mo_spi.o
 ifeq ($(CONFIG_MACH_PX),y)
 obj-$(CONFIG_VIDEO_S5K5BAFX)	+= s5k5bafx-v2.o

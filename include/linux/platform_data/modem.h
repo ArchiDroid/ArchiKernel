@@ -129,7 +129,6 @@ struct modemlink_pm_data {
 	unsigned gpio_link_active;
 	unsigned gpio_link_hostwake;
 	unsigned gpio_link_slavewake;
-	unsigned gpio_hub_suspend;
 	int (*link_reconnect)(void);
 
 	/* usb hub only */
@@ -138,10 +137,14 @@ struct modemlink_pm_data {
 	void *hub_pm_data;
 	bool has_usbhub;
 
+#ifdef CONFIG_EXYNOS4_CPUFREQ
 	/* cpu/bus frequency lock */
 	atomic_t freqlock;
+	atomic_t freq_dpramlock;
 	int (*freq_lock)(struct device *dev);
 	int (*freq_unlock)(struct device *dev);
+	unsigned gpio_cpufreq_lock;
+#endif
 
 	int autosuspend_delay_ms; /* if zero, the default value is used */
 	void (*ehci_reg_dump)(struct device *);
@@ -351,6 +354,11 @@ struct modem_data {
 
 	/* Switch with 2 links in a modem */
 	unsigned gpio_link_switch;
+
+#ifdef CONFIG_EXYNOS4_CPUFREQ
+	/* cpu/bus frequency lock */
+	unsigned gpio_cpufreq_lock;
+#endif
 
 	/* Modem component */
 	enum modem_network modem_net;

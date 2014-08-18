@@ -27,7 +27,7 @@
 #ifndef _MVPKM_COMM_EV_H
 #define _MVPKM_COMM_EV_H
 
-extern int (*CommTranspEvProcess)(CommTranspID* id, CommTranspIOEvent event);
+extern int (*CommTranspEvProcess)(CommTranspID *id, CommTranspIOEvent event);
 
 /**
  * @brief Forward any guest signal requests to the commkm module
@@ -36,19 +36,17 @@ extern int (*CommTranspEvProcess)(CommTranspID* id, CommTranspIOEvent event);
  */
 
 static inline void
-Mvpkm_CommEvSignal(CommTranspID *id, CommTranspIOEvent event)
+Mvpkm_CommEvSignal(CommTranspID *id,
+		   CommTranspIOEvent event)
 {
-   if (CommTranspEvProcess) {
-      CommTranspEvProcess(id, event);
-   }
+	if (CommTranspEvProcess)
+		CommTranspEvProcess(id, event);
 }
 
 void
 Mvpkm_CommEvRegisterProcessCB(int (*commProcessFunc)(CommTranspID*,
-                                                     CommTranspIOEvent));
+						     CommTranspIOEvent));
 void Mvpkm_CommEvUnregisterProcessCB(void);
-
-
 
 #endif
 

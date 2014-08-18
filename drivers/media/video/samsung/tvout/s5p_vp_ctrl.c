@@ -553,6 +553,8 @@ void s5p_vp_ctrl_stop(void)
 {
 	if (s5p_vp_ctrl_private.running) {
 		s5p_vp_ctrl_internal_stop();
+
+		s5p_vp_ctrl_private.running = false;
 #ifdef CLOCK_GATING_ON_EARLY_SUSPEND
 		if (suspend_status) {
 			tvout_dbg("driver is suspend_status\n");
@@ -562,7 +564,6 @@ void s5p_vp_ctrl_stop(void)
 			s5p_vp_ctrl_clock(0);
 		}
 
-		s5p_vp_ctrl_private.running = false;
 #if defined(CONFIG_BUSFREQ) || defined(CONFIG_BUSFREQ_LOCK_WRAPPER)
 		exynos4_busfreq_lock_free(DVFS_LOCK_ID_TV);
 #endif

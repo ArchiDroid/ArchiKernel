@@ -36,21 +36,21 @@
 #include "include_check.h"
 
 
-#define _EXIT_STATUS_DEF \
-   _EXIT_STATUS_ITEM(Success,        0) \
-   _EXIT_STATUS_ITEM(ReturnToHost,   1) \
-   _EXIT_STATUS_ITEM(GuestExit,      2) \
-   _EXIT_STATUS_ITEM(HostRequest,    3) \
-   _EXIT_STATUS_ITEM(VMXFatalError,  4) \
-   _EXIT_STATUS_ITEM(VMMFatalError,  5) \
-   _EXIT_STATUS_ITEM(MVPDFatalError, 6) \
-   _EXIT_STATUS_ITEM(VPNFatalError,  7) \
-   _EXIT_STATUS_ITEM(VMXFindCause,   8) \
-   _EXIT_STATUS_ITEM(VMMFatalKnown,  9)
+#define _EXIT_STATUS_DEF			\
+	_EXIT_STATUS_ITEM(Success,        0)	\
+	_EXIT_STATUS_ITEM(ReturnToHost,   1)	\
+	_EXIT_STATUS_ITEM(GuestExit,      2)	\
+	_EXIT_STATUS_ITEM(HostRequest,    3)	\
+	_EXIT_STATUS_ITEM(VMXFatalError,  4)	\
+	_EXIT_STATUS_ITEM(VMMFatalError,  5)	\
+	_EXIT_STATUS_ITEM(MVPDFatalError, 6)	\
+	_EXIT_STATUS_ITEM(VPNFatalError,  7)	\
+	_EXIT_STATUS_ITEM(VMXFindCause,   8)	\
+	_EXIT_STATUS_ITEM(VMMFatalKnown,  9)
 
 
 enum ExitStatus {
-#define _EXIT_STATUS_ITEM(name,num) ExitStatus##name = num,
+#define _EXIT_STATUS_ITEM(name, num) ExitStatus##name = num,
 _EXIT_STATUS_DEF
 #undef  _EXIT_STATUS_ITEM
 };
@@ -58,8 +58,8 @@ _EXIT_STATUS_DEF
 typedef enum ExitStatus ExitStatus;
 
 #ifndef __cplusplus
-static const char * ExitStatusName[] UNUSED = {
-#define _EXIT_STATUS_ITEM(name,num) [ExitStatus##name] = #name,
+static const char *ExitStatusName[] UNUSED = {
+#define _EXIT_STATUS_ITEM(name, num) [ExitStatus##name] = #name,
 _EXIT_STATUS_DEF
 #undef  _EXIT_STATUS_ITEM
 };

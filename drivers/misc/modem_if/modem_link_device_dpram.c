@@ -1377,7 +1377,11 @@ static int rx_sipc5_frames(struct dpram_link_device *dpld, int dev,
 				ld->name, get_dev_name(dev), tot, rest);
 			pr_ipc(1, str, hdr, 4);
 			rcvd = -EBADMSG;
+#if defined(CONFIG_MACH_C1_KOR_SKT) || defined(CONFIG_MACH_C1_KOR_KT) || defined(CONFIG_MACH_C1_KOR_LGT)
+			return rcvd;
+#else
 			goto exit;
+#endif
 		}
 
 		/* Allocate an skb */

@@ -44,26 +44,26 @@
 
 
 typedef struct CommTranspID {
-   union {
-      unsigned char d8[8];
-      unsigned int d32[2];
-      unsigned long long d64;
-   };
+	union {
+		unsigned char d8[8];
+		unsigned int d32[2];
+		unsigned long long d64;
+	};
 } CommTranspID;
 
 
 /* Basic initialization arguments. */
 
 typedef enum CommTranspInitMode {
-   COMM_TRANSP_INIT_CREATE = 0x0,
-   COMM_TRANSP_INIT_ATTACH = 0x1
+	COMM_TRANSP_INIT_CREATE = 0x0,
+	COMM_TRANSP_INIT_ATTACH = 0x1
 } CommTranspInitMode;
 
 typedef struct CommTranspInitArgs {
-   unsigned int capacity;      // Shared memory capacity.
-   unsigned int type;          // Type / implementation using this area.
-   CommTranspID id;            // ID (name) of shared memory area.
-   CommTranspInitMode mode;    // Init mode (above).
+	unsigned int capacity;      /* Shared memory capacity. */
+	unsigned int type;          /* Type / implementation using this area. */
+	CommTranspID id;            /* ID (name) of shared memory area. */
+	CommTranspInitMode mode;    /* Init mode (above). */
 } CommTranspInitArgs;
 
 
@@ -78,14 +78,14 @@ typedef struct CommTranspInitArgs {
 static inline unsigned int
 CommTransp_GetType(const char *str)
 {
-   unsigned int hash = 5381;
-   int c;
+	unsigned int hash = 5381;
+	int c;
 
-   while ((c = *str++)) {
-      hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-   }
-   return hash;
+	while ((c = *str++))
+		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+	return hash;
 }
 
-#endif // _COMM_TRANSP_H_
+#endif /* _COMM_TRANSP_H_ */
 

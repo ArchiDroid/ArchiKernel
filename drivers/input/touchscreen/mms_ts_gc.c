@@ -2824,9 +2824,7 @@ static int __devinit mms_ts_probe(struct i2c_client *client,
 	msleep(100);
 
 	i2c_set_clientdata(client, info);
-
 	ret = gpio_get_value(GPIO_OLED_DET);
-
 	if (ret == 0) {
 		dev_err(&client->dev, "GPIO_OLED_DET low\n");
 

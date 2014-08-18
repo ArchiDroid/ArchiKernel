@@ -43,6 +43,8 @@
 #include "gpio-rev00-kona.h"
 #elif defined(CONFIG_MACH_KONA) && defined(CONFIG_KONA_01_BD)
 #include "gpio-rev01-kona.h"
+#elif defined(CONFIG_MACH_SF2)
+#include "gpio-rev00-sf2.h"
 #elif defined(CONFIG_MACH_GC1)
 #include "gpio-rev00-gc1.h"
 #elif defined(CONFIG_MACH_T0_CHN_CTC)

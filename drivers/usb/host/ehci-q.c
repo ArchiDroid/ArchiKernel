@@ -1220,11 +1220,18 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 #ifdef DEBUG
 	assert_spin_locked(&ehci->lock);
+#if !defined(CONFIG_TARGET_LOCALE_KOR)
 	if (ehci->reclaim
 			|| (qh->qh_state != QH_STATE_LINKED
 				&& qh->qh_state != QH_STATE_UNLINK_WAIT)
 			)
+#if defined(CONFIG_MACH_T0_USA_USCC)
+		/*return added as per the main line code kernel version 3.10*/
+		return;
+#else
 		BUG ();
+#endif
+#endif
 #endif
 
 	/* stop async schedule right now? */

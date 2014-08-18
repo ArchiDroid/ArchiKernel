@@ -345,7 +345,7 @@ static unsigned short tune_standard_dmb[] = {
 static unsigned short tune_movie_dmb[] = {
 	/* start M0 movie dmb */
 	0x0000, 0x0000,	/* BANK 0 */
-	0x0008, 0x002e,	/* Dither8 UC4 ABC2 CP1 | CC8 MCM4 SCR2 SCC1 */
+	0x0008, 0x0026,	/* Dither8 UC4 ABC2 CP1 | CC8 MCM4 SCR2 SCC1 */
 			/* | CS8 DE4 DNR2 HDR1 */
 	0x0030, 0x0005,	/* FA cs1 | de8 dnr4 hdr2 fa1 */
 	0x0039, 0x0040,	/* FA dnrWeight */
@@ -364,16 +364,16 @@ static unsigned short tune_movie_dmb[] = {
 	0x00b0, 0x1010,	/* CS hg ry */
 	0x00b1, 0x1010,	/* CS hg gc */
 	0x00b2, 0x1010,	/* CS hg bm */
-	0x00b3, 0x1204,	/* CS weight grayTH */
-	0x00e1, 0xd6ac,	/* SCR RrCr */
-	0x00e2, 0x32ff,	/* SCR RgCg */
-	0x00e3, 0x2ef0,	/* SCR RbCb */
-	0x00e4, 0xa5fa,	/* SCR GrMr */
-	0x00e5, 0xff4d,	/* SCR GgMg */
-	0x00e6, 0x59ff,	/* SCR GbMb */
-	0x00e7, 0x00ff,	/* SCR BrYr */
-	0x00e8, 0x00fb,	/* SCR BgYg */
-	0x00e9, 0xff61,	/* SCR BbYb */
+	0x00b3, 0x1004,	/* CS weight grayTH */
+	0x00e1, 0xd297, /*SCR RrCr*/
+	0x00e2, 0x19f4, /*SCR RgCg*/
+	0x00e3, 0x16e7, /*SCR RbCb*/
+	0x00e4, 0x70db, /*SCR GrMr*/
+	0x00e5, 0xf024, /*SCR GgMg*/
+	0x00e6, 0x22e5, /*SCR GbMb*/
+	0x00e7, 0x22f0, /*SCR BrYr*/
+	0x00e8, 0x11f2, /*SCR BgYg*/
+	0x00e9, 0xe140, /*SCR BbYb*/
 	0x00ea, 0x00ff,	/* SCR KrWr */
 	0x00eb, 0x00f8,	/* SCR KgWg */
 	0x00ec, 0x00f1,	/* SCR KbWb */
@@ -396,7 +396,7 @@ static unsigned short tune_movie_dmb[] = {
 static unsigned short tune_natural_dmb[] = {
 	/* start M0 natural dmb */
 	0x0000, 0x0000,	/* BANK 0 */
-	0x0008, 0x002e,	/* Dither8 UC4 ABC2 CP1 | CC8 MCM4 SCR2 SCC1 */
+	0x0008, 0x0026,	/* Dither8 UC4 ABC2 CP1 | CC8 MCM4 SCR2 SCC1 */
 			/* | CS8 DE4 DNR2 HDR1 */
 	0x0030, 0x0005,	/* FA cs1 | de8 dnr4 hdr2 fa1 */
 	0x0039, 0x0040,	/* FA dnrWeight */
@@ -415,19 +415,19 @@ static unsigned short tune_natural_dmb[] = {
 	0x00b0, 0x1010,	/* CS hg ry */
 	0x00b1, 0x1010,	/* CS hg gc */
 	0x00b2, 0x1010,	/* CS hg bm */
-	0x00b3, 0x1804,	/* CS weight grayTH */
-	0x00e1, 0xd6ac,	/* SCR RrCr */
-	0x00e2, 0x32ff,	/* SCR RgCg */
-	0x00e3, 0x2ef0,	/* SCR RbCb */
-	0x00e4, 0xa5fa,	/* SCR GrMr */
-	0x00e5, 0xff4d,	/* SCR GgMg */
-	0x00e6, 0x59ff,	/* SCR GbMb */
-	0x00e7, 0x00ff,	/* SCR BrYr */
-	0x00e8, 0x00fb,	/* SCR BgYg */
-	0x00e9, 0xff61,	/* SCR BbYb */
+	0x00b3, 0x1004,	/* CS weight grayTH */
+	0x00e1, 0xf01d, /*SCR RrCr*/
+	0x00e2, 0x13f1, /*SCR RgCg*/
+	0x00e3, 0x0fde, /*SCR RbCb*/
+	0x00e4, 0x14fb, /*SCR GrMr*/
+	0x00e5, 0xe717, /*SCR GgMg*/
+	0x00e6, 0x00e7, /*SCR GbMb*/
+	0x00e7, 0x1cf0, /*SCR BrYr*/
+	0x00e8, 0x0cf2, /*SCR BgYg*/
+	0x00e9, 0xe827, /*SCR BbYb*/
 	0x00ea, 0x00ff,	/* SCR KrWr */
-	0x00eb, 0x00fa,	/* SCR KgWg */
-	0x00ec, 0x00f8,	/* SCR KbWb */
+	0x00eb, 0x00f8, /*SCR KgWg*/
+	0x00ec, 0x00f1, /*SCR KbWb*/
 	0x0000, 0x0001,	/* BANK 1 */
 	0x001f, 0x0080,	/* CC chsel strength */
 	0x0020, 0x0000,	/* CC lut r   0 */

@@ -1115,7 +1115,7 @@ static int s3cfb_probe(struct platform_device *pdev)
 			dev_err(fbdev[i]->dev, "failed to allocate for	\
 				global fb structure fimd[%d]!\n", i);
 				ret = -ENOMEM;
-			goto err0;
+			goto err1;
 		}
 
 		fbdev[i]->dev = &pdev->dev;

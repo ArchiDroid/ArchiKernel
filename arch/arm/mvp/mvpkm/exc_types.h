@@ -39,15 +39,16 @@
  * @brief ARM hardware exception enumeration. EXC_NONE is added to provide
  *        a distinguished value to flag non-exception states.
  */
-typedef enum {
-   EXC_NONE,
-   EXC_RESET,
-   EXC_UNDEFINED,
-   EXC_SWI,
-   EXC_PREFETCH_ABORT,
-   EXC_DATA_ABORT,
-   EXC_IRQ,
-   EXC_FIQ
-} ARM_Exception;
+enum ARM_Exception {
+	EXC_NONE,
+	EXC_RESET,
+	EXC_UNDEFINED,
+	EXC_SWI,
+	EXC_PREFETCH_ABORT,
+	EXC_DATA_ABORT,
+	EXC_IRQ,
+	EXC_FIQ
+};
+typedef enum ARM_Exception ARM_Exception;
 
-#endif /// _EXC_TYPES_H_
+#endif /* _EXC_TYPES_H_ */

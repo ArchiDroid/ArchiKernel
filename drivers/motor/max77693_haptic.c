@@ -391,6 +391,12 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	hap_data->pdata = pdata;
 
 	hap_data->workqueue = create_singlethread_workqueue("hap_work");
+	if (IS_ERR(hap_data->workqueue)) {
+	        pr_err("[VIB] Failed to create workqueue for hap_work\n");
+	        error = -EFAULT;
+		goto err_create_workqueue;
+	}
+
 	INIT_WORK(&(hap_data->work), haptic_work);
 	spin_lock_init(&(hap_data->lock));
 
@@ -460,6 +466,8 @@ err_timed_output_register:
 err_regulator_get:
 	pwm_free(hap_data->pwm);
 err_pwm_request:
+	destroy_workqueue(hap_data->workqueue);
+err_create_workqueue:
 	kfree(hap_data);
 	g_hap_data = NULL;
 	return error;

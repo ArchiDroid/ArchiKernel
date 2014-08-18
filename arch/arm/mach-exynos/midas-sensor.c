@@ -955,6 +955,11 @@ static u8 ak8963_get_position(void)
 
 #if defined(CONFIG_MACH_ZEST)
 	position = TYPE3_BOTTOM_UPPER_RIGHT;
+#elif defined(CONFIG_MACH_SF2)
+	if(system_rev <= 14)
+		position = TYPE3_TOP_LOWER_LEFT;
+	else
+		position = TYPE3_BOTTOM_UPPER_RIGHT;
 #elif defined(CONFIG_MACH_GC1)
 	position = TYPE3_TOP_LOWER_LEFT;
 #else

@@ -38,7 +38,7 @@
 #define INCLUDE_ALLOW_GPL
 #include "include_check.h"
 
-#define VMID_UNDEF (uint16)0xffff
+#define VMID_UNDEF ((uint16)0xffff)
 typedef uint16 VmId;
 
 #endif

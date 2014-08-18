@@ -68,6 +68,9 @@
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 
+#if defined(CONFIG_SF2_NFC_TAG)
+#include <linux/nfc/nfc_tag.h>
+#endif
 #ifdef CONFIG_DMA_CMA
 #include <linux/dma-contiguous.h>
 #endif
@@ -1003,9 +1006,34 @@ static void tdmb_gpio_off(void)
 	gpio_set_value(GPIO_TDMB_EN, GPIO_LEVEL_LOW);
 }
 
+#if defined(CONFIG_TDMB_ANT_DET)
+static void tdmb_ant_enable(bool en)
+{
+	unsigned int tdmb_ant_det_gpio;
+
+	printk(KERN_DEBUG "tdmb_ant_enable : %d\n", en);
+
+	if (system_rev >= 6)
+		tdmb_ant_det_gpio = GPIO_TDMB_ANT_DET_REV08;
+	else
+		tdmb_ant_det_gpio = GPIO_TDMB_ANT_DET;
+
+	if (en) {
+		s3c_gpio_cfgpin(tdmb_ant_det_gpio, S3C_GPIO_SFN(0xf));
+		s3c_gpio_setpull(tdmb_ant_det_gpio, S3C_GPIO_PULL_NONE);
+	} else {
+		s3c_gpio_cfgpin(tdmb_ant_det_gpio, S3C_GPIO_INPUT);
+		s3c_gpio_setpull(tdmb_ant_det_gpio, S3C_GPIO_PULL_NONE);
+	}
+}
+#endif
+
 static struct tdmb_platform_data tdmb_pdata = {
 	.gpio_on = tdmb_gpio_on,
 	.gpio_off = tdmb_gpio_off,
+#if defined(CONFIG_TDMB_ANT_DET)
+	.tdmb_ant_det_en = tdmb_ant_enable,
+#endif
 };
 
 static struct platform_device tdmb_device = {
@@ -1032,7 +1060,7 @@ static int __init tdmb_dev_init(void)
 		tdmb_ant_det_gpio = GPIO_TDMB_ANT_DET;
 		tdmb_ant_det_irq = GPIO_TDMB_IRQ_ANT_DET;
 	}
-	s3c_gpio_cfgpin(tdmb_ant_det_gpio, S3C_GPIO_SFN(0xf));
+	s3c_gpio_cfgpin(tdmb_ant_det_gpio, S3C_GPIO_INPUT);
 	s3c_gpio_setpull(tdmb_ant_det_gpio, S3C_GPIO_PULL_NONE);
 	tdmb_pdata.gpio_ant_det = tdmb_ant_det_gpio;
 	tdmb_pdata.irq_ant_det = tdmb_ant_det_irq;
@@ -2491,10 +2519,10 @@ static struct samsung_battery_platform_data samsung_battery_pdata = {
 	.freeze_recovery_temp = 30,
 #elif defined(CONFIG_MACH_T0_KOR_SKT) || defined(CONFIG_MACH_T0_KOR_KT) || \
 	defined(CONFIG_MACH_T0_KOR_LGT)
-	.overheat_stop_temp = 660,
-	.overheat_recovery_temp = 425,
-	.freeze_stop_temp = -45,
-	.freeze_recovery_temp = 3,
+	.overheat_stop_temp = 600,
+	.overheat_recovery_temp = 400,
+	.freeze_stop_temp = -50,
+	.freeze_recovery_temp = 0,
 #elif defined(CONFIG_MACH_BAFFIN_KOR_SKT) || \
 	defined(CONFIG_MACH_BAFFIN_KOR_KT)
 	.overheat_stop_temp = 620,
@@ -2544,7 +2572,7 @@ static struct samsung_battery_platform_data samsung_battery_pdata = {
 	.freeze_stop_temp = -50,
 	.freeze_recovery_temp = 0,
 #elif defined(CONFIG_MACH_T0_USA_SPR)
-	.overheat_stop_temp = 515,
+	.overheat_stop_temp = 470,
 	.overheat_recovery_temp = 420,
 	.freeze_stop_temp = -80,
 	.freeze_recovery_temp = -10,
@@ -3072,7 +3100,7 @@ static struct sec_keys_info sec_key_info[] = {
 		true, KEY_ACT_TYPE_LOW, EV_KEY, 10),
 	SEC_KEYS("SHUTTER1", GPIO_S1_KEY, KEY_CAMERA_FOCUS,
 		false, KEY_ACT_TYPE_LOW, EV_KEY, 10),
-	SEC_KEYS("SHUTTER2", GPIO_S2_KEY, KEY_CAMERA_SHUTTER,
+	SEC_KEYS("SHUTTER2", GPIO_S2_KEY, KEY_CAMERA,
 		false, KEY_ACT_TYPE_LOW, EV_KEY, 10),
 	SEC_KEYS("VOL_UP", GPIO_VOL_UP, KEY_VOLUMEUP,
 		false, KEY_ACT_TYPE_LOW, EV_KEY, 10),
@@ -3093,7 +3121,7 @@ static struct sec_keys_info sec_key_info01[] = {
 		true, KEY_ACT_TYPE_LOW, EV_KEY, 10),
 	SEC_KEYS("SHUTTER1", GPIO_S1_KEY, KEY_CAMERA_FOCUS,
 		false, KEY_ACT_TYPE_LOW, EV_KEY, 10),
-	SEC_KEYS("SHUTTER2", GPIO_S2_KEY, KEY_CAMERA_SHUTTER,
+	SEC_KEYS("SHUTTER2", GPIO_S2_KEY, KEY_CAMERA,
 		false, KEY_ACT_TYPE_LOW, EV_KEY, 10),
 	SEC_KEYS("VOL_UP", GPIO_VOL_UP, KEY_VOLUMEUP,
 		false, KEY_ACT_TYPE_LOW, EV_KEY, 10),
@@ -3182,7 +3210,7 @@ struct input_debug_key_state kstate[] = {
 #endif	/* CONFIG_GD2_01_BD */
 #elif defined(CONFIG_MACH_GC2PD)
 	SET_DEBUG_KEY(KEY_CAMERA_FOCUS, false),
-	SET_DEBUG_KEY(KEY_CAMERA_SHUTTER, false),
+	SET_DEBUG_KEY(KEY_CAMERA, false),
 	SET_DEBUG_KEY(KEY_POWER, false),
 	SET_DEBUG_KEY(KEY_HOMEPAGE, false),
 	SET_DEBUG_KEY(KEY_ZOOM_RING_IN, false),
@@ -3193,6 +3221,11 @@ struct input_debug_key_state kstate[] = {
 #if defined(CONFIG_FAST_BOOT)
 	SET_DEBUG_KEY(KEY_FAKE_PWR, false),
 #endif	/* CONFIG_FAST_BOOT */
+#if defined(CONFIG_MACH_SF2)
+	SET_DEBUG_KEY(KEY_POWER, false),
+	SET_DEBUG_KEY(KEY_VOLUMEUP, false),
+	SET_DEBUG_KEY(KEY_VOLUMEDOWN, false),
+#endif
 };
 
 static struct input_debug_pdata input_debug_pdata = {
@@ -3207,7 +3240,17 @@ static struct platform_device input_debug = {
 	},
 };
 #endif	/* CONFIG_SEC_DEBUG */
-
+#if defined(CONFIG_SF2_NFC_TAG)
+static struct nfc_tag_pdata nfc_tag_pdata ={
+	.irq_nfc = GPIO_NFC_IRQ,
+};
+static struct platform_device nfc_tag_devdata={
+	.name = "NFC_TAG",
+	.dev  = {
+              .platform_data =&nfc_tag_pdata,
+	},
+};
+#endif
 #ifdef CONFIG_VIDEO_FIMG2D
 static struct fimg2d_platdata fimg2d_data __initdata = {
 	.hw_ver = 0x41,
@@ -4991,6 +5034,10 @@ static void __init midas_machine_init(void)
 
 #if defined(CONFIG_SEC_DEBUG)
 	platform_device_register(&input_debug);
+#endif
+
+#if defined(CONFIG_SF2_NFC_TAG)
+      platform_device_register(&nfc_tag_devdata);
 #endif
 
 #if defined(CONFIG_S3C_DEV_I2C5)

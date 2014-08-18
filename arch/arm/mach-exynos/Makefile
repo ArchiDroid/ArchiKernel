@@ -249,7 +249,11 @@ obj-$(CONFIG_TAB3_00_BD)		+= tab3-gpio.o tab3-power.o
 obj-$(CONFIG_TAB3_01_BD)		+= tab3-gpio.o tab3-power.o
 obj-$(CONFIG_KONA_00_BD)		+= kona-gpio.o kona-power.o
 obj-$(CONFIG_KONA_01_BD)		+= kona-01-gpio.o kona-01-power.o
+ifeq ($(CONFIG_MACH_SF2),y)
+obj-$(CONFIG_GC1_00_BD)			+= gc1-gpio.o sf2-power.o gc1-jack.o
+else
 obj-$(CONFIG_GC1_00_BD)			+= gc1-gpio.o gc1-power.o gc1-jack.o
+endif
 obj-$(CONFIG_GC2PD_00_BD)		+= gc2pd-gpio.o gc2pd-power.o
 obj-$(CONFIG_MACH_T0)			+= t0-gpio.o t0-power.o
 obj-$(CONFIG_MACH_BAFFIN)			+= baffin-gpio.o baffin-power.o

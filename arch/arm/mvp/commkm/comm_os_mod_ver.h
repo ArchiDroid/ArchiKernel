@@ -31,8 +31,6 @@
 #define COMM_OS_MOD_SHORT_NAME comm
 #define COMM_OS_MOD_SHORT_NAME_STRING "comm"
 
-#define COMM_OS_MOD_VERSION          1.0.0.0
-#define COMM_OS_MOD_VERSION_COMMAS   1,0,0,0
 #define COMM_OS_MOD_VERSION_STRING   "1.0.0.0"
 
 #endif /* _COM_OS_MOD_VER_H_ */

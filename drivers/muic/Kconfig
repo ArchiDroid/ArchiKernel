@@ -93,6 +93,14 @@ config MUIC_MAX77693_DEBUG
 	help
 	  for max77693-muic device debugging.
 
+config MUIC_MAX77693_RESET_WA
+	bool "MUIC_MAX77693_RESET_WA"
+	depends on MFD_MAX77693 && USE_MUIC
+	default n
+	help
+	  for max77693-muic device reset workaround.
+	  recovery from muic reset.
+
 config MUIC_MAX77693_SUPPORT_MHL_CABLE_DETECTION
 	bool "MUIC_MAX77693_SUPPORT_MHL_CABLE_DETECTION"
 	depends on MFD_MAX77693 && USE_MUIC

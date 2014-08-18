@@ -33,7 +33,11 @@ obj-$(CONFIG_FB_S5P_S6E63M0)	+= s3cfb_s6e63m0.o smart_mtp_s6e63m0.o
 ifeq ($(CONFIG_MACH_GD2),y)
 obj-$(CONFIG_FB_S5P_S6D6AA1)	+= s6d6aa1_gd2.o
 else
+ifeq ($(CONFIG_MACH_SF2),y)
+obj-$(CONFIG_FB_S5P_S6D6AA1)	+= s6d6aa1_sf2.o
+else
 obj-$(CONFIG_FB_S5P_S6D6AA1)	+= s6d6aa1.o
+endif
 endif
 obj-$(CONFIG_FB_S5P_NT71391)	+= s3cfb_nt71391.o
 obj-$(CONFIG_FB_S5P_S6D7AA0)	+= s3cfb_s6d7aa0.o

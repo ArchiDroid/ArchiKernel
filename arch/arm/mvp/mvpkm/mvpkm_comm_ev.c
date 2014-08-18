@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include "comm_transp_impl.h"
 
-int (*CommTranspEvProcess)(CommTranspID* id, CommTranspIOEvent event);
+int (*CommTranspEvProcess)(CommTranspID *id, CommTranspIOEvent event);
 
 
 /**
@@ -39,10 +39,11 @@ int (*CommTranspEvProcess)(CommTranspID* id, CommTranspIOEvent event);
 
 void
 Mvpkm_CommEvRegisterProcessCB(int (*commProcessFunc)(CommTranspID*,
-                                                     CommTranspIOEvent))
+						     CommTranspIOEvent))
 {
-   CommTranspEvProcess = commProcessFunc;
+	CommTranspEvProcess = commProcessFunc;
 }
+EXPORT_SYMBOL(Mvpkm_CommEvRegisterProcessCB);
 
 /**
  * @brief Unregister the processing callback for the host when a signal
@@ -52,11 +53,8 @@ Mvpkm_CommEvRegisterProcessCB(int (*commProcessFunc)(CommTranspID*,
 void
 Mvpkm_CommEvUnregisterProcessCB(void)
 {
-   CommTranspEvProcess = NULL;
+	CommTranspEvProcess = NULL;
 }
-
-
-EXPORT_SYMBOL(Mvpkm_CommEvRegisterProcessCB);
 EXPORT_SYMBOL(Mvpkm_CommEvUnregisterProcessCB);
 
 

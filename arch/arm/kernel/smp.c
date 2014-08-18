@@ -681,7 +681,13 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	case IPI_CPU_BACKTRACE:
+#if defined(CONFIG_MACH_T0) || defined(CONFIG_MACH_M0)
+		irq_enter();
+#endif
 		ipi_cpu_backtrace(cpu, regs);
+#if defined(CONFIG_MACH_T0) || defined(CONFIG_MACH_M0)
+		irq_exit();
+#endif
 		break;
 
 	default:

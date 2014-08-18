@@ -60,8 +60,8 @@
 #define EXC_THUMB_IRQ_SAVED_PC_OFFSET              4
 #define EXC_THUMB_FIQ_SAVED_PC_OFFSET              4
 
-#define EXC_SAVED_PC_OFFSET(exc, cpsr) \
-   (((cpsr) & ARM_PSR_T) ? EXC_THUMB_##exc##_SAVED_PC_OFFSET : \
-                           EXC_ARM_##exc##_SAVED_PC_OFFSET)
+#define EXC_SAVED_PC_OFFSET(exc, cpsr)					\
+	(((cpsr) & ARM_PSR_T) ? EXC_THUMB_##exc##_SAVED_PC_OFFSET :	\
+				EXC_ARM_##exc##_SAVED_PC_OFFSET)
 
-#endif /// _EXC_DEFS_H_
+#endif /* _EXC_DEFS_H_ */

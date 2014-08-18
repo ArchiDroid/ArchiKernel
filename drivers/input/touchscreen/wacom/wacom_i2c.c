@@ -643,6 +643,7 @@ static void wacom_i2c_early_suspend(struct early_suspend *h)
 #ifdef WACOM_STATE_CHECK
 	cancel_delayed_work_sync(&wac_i2c->wac_statecheck_work);
 #endif
+	wac_i2c->pwr_flag = false;
 	wacom_power_off(wac_i2c);
 }
 
@@ -722,6 +723,7 @@ static void wacom_i2c_late_resume(struct early_suspend *h)
 	struct wacom_i2c *wac_i2c =
 	    container_of(h, struct wacom_i2c, early_suspend);
 
+	wac_i2c->pwr_flag = true;
 	wacom_power_on(wac_i2c);
 }
 
@@ -1202,6 +1204,14 @@ static ssize_t epen_saving_mode_store(struct device *dev,
 	if (sscanf(buf, "%u", &val) == 1)
 		wac_i2c->battery_saving_mode = !!val;
 
+	printk(KERN_DEBUG"epen:%s, val %d\n",
+		__func__, wac_i2c->battery_saving_mode);
+
+	if (!wac_i2c->pwr_flag) {
+		printk(KERN_DEBUG"epen:pass pwr control\n");
+		return count;
+	}
+
 	if (wac_i2c->battery_saving_mode) {
 		if (wac_i2c->pen_insert)
 			wacom_power_off(wac_i2c);
@@ -1461,6 +1471,7 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	msleep(200);
 #endif
 	wac_i2c->power_enable = true;
+	wac_i2c->pwr_flag = true;
 
 	wacom_i2c_query(wac_i2c);
 

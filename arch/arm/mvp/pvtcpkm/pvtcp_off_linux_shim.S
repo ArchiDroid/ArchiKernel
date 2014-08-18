@@ -55,10 +55,6 @@ asmDestructorShim:
    blx     r1
    pop    {lr}
    cmp     r0, #0
-//#ifndef CONFIG_MODULE_UNLOAD
-#if 1
-   bx      lr                         @ No way to module_put, just return.
-#else
    bxne    lr                         @ We shouldn't module_put, just return.
    ldr     r0, owner
    ldr     r1, modulePutAddr          @ Jump to module_put. module_put
@@ -67,9 +63,8 @@ asmDestructorShim:
 owner:
    .word __this_module
 
-modulePutAddr:
-   .word module_put
-#endif
-
 targetAddr:
    .word DestructCB
+
+modulePutAddr:
+   .word module_put
