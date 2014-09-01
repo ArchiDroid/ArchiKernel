@@ -169,7 +169,7 @@ if [[ "$BARE" -eq 1 ]]; then
 fi
 
 mkdir -p "$TARGETDIRKERNEL" "$TARGETDIRMODULES"
-cp arch/arm/boot/zImage "$TARGETDIRKERNEL"
+cp "arch/$ARCH/boot/zImage" "$TARGETDIRKERNEL"
 
 find "$TARGETDIRMODULES" -type f -iname "*.ko" | while read line; do
 	rm -f "$line"
@@ -180,11 +180,12 @@ find . -type f -iname "*.ko" | while read line; do
 	cp "$line" "$TARGETDIRMODULES"
 done
 
+TARGETZIPNAME="$TARGETZIPNAME-$APPLIEDCONFIG"
 cd "$TARGETDIR"
-zip -ry -9 "$TARGETZIPNAME-$APPLIEDCONFIG.zip" . -x "*.zip"
+zip -ry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
 
 if [[ ! -z "$TARGETZIPDIR" && -d "$TARGETZIPDIR" ]]; then
-	mv "$TARGETZIPNAME-$APPLIEDCONFIG.zip" "$TARGETZIPDIR"
+	mv "$TARGETZIPNAME.zip" "$TARGETZIPDIR"
 fi
 
 if [[ "$BEEP" -eq 1 ]]; then
