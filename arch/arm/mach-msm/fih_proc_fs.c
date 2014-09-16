@@ -262,6 +262,51 @@ static int reboot_info_read_proc(char *page, char **start, off_t off,
 /* MTD-BSP-VT-RECOVERY-00*] */
 #endif
 
+static int model_number_read_proc(char *page, char **start, off_t off,
+                             int count, int *eof, void *data)
+{
+    int len;
+    int pi1 = fih_get_sim_id();
+    int pi2 = fih_get_band_id();
+    char ver[15]= {0};
+
+    switch (pi1) {
+    case SINGLE_SIM:
+        switch(pi2) {
+        case BAND_18:
+           strncpy(ver, "C1905",5);
+           ver[5]='\0';
+           break;
+        case BAND_18_INDIA:
+        case BAND_1245:
+           strncpy(ver, "C1904", 5);
+           ver[5]='\0';
+           break;
+    }
+    break;
+    case DUAL_SIM:
+        switch(pi2) {
+        case BAND_18:
+           strncpy(ver, "C2005",5);
+           ver[5]='\0';
+           break;
+        case BAND_18_INDIA:
+        case BAND_1245:
+           strncpy(ver, "C2004", 5);
+           ver[5]='\0';
+           break;
+    }
+    break;
+    default:
+        strncpy(ver, "Unkonwn Model",13);
+        ver[13]='\0';
+        break;
+    }
+
+    len = snprintf(page, count, "%s\n", ver);
+
+    return proc_calc_metrics(page, start, off, count, eof, len);
+}
 
 static struct {
     char *name;
@@ -277,6 +322,7 @@ static struct {
     //MTD-BSP-LC-Show_Version-00 *]
     //{"rebootinfo",	reboot_info_read_proc},  /* MTD-BSP-VT-RECOVERY-00* */
     {"siminfo", siminfo_read_proc},
+    {"modelnumber", model_number_read_proc},
     //BSP-REXER-GIT-00+[
     //{"nonHLOS_git_head", nonHLOS_git_head_read_proc},
     //{"HLOS_git_head", HLOS_git_head_read_proc},
