@@ -153,7 +153,7 @@ static int siminfo_read_proc(char *page, char **start, off_t off,
         ver[8]='\0';
         break;
     default:
-        strncpy(ver, "Unkonwn SIM TYPE",16);
+        strncpy(ver, "Unknown SIM TYPE",16);
         ver[16]='\0';
         break;
     }
