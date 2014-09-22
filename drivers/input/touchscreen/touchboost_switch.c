@@ -53,6 +53,9 @@ static ssize_t touchboost_switch_store(struct device *dev, struct device_attribu
 	// read value from input buffer
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	// check if new status is valid
 	if ((val == TOUCHBOOST_OFF) || (val == TOUCHBOOST_ON))
 	{
