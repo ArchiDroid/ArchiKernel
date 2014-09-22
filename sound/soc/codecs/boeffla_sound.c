@@ -1,9 +1,9 @@
 /*
- * Author: andip71, 10.02.2014
+ * Author: andip71, 22.09.2014
  * 
  * Modifications: Yank555.lu 20.08.2013
  *
- * Version 1.6.6
+ * Version 1.6.7
  *
  * credits: Supercurio for ideas and partially code from his Voodoo
  * 	    	sound implementation,
@@ -21,10 +21,14 @@
  * GNU General Public License for more details.
  *
  */
+       
 
 /*
  * Change log:
  * 
+ * 1.6.7 (22.09.2014)
+ *   - Improved sysfs input validation
+ *
  * 1.6.5 (14.01.2014)
  *   - Allow speaker level minimum of 20
  * 
@@ -1425,6 +1429,9 @@ static ssize_t boeffla_sound_store(struct device *dev, struct device_attribute *
 	// read values from input buffer
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	// store if valid data and only if status has changed, reset all values
 	if (((val == OFF) || (val == ON))&& (val != boeffla_sound))
 	{
@@ -1463,6 +1470,9 @@ static ssize_t headphone_volume_store(struct device *dev, struct device_attribut
 
 	// read values from input buffer
 	ret = sscanf(buf, "%d %d", &val_l, &val_r);
+
+    if (ret != 1)
+        return -EINVAL;
 
 	// check whether values are within the valid ranges and adjust accordingly
 	if (val_l > HEADPHONE_MAX)
@@ -1516,6 +1526,9 @@ static ssize_t speaker_volume_store(struct device *dev, struct device_attribute 
 	// read values from input buffer
 	ret = sscanf(buf, "%d %d", &val_l, &val_r);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	// check whether values are within the valid ranges and adjust accordingly
 	if (val_l > SPEAKER_MAX)
 		val_l = SPEAKER_MAX;
@@ -1565,6 +1578,9 @@ static ssize_t speaker_tuning_store(struct device *dev, struct device_attribute 
 	// read value from input buffer, check validity and update audio hub
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	if ((val == ON) || (val == OFF))
 	{
 		speaker_tuning = val;
@@ -1599,6 +1615,9 @@ static ssize_t eq_store(struct device *dev, struct device_attribute *attr,
 
 	// read values from input buffer and update audio hub
 	ret = sscanf(buf, "%d", &val);
+
+    if (ret != 1)
+        return -EINVAL;
 
 	if (((val >= EQ_OFF) && (val <= EQ_NOSATPREVENT)) && (val != eq))
 		eq = val;
@@ -1635,6 +1654,9 @@ static ssize_t eq_gains_store(struct device *dev, struct device_attribute *attr,
 
 	// read values from input buffer
 	ret = sscanf(buf, "%d %d %d %d %d", &gains[0], &gains[1], &gains[2], &gains[3], &gains[4]);
+
+    if (ret != 1)
+        return -EINVAL;
 
 	// check validity of gain values and adjust
 	for (i=0; i<=4; i++)
@@ -1688,6 +1710,9 @@ static ssize_t eq_bands_store(struct device *dev, struct device_attribute *attr,
 	// read values from input buffer
 	ret = sscanf(buf, "%d %d %d %d %d", &band, &v1, &v2, &v3, &v4);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	// check input data for validity, terminate if not valid
 	if ((band < 1) || (band > 5))
 		return count;
@@ -1736,6 +1761,9 @@ static ssize_t dac_direct_store(struct device *dev, struct device_attribute *att
 	// read values from input buffer, check validity and update audio hub
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	if ((val == ON) || (val == OFF))
 	{
 		dac_direct = val;
@@ -1770,6 +1798,9 @@ static ssize_t dac_oversampling_store(struct device *dev, struct device_attribut
 
 	// read values from input buffer, check validity and update audio hub
 	ret = sscanf(buf, "%d", &val);
+
+    if (ret != 1)
+        return -EINVAL;
 
 	if ((val == ON) || (val == OFF))
 	{
@@ -1806,6 +1837,9 @@ static ssize_t fll_tuning_store(struct device *dev, struct device_attribute *att
 	// read values from input buffer, check validity and update audio hub
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	if ((val == ON) || (val == OFF))
 	{
 		fll_tuning = val;
@@ -1841,6 +1875,9 @@ static ssize_t stereo_expansion_store(struct device *dev, struct device_attribut
 	// read values from input buffer, check validity and update audio hub
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	if ((val >= STEREO_EXPANSION_GAIN_MIN) && (val <= STEREO_EXPANSION_GAIN_MAX))
 	{
 		stereo_expansion_gain = val;
@@ -1875,6 +1912,9 @@ static ssize_t mono_downmix_store(struct device *dev, struct device_attribute *a
 
 	// read values from input buffer
 	ret = sscanf(buf, "%d", &val);
+
+    if (ret != 1)
+        return -EINVAL;
 
 	// update only if new value is valid and has changed
 	if (((val == ON) || (val == OFF)) && (val != mono_downmix))
@@ -1912,6 +1952,9 @@ static ssize_t privacy_mode_store(struct device *dev, struct device_attribute *a
 	// read values from input buffer, check validity and update audio hub
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	if ((val == ON) || (val == OFF))
 	{
 		privacy_mode = val;
@@ -1946,6 +1989,9 @@ static ssize_t mic_level_general_store(struct device *dev, struct device_attribu
 
 	// read value for mic level from input buffer
 	ret = sscanf(buf, "%d", &val);
+
+    if (ret != 1)
+        return -EINVAL;
 
 	// check validity of data
 	if ((val >= MICLEVEL_MIN) && (val <= MICLEVEL_MAX))
@@ -1994,6 +2040,9 @@ static ssize_t mic_level_call_store(struct device *dev, struct device_attribute 
 	// read value for mic level from input buffer
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	// check validity of data
 	if ((val >= MICLEVEL_MIN) && (val <= MICLEVEL_MAX))
 	{
@@ -2041,6 +2090,9 @@ static ssize_t debug_level_store(struct device *dev, struct device_attribute *at
 
 	// check data and store if valid
 	ret = sscanf(buf, "%d", &val);
+
+    if (ret != 1)
+        return -EINVAL;
 
 	if ((val >= 0) && (val <= 2))
 		debug_level = val;
@@ -2172,6 +2224,9 @@ static ssize_t debug_reg_store(struct device *dev, struct device_attribute *attr
 	// read values from input buffer and update audio hub (if requested via key)
 	ret = sscanf(buf, "%d %d %d", &debug_register, &val1, &val2);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	if (val1 == DEBUG_REGISTER_KEY)
 		wm8994_write(codec, debug_register, val2);
 
@@ -2213,6 +2268,9 @@ static ssize_t debug_dump_store(struct device *dev, struct device_attribute *att
 	// read value from input buffer and set bank accordingly
 	ret = sscanf(buf, "%d", &val);
 
+    if (ret != 1)
+        return -EINVAL;
+
 	if ((val >= 0) && (val < REGDUMP_BANKS))
 		regdump_bank = val;
 
@@ -2237,6 +2295,9 @@ static ssize_t change_delay_store(struct device *dev, struct device_attribute *a
 
 	// read values from input buffer
 	ret = sscanf(buf, "%d", &val);
+
+    if (ret != 1)
+        return -EINVAL;
 
 	// store if valid data and only if status has changed, reset all values
 	if ((val >= MIN_CHANGE_DELAY) && (val <= MAX_CHANGE_DELAY))
