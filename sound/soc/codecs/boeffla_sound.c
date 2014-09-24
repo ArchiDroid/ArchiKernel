@@ -1471,7 +1471,7 @@ static ssize_t headphone_volume_store(struct device *dev, struct device_attribut
 	// read values from input buffer
 	ret = sscanf(buf, "%d %d", &val_l, &val_r);
 
-    if (ret != 1)
+    if (ret != 2)
         return -EINVAL;
 
 	// check whether values are within the valid ranges and adjust accordingly
@@ -1526,7 +1526,7 @@ static ssize_t speaker_volume_store(struct device *dev, struct device_attribute 
 	// read values from input buffer
 	ret = sscanf(buf, "%d %d", &val_l, &val_r);
 
-    if (ret != 1)
+    if (ret != 2)
         return -EINVAL;
 
 	// check whether values are within the valid ranges and adjust accordingly
@@ -1655,7 +1655,7 @@ static ssize_t eq_gains_store(struct device *dev, struct device_attribute *attr,
 	// read values from input buffer
 	ret = sscanf(buf, "%d %d %d %d %d", &gains[0], &gains[1], &gains[2], &gains[3], &gains[4]);
 
-    if (ret != 1)
+    if (ret != 5)
         return -EINVAL;
 
 	// check validity of gain values and adjust
@@ -1710,7 +1710,7 @@ static ssize_t eq_bands_store(struct device *dev, struct device_attribute *attr,
 	// read values from input buffer
 	ret = sscanf(buf, "%d %d %d %d %d", &band, &v1, &v2, &v3, &v4);
 
-    if (ret != 1)
+    if (ret != 5)
         return -EINVAL;
 
 	// check input data for validity, terminate if not valid
@@ -2224,7 +2224,7 @@ static ssize_t debug_reg_store(struct device *dev, struct device_attribute *attr
 	// read values from input buffer and update audio hub (if requested via key)
 	ret = sscanf(buf, "%d %d %d", &debug_register, &val1, &val2);
 
-    if (ret != 1)
+    if (ret != 3)
         return -EINVAL;
 
 	if (val1 == DEBUG_REGISTER_KEY)
