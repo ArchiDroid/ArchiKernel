@@ -53,7 +53,9 @@
 #include <plat/s5p-sysmmu.h>
 #endif
 
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 #define SUPPORT_LPM_PAN_DISPLAY
+#endif
 
 #ifdef CONFIG_ARCHIKERNEL_SPLASH_LOGO
 #include "logo_archikernel.c"
@@ -1122,11 +1124,13 @@ int s3cfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *fb)
 	}
 #endif
 
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 #ifdef SUPPORT_LPM_PAN_DISPLAY
 	/* support LPM (off charging mode) display based on FBIOPAN_DISPLAY */
 	s3cfb_check_var(var, fb);
 	s3cfb_set_par(fb);
 	s3cfb_enable_window(fbdev, win->id);
+#endif
 #endif
 
 	if (var->yoffset + var->yres > var->yres_virtual) {
@@ -1545,6 +1549,8 @@ void s3c_fb_set_busfreq(struct s3cfb_global *fbdev, unsigned int num_of_win)
 
 	dev_lock(fbdev->bus_dev, fbdev->dev, fb_busfreq_table[num_of_win]);
 }
+
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 static void s3c_fd_fence_wait(struct s3cfb_global *fbdev, struct sync_fence *fence)
 {
 	int err = sync_fence_wait(fence, 1000);
@@ -1557,6 +1563,7 @@ static void s3c_fd_fence_wait(struct s3cfb_global *fbdev, struct sync_fence *fen
 	if (err < 0)
 		dev_warn(fbdev->dev, "error waiting on fence: %d\n", err);
 }
+#endif
 
 void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 {
@@ -1564,7 +1571,9 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 	unsigned short i;
 	bool wait_for_vsync;
 	struct s3cfb_window *win;
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 	struct sync_fence *old_fence[S3C_FB_MAX_WIN];
+#endif
 
 #if defined(CONFIG_CPU_EXYNOS4212) || defined(CONFIG_CPU_EXYNOS4412)
 #ifdef CONFIG_BUSFREQ_OPP
@@ -1572,6 +1581,7 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 	unsigned int pre_num_of_win = 0;
 	unsigned int shadow_regs = 0;
 	unsigned int clkval = 0;
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 	memset(&old_fence, 0, sizeof(old_fence));
 
 	for (i = 0; i < pdata->nr_wins; i++) {
@@ -1579,7 +1589,7 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 		if (regs->fence[i])
 			s3c_fd_fence_wait(fbdev, regs->fence[i]);
 	}
-
+#endif
 	for (i = 0; i < pdata->nr_wins; i++)
 		if (regs->shadowcon & SHADOWCON_CHx_ENABLE(i))
 			new_num_of_win++;
@@ -1647,11 +1657,12 @@ void s3c_fb_update_regs(struct s3cfb_global *fbdev, struct s3c_reg_data *regs)
 			}
 		}
 	} while (wait_for_vsync);
-	
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 		for (i = 0; i < pdata->nr_wins; i++) {
 			if (old_fence[i])
 				sync_fence_put(old_fence[i]);
 		}
+#endif
 		sw_sync_timeline_inc(fbdev->timeline, 1);
 	}
 
@@ -1799,6 +1810,7 @@ static int s3c_fb_set_win_buffer(struct s3cfb_global *fbdev,
 		ret = -EINVAL;
 		goto err_invalid;
 	}
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 	if (win_config->fence_fd >= 0) {
 		regs->fence[win_no] = sync_fence_fdget(win_config->fence_fd);
 		if (!regs->fence[win_no]) {
@@ -1808,7 +1820,7 @@ static int s3c_fb_set_win_buffer(struct s3cfb_global *fbdev,
 		}
 	} else
 		regs->fence[win_no] = NULL;
-
+#endif
 	window_size = win_config->stride * win_config->h;
 
 	if (win_config->phys_addr != 0)
@@ -1931,6 +1943,7 @@ static int s3c_fb_set_win_config(struct s3cfb_global *fbdev,
 		if (fbdev->support_fence == FENCE_NOT_SUPPORT) {
 			win_data->fence = -1;
 		} else {
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 			fbdev->timeline_max++;
 			pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
 			fence = sync_fence_create("display", pt);
@@ -1939,7 +1952,13 @@ static int s3c_fb_set_win_config(struct s3cfb_global *fbdev,
 				win_data->fence = fd;
 			} else
 				dev_err(fbdev->dev, "creating fence is failed");
- 
+#else
+				fbdev->timeline_max++;
+				pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
+				fence = sync_fence_create("display", pt);
+				sync_fence_install(fence, fd);
+				win_data->fence = fd;
+#endif
 			sw_sync_timeline_inc(fbdev->timeline, 1);
 		}
 		mutex_unlock(&fbdev->output_lock);
@@ -1999,6 +2018,7 @@ static int s3c_fb_set_win_config(struct s3cfb_global *fbdev,
 			kfree(regs);
 			win_data->fence = -1;
 		} else {
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 			fbdev->timeline_max++;
 			pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
 			fence = sync_fence_create("display", pt);
@@ -2011,6 +2031,17 @@ static int s3c_fb_set_win_config(struct s3cfb_global *fbdev,
 			list_add_tail(&regs->list, &fbdev->update_regs_list);
 			mutex_unlock(&fbdev->update_regs_list_lock);
 			queue_kthread_work(&fbdev->update_regs_worker,
+#else
+			fbdev->timeline_max++;
+			pt = sw_sync_pt_create(fbdev->timeline, fbdev->timeline_max);
+			fence = sync_fence_create("display", pt);
+			sync_fence_install(fence, fd);
+			win_data->fence = fd;
+
+			list_add_tail(&regs->list, &fbdev->update_regs_list);
+			mutex_unlock(&fbdev->update_regs_list_lock);
+			queue_kthread_work(&fbdev->update_regs_worker,
+#endif
 					&fbdev->update_regs_work);
 		}
 	}

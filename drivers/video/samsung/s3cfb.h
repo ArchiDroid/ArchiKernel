@@ -300,7 +300,9 @@ struct s3c_reg_data {
 	u32			vidw_buf_start[S3C_FB_MAX_WIN];
 	u32			vidw_buf_end[S3C_FB_MAX_WIN];
 	u32			vidw_buf_size[S3C_FB_MAX_WIN];
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 	struct sync_fence	*fence[S3C_FB_MAX_WIN];
+#endif
 };
 
 #define BLENDING_NONE			0x0100
