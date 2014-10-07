@@ -5257,7 +5257,7 @@ void setup_per_zone_wmarks(void)
 		do_div(min, lowmem_pages);
 		low = (u64)pages_low * zone->present_pages;
 		do_div(low, vm_total_pages);
-else
+#else
 		tmp = (u64)pages_min * zone->present_pages;
 		do_div(tmp, lowmem_pages);
 #endif
