@@ -466,6 +466,22 @@ config ARCHIKERNEL_OPTI_FIPA_PTA
 		memory and compile-time usage on large compilation units. It is not 
 		enabled by default at any optimization level.
 
+config ARCHIKERNEL_OPTI_FMODULO_SCHED
+	bool "Perform swing modulo scheduling immediately before the first scheduling pass"
+	help
+		Perform swing modulo scheduling immediately before the first scheduling pass.
+		This pass looks at innermost loops and reorders their instructions by overlapping
+		different iterations.
+
+config ARCHIKERNEL_OPTI_FMODULO_SCHED_ALLOW_REGMOVES
+	bool "Perform more aggressive SMS-based modulo scheduling with register moves allowed"
+	depends on ARCHIKERNEL_OPTI_FMODULO_SCHED
+	help
+		Perform more aggressive SMS-based modulo scheduling with register moves allowed.
+		By setting this flag certain anti-dependences edges are deleted, which triggers the
+		generation of reg-moves based on the life-range analysis.
+		This option is effective only with -fmodulo-sched enabled.
+
 config ARCHIKERNEL_OPTI_LDFLAGS_O
 		bool "Optimize the output (LD)"
 		help
