@@ -376,19 +376,12 @@ config ARCHIKERNEL_OPTI_FSECTION_ANCHORS
 		targets.
 
 config ARCHIKERNEL_OPTI_FUNSAFE_LOOP_OPTIMIZATIONS
-	bool "Allow optimizations for floating-point arithmetic that may violate IEEE or ANSI standards"
+	bool "Assume that loop indices do not overflow"
 	help
-		Allow optimizations for floating-point arithmetic that (a) assume that
-		arguments and results are valid and (b) may violate IEEE or ANSI 
-		standards. When used at link-time, it may include libraries or startup
-		files that change the default FPU control word or other similar 
-		optimizations. This option is not turned on by any -O option since it 
-		can result in incorrect output for programs that depend on an exact
-		implementation of IEEE or ISO rules/specifications for math functions. 
-		It may, however, yield faster code for programs that do not require 
-		the guarantees of these specifications. Enables -fno-signed-zeros, 
-		-fno-trapping-math, -fassociative-math and -freciprocal-math. The 
-		default is -fno-unsafe-math-optimizations.
+		This option tells the loop optimizer to assume that loop indices do not overflow, and
+		that loops with nontrivial exit condition are not infinite. This enables a wider range
+		of loop optimizations even if the loop optimizer itself cannot prove that these
+		assumptions are valid.
 
 config ARCHIKERNEL_OPTI_FIVOPTS
 	bool "Perform induction variable optimizations on trees"
