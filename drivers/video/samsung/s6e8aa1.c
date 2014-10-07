@@ -288,7 +288,9 @@ static int s6e8ax0_check_fb(struct lcd_device *ld, struct fb_info *fb)
 {
 	struct lcd_info *lcd = lcd_get_data(ld);
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	dev_info(&lcd->ld->dev, "%s, fb%d\n", __func__, fb->node);
+#endif
 
 	return 0;
 }
