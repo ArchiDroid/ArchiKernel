@@ -22,19 +22,20 @@
 # limitations under the License.
 
 # Usage:
-# build.sh <option1> <option2> <option3> defconfig
+# build.sh <option1> <option2> <option3> yourconfig
+# NOTICE: yourconfig must exist in arch/arm/configs
 
 # Examples:
 # ./build.sh -> Build ArchiKernel for default AOSP variant
 # ./build.sh samsung_ak_defconfig -> Build ArchiKernel for Samsung variant
-# ./build.sh --configtest -> Use currently available .config instead of predefined configs
+# ./build.sh --configtest -> Use currently available .config instead of predefined configs. Useful for config tests
 # ./build.sh --dirty -> Don't clean, use currentnly available .config and build. Perfect for testing if new commit compiles
 # source build.sh --source -> Append proper variables to current shell, so you can use i.e. make clean/menuconfig/all standalone
 
 SOURCE=0 # --source -> This will prepare environment for cross compiling (only). Use only in conjuction with "source" command, i.e. source build.sh --source
 REGEN=0 # --regen/--regenerate -> This will regenerate ArchiKernel configs according to current Kconfig
 CLEAN=0 # --clean -> This will clean build directory, same as make clean && make mrproper
-DIRTY=0 # --dirty -> This will not call make clean && make mrproper
+DIRTY=0 # --dirty -> This will not call make clean && make mrproper. Implies --configtest
 CONFIGTEST=0 # --configtest -> This will call only make clean (without make mrproper) and use .config file instead of $TARGETCONFIG. Useful for config tests
 BARE=0 # --bare -> This will finish the script as soon as the kernel is compiled, so no modules stripping or copying files will be done
 
@@ -47,16 +48,16 @@ else
 fi
 
 # You may need to change these variables
-TOOLCHAIN="$HOME/TC/bin" # This is where your toolchain is located. This path must contain arm-eabi-* binaries, typically Toolchaindir/bin
-TARGETDIR="archikernel/flasher" # This is the general output path. You should unpack AK in zip format somewhere, then put proper path here
-TARGETZIPDIR="$HOME/shared/kernel/m0" # If not empty, output zip will be moved here
-TARGETCONFIG="aosp_ak_defconfig" # This is default config, which is overrided if extra argument is given
+TOOLCHAIN="$HOME/TC" # This is where your toolchain is located. Current default ArchiKernel toolchain: https://github.com/ArchiDroid/Toolchain/tree/linaro-4.9-arm-linux-gnueabihf
+TARGETZIPDIR="$HOME/shared/kernel/m0" # If valid, output zip will be moved there from default TARGETDIR location
 BEEP=1 # This will beep three times on finish to wake me up :). Works even through SSH!
 
-# This should be enough, changing below things shouldn't be required
-TARGETDIRKERNEL="$TARGETDIR/prebuilt" # This is where zImage is put. If you keep AK directory structure, you don't need to edit that
+# Above settings should be enough, changing below things shouldn't be required
+TARGETCONFIG="aosp_ak_defconfig" # This is default config, which is overridden if extra argument is given. Don't change it, use ./build.sh <yourconfig> instead. Read more in the usage above
+TARGETDIR="archikernel/flasher" # This is the general output path. Don't change it, change TARGETZIPDIR above instead
+TARGETDIRKERNEL="$TARGETDIR/prebuilt" # This is where zImage is put, this shouldn't be changed
 TARGETDIRMODULES="$TARGETDIRKERNEL/system/lib/modules" # Similar to above, but for modules
-TARGETZIPNAME="ArchiKernel_$(date '+%d%m%y_%H%M%S')" # Name of output zip. If you keep date here, zips will be unique, if you declare this as static, we'll overwrite specific one
+TARGETZIPNAME="ArchiKernel_$(date '+%d%m%y_%H%M%S')" # Name of output zip. By keeping a date here we can be sure that all zips will be unique
 JOBS="$(grep -c "processor" "/proc/cpuinfo")" # Maximum number of jobs, can be declared statically if needed, default to number of threads of the CPU
 
 # This is where magic starts
@@ -72,10 +73,10 @@ for ARG in "$@"; do
 	esac
 done
 
-PREFIXES="arm-linux-gnueabihf arm-eabi" # Linaro uses gnueabihf, while Google uses eabi
+PREFIXES="arm-linux-gnueabihf arm-eabi" # Valid prefixes used by Linaro and Google
 for PREFIX in $PREFIXES; do
-	if [[ -x "$TOOLCHAIN/${PREFIX}-gcc" ]]; then
-		CROSS_COMPILE="$TOOLCHAIN/${PREFIX}-"
+	if [[ -x "$TOOLCHAIN/bin/${PREFIX}-gcc" ]]; then
+		CROSS_COMPILE="$TOOLCHAIN/bin/${PREFIX}-"
 		echo "Found ${PREFIX} toolchain!"
 		echo
 		break
@@ -84,7 +85,7 @@ done
 
 if [[ -z "$CROSS_COMPILE" ]]; then
 	echo "ERROR: Could not find any valid toolchain prefix!"
-	echo "Make sure that $TOOLCHAIN/PREFIX-gcc exists"
+	echo "Make sure that $TOOLCHAIN/bin/PREFIX-gcc exists"
 	echo "Where PREFIX must be one of the following: $PREFIXES"
 	exit 1
 fi
@@ -150,6 +151,7 @@ if [[ "$DIRTY" -eq 0 ]]; then
 	fi
 fi
 
+# Try to detect applied config if no config has been specified (e.g. --dirty)
 if [[ -z "$APPLIEDCONFIG" ]]; then
 	APPLIEDCONFIG="Unknown"
 	CONFIGMD5="$(md5sum .config | awk '{print $1}')"
@@ -171,18 +173,19 @@ fi
 mkdir -p "$TARGETDIRKERNEL" "$TARGETDIRMODULES"
 cp "arch/$ARCH/boot/zImage" "$TARGETDIRKERNEL"
 
-find "$TARGETDIRMODULES" -type f -iname "*.ko" | while read line; do
-	rm -f "$line"
+find "$TARGETDIRMODULES" -type f -iname "*.ko" | while read KO; do
+	rm -f "$KO"
 done
 
-find . -type f -iname "*.ko" | while read line; do
-	${CROSS_COMPILE}strip --strip-unneeded "$line"
-	cp "$line" "$TARGETDIRMODULES"
+find . -type f -iname "*.ko" | while read KO; do
+	echo "Including module: $(basename "$KO")"
+	${CROSS_COMPILE}strip --strip-unneeded "$KO"
+	cp "$KO" "$TARGETDIRMODULES"
 done
 
 TARGETZIPNAME="$TARGETZIPNAME-$APPLIEDCONFIG"
 cd "$TARGETDIR"
-zip -ry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
+zip -qry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
 
 if [[ ! -z "$TARGETZIPDIR" && -d "$TARGETZIPDIR" ]]; then
 	mv "$TARGETZIPNAME.zip" "$TARGETZIPDIR"
