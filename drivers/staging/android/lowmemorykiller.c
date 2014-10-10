@@ -62,37 +62,21 @@ static unsigned long lowmem_deathpending_timeout;
 			printk(x);			\
 	} while (0)
 
-
-/* LGE_CHANGE : bohyun.jung@lge.com 
- * reduce burden of lowmme_shrink() divide is expensive routine for mass-tier chipset.
- * compiler does take divide burden and use constant value. kernel/fs/proc/base.c together. */
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-
-#ifndef OOM_SCORE_CAL 
-#define	OOM_SCORE_CAL	((OOM_SCORE_ADJ_MAX) / -OOM_DISABLE) 
-#endif
-
-static struct task_struct *lowmem_deathpending;
-
-static int
-task_notify_func(struct notifier_block *self, unsigned long val, void *data);
-
-static struct notifier_block task_nb = {
-	.notifier_call	= task_notify_func,
-};
-
-static int
-task_notify_func(struct notifier_block *self, unsigned long val, void *data)
+static int test_task_flag(struct task_struct *p, int flag)
 {
-	struct task_struct *task = data;
+	struct task_struct *t = p;
 
-	lowmem_print(6, "task_notify_func() is called.\n");
-	if (task == lowmem_deathpending)
-		lowmem_deathpending = NULL;
+	do {
+		task_lock(t);
+		if (test_tsk_thread_flag(t, flag)) {
+			task_unlock(t);
+			return 1;
+		}
+		task_unlock(t);
+	} while_each_thread(p, t);
 
-	return NOTIFY_OK;
+	return 0;
 }
-#endif	// end of CONFIG_LGE_DEATHPENDING_LMK
 
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
@@ -109,19 +93,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM);
 
-	/* LGE_CHANGE : bohyun.jung@lge.com 
-	 * return if victim is already selected to kill. prevent nested lowmem_shrink() */
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-	/*
-	 * If we already have a death outstanding, then bail out right away; 
-	 * indicating to vmscan that we have nothing further to offer on this pass.
-	 *
-	 */
-	if (lowmem_deathpending &&
-	    time_before_eq(jiffies, lowmem_deathpending_timeout))
-		return 0;
-#endif
-
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if (lowmem_minfree_size < array_size)
@@ -129,30 +100,14 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	for (i = 0; i < array_size; i++) {
 		if (other_free < lowmem_minfree[i] &&
 		    other_file < lowmem_minfree[i]) {
-		   /*LGE_CHANGE_S : seven.kim@lge.com low memory killer bug patch */
-#ifdef CONFIG_MACH_LGE
-		   	if (lowmem_adj[i] == OOM_ADJUST_MAX)
-    			min_score_adj = OOM_SCORE_ADJ_MAX;
-			else
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-    			min_score_adj = lowmem_adj[i] * OOM_SCORE_CAL;
-#else
-    			min_score_adj = (lowmem_adj[i] * OOM_SCORE_ADJ_MAX) / -OOM_DISABLE;
-#endif
-#else /*qct original*/
 			min_score_adj = lowmem_adj[i];
-#endif
-			/*LGE_CHANGE_E : seven.kim@lge.com low memory killer bug patch */
 			break;
 		}
 	}
 	if (sc->nr_to_scan > 0)
-	{
 		lowmem_print(3, "lowmem_shrink %lu, %x, ofree %d %d, ma %d\n",
 				sc->nr_to_scan, sc->gfp_mask, other_free,
 				other_file, min_score_adj);
-	}
-
 	rem = global_page_state(NR_ACTIVE_ANON) +
 		global_page_state(NR_ACTIVE_FILE) +
 		global_page_state(NR_INACTIVE_ANON) +
@@ -172,28 +127,17 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (tsk->flags & PF_KTHREAD)
 			continue;
 
+		if (time_before_eq(jiffies, lowmem_deathpending_timeout)) {
+			if (test_task_flag(tsk, TIF_MEMDIE)) {
+				rcu_read_unlock();
+				return 0;
+			}
+		}
+
 		p = find_lock_task_mm(tsk);
 		if (!p)
 			continue;
 
-		/* LGE_CHANGE : bohyun.jung@lge.com 2013.02.14 
-	 	 * Skip a task if it is already terminating by oom-killer.
-		 * A Signal does not reach in issued condition, and lmk continously select & kill same process repeatly.
-		 * Possible Modem crash (watchdog) due to kernel get stuck */
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-		if (test_tsk_thread_flag(p, TIF_MEMDIE) || (p->flags & PF_EXITING))
-		{
-			lowmem_print(2, "skip %d (%s) is terminating due to OOM killer. p->flags(%x)\n", p->pid, p->comm, p->flags);
-			task_unlock(p);
-			continue;
-		}
-#endif
-		if (test_tsk_thread_flag(p, TIF_MEMDIE) &&
-		    time_before_eq(jiffies, lowmem_deathpending_timeout)) {
-			task_unlock(p);
-			rcu_read_unlock();
-			return 0;
-		}
 		oom_score_adj = p->signal->oom_score_adj;
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);
@@ -220,9 +164,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
 			     selected->pid, selected->comm,
 			     selected_oom_score_adj, selected_tasksize);
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-		lowmem_deathpending = selected;
-#endif
 		lowmem_deathpending_timeout = jiffies + HZ;
 		send_sig(SIGKILL, selected, 0);
 		set_tsk_thread_flag(selected, TIF_MEMDIE);
@@ -241,9 +182,6 @@ static struct shrinker lowmem_shrinker = {
 
 static int __init lowmem_init(void)
 {
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-	task_free_register(&task_nb);
-#endif
 	register_shrinker(&lowmem_shrinker);
 	return 0;
 }
@@ -251,14 +189,96 @@ static int __init lowmem_init(void)
 static void __exit lowmem_exit(void)
 {
 	unregister_shrinker(&lowmem_shrinker);
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-	task_free_unregister(&task_nb);
-#endif
 }
 
+#ifdef CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
+static int lowmem_oom_adj_to_oom_score_adj(int oom_adj)
+{
+	if (oom_adj == OOM_ADJUST_MAX)
+		return OOM_SCORE_ADJ_MAX;
+	else
+		return (oom_adj * OOM_SCORE_ADJ_MAX) / -OOM_DISABLE;
+}
+
+static void lowmem_autodetect_oom_adj_values(void)
+{
+	int i;
+	int oom_adj;
+	int oom_score_adj;
+	int array_size = ARRAY_SIZE(lowmem_adj);
+
+	if (lowmem_adj_size < array_size)
+		array_size = lowmem_adj_size;
+
+	if (array_size <= 0)
+		return;
+
+	oom_adj = lowmem_adj[array_size - 1];
+	if (oom_adj > OOM_ADJUST_MAX)
+		return;
+
+	oom_score_adj = lowmem_oom_adj_to_oom_score_adj(oom_adj);
+	if (oom_score_adj <= OOM_ADJUST_MAX)
+		return;
+
+	lowmem_print(1, "lowmem_shrink: convert oom_adj to oom_score_adj:\n");
+	for (i = 0; i < array_size; i++) {
+		oom_adj = lowmem_adj[i];
+		oom_score_adj = lowmem_oom_adj_to_oom_score_adj(oom_adj);
+		lowmem_adj[i] = oom_score_adj;
+		lowmem_print(1, "oom_adj %d => oom_score_adj %d\n",
+			     oom_adj, oom_score_adj);
+	}
+}
+
+static int lowmem_adj_array_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_array_ops.set(val, kp);
+
+	/* HACK: Autodetect oom_adj values in lowmem_adj array */
+	lowmem_autodetect_oom_adj_values();
+
+	return ret;
+}
+
+static int lowmem_adj_array_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_array_ops.get(buffer, kp);
+}
+
+static void lowmem_adj_array_free(void *arg)
+{
+	param_array_ops.free(arg);
+}
+
+static struct kernel_param_ops lowmem_adj_array_ops = {
+	.set = lowmem_adj_array_set,
+	.get = lowmem_adj_array_get,
+	.free = lowmem_adj_array_free,
+};
+
+static const struct kparam_array __param_arr_adj = {
+	.max = ARRAY_SIZE(lowmem_adj),
+	.num = &lowmem_adj_size,
+	.ops = &param_ops_int,
+	.elemsize = sizeof(lowmem_adj[0]),
+	.elem = lowmem_adj,
+};
+#endif
+
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
+#ifdef CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
+__module_param_call(MODULE_PARAM_PREFIX, adj,
+		    &lowmem_adj_array_ops,
+		    .arr = &__param_arr_adj,
+		    S_IRUGO | S_IWUSR, -1);
+__MODULE_PARM_TYPE(adj, "array of int");
+#else
 module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
 			 S_IRUGO | S_IWUSR);
+#endif
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
@@ -267,4 +287,3 @@ module_init(lowmem_init);
 module_exit(lowmem_exit);
 
 MODULE_LICENSE("GPL");
-

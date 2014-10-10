@@ -67,6 +67,15 @@ config ANDROID_LOW_MEMORY_KILLER
 	---help---
 	  Register processes to be killed when memory is low
 
+config ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
+	bool "Android Low Memory Killer: detect oom_adj values"
+	depends on ANDROID_LOW_MEMORY_KILLER
+	default y
+	---help---
+	  Detect oom_adj values written to
+	  /sys/module/lowmemorykiller/parameters/adj and convert them
+	  to oom_score_adj values.
+
 source "drivers/staging/android/switch/Kconfig"
 
 config ANDROID_INTF_ALARM_DEV
@@ -77,17 +86,6 @@ config ANDROID_INTF_ALARM_DEV
 	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
 	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
 	  Also exports the alarm interface to user-space.
-
-# LGE_CHANGE_S : bohyun.jung@lge.com 
-config LGE_DEATHPENDING_LMK
-	bool "Enable deathpending LMK"
-	default n
-	help
-	  If you say Y here, lowmem_shrink is not active when victim is selected already (v3.0). 
-	  some of min_score_adj's calculation is moved to Compiler. 
-	  ex) min_score_adj = (lowmem_adj[i] * OOM_SCORE_ADJ_MAX) / -OOM_DISABLE;
-	  divide ops is time-consuming, so (OOM_SCORE_ADJ_MAX / -OOM_DISABLE) is calculated on compile time.
-# LGE_CHANGE_E : bohyun.jung@lge.com 
 
 endif # if ANDROID
 

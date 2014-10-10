@@ -143,16 +143,6 @@ static int proc_fd_permission(struct inode *inode, int mask);
 		&proc_##OTYPE##_inode_operations,	\
 		&proc_##OTYPE##_operations, {})
 
-
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-/* LGE_CHANGE : bohyun.jung@lge.com 
- * reduce burden of lowmme_shrink() divide is expensive routine for mass-tier chipset.
- * compiler does take divide burden and use constant value. kernel/drivers/staging/android/lowmemorykiller.c together. */
-#ifndef OOM_SCORE_CAL 
-#define	OOM_SCORE_CAL	((OOM_SCORE_ADJ_MAX) / -OOM_DISABLE) 
-#endif
-#endif
-
 /*
  * Count the number of hardlinks for the pid_entry table, excluding the .
  * and .. links.
@@ -973,12 +963,8 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	if (task->signal->oom_adj == OOM_ADJUST_MAX)
 		task->signal->oom_score_adj = OOM_SCORE_ADJ_MAX;
 	else
-#if defined (CONFIG_LGE_DEATHPENDING_LMK)
-		task->signal->oom_score_adj = oom_adjust * OOM_SCORE_CAL;
-#else
 		task->signal->oom_score_adj = (oom_adjust * OOM_SCORE_ADJ_MAX) /
 								-OOM_DISABLE;
-#endif
 	trace_oom_score_adj_update(task);
 err_sighand:
 	unlock_task_sighand(task, &flags);
