@@ -14,8 +14,8 @@ cat << ENDCONFIG
              <spinnerItem name="ZZMoove-Yank Battery Extreme" value="5"/> 
              <spinnerItem name="ZZMoove-ZaneZam Battery" value="6"/> 
              <spinnerItem name="ZZMoove-ZaneZam Battery Plus" value="7"/> 
-             <spinnerItem name="ZZMoove-ZaneZam Moderate" value="8"/> 
-             <spinnerItem name="ZZMoove-ZaneZam Optimized" value="9"/> 
+             <spinnerItem name="ZZMoove-ZaneZam Optimized" value="8"/> 
+             <spinnerItem name="ZZMoove-ZaneZam Moderate" value="9"/> 
              <spinnerItem name="ZZMoove-ZaneZam Performance" value="10"/> 
              <spinnerItem name="ZZMoove-ZaneZam InZane" value="11"/> 
              <spinnerItem name="ZZMoove-ZaneZam Gaming" value="12"/> 
