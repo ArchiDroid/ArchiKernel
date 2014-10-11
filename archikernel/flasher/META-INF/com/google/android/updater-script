@@ -27,9 +27,9 @@ assert(getprop("ro.product.device") == "m0" || getprop("ro.build.product") == "m
 ui_print("root@ArchiKernel:~# Ready!");
 set_progress(0.1);
 run_program("/sbin/mount", "-t", "auto", "/system");
-
-ui_print("root@ArchiKernel:~# Flashing ArchiKernel");
+run_program("/sbin/mount", "-t", "auto", "/data");
 set_progress(0.2);
+ui_print("root@ArchiKernel:~# Flashing ArchiKernel");
 delete_recursive("/tmp/archikernel");
 package_extract_dir("core", "/tmp/archikernel");
 set_perm(0, 0, 0755, "/tmp/archikernel/init.sh");
@@ -37,14 +37,23 @@ package_extract_file("prebuilt/zImage", "/tmp/archikernel/zImage");
 delete_recursive("/system/lib/modules");
 package_extract_dir("prebuilt/system", "/system");
 package_extract_dir("overlay", "/");
-set_progress(0.5);
-run_program("/tmp/archikernel/init.sh");
-set_progress(0.8);
+set_progress(0.3);
 
-ui_print("===================================");
-ui_print("  ArchiKernel Flashed Successfully ");
-ui_print("Please share your experience on XDA");
-ui_print("===================================");
+if run_program("/tmp/archikernel/init.sh") == "0" then
+	ui_print("===================================");
+	ui_print("  ArchiKernel Flashed Successfully ");
+	ui_print("Please share your experience on XDA");
+	ui_print("===================================");
+else
+	ui_print("=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=");
+	ui_print("ERROR!!! Please attach: ");
+	ui_print("/data/media/0/ArchiKernelError.log");
+	ui_print("on forum.xda-developers.com");
+	ui_print("=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=");
+	run_program("/sbin/cp", "/tmp/archikernel/ArchiKernel.log", "/data/media/0/ArchiKernelError.log");
+endif;
+
 set_progress(0.9);
 unmount("/system");
+unmount("/data");
 set_progress(1.0);

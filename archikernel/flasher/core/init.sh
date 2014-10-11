@@ -38,7 +38,7 @@ date
 echo "INFO: ArchiKernel flasher ready!"
 echo "INFO: Safety check: ON, flasher will immediately terminate in case of ANY error"
 
-if [ ! -f "$AK/mkbootimg-static" -o ! -f "$AK/unpackbootimg-static" ]; then
+if [[ ! -f "$AK/mkbootimg-static" || ! -f "$AK/unpackbootimg-static" ]]; then
 	echo "FATAL ERROR: No bootimg tools?!"
 	exit 1
 else
@@ -46,7 +46,7 @@ else
 fi
 
 echo "INFO: Pulling boot.img from $KERNEL"
-if [ ! -z "$(which dump_image)" ]; then
+if [[ ! -z "$(which dump_image)" ]]; then
 	dump_image "$KERNEL" "$AK/boot.img"
 else
 	dd if="$KERNEL" of="$AK/boot.img"
@@ -55,14 +55,14 @@ fi
 mkdir -p "$AKDROP/ramdisk"
 echo "INFO: Unpacking pulled boot.img"
 "$AK/unpackbootimg-static" -i "$AK/boot.img" -o "$AKDROP"
-if [ -f "$AKDROP/boot.img-ramdisk.gz" ]; then
-	if [ "$PARSERAMDISK" -eq 1 ]; then
+if [[ -f "$AKDROP/boot.img-ramdisk.gz" ]]; then
+	if [[ "$PARSERAMDISK" -eq 1 ]]; then
 		echo "INFO: Ramdisk in gzip format found, extracting..."
 		cd "$AKDROP/ramdisk"
 		gunzip -c ../boot.img-ramdisk.gz | cpio -i
 
 		# Detect AOSP/Samsung variant based on existing modules in ramdisk
-		if [ -d "$AKDROP/ramdisk/lib/modules" ]; then
+		if [[ -d "$AKDROP/ramdisk/lib/modules" ]]; then
 			echo "INFO: Detected Samsung variant"
 
 			# Remove all current modules from ramdisk
@@ -82,7 +82,7 @@ if [ -f "$AKDROP/boot.img-ramdisk.gz" ]; then
 		fi
 
 		# If we have any ramdisk content, write it
-		if [ -d "$AK/ramdisk" ]; then
+		if [[ -d "$AK/ramdisk" ]]; then
 			echo "INFO: Overwriting ramdisk with custom content"
 			find "$AK/ramdisk" -mindepth 1 -maxdepth 1 | while read line; do
 				cp -pR "$line" .
@@ -92,13 +92,13 @@ if [ -f "$AKDROP/boot.img-ramdisk.gz" ]; then
 		# If we have any executable files/folders, chmod them
 		TO755="sbin/ArchiKernel-Init res/uci.sh"
 		for FILE in $TO755; do
-			if [ -e "$AKDROP/ramdisk/$FILE" ]; then
+			if [[ -e "$AKDROP/ramdisk/$FILE" ]]; then
 				chmod 755 "$AKDROP/ramdisk/$FILE"
 			fi
 		done
 
 		# Add ArchiKernel Init if required
-		if [ "$(grep -qi "ArchiKernel-Init" "$AKDROP/ramdisk/init.rc"; echo $?)" -ne 0 ]; then
+		if [[ "$(grep -qi "ArchiKernel-Init" "$AKDROP/ramdisk/init.rc"; echo $?)" -ne 0 ]]; then
 			echo "INFO: User is flashing the kernel for the first time!"
 			{
 				echo
@@ -135,7 +135,7 @@ echo "INFO: Combining ArchiKernel zImage and current kernel ramdisk"
 echo "INFO: newboot.img ready!"
 
 echo "INFO: Flashing newboot.img on $KERNEL"
-if [ ! -z "$(which flash_image)" ]; then
+if [[ ! -z "$(which flash_image)" ]]; then
 	flash_image "$KERNEL" "$AK/newboot.img"
 else
 	dd if="$AK/newboot.img" of="$KERNEL"
@@ -145,5 +145,4 @@ echo "SUCCESS: Everything finished successfully!"
 touch "$AK/_OK"
 date
 
-sync
 exit 0
