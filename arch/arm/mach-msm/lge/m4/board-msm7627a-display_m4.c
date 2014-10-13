@@ -32,7 +32,7 @@
 #define MSM8x25_MSM_FB_SIZE	0x3FC000
 #endif
 
-#define MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE 1244160
+#define MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE 460800
 
 static unsigned fb_size = MSM_FB_SIZE;
 static int __init fb_size_setup(char *p)

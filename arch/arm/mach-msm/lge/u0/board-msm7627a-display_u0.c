@@ -40,7 +40,7 @@
 #define MSM8x25_MSM_FB_SIZE		0x3FC000
 #endif
 
-#define MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE 1244160
+#define MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE 1152000
 
 /* LGE_CHANGE_S jungrock.oh@lge.com 2013-01-15 booting animation sometimes no display*/
 static bool firstbootend=0; 
