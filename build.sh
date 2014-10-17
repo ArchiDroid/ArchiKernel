@@ -211,15 +211,15 @@ for TARGETCONFIG in ${TARGETCONFIGS[@]}; do
 		cp "$KO" "$TARGETDIRMODULES"
 	done
 
-	TARGETZIPNAME="$TARGETZIPNAME-$APPLIEDCONFIG"
+	THISZIPNAME="$TARGETZIPNAME-$APPLIEDCONFIG"
 	cd "$TARGETDIR"
-	zip -qry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
+	zip -qry -9 "$THISZIPNAME.zip" . -x "*.zip"
 
 	if [[ ! -z "$TARGETZIPDIR" && -d "$TARGETZIPDIR" ]]; then
-		mv "$TARGETZIPNAME.zip" "$TARGETZIPDIR"
+		mv "$THISZIPNAME.zip" "$TARGETZIPDIR"
 	fi
 
-	echo "Done! Output zip: $TARGETZIPNAME.zip"
+	echo "Done! Output zip: $THISZIPNAME.zip"
 done
 
 if [[ "$BEEP" -eq 1 ]]; then
