@@ -155,71 +155,73 @@ if [[ -z "$TARGETCONFIGS" ]]; then
 fi
 
 for TARGETCONFIG in ${TARGETCONFIGS[@]}; do
-	if [[ "$DIRTY" -eq 0 ]]; then
-		make -j "$JOBS" clean
-		if [[ "$CONFIGTEST" -eq 1 && -f ".config" ]]; then
-			mv ".config" ".configBackup"
-		else
-			rm -f ".configBackup"
+	(
+		if [[ "$DIRTY" -eq 0 ]]; then
+			make -j "$JOBS" clean
+			if [[ "$CONFIGTEST" -eq 1 && -f ".config" ]]; then
+				mv ".config" ".configBackup"
+			else
+				rm -f ".configBackup"
+			fi
+			make -j "$JOBS" mrproper
+			if [[ "$CLEAN" -eq 1 ]]; then
+				rm -f ".configBackup" # Just in case if somebody would call configtest with clean...
+				exit 0
+			fi
+			if [[ "$CONFIGTEST" -eq 1 && -f ".configBackup" ]]; then
+				mv ".configBackup" ".config"
+			elif [[ -f "arch/$ARCH/configs/$TARGETCONFIG" ]]; then
+				make -j "$JOBS" "$TARGETCONFIG"
+				APPLIEDCONFIG="$(echo $TARGETCONFIG | rev | cut -d'_' -f3- | rev)"
+				APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
+			else
+				echo "ERROR: Could not find specified config: arch/$ARCH/configs/$TARGETCONFIG"
+				continue
+			fi
 		fi
-		make -j "$JOBS" mrproper
-		if [[ "$CLEAN" -eq 1 ]]; then
-			rm -f ".configBackup" # Just in case if somebody would call configtest with clean...
-			exit 0
+
+		# Try to detect applied config if no config has been specified (e.g. --dirty)
+		if [[ -z "$APPLIEDCONFIG" ]]; then
+			APPLIEDCONFIG="Unknown"
+			CONFIGMD5="$(md5sum .config | awk '{print $1}')"
+			while read TOCHECK; do
+				if [[ "$(md5sum "$TOCHECK" | awk '{print $1}')" = "$CONFIGMD5" ]]; then
+					APPLIEDCONFIG="$(basename "$TOCHECK" | rev | cut -d'_' -f3- | rev)"
+					APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
+					break
+				fi
+			done < <(find "arch/$ARCH/configs" -type f -iname "*_ak_defconfig")
 		fi
-		if [[ "$CONFIGTEST" -eq 1 && -f ".configBackup" ]]; then
-			mv ".configBackup" ".config"
-		elif [[ -f "arch/$ARCH/configs/$TARGETCONFIG" ]]; then
-			make -j "$JOBS" "$TARGETCONFIG"
-			APPLIEDCONFIG="$(echo $TARGETCONFIG | rev | cut -d'_' -f3- | rev)"
-			APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
-		else
-			echo "ERROR: Could not find specified config: arch/$ARCH/configs/$TARGETCONFIG"
+
+		make -j "$JOBS" all
+
+		if [[ "$BARE" -eq 1 ]]; then
 			continue
 		fi
-	fi
 
-	# Try to detect applied config if no config has been specified (e.g. --dirty)
-	if [[ -z "$APPLIEDCONFIG" ]]; then
-		APPLIEDCONFIG="Unknown"
-		CONFIGMD5="$(md5sum .config | awk '{print $1}')"
-		while read TOCHECK; do
-			if [[ "$(md5sum "$TOCHECK" | awk '{print $1}')" = "$CONFIGMD5" ]]; then
-				APPLIEDCONFIG="$(basename "$TOCHECK" | rev | cut -d'_' -f3- | rev)"
-				APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
-				break
-			fi
-		done < <(find "arch/$ARCH/configs" -type f -iname "*_ak_defconfig")
-	fi
+		mkdir -p "$TARGETDIRKERNEL" "$TARGETDIRMODULES"
+		cp "arch/$ARCH/boot/zImage" "$TARGETDIRKERNEL"
 
-	make -j "$JOBS" all
+		find "$TARGETDIRMODULES" -type f -iname "*.ko" | while read KO; do
+			rm -f "$KO"
+		done
 
-	if [[ "$BARE" -eq 1 ]]; then
-		continue
-	fi
+		find . -type f -iname "*.ko" | while read KO; do
+			echo "Including module: $(basename "$KO")"
+			${CROSS_COMPILE}strip --strip-unneeded "$KO"
+			cp "$KO" "$TARGETDIRMODULES"
+		done
 
-	mkdir -p "$TARGETDIRKERNEL" "$TARGETDIRMODULES"
-	cp "arch/$ARCH/boot/zImage" "$TARGETDIRKERNEL"
+		THISZIPNAME="$TARGETZIPNAME-$APPLIEDCONFIG"
+		cd "$TARGETDIR"
+		zip -qry -9 "$THISZIPNAME.zip" . -x "*.zip"
 
-	find "$TARGETDIRMODULES" -type f -iname "*.ko" | while read KO; do
-		rm -f "$KO"
-	done
+		if [[ ! -z "$TARGETZIPDIR" && -d "$TARGETZIPDIR" ]]; then
+			mv "$THISZIPNAME.zip" "$TARGETZIPDIR"
+		fi
 
-	find . -type f -iname "*.ko" | while read KO; do
-		echo "Including module: $(basename "$KO")"
-		${CROSS_COMPILE}strip --strip-unneeded "$KO"
-		cp "$KO" "$TARGETDIRMODULES"
-	done
-
-	THISZIPNAME="$TARGETZIPNAME-$APPLIEDCONFIG"
-	cd "$TARGETDIR"
-	zip -qry -9 "$THISZIPNAME.zip" . -x "*.zip"
-
-	if [[ ! -z "$TARGETZIPDIR" && -d "$TARGETZIPDIR" ]]; then
-		mv "$THISZIPNAME.zip" "$TARGETZIPDIR"
-	fi
-
-	echo "Done! Output zip: $THISZIPNAME.zip"
+		echo "Done! Output zip: $THISZIPNAME.zip"
+	)
 done
 
 if [[ "$BEEP" -eq 1 ]]; then
