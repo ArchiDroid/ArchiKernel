@@ -26,8 +26,9 @@
 # NOTICE: yourconfig must exist in arch/arm/configs
 
 # Examples:
-# ./build.sh -> Build ArchiKernel for default AOSP variant
+# ./build.sh aosp_ak_defconfig -> Build ArchiKernel for default AOSP variant
 # ./build.sh samsung_ak_defconfig -> Build ArchiKernel for Samsung variant
+# ./build.sh --version=2.0 aosp_ak_defconfig -> Build ArchiKernel for default AOSP variant and specify that version is V2.0
 # ./build.sh --configtest -> Use currently available .config instead of predefined configs. Useful for config tests
 # ./build.sh --dirty -> Don't clean, use currentnly available .config and build. Perfect for testing if new commit compiles
 # source build.sh --source -> Append proper variables to current shell, so you can use i.e. make clean/menuconfig/all standalone
@@ -38,6 +39,7 @@ CLEAN=0 # --clean -> This will clean build directory, same as make clean && make
 DIRTY=0 # --dirty -> This will not call make clean && make mrproper. Implies --configtest
 CONFIGTEST=0 # --configtest -> This will call only make clean (without make mrproper) and use .config file instead of $TARGETCONFIG. Useful for config tests
 BARE=0 # --bare -> This will finish the script as soon as the kernel is compiled, so no modules stripping or copying files will be done
+ALL=0 # --all -> This will build every currently supported ArchiKernel variant, from arch/arm/configs/*_ak_defconfig
 
 # Detect HOME properly
 # This workaround is required because arm-eabi-nm has problems following ~. Don't change it
@@ -53,7 +55,6 @@ TARGETZIPDIR="$HOME/shared/kernel/m0" # If valid, output zip will be moved there
 BEEP=1 # This will beep three times on finish to wake me up :). Works even through SSH!
 
 # Above settings should be enough, changing below things shouldn't be required
-TARGETCONFIG="aosp_ak_defconfig" # This is default config, which is overridden if extra argument is given. Don't change it, use ./build.sh <yourconfig> instead. Read more in the usage above
 TARGETDIR="archikernel/flasher" # This is the general output path. Don't change it, change TARGETZIPDIR above instead
 TARGETDIRKERNEL="$TARGETDIR/prebuilt" # This is where zImage is put, this shouldn't be changed
 TARGETDIRMODULES="$TARGETDIRKERNEL/system/lib/modules" # Similar to above, but for modules
@@ -69,7 +70,9 @@ for ARG in "$@"; do
 		--dirty|dirty) DIRTY=1 ;;
 		--configtest|configtest) CONFIGTEST=1 ;;
 		--bare|bare) BARE=1 ;;
-		*) TARGETCONFIG="$ARG" ;;
+		--all|all) ALL=1 ;;
+		--version=*) TARGETZIPNAME="ArchiKernel_V$(echo "$ARG" | cut -d '=' -f2)" ;;
+		*) TARGETCONFIGS+=("$ARG") ;;
 	esac
 done
 
@@ -94,7 +97,7 @@ export ARCH=arm
 export CROSS_COMPILE="$CROSS_COMPILE"
 
 if [[ "$SOURCE" -eq 1 ]]; then
-        return
+	return
 	exit 0 # If we're in fact sourcing this file, this won't execute
 fi
 
@@ -125,71 +128,99 @@ if [[ "$REGEN" -eq 1 ]]; then
 	exit 0
 fi
 
-if [[ ! -f "arch/$ARCH/configs/$TARGETCONFIG" ]]; then
-	echo "ERROR: Could not find specified config: arch/$ARCH/configs/$TARGETCONFIG"
-	exit 1
-fi
-
-if [[ "$DIRTY" -eq 0 ]]; then
-	make -j "$JOBS" clean
-	if [[ "$CONFIGTEST" -eq 1 && -f ".config" ]]; then
-		mv ".config" ".configBackup"
-	else
-		rm -f ".configBackup"
-	fi
-	make -j "$JOBS" mrproper
-	if [[ "$CLEAN" -eq 1 ]]; then
-		rm -f ".configBackup" # Just in case if somebody would call configtest with clean...
-		exit 0
-	fi
-	if [[ "$CONFIGTEST" -eq 1 && -f ".configBackup" ]]; then
-		mv ".configBackup" ".config"
-	else
-		make -j "$JOBS" "$TARGETCONFIG"
-		APPLIEDCONFIG="$(echo $TARGETCONFIG | rev | cut -d'_' -f3- | rev)"
-		APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
-	fi
-fi
-
-# Try to detect applied config if no config has been specified (e.g. --dirty)
-if [[ -z "$APPLIEDCONFIG" ]]; then
-	APPLIEDCONFIG="Unknown"
-	CONFIGMD5="$(md5sum .config | awk '{print $1}')"
-	while read TOCHECK; do
-		if [[ "$(md5sum "$TOCHECK" | awk '{print $1}')" = "$CONFIGMD5" ]]; then
-			APPLIEDCONFIG="$(basename "$TOCHECK" | rev | cut -d'_' -f3- | rev)"
-			APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
-			break
-		fi
+if [[ "$ALL" -eq 1 ]]; then
+	while read TARGETCONFIG; do
+		TARGETCONFIGS+=("$(basename "$TARGETCONFIG")")
 	done < <(find "arch/$ARCH/configs" -type f -iname "*_ak_defconfig")
 fi
 
-make -j "$JOBS" all
-
-if [[ "$BARE" -eq 1 ]]; then
-	exit 0
+if [[ -z "$TARGETCONFIGS" ]]; then
+	if [[ "$CLEAN" -eq 0 && "$CONFIGTEST" -eq 0 && "$DIRTY" -eq 0 ]]; then
+		echo "ERROR: You didn't specify any config!"
+		echo
+		echo "If you want to use locally generated .config, try --configtest"
+		echo "If you want to build AK for all currently supported variants, try --all"
+		echo
+		echo "Otherwise, try invoking this script with argument which matches one of these:"
+		echo "-=-=-=-=-=-="
+		find "arch/$ARCH/configs" -type f -iname "*_ak_defconfig" | while read line; do
+			basename "$line"
+		done
+		echo "-=-=-=-=-=-="
+		echo
+		exit 1
+	else
+		TARGETCONFIGS+=("NULLCONFIG");
+	fi
 fi
 
-mkdir -p "$TARGETDIRKERNEL" "$TARGETDIRMODULES"
-cp "arch/$ARCH/boot/zImage" "$TARGETDIRKERNEL"
+for TARGETCONFIG in ${TARGETCONFIGS[@]}; do
+	if [[ "$DIRTY" -eq 0 ]]; then
+		make -j "$JOBS" clean
+		if [[ "$CONFIGTEST" -eq 1 && -f ".config" ]]; then
+			mv ".config" ".configBackup"
+		else
+			rm -f ".configBackup"
+		fi
+		make -j "$JOBS" mrproper
+		if [[ "$CLEAN" -eq 1 ]]; then
+			rm -f ".configBackup" # Just in case if somebody would call configtest with clean...
+			exit 0
+		fi
+		if [[ "$CONFIGTEST" -eq 1 && -f ".configBackup" ]]; then
+			mv ".configBackup" ".config"
+		elif [[ -f "arch/$ARCH/configs/$TARGETCONFIG" ]]; then
+			make -j "$JOBS" "$TARGETCONFIG"
+			APPLIEDCONFIG="$(echo $TARGETCONFIG | rev | cut -d'_' -f3- | rev)"
+			APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
+		else
+			echo "ERROR: Could not find specified config: arch/$ARCH/configs/$TARGETCONFIG"
+			continue
+		fi
+	fi
 
-find "$TARGETDIRMODULES" -type f -iname "*.ko" | while read KO; do
-	rm -f "$KO"
+	# Try to detect applied config if no config has been specified (e.g. --dirty)
+	if [[ -z "$APPLIEDCONFIG" ]]; then
+		APPLIEDCONFIG="Unknown"
+		CONFIGMD5="$(md5sum .config | awk '{print $1}')"
+		while read TOCHECK; do
+			if [[ "$(md5sum "$TOCHECK" | awk '{print $1}')" = "$CONFIGMD5" ]]; then
+				APPLIEDCONFIG="$(basename "$TOCHECK" | rev | cut -d'_' -f3- | rev)"
+				APPLIEDCONFIG="${APPLIEDCONFIG^^}" # To uppercase
+				break
+			fi
+		done < <(find "arch/$ARCH/configs" -type f -iname "*_ak_defconfig")
+	fi
+
+	make -j "$JOBS" all
+
+	if [[ "$BARE" -eq 1 ]]; then
+		continue
+	fi
+
+	mkdir -p "$TARGETDIRKERNEL" "$TARGETDIRMODULES"
+	cp "arch/$ARCH/boot/zImage" "$TARGETDIRKERNEL"
+
+	find "$TARGETDIRMODULES" -type f -iname "*.ko" | while read KO; do
+		rm -f "$KO"
+	done
+
+	find . -type f -iname "*.ko" | while read KO; do
+		echo "Including module: $(basename "$KO")"
+		${CROSS_COMPILE}strip --strip-unneeded "$KO"
+		cp "$KO" "$TARGETDIRMODULES"
+	done
+
+	TARGETZIPNAME="$TARGETZIPNAME-$APPLIEDCONFIG"
+	cd "$TARGETDIR"
+	zip -qry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
+
+	if [[ ! -z "$TARGETZIPDIR" && -d "$TARGETZIPDIR" ]]; then
+		mv "$TARGETZIPNAME.zip" "$TARGETZIPDIR"
+	fi
+
+	echo "Done! Output zip: $TARGETZIPNAME.zip"
 done
-
-find . -type f -iname "*.ko" | while read KO; do
-	echo "Including module: $(basename "$KO")"
-	${CROSS_COMPILE}strip --strip-unneeded "$KO"
-	cp "$KO" "$TARGETDIRMODULES"
-done
-
-TARGETZIPNAME="$TARGETZIPNAME-$APPLIEDCONFIG"
-cd "$TARGETDIR"
-zip -qry -9 "$TARGETZIPNAME.zip" . -x "*.zip"
-
-if [[ ! -z "$TARGETZIPDIR" && -d "$TARGETZIPDIR" ]]; then
-	mv "$TARGETZIPNAME.zip" "$TARGETZIPDIR"
-fi
 
 if [[ "$BEEP" -eq 1 ]]; then
 	echo -e "\a"
@@ -199,5 +230,6 @@ if [[ "$BEEP" -eq 1 ]]; then
 	echo -e "\a"
 fi
 
-echo "Done! Output zip: $TARGETZIPNAME.zip"
+echo "All tasks done! :)"
+
 exit 0
