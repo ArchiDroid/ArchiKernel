@@ -28,10 +28,15 @@
 # Examples:
 # ./build.sh aosp_ak_defconfig -> Build ArchiKernel for default AOSP variant
 # ./build.sh samsung_ak_defconfig -> Build ArchiKernel for Samsung variant
+# ./build.sh aosp_ak_defconfig samsung_ak_defconfig -> Build ArchiKernel for both AOSP and Samsung variant
+# ./build.sh --all -> Build ArchiKernel for all currently supported variants. Same as ./build.sh every possible variant
 # ./build.sh --version=2.0 aosp_ak_defconfig -> Build ArchiKernel for default AOSP variant and specify that version is V2.0
 # ./build.sh --configtest -> Use currently available .config instead of predefined configs. Useful for config tests
 # ./build.sh --dirty -> Don't clean, use currentnly available .config and build. Perfect for testing if new commit compiles
 # source build.sh --source -> Append proper variables to current shell, so you can use i.e. make clean/menuconfig/all standalone
+
+# Release:
+# ./build.sh --all --version=X.Y.Z
 
 SOURCE=0 # --source -> This will prepare environment for cross compiling (only). Use only in conjuction with "source" command, i.e. source build.sh --source
 REGEN=0 # --regen/--regenerate -> This will regenerate ArchiKernel configs according to current Kconfig
@@ -154,7 +159,7 @@ if [[ -z "$TARGETCONFIGS" ]]; then
 	fi
 fi
 
-for TARGETCONFIG in ${TARGETCONFIGS[@]}; do
+for TARGETCONFIG in "${TARGETCONFIGS[@]}"; do
 	(
 		if [[ "$DIRTY" -eq 0 ]]; then
 			make -j "$JOBS" clean
