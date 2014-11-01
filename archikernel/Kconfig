@@ -246,11 +246,24 @@ config ARCHIKERNEL_MALI_REVISION_R3P2
 
 config ARCHIKERNEL_MALI_REVISION_R4P0
 	bool "r4p0"
-      	select MALI_VER_R4P0
-      	select PM_DEVFREQ
+	select MALI_VER_R4P0
+	select PM_DEVFREQ
 	help
 		Mali GPU revision r4p0		
 endchoice
+
+config ARCHIKERNEL_MALI_API_VERSION
+	int "Mali API version"
+	default "23" if MALI_VER_R3P2
+	default "401" if MALI_VER_R4P0
+	help
+		Mali blobs which we're using are very picky about declaring proper API version.
+		Even if we may have totally different source files, API version declared in the
+		kernel and used by the blobs must be the same.
+		Defaults:
+		R3P2 <= Android 4.4.2 -> 23
+		R3P2 >= Android 4.4.4 -> 29
+		R4P0 -> 401
 
 
 comment "Hacks / Workarounds"

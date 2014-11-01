@@ -739,7 +739,11 @@ typedef struct {
  * The 16bit integer is stored twice in a 32bit integer
  * For example, for version 1 the value would be 0x00010001
  */
+#ifdef CONFIG_ARCHIKERNEL_MALI_API_VERSION
+#define _MALI_API_VERSION CONFIG_ARCHIKERNEL_MALI_API_VERSION
+#else
 #define _MALI_API_VERSION 401
+#endif
 #define _MALI_UK_API_VERSION _MAKE_VERSION_ID(_MALI_API_VERSION)
 
 /**

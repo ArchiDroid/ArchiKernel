@@ -722,15 +722,11 @@ typedef struct
  * The 16bit integer is stored twice in a 32bit integer
  * For example, for version 1 the value would be 0x00010001
  */
-#define _MALI_API_VERSION 26
-
-/**
- * HACK: We must keep API version at the same level as binary blob
- * Damn you, Samsung!
- */
-#undef _MALI_API_VERSION
+#ifdef CONFIG_ARCHIKERNEL_MALI_API_VERSION
+#define _MALI_API_VERSION CONFIG_ARCHIKERNEL_MALI_API_VERSION
+#else
 #define _MALI_API_VERSION 23
-
+#endif
 #define _MALI_UK_API_VERSION _MAKE_VERSION_ID(_MALI_API_VERSION)
 
 /**
