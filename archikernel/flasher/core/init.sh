@@ -61,15 +61,14 @@ if [[ -f "$AKDROP/boot.img-ramdisk.gz" ]]; then
 		cd "$AKDROP/ramdisk"
 
 		echo "INFO: Detecting ramdisk format..."
+		DBIN="gzip -9"
 
 		if [[ "$(gunzip -t ../boot.img-ramdisk.gz >/dev/null 2>&1; echo $?)" -eq 0 ]]; then
 			echo "INFO: Gzip format detected"
 			CBIN="gunzip -c"
-			DBIN="gzip -9"
 		elif [[ "$(lzop -t ../boot.img-ramdisk.gz >/dev/null 2>&1; echo $?)" -eq 0 ]]; then
 			echo "INFO: Lzo format detected"
 			CBIN="lzop -dc"
-			DBIN="lzop -9"
 		else
 			echo "ERROR: Couldn't detect any known ramdisk format!"
 			exit 1
