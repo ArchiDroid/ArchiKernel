@@ -59,15 +59,14 @@ if [[ -f "$AKDROP/boot.img-ramdisk.gz" ]]; then
 	echo "INFO: Ramdisk found!"
 	if [[ "$PARSERAMDISK" -eq 1 ]]; then
 		cd "$AKDROP/ramdisk"
-		echo "INFO: Detecting ramdisk format..."
-		ISGZIP="$(gunzip -t ../boot.img-ramdisk.gz >/dev/null 2>&1; echo $?)"
-		ISLZOP="$(lzop -t ../boot.img-ramdisk.gz >/dev/null 2>&1; echo $?)"
 
-		if [[ "$ISGZIP" -eq 0 ]]; then
+		echo "INFO: Detecting ramdisk format..."
+
+		if [[ "$(gunzip -t ../boot.img-ramdisk.gz >/dev/null 2>&1; echo $?)" -eq 0 ]]; then
 			echo "INFO: Gzip format detected"
 			CBIN="gunzip -c"
 			DBIN="gzip -9"
-		elif [[ "$ISLZOP" -eq 0 ]]; then
+		elif [[ "$(lzop -t ../boot.img-ramdisk.gz >/dev/null 2>&1; echo $?)" -eq 0 ]]; then
 			echo "INFO: Lzo format detected"
 			CBIN="lzop -dc"
 			DBIN="lzop -9"
