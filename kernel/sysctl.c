@@ -96,9 +96,7 @@ extern char core_pattern[];
 extern unsigned int core_pipe_limit;
 extern int pid_max;
 extern int min_free_kbytes;
-#ifdef CONFIG_ARCHIKERNEL_MALI_REVISION_R4P0
 extern int extra_free_kbytes;
-#endif
 extern int min_free_order_shift;
 extern int pid_max_min, pid_max_max;
 extern int sysctl_drop_caches;
@@ -1199,7 +1197,6 @@ static struct ctl_table vm_table[] = {
 		.proc_handler	= min_free_kbytes_sysctl_handler,
 		.extra1		= &zero,
 	},
-#ifdef CONFIG_ARCHIKERNEL_MALI_REVISION_R4P0
 	{
 		.procname	= "extra_free_kbytes",
 		.data		= &extra_free_kbytes,
@@ -1208,7 +1205,6 @@ static struct ctl_table vm_table[] = {
 		.proc_handler	= min_free_kbytes_sysctl_handler,
 		.extra1		= &zero,
 	},
-#endif
 	{
 		.procname	= "min_free_order_shift",
 		.data		= &min_free_order_shift,
