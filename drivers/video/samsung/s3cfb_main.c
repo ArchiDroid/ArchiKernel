@@ -209,13 +209,13 @@ int s3cfb_wait_for_vsync(struct s3cfb_global *fbdev, u32 timeout)
 	s3cfb_activate_vsync(fbdev);
 	if (timeout) {
 		ret = wait_event_interruptible_timeout(fbdev->vsync_info.wait,
-						!ktime_equal(timestamp,
-						fbdev->vsync_info.timestamp),
-						msecs_to_jiffies(timeout));
+					!ktime_equal(timestamp,
+					fbdev->vsync_info.timestamp),
+					msecs_to_jiffies(timeout));
 	} else {
 		ret = wait_event_interruptible(fbdev->vsync_info.wait,
-						!ktime_equal(timestamp,
-						fbdev->vsync_info.timestamp));
+					!ktime_equal(timestamp,
+					fbdev->vsync_info.timestamp));
 	}
 
 #ifdef CONFIG_ARCHIKERNEL_MALI_REVISION_R4P0
@@ -412,12 +412,12 @@ static ssize_t vsync_event_show(struct device *dev,
 	struct s3cfb_global *fbdev[1];
 	fbdev[0] = fbfimd->fbdev[0];
 
-	return snprintf(buf, PAGE_SIZE, "VSYNC=%llu",
+	return snprintf(buf, PAGE_SIZE, "%llu",
 			((fbdev[0] != 0) ?
 			ktime_to_ns(fbdev[0]->vsync_info.timestamp) : 0));
 }
 
-static DEVICE_ATTR(vsync_event, 0444, vsync_event_show, NULL);
+static DEVICE_ATTR(vsync_time, S_IRUGO, vsync_event_show, NULL);
 
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
 static int s3cfb_wait_for_vsync_thread(void *data)
@@ -434,8 +434,8 @@ static int s3cfb_wait_for_vsync_thread(void *data)
 				fbdev->vsync_info.timestamp) &&
 				fbdev->vsync_info.active);
 
-		sysfs_notify(&fbdev->fb[pdata->default_win]->dev->kobj,
-				NULL, "vsync_event");
+		sysfs_notify(&fbdev->dev->kobj,
+				NULL, "vsync_time");
 	}
 
 	return 0;
@@ -1144,7 +1144,7 @@ static int s3cfb_probe(struct platform_device *pdev)
 			goto err1;
 		}
 		res = request_mem_region(res->start,
-					res->end - res->start + 1, pdev->name);
+				res->end - res->start + 1, pdev->name);
 		if (!res) {
 			dev_err(fbdev[i]->dev,
 				"failed to request io memory region\n");
@@ -1273,8 +1273,8 @@ static int s3cfb_probe(struct platform_device *pdev)
 		mutex_init(&fbdev[i]->vsync_info.irq_lock);
 
 		fbdev[i]->vsync_info.thread = kthread_run(
-						s3cfb_wait_for_vsync_thread,
-						fbdev[i], "s3c-fb-vsync");
+					s3cfb_wait_for_vsync_thread,
+					fbdev[i], "s3c-fb-vsync");
 		if (fbdev[i]->vsync_info.thread == ERR_PTR(-ENOMEM)) {
 			dev_err(fbdev[i]->dev, "failed to run vsync thread\n");
 			fbdev[i]->vsync_info.thread = NULL;
@@ -1288,8 +1288,8 @@ static int s3cfb_probe(struct platform_device *pdev)
 		if (ret < 0)
 			dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
 
-		ret = device_create_file(fbdev[i]->fb[pdata->default_win]->dev,
-					&dev_attr_vsync_event);
+		ret = device_create_file(fbdev[i]->dev,
+					&dev_attr_vsync_time);
 		if (ret < 0)
 			dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
 
