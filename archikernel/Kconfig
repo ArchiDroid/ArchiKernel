@@ -365,6 +365,27 @@ config ARCHIKERNEL_LOGCAT_INTERFACE
 
 comment "Optimizations"
 
+config ARCHIKERNEL_OPTI_L1_LINE_SIZE
+	int "L1 cache line size"
+	default "0"
+	help
+		This variable defines the size of cache line in L1 cache on target CPU, in bytes.
+		Defining "0" disables this optimization.
+
+config ARCHIKERNEL_OPTI_L1_SIZE
+	int "L1 cache size"
+	default "0"
+	help
+		This variable defines the size of L1 cache on target CPU, in kilobytes.
+		Defining "0" disables this optimization.
+
+config ARCHIKERNEL_OPTI_L2_SIZE
+	int "L2 cache size"
+	default "0"
+	help
+		This variable defines the size of L2 cache on target CPU, in kilobytes.
+		Defining "0" disables this optimization.
+
 config ARCHIKERNEL_OPTI_DNDEBUG
 	bool "Disable debugging assertions"
 	help
