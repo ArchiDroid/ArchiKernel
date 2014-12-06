@@ -287,6 +287,15 @@ config CPU_FREQ_GOV_ZZMOOVE
 
 	  If in doubt, say N.
 
+config CPU_FREQ_GOV_ZZMOOVE_DEFAULT_PROFILE
+	int "default zzmoove profile"
+	default "0"
+	depends on CPU_FREQ_GOV_ZZMOOVE
+	help
+	  Default zzmoove profile applied after turning on the governor.
+	  See cpufreq_zzmoove_profiles.h for proper options.
+	  If in doubt, say 0.
+
 config CPU_FREQ_GOV_ADAPTIVE
 	tristate "'adaptive' cpufreq policy governor"
 	help
