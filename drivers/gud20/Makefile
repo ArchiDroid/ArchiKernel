@@ -4,7 +4,7 @@
 ##################################
 #mobicore_security_team_add
 ##################################
-GUD_ROOT_FOLDER := drivers/gud20/
+GUD_ROOT_FOLDER := $(srctree)/drivers/gud20/
 ##################################
 # add our modules to kernel.
 ##################################
@@ -34,9 +34,7 @@ ccflags-$(CONFIG_MOBICORE_DEBUG) += -DDEBUG
 ccflags-$(CONFIG_MOBICORE_VERBOSE) += -DDEBUG_VERBOSE
 
 # Choose one platform from the folder
-MOBICORE_PLATFORM := $(shell (ls -1 $(GUD_ROOT_FOLDER)/MobiCoreDriver/platforms | tail -1) )
-# Use the available platform folder
-ccflags-y += -I$(GUD_ROOT_FOLDER)/MobiCoreDriver/platforms/$(MOBICORE_PLATFORM)
+ccflags-y += -I$(GUD_ROOT_FOLDER)/MobiCoreDriver/platforms/EXYNOS_4X12_STD
 # MobiCore Driver includes
 ccflags-y += -I$(GUD_ROOT_FOLDER)/MobiCoreDriver/public
 # MobiCore KernelApi required incldes

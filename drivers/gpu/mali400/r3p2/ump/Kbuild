@@ -21,10 +21,10 @@ SVN_REV := 0000
 ccflags-y += -DSVN_REV=$(SVN_REV)
 ccflags-y += -DSVN_REV_STRING=\"$(SVN_REV)\"
 
-ccflags-y += -I$(src) -I$(src)/common -I$(src)/linux -I$(src)/../mali/common -I$(src)/../mali/linux -I$(src)/../../ump/include/ump
+ccflags-y += -I$(srctree)/$(src) -I$(srctree)/$(src)/common -I$(srctree)/$(src)/linux -I$(srctree)/$(src)/../mali/common -I$(srctree)/$(src)/../mali/linux -I$(srctree)/$(src)/../../ump/include/ump
 
 # MALI_SEC
-ccflags-y += -I$(src)/include
+ccflags-y += -I$(srctree)/$(src)/include
 ccflags-y += -DUSING_MEMORY=1 -DUMP_MEM_SIZE=512
 
 ccflags-y += -DMALI_STATE_TRACKING=0
@@ -34,10 +34,10 @@ ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
-ifeq ($(wildcard $(src)/linux/license/gpl/*),)
-ccflags-y += -I$(src)/linux/license/proprietary
+ifeq ($(wildcard $(srctree)/$(src)/linux/license/gpl/*),)
+ccflags-y += -I$(srctree)/$(src)/linux/license/proprietary
 else
-ccflags-y += -I$(src)/linux/license/gpl
+ccflags-y += -I$(srctree)/$(src)/linux/license/gpl
 endif
 
 ump-y = common/ump_kernel_common.o \
