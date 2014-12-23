@@ -160,23 +160,17 @@ static const struct as364x_data as364x_default_data = {
 static int as364x_suspend(struct i2c_client *client, pm_message_t msg)
 {
 	dev_info(&client->dev, "Suspending AS364X\n");
-
 	return 0;
 }
-
 static int as364x_resume(struct i2c_client *client)
 {
 	dev_info(&client->dev, "Resuming AS364X\n");
-
 	return 0;
 }
-
 static void as364x_shutdown(struct i2c_client *client)
 {
 	struct as364x_data *data = i2c_get_clientdata(client);
-
 	dev_info(&client->dev, "Shutting down AS364X\n");
-
 	AS364X_LOCK();
 	as364x_set_leds(data, 3, 0, 0);
 	AS364X_UNLOCK();

@@ -29,6 +29,7 @@
 #include <linux/irq.h>
 #include <linux/input.h>
 #include <linux/wakelock.h>
+#include <linux/unistd.h>
 
 //apds9130 proximity sensor calibration
 #define APDS9130_PROXIMITY_CAL
@@ -37,7 +38,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 
-#define PS_DEFAULT_CROSS_TALK 200
+#define PS_DEFAULT_CROSS_TALK 20
 #endif
 
 #define APDS9130_DRV_NAME	"apds9130"
@@ -277,6 +278,8 @@ void apds9130_swap(int *x, int *y)
 	int fd;
 	int ret = 0;
 	char buf[50];
+    int count = 0;
+
 	mm_segment_t old_fs = get_fs();
 
 	memset(buf, 0, sizeof(buf));
@@ -296,19 +299,32 @@ void apds9130_swap(int *x, int *y)
 /*[LGE_BSP_END][yunmo.yang@lge.com] 2012-11-08 change save path*/
 	if(fd >=0)
 	{
-		sys_write(fd, buf, sizeof(buf));
-		sys_close(fd);
-		set_fs(old_fs);
+        printk(KERN_INFO"[%s]Calibration File Open Success", __func__);
+        while((sys_write(fd,buf,sizeof(buf)) != sizeof(buf)) && (count < 3))
+        {
+            count++;
+            msleep(100);
+        }
+        sys_fsync(fd);
+        sys_close(fd);
+        set_fs(old_fs);
+
+        if(count == 3)
+        {
+            return -1;
+        }
+
 	}
 	else
 	{
-		ret++;
-		sys_close(fd);
-		set_fs(old_fs);
-		return ret	;
+        printk(KERN_ERR"[%s]fd open fail!!! fd = %d  ", __func__, fd);
+        ret = -1;
+        sys_close(fd);
+        set_fs(old_fs);
+        return ret;
 	}
 
-	return ret;
+    return ret;
 }
 static int apds9130_read_crosstalk_data_fs(void)
 {
@@ -330,14 +346,19 @@ static int apds9130_read_crosstalk_data_fs(void)
     if(fd >=0)
 	{
 		printk(KERN_INFO"%s Success read Prox Cross-talk from FS\n", __FUNCTION__);
-		sys_read(fd, read_buf, sizeof(read_buf));
+		ret = sys_read(fd, read_buf, sizeof(read_buf));
+		printk(KERN_INFO"%s return value = %d \n", __FUNCTION__, ret);
 		sys_close(fd);
 		set_fs(old_fs);
+        if(ret <= 0)
+        {
+            return -1;
+        }
 	}
 	else
 	{
-		printk(KERN_INFO"%s Fail read Prox Cross-talk FS\n", __FUNCTION__);
-		printk(KERN_INFO"%s Return error code : %d\n", __FUNCTION__, fd);
+		printk(KERN_ERR"%s Fail read Prox Cross-talk FS\n", __FUNCTION__);
+		printk(KERN_ERR"%s Return error code : %d\n", __FUNCTION__, fd);
 		ret = -1;
 		sys_close(fd);
 		set_fs(old_fs);
@@ -361,7 +382,7 @@ static void apds9130_Set_PS_Threshold_Adding_Cross_talk(struct i2c_client *clien
 
 #ifdef CONFIG_LEDS_LP5521
 	data->ps_threshold = 100 + cal_data;
-	data->ps_hysteresis_threshold = data->ps_threshold - 70;
+	data->ps_hysteresis_threshold = data->ps_threshold - 40;
 #else
 	data->ps_threshold = 150 + cal_data;
 	data->ps_hysteresis_threshold = data->ps_threshold - 60;
@@ -417,13 +438,17 @@ RE_CALIBRATION:
 
 #ifdef CONFIG_LEDS_LP5521
 	data->ps_threshold = 100 + data->cross_talk;
-	data->ps_hysteresis_threshold = data->ps_threshold - 70;
+	data->ps_hysteresis_threshold = data->ps_threshold - 40;
 #else
 	data->ps_threshold = 150 + data->cross_talk;
 	data->ps_hysteresis_threshold = data->ps_threshold - 60;
 #endif
 	ret = apds9130_backup_crosstalk_data_fs(data->cross_talk);
-
+    if(ret < 0)
+    {
+	printk(KERN_ERR"[%s] apds9130_backup_crosstalk_data_fs fail ",__func__);
+		return -1;
+    }
 	printk(KERN_INFO"%s threshold : %d\n", __FUNCTION__, data->ps_threshold);
 	printk(KERN_INFO"%s Hysteresis_threshold : %d\n",__FUNCTION__, data->ps_hysteresis_threshold);
 
@@ -728,8 +753,15 @@ static int apds9130_enable_ps_sensor(struct i2c_client *client, int val)
 #if defined(APDS9130_PROXIMITY_CAL)
 		data->cross_talk = apds9130_read_crosstalk_data_fs();
 
+#ifdef CONFIG_LEDS_LP5521
+		if(data->cross_talk <= 10 || data->cross_talk>870)
+#else
 		if(data->cross_talk < 0 || data->cross_talk>870)
+#endif
+		{
+			printk(KERN_INFO"[%s] FROM FS data->crosstalk = %d", __func__, data->cross_talk);
 			data->cross_talk = PS_DEFAULT_CROSS_TALK;
+		}
 		printk(KERN_INFO"%s Cross_talk : %d\n", __FUNCTION__, data->cross_talk);
 
 		apds9130_Set_PS_Threshold_Adding_Cross_talk(client, data->cross_talk);
@@ -765,7 +797,8 @@ static int apds9130_enable_ps_sensor(struct i2c_client *client, int val)
 /*
  * SysFS support
  */
-static ssize_t apds9130_show_pdata(struct device *dev,
+
+static ssize_t apds9130_show_pdata(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -780,7 +813,9 @@ static int apds9130_enable_ps_sensor(struct i2c_client *client, int val)
 }
 
 static DEVICE_ATTR(pdata, S_IRUGO,
-		   apds9130_show_pdata, NULL);static ssize_t apds9130_show_enable(struct device *dev,
+		   apds9130_show_pdata, NULL);
+
+static ssize_t apds9130_show_enable(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);

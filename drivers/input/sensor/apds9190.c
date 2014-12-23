@@ -1565,9 +1565,6 @@ static int __devinit apds9190_probe(struct i2c_client *client,
 exit_input_register_device_failed:	
 exit_request_irq_failed:
 exit_kfree:
- 	/* LGE_CHANGE - bohyun.jung@lge.com [2013.02.08]
-	 * destory wakelock before kfree data, otherwise corrupted wakelock remains in inactive_locks. (kernel panic) */
-	wake_lock_destroy(&data->wakelock);
 	dev_info(&client->dev, "probe error\n");
 	kfree(data);
 exit:
@@ -1587,9 +1584,6 @@ static int __devexit apds9190_remove(struct i2c_client *client)
 	input_unregister_device(data->input_dev_ps);
 	input_free_device(data->input_dev_ps);
 
- 	/* LGE_CHANGE - bohyun.jung@lge.com [2013.02.08]
-	 * destory wakelock before kfree data, otherwise corrupted wakelock remains in inactive_locks. (kernel panic) */
-	wake_lock_destroy(&data->wakelock);
 	kfree(data);		
 	/* Power down the device */
 

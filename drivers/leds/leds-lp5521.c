@@ -124,6 +124,10 @@
 #define PATTERN_OFF	0
 #define PATTERN_BLINK_ON	-1
 
+
+/*GV DCM Felica Pattern Mode*/
+#define PATTERN_FELICA_ON 101
+
 /*GK Favorite MissedNoit Pattern Mode*/
 #define PATTERN_FAVORITE_MISSED_NOTI 14
 

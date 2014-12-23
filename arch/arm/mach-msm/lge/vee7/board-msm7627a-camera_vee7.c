@@ -147,7 +147,7 @@ static struct msm_camera_sensor_flash_src msm_flash_src = {
 /* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
 #ifdef CONFIG_T8EV4
 static uint32_t t8ev4_cam_off_gpio_table[] = {
-	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), // mclk	
+	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), // mclk
 };
 
 static uint32_t t8ev4_cam_on_gpio_table[] = {
@@ -199,13 +199,13 @@ static struct gpio imx111_cam_req_gpio[] = {
 };
 
 static struct msm_gpio_set_tbl imx111_cam_gpio_set_tbl[] = {
-	{49, GPIOF_OUT_INIT_HIGH, 1000}, // dvdd18
+	{49, GPIOF_OUT_INIT_HIGH, 1000}, // dvdd12
 	{48, GPIOF_OUT_INIT_HIGH, 1000}, // avdd28
 	{128, GPIOF_OUT_INIT_HIGH, 1000}, // iovdd18
 	{23, GPIOF_OUT_INIT_HIGH, 1000}, // vcm28
 };
 
-static struct msm_camera_gpio_conf gpio_conf_t8ev4 = {
+static struct msm_camera_gpio_conf gpio_conf_imx111 = {
 	.camera_off_table = imx111_cam_off_gpio_table,
 	.camera_off_table_size = ARRAY_SIZE(imx111_cam_off_gpio_table),
 	.camera_on_table = imx111_cam_on_gpio_table,
@@ -218,6 +218,44 @@ static struct msm_camera_gpio_conf gpio_conf_t8ev4 = {
 };
 #endif
 /* LGE_CHANGE_E : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
+
+/* LGE_CHANGE_S : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
+#ifdef CONFIG_IMX219
+static uint32_t imx219_cam_off_gpio_table[] = {
+	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), // mclk
+};
+
+static uint32_t imx219_cam_on_gpio_table[] = {
+	GPIO_CFG(15, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), // mclk
+};
+
+static struct gpio imx219_cam_req_gpio[] = {
+	{49, GPIOF_DIR_OUT, "CAM_DVDD"},
+	{48, GPIOF_DIR_OUT, "CAM_AVDD"},
+	{128, GPIOF_DIR_OUT, "CAM_IOVDD"},
+	{23, GPIOF_DIR_OUT, "CAM_VCM"},
+};
+
+static struct msm_gpio_set_tbl imx219_cam_gpio_set_tbl[] = {
+	{49, GPIOF_OUT_INIT_HIGH, 1000}, // dvdd12
+	{48, GPIOF_OUT_INIT_HIGH, 1000}, // avdd28
+	{128, GPIOF_OUT_INIT_HIGH, 1000}, // iovdd18
+	{23, GPIOF_OUT_INIT_HIGH, 1000}, // vcm28
+};
+
+static struct msm_camera_gpio_conf gpio_conf_imx219 = {
+	.camera_off_table = imx219_cam_off_gpio_table,
+	.camera_off_table_size = ARRAY_SIZE(imx219_cam_off_gpio_table),
+	.camera_on_table = imx219_cam_on_gpio_table,
+	.camera_on_table_size = ARRAY_SIZE(imx219_cam_on_gpio_table),
+	.cam_gpio_req_tbl = imx219_cam_req_gpio,
+	.cam_gpio_req_tbl_size = ARRAY_SIZE(imx219_cam_req_gpio),
+	.cam_gpio_set_tbl = imx219_cam_gpio_set_tbl,
+	.cam_gpio_set_tbl_size = ARRAY_SIZE(imx219_cam_gpio_set_tbl),
+	.gpio_no_mux = 1,
+};
+#endif
+/* LGE_CHANGE_E : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
 
 #ifdef CONFIG_HI707
 static uint32_t hi707_cam_off_gpio_table[] = {
@@ -332,9 +370,9 @@ static struct i2c_board_info msm_act_main_cam_i2c_info = {
 #endif
 
 /* LGE_CHANGE_S : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
-#ifdef CONFIG_IMX111
+#if defined(CONFIG_IMX111) || defined(CONFIG_IMX219)
 static struct i2c_board_info msm_act_main_cam_i2c_info = {
-#if defined(CONFIG_IMX111_ACT) 
+#if defined(CONFIG_IMX111_ACT) || defined(CONFIG_IMX219_ACT)
 	I2C_BOARD_INFO("msm_actuator", 0x18),
 #else
 	I2C_BOARD_INFO("msm_actuator", 0x11),
@@ -579,6 +617,20 @@ static struct msm_actuator_info msm_act_main_cam_4_info = {
 #endif
 /* LGE_CHANGE_E : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
 
+/* LGE_CHANGE_S : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
+#ifdef CONFIG_IMX219
+#ifdef CONFIG_IMX219_ACT
+static struct msm_actuator_info msm_act_main_cam_5_info = {
+	.board_info     = &msm_act_main_cam_i2c_info,
+	.cam_name   = MSM_ACTUATOR_MAIN_CAM_5,
+	.bus_id         = MSM_GSBI0_QUP_I2C_BUS_ID,
+	.vcm_pwd        = 31, // GPIO_31
+	.vcm_enable     = 1,
+};
+#endif
+#endif
+/* LGE_CHANGE_E : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
+
 #ifdef CONFIG_T8EV4
 #ifdef CONFIG_LEDS_AS364X
 static struct msm_camera_sensor_flash_src led_flash_src = {
@@ -619,8 +671,44 @@ static struct msm_camera_sensor_info msm_camera_sensor_t8ev4_data = {
 };
 #endif
 
+
+#ifdef CONFIG_LEDS_AS364X
+static struct msm_camera_sensor_flash_src led_flash_src = {
+	.flash_sr_type = MSM_CAMERA_FLASH_SRC_CURRENT_DRIVER,
+};
+#endif
+
+#ifdef CONFIG_IMX111
+#ifdef CONFIG_LEDS_AS364X
+static struct msm_camera_sensor_flash_data flash_imx111 = {
+	.flash_type = MSM_CAMERA_FLASH_LED,
+	.flash_src  = &led_flash_src,
+};
+#else
+static struct msm_camera_sensor_flash_data flash_imx111 = {
+	.flash_type             = MSM_CAMERA_FLASH_LED,
+	//.flash_src              = &msm_flash_src
+};
+#endif
+
+#endif
+#ifdef CONFIG_IMX219
+#ifdef CONFIG_LEDS_AS364X
+static struct msm_camera_sensor_flash_data flash_imx219 = {
+	.flash_type = MSM_CAMERA_FLASH_LED,
+	.flash_src  = &led_flash_src,
+};
+#else
+static struct msm_camera_sensor_flash_data flash_imx219 = {
+	.flash_type             = MSM_CAMERA_FLASH_LED,
+	//.flash_src              = &msm_flash_src
+};
+#endif
+#endif
+
 /* LGE_CHANGE_S : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
 #ifdef CONFIG_IMX111
+#if 0
 #ifdef CONFIG_LEDS_AS364X
 static struct msm_camera_sensor_flash_src led_flash_src = {
 	.flash_sr_type = MSM_CAMERA_FLASH_SRC_CURRENT_DRIVER,
@@ -636,12 +724,13 @@ static struct msm_camera_sensor_flash_data flash_imx111 = {
 	//.flash_src              = &msm_flash_src
 };
 #endif
+#endif
 
 static struct msm_camera_sensor_platform_info sensor_board_info_imx111 = {
 	.mount_angle	= 90,
 	//.cam_vreg = msm_cam_vreg,
 	//.num_vreg = ARRAY_SIZE(msm_cam_vreg),
-	.gpio_conf = &gpio_conf_t8ev4,
+	.gpio_conf = &gpio_conf_imx111,
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_imx111_data = {
@@ -660,6 +749,33 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx111_data = {
 };
 #endif
 /* LGE_CHANGE_E : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
+
+
+/* LGE_CHANGE_S : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
+#ifdef CONFIG_IMX219
+static struct msm_camera_sensor_platform_info sensor_board_info_imx219 = {
+	.mount_angle	= 90,
+	//.cam_vreg = msm_cam_vreg,
+	//.num_vreg = ARRAY_SIZE(msm_cam_vreg),
+	.gpio_conf = &gpio_conf_imx219,
+};
+
+static struct msm_camera_sensor_info msm_camera_sensor_imx219_data = {
+	.sensor_name    = "imx219",
+	.sensor_reset_enable = 1,
+	.sensor_reset           = 34, // GPIO_34
+	.pdata                  = &msm_camera_device_data_csi1[0],
+	.flash_data             = &flash_imx219,
+	.sensor_platform_info   = &sensor_board_info_imx219,
+	.csi_if                 = 1,
+	.camera_type = BACK_CAMERA_2D,
+	.sensor_type = BAYER_SENSOR,
+#ifdef CONFIG_IMX219_ACT
+	.actuator_info = &msm_act_main_cam_5_info,
+#endif
+};
+#endif
+/* LGE_CHANGE_E : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
 
 #ifdef CONFIG_HI707
 static struct msm_camera_sensor_flash_data flash_hi707 = {
@@ -707,6 +823,11 @@ static void __init msm7x27a_init_cam(void)
 		sensor_board_info_imx111.cam_vreg = NULL;
 		sensor_board_info_imx111.num_vreg = 0;
 #endif
+#ifdef CONFIG_IMX219
+		sensor_board_info_imx219.cam_vreg = NULL;
+		sensor_board_info_imx219.num_vreg = 0;
+#endif
+
 #ifdef CONFIG_HI707
 		sensor_board_info_hi707.cam_vreg = NULL;
 		sensor_board_info_hi707.num_vreg = 0;
@@ -784,6 +905,13 @@ static struct i2c_board_info i2c_camera_devices[] = {
 		.platform_data = &msm_camera_sensor_imx111_data,
 	},
 #endif
+#ifdef CONFIG_IMX219
+	{
+		I2C_BOARD_INFO("imx219", 0x34 >> 1), // 0x1A
+		.platform_data = &msm_camera_sensor_imx219_data,
+	},
+#endif
+
 #ifdef CONFIG_HI707
 	{
 		I2C_BOARD_INFO("hi707", 0x60),

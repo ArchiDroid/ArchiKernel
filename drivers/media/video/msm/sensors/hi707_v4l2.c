@@ -3843,36 +3843,30 @@ int8_t hi707_get_snapshot_data(struct msm_sensor_ctrl_t *s_ctrl, struct snapshot
 	u16 Exposure2 = 0;
 	u16 Exposure3 = 0;
 	int ExposureTotal = 0;
-	
-	//ISO Speed
-	rc = msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x03, 0x20, MSM_CAMERA_I2C_BYTE_DATA);	
-	rc = msm_camera_i2c_read(s_ctrl->sensor_i2c_client, 0xb0, &analogGain, MSM_CAMERA_I2C_BYTE_DATA);	
 
-	if (rc < 0) {
-		pr_err("%s: error to get analog & digital gain \n", __func__);
-		return rc;
-	}
-	//Exposure Time
+	//ISO Speed & Exposure Time
 	rc = msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x03, 0x20, MSM_CAMERA_I2C_BYTE_DATA);
+	rc = msm_camera_i2c_read(s_ctrl->sensor_i2c_client, 0xb0, &analogGain, MSM_CAMERA_I2C_BYTE_DATA);
 	rc = msm_camera_i2c_read(s_ctrl->sensor_i2c_client, 0x80, &Exposure1, MSM_CAMERA_I2C_BYTE_DATA);
 	rc = msm_camera_i2c_read(s_ctrl->sensor_i2c_client, 0x81, &Exposure2, MSM_CAMERA_I2C_BYTE_DATA);
 	rc = msm_camera_i2c_read(s_ctrl->sensor_i2c_client, 0x82, &Exposure3, MSM_CAMERA_I2C_BYTE_DATA);
 
-	
 	if (rc < 0) {
-		pr_err("%s: error to get exposure time \n", __func__);
+		pr_err("%s: error to get analog & digital gain and exposure \n", __func__);
 		return rc;
 	}
-
 	if( analogGain <= 0x28 ){
 		//printk("[CHECK]%s : iso speed - analogGain = 0x%x/n",  __func__, analogGain);
 		analogGain = 0x28;  		//analogGain cannot move down than 0x28
 	}
 	//ISO speed
+	if(analogGain > 0)
 	isoSpeed = ((analogGain / 32) * 100);
-	
+	else
+		isoSpeed = 100;
+
 	//Exposure Time
-	ExposureTotal = ((Exposure1<<16) * 524288)|((Exposure2<<8) * 2048)|((Exposure3<<2) * 8);
+	ExposureTotal = (Exposure1<<16) |(Exposure2<<8)|(Exposure3<<0);
 
 	if (ExposureTotal <= 0) {
 		exposureTime = 600000;
@@ -3885,7 +3879,7 @@ int8_t hi707_get_snapshot_data(struct msm_sensor_ctrl_t *s_ctrl, struct snapshot
 	//printk("[CHECK]Camera Snapshot Data iso_speed = %d, exposure_time = %d \n", snapshot_data->iso_speed, snapshot_data->exposure_time); 
 
 	return 0;
-	
+
 }
 /* LGE_CHANGE_E : 2013-03-04 hyungtae.lee@lge.com Modified EXIF data for V7 */
 

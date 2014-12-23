@@ -45,6 +45,7 @@ obj-$(CONFIG_VX6953) += vx6953.o
 # LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up
 obj-$(CONFIG_T8EV4) += t8ev4_v4l2.o
 obj-$(CONFIG_IMX111) += imx111.o
+obj-$(CONFIG_IMX219) += imx219.o
 obj-$(CONFIG_HI707) += hi707_v4l2.o
 # LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up
 # LGE_CHANGE_S: V1 T4K28 Camera Bringup - aidan.cho@lge.com 2013/03/08

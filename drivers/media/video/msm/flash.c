@@ -208,6 +208,9 @@ int msm_camera_flash_as3647(unsigned led_state)
 	case MSM_CAMERA_LED_INIT:
 	case MSM_CAMERA_LED_RELEASE:
 	/* LGE_CHANGE_E : 2012-11-14 hyungtae.lee@lge.com flash off when camera is off by back key */
+/* LGE_CHANGE_S : distinguish torch and pre-flashing 2014-03-26 sungmin.cho@lge.com */
+	case MSM_CAMERA_LED_TORCH:
+/* LGE_CHANGE_E : distinguish torch and pre-flashing 2014-03-26 sungmin.cho@lge.com */
 		rc = as3647_flash_set_led_state(led_state);
 		break;
 	default:

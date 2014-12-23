@@ -210,6 +210,9 @@ struct msm_mctl_post_proc_cmd {
 #define MSM_CAMERA_LED_HIGH 2
 #define MSM_CAMERA_LED_INIT 3
 #define MSM_CAMERA_LED_RELEASE 4
+/* LGE_CHANGE_S : distinguish torch and pre-flashing 2014-03-26 sungmin.cho@lge.com */
+#define MSM_CAMERA_LED_TORCH 5
+/* LGE_CHANGE_E : distinguish torch and pre-flashing 2014-03-26 sungmin.cho@lge.com */
 
 #define MSM_CAMERA_STROBE_FLASH_NONE 0
 #define MSM_CAMERA_STROBE_FLASH_XENON 1

@@ -1029,7 +1029,7 @@ static int melfas_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		goto err_input_dev_alloc_failed;
 	}
 
-	ts->input_dev->name = "melfas-ts" ;
+	ts->input_dev->name = "<MELFAS> melfas-ts" ;
 
 	set_bit(EV_ABS, ts->input_dev->evbit);
 	set_bit(EV_KEY, ts->input_dev->evbit);

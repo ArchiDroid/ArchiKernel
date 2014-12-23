@@ -28,9 +28,11 @@
 #include <linux/input/touch_synaptics.h>
 
 #if defined(CONFIG_LGE_TOUCH_FOUR_BUTTON_SUPPORT)
-#include "PLG180-E049.h"
+#include "PLG180-E054.h"
+#include "PLG221-E001.h"
 #else
-#include "PLG161-E008.h"
+#include "PLG161-E011.h"
+#include "PLG220-E001.h"
 #endif
 #include <linux/regulator/machine.h>
 
@@ -593,6 +595,8 @@ static int read_page_description_table(struct i2c_client* client)
 	return 0;
 }
 
+extern unsigned int touch_id;
+
 int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 {
 #if defined(ARRAYED_TOUCH_FW_BIN)
@@ -645,10 +649,18 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 	ts->fw_info.fw_start = (unsigned char *)&SynaFirmware[cnt][0];
 	ts->fw_info.fw_size = sizeof(SynaFirmware[0]);
 #else
-	strncpy(ts->fw_info.fw_image_product_id, &SynaFirmware[16], 10);
-	strncpy(ts->fw_info.image_config_id, &SynaFirmware[0xb100],4);
-	ts->fw_info.fw_start = (unsigned char *)&SynaFirmware[0];
-	ts->fw_info.fw_size = sizeof(SynaFirmware);
+	if(!touch_id) {
+		strncpy(ts->fw_info.fw_image_product_id, &SynaFirmware0[16], 10);
+		strncpy(ts->fw_info.image_config_id, &SynaFirmware0[0xb100],4);
+		ts->fw_info.fw_start = (unsigned char *)&SynaFirmware0[0];
+		ts->fw_info.fw_size = sizeof(SynaFirmware0);
+	}
+	else {
+		strncpy(ts->fw_info.fw_image_product_id, &SynaFirmware1[16], 10);
+		strncpy(ts->fw_info.image_config_id, &SynaFirmware1[0xb100],4);
+		ts->fw_info.fw_start = (unsigned char *)&SynaFirmware1[0];
+		ts->fw_info.fw_size = sizeof(SynaFirmware1);
+	}
 #endif
 
 	ts->fw_info.fw_image_rev = ts->fw_info.fw_start[31];

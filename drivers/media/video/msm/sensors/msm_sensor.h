@@ -59,6 +59,9 @@ struct msm_sensor_output_reg_addr_t {
 	uint16_t y_output;
 	uint16_t line_length_pclk;
 	uint16_t frame_length_lines;
+/*  LGE_CHANGE_S : frame bank register 2014-01-27 sungmin.cho@lge.com */
+	uint16_t frame_length_lines_bank[2];
+/*  LGE_CHANGE_S : frame bank register 2014-01-27 sungmin.cho@lge.com */
 };
 
 struct msm_sensor_id_info_t {
@@ -68,7 +71,14 @@ struct msm_sensor_id_info_t {
 
 struct msm_sensor_exp_gain_info_t {
 	uint16_t coarse_int_time_addr;
+/*	LGE_CHANGE_S : frame bank register 2014-01-27 sungmin.cho@lge.com */
+	uint16_t coarse_int_time_addr_bank[2];
+/*	LGE_CHANGE_S : frame bank register 2014-01-27 sungmin.cho@lge.com */
 	uint16_t global_gain_addr;
+/*  LGE_CHANGE_S : frame bank register 2014-01-27 sungmin.cho@lge.com */
+	uint16_t global_again_addr_bank[2];
+	uint16_t global_dgain_addr_bank[2];
+/*  LGE_CHANGE_S : frame bank register 2014-01-27 sungmin.cho@lge.com */
 	uint16_t vert_offset;
 };
 

@@ -89,7 +89,8 @@ struct syna_touch_platform_data
 	u32	int_pin;
 	u32	reset_pin;
 	char	maker[30];
-	char	fw_version[11];
+	char	fw_version0[11];
+	char	fw_version1[11];
 	struct touch_device_caps*		caps;
 	struct touch_operation_role*	role;
 	struct touch_power_module*		pwr;
@@ -141,7 +142,8 @@ struct touch_fw_info
 	u8		ic_fw_identifier[31];	/* String */
 	u8		ic_fw_version[11];		/* String */
 	u8		fw_identifier[11];
-	u8		fw_version[5];
+	u8		fw_version0[5];
+	u8		fw_version1[5];
 };
 
 struct rect

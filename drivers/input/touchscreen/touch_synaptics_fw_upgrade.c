@@ -968,6 +968,8 @@ static unsigned long ExtractLongFromHeader(const unsigned char* SynaImage)	/* En
 			(unsigned long)SynaImage[3] * 0x1000000);
 }
 
+extern unsigned int touch_id;
+
 static int RMI4ReadFirmwareHeader(struct synaptics_fw_data *fw, struct synaptics_ts_data *ts)
 {
 	int ret = 0;
@@ -1004,24 +1006,46 @@ static int RMI4ReadFirmwareHeader(struct synaptics_fw_data *fw, struct synaptics
 	}
 #endif
 #endif
+
 /*LGE_CHANGE_S - Touch f/w upgrade defense byungyong.hwang@lge.com*/
 #if defined(CONFIG_LGE_TOUCH_FOUR_BUTTON_SUPPORT)
 	/* Check prpoer FW */
-	if (strncmp(ts->fw_info.product_id , "PLG180" ,6)) {
-		printk(KERN_INFO "[Touch E] IC = %s, But This binary is for PLG180\n ", ts->fw_info.product_id);
-		printk(KERN_INFO "[Touch E] WARNING -Plz, redownload Single-SIM binary~\n");
-		printk(KERN_INFO "[Touch E] Firmware upgrade stop\n");
-		return -ENODEV;
+	/* In dual sim case, touch_id is 0 -> lgit, 1 -> elk */
+	if(!touch_id) {
+		if (strncmp(ts->fw_info.product_id , "PLG180" ,6)) {
+			printk(KERN_INFO "[Touch E] WARNING  IC = %s ", ts->fw_info.product_id);
+			printk(KERN_INFO "[Touch E] WARNING -Plz, redownload Single-SIM binary~\n");
+			printk(KERN_INFO "[Touch E] Firmware upgrade stop\n");
+			return -ENODEV;
+		}
+	}
+	else {
+		if (strncmp(ts->fw_info.product_id , "PLG221" ,6)) {
+			printk(KERN_INFO "[Touch E] WARNING  IC = %s ", ts->fw_info.product_id);
+			printk(KERN_INFO "[Touch E] WARNING -Plz, redownload Single-SIM binary~\n");
+			printk(KERN_INFO "[Touch E] Firmware upgrade stop\n");
+			return -ENODEV;
+		}
 	}
 #else
 	/* Check prpoer FW */
-	if (strncmp(ts->fw_info.product_id , "PLG161" ,6)) {
-		printk(KERN_INFO "[Touch E] IC = %s, But This binary is for PLG161\n ", ts->fw_info.product_id);
-		printk(KERN_INFO "[Touch E] WARNING -Plz, redownload Dual-SIM binary~\n");
-		printk(KERN_INFO "[Touch E] Firmware upgrade stop\n");
-		return -ENODEV;
+	/* In single sim case, touch_id is 0 -> lgit, 1 -> elk */
+	if(!touch_id) {
+		if (strncmp(ts->fw_info.product_id , "PLG161" ,6)) {
+			printk(KERN_INFO "[Touch E] IC = %s, But This binary is for PLG161\n ", ts->fw_info.product_id);
+			printk(KERN_INFO "[Touch E] WARNING -Plz, redownload Dual-SIM binary~\n");
+			printk(KERN_INFO "[Touch E] Firmware upgrade stop\n");
+			return -ENODEV;
+		}
 	}
-
+	else {
+		if (strncmp(ts->fw_info.product_id , "PLG220" ,6)) {
+			printk(KERN_INFO "[Touch E] IC = %s, But This binary is for PLG161\n ", ts->fw_info.product_id);
+			printk(KERN_INFO "[Touch E] WARNING -Plz, redownload Dual-SIM binary~\n");
+			printk(KERN_INFO "[Touch E] Firmware upgrade stop\n");
+			return -ENODEV;
+		}
+	}
 #endif
 /*LGE_CHANGE_E - Touch f/w upgrade defense byungyong.hwang@lge.com*/
 

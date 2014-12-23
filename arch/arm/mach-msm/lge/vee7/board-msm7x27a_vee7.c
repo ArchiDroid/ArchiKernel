@@ -285,7 +285,7 @@ static struct msm_i2c_platform_data msm_gsbi1_qup_i2c_pdata = {
 };
 
 #ifdef CONFIG_ARCH_MSM7X27A
-#define MSM_RESERVE_MDP_SIZE		0x2800000 //sohyun.nam@lge.com, 12-11-22,ion_out_of_memory from 0x2300000
+#define MSM_RESERVE_MDP_SIZE		0x4600000 //0x5A00000 sohyun.nam@lge.com, 12-11-22,ion_out_of_memory from 0x2300000
 #define MSM7x25A_MSM_RESERVE_MDP_SIZE   0x1500000
 #define MSM_RESERVE_ADSP_SIZE		0x1E00000 //youngbae.choi@lge.com, 12-12-22, camera ion allocation fail 0x1200000
 #define MSM7x25A_MSM_RESERVE_ADSP_SIZE	0xB91000
@@ -703,25 +703,8 @@ static char *msm_adc_surf_device_names[] = {
 	"XO_ADC",
 };
 
-static struct  msm_adc_channel_names msm_adc_xoadc_channel_names[] = {
-	{"vcoin"},
-	{"vbatt"},
-	{"vchg"},
-	{"ichg"},
-	{"vph_pwr"},
-	{"pcb_rev"},
-	{"chg_current"},
-	{"usb_id"},
-	{"batt_therm"},
-	{"pa_therm"},
-	{"usb_vbus"},
-	{"pmic_therm"},
-	{NULL},{NULL},{NULL},
-	{"vbatt_gsm"},
-};
 static struct msm_adc_platform_data msm_adc_pdata = {
 	.dev_names = msm_adc_surf_device_names,
-        .chan_names = msm_adc_xoadc_channel_names,
 	.num_adc = ARRAY_SIZE(msm_adc_surf_device_names),
 	.target_hw = MSM_8x25,
 };

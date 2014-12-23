@@ -70,6 +70,20 @@ config IMX111_ACT
 	---help---
 	Actuator for SONY 8 MP Bayer Sensor
 
+# LGE_CHANGE_S : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup
+config IMX219
+	bool "Sensor IMX219 (Sony 8MP)"
+	depends on MSM_CAMERA && MSM_CAMERA_V4L2
+	---help---
+	  Sony 8M Bayer Sensor modules with Autofocus
+
+config IMX219_ACT
+	bool "Actuator imx219 (BAYER 8M)"
+	depends on MSM_CAMERA && MSM_CAMERA_V4L2
+	select MSM_ACTUATOR
+	---help---
+	Actuator for SONY 8 MP Bayer Sensor
+# LGE_CHANGE_E : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup
 # LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up
 
 # LGE_CHANGE_S : 2012-10-13 sungmin.cho@lge.com hi707 is ratated 180 degree on V7 EVB2

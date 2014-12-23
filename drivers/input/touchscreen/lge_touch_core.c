@@ -36,6 +36,8 @@
 #include <mach/gpio.h>
 #include <asm/gpio.h>
 
+#include <linux/completion.h>
+
 #include <linux/input/lge_touch_core.h>
 #include CONFIG_LGE_BOARD_HEADER_FILE
 #ifdef CUST_G_TOUCH
@@ -57,6 +59,7 @@ struct lge_touch_data
 	struct i2c_client 			*client;
 	struct input_dev 			*input_dev;
 	struct hrtimer 				timer;
+	struct completion 			timer_comp;		// use only operation_mode == 2
 	struct work_struct  		work;
 	struct delayed_work			work_init;
 	struct delayed_work			work_touch_lock;
@@ -151,6 +154,33 @@ int cur_hopping_idx = 3;
 extern int cns_en;
 static struct hrtimer hr_touch_trigger_timer;
 #define MS_TO_NS(x)	(x * 1E6L)
+
+static void cancel_timer_completion(struct hrtimer *timer, struct completion *comp)
+{
+	hrtimer_cancel(timer);
+	complete(comp);
+}
+
+static void enable_touch_operation(struct lge_touch_data *ts)
+{
+	if (ts->pdata->role->operation_mode)	// operation_mode == 1 or 2
+		enable_irq(ts->client->irq);
+	else
+		hrtimer_start(&ts->timer,
+				ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+}
+
+static void disable_touch_operation(struct lge_touch_data *ts)
+{
+	if (ts->pdata->role->operation_mode == 1) {
+		disable_irq(ts->client->irq);
+	} else if (ts->pdata->role->operation_mode == 2) {
+		cancel_timer_completion(&ts->timer, &ts->timer_comp);
+		disable_irq(ts->client->irq);
+	} else {
+		hrtimer_cancel(&ts->timer);
+	}
+}
 
 static enum hrtimer_restart touch_trigger_timer_handler(struct hrtimer *timer)
 {
@@ -955,10 +985,7 @@ static int touch_power_cntl(struct lge_touch_data *ts, int onoff)
  */
 static void safety_reset(struct lge_touch_data *ts)
 {
-	if (ts->pdata->role->operation_mode)
-		disable_irq(ts->client->irq);
-	else
-		hrtimer_cancel(&ts->timer);
+	disable_touch_operation(ts);
 
 #ifdef CUST_G_TOUCH
 	if (ts->pdata->role->ghost_detection_enable) {
@@ -972,10 +999,7 @@ static void safety_reset(struct lge_touch_data *ts)
 	touch_power_cntl(ts, POWER_ON);
 	msleep(ts->pdata->role->booting_delay);
 
-	if (ts->pdata->role->operation_mode)
-		enable_irq(ts->client->irq);
-	else
-		hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+	enable_touch_operation(ts);
 
 	return;
 }
@@ -1008,7 +1032,7 @@ static int touch_ic_init(struct lge_touch_data *ts)
 	}
 
 	/* Interrupt pin check after IC init - avoid Touch lockup */
-	if(ts->pdata->role->operation_mode == 1){
+	if(ts->pdata->role->operation_mode) {	// operatiom_mode == 1 or 2
 		ts->int_pin_state = gpio_get_value(ts->pdata->int_pin);
 		next_work = atomic_read(&ts->next_work);
 
@@ -1074,9 +1098,9 @@ static int touch_ic_init(struct lge_touch_data *ts)
 	}
 
 	if (unlikely(touch_debug_mask & (DEBUG_BASE_INFO | DEBUG_GHOST))){
-		TOUCH_INFO_MSG("%s %s(%s): FW ver[%s], force[%d]\n",
+		TOUCH_INFO_MSG("%s %s(operation_mode:%d): FW ver[%s], force[%d]\n",
 		        ts->pdata->maker, ts->fw_info.ic_fw_identifier,
-		        ts->pdata->role->operation_mode?"Interrupt mode":"Polling mode",
+		        ts->pdata->role->operation_mode,
 		        ts->fw_info.ic_fw_version, ts->fw_info.fw_upgrade.fw_force_upgrade);
 		TOUCH_INFO_MSG("irq_pin[%d] next_work[%d] ghost_stage[0x%x]\n",
 				ts->int_pin_state, next_work, ts->gf_ctrl.stage);
@@ -2210,6 +2234,9 @@ err_out_critical:
  *
  * it used to upgrade the firmware of touch IC.
  */
+
+extern unsigned int touch_id;
+
 static void touch_fw_upgrade_func(struct work_struct *work_fw_upgrade)
 {
 	struct lge_touch_data *ts =
@@ -2224,25 +2251,38 @@ static void touch_fw_upgrade_func(struct work_struct *work_fw_upgrade)
 		goto out;
 	}
 
-	if (likely(touch_debug_mask & (DEBUG_FW_UPGRADE | DEBUG_BASE_INFO)))
-		TOUCH_INFO_MSG("IC identifier[%s] fw_version[%s:%s] : force[%d]\n",
-				ts->fw_info.ic_fw_identifier, ts->fw_info.ic_fw_version,
-				ts->pdata->fw_version, ts->fw_info.fw_upgrade.fw_force_upgrade);
+	if(!touch_id) {
+		if (likely(touch_debug_mask & (DEBUG_FW_UPGRADE | DEBUG_BASE_INFO)))
+			TOUCH_INFO_MSG("IC identifier[%s] fw_version0[%s:%s] : force[%d]\n",
+					ts->fw_info.ic_fw_identifier, ts->fw_info.ic_fw_version,
+					ts->pdata->fw_version0, ts->fw_info.fw_upgrade.fw_force_upgrade);
 
-	ts->fw_info.fw_upgrade.is_downloading = UNDER_DOWNLOADING;
+		ts->fw_info.fw_upgrade.is_downloading = UNDER_DOWNLOADING;
 
-	if ((!strcmp(ts->pdata->fw_version, ts->fw_info.ic_fw_version)
-				|| ts->pdata->fw_version == NULL)
-			&& !ts->fw_info.fw_upgrade.fw_force_upgrade){
-		TOUCH_INFO_MSG("FW-upgrade is not executed\n");
-		goto out;
+		if ((!strcmp(ts->pdata->fw_version0, ts->fw_info.ic_fw_version)
+					|| ts->pdata->fw_version0 == NULL)
+				&& !ts->fw_info.fw_upgrade.fw_force_upgrade){
+			TOUCH_INFO_MSG("FW-upgrade is not executed\n");
+			goto out;
+		}
 	}
-
+	else {
+		if (likely(touch_debug_mask & (DEBUG_FW_UPGRADE | DEBUG_BASE_INFO)))
+			TOUCH_INFO_MSG("IC identifier[%s] fw_version1[%s:%s] : force[%d]\n",
+					ts->fw_info.ic_fw_identifier, ts->fw_info.ic_fw_version,
+					ts->pdata->fw_version1, ts->fw_info.fw_upgrade.fw_force_upgrade);
+		
+		ts->fw_info.fw_upgrade.is_downloading = UNDER_DOWNLOADING;
+		
+		if ((!strcmp(ts->pdata->fw_version1, ts->fw_info.ic_fw_version)
+					|| ts->pdata->fw_version1 == NULL)
+				&& !ts->fw_info.fw_upgrade.fw_force_upgrade){
+			TOUCH_INFO_MSG("FW-upgrade is not executed\n");
+			goto out;
+		}
+	}
 	if (ts->curr_pwr_state == POWER_ON || ts->curr_pwr_state == POWER_WAKE) {
-		if (ts->pdata->role->operation_mode)
-			disable_irq(ts->client->irq);
-		else
-			hrtimer_cancel(&ts->timer);
+		disable_touch_operation(ts);
 	}
 #ifdef CUST_G_TOUCH
 	if (ts->pdata->role->ghost_detection_enable) {
@@ -2264,10 +2304,7 @@ static void touch_fw_upgrade_func(struct work_struct *work_fw_upgrade)
 
 	if (touch_device_func->fw_upgrade(ts->client, &ts->fw_info) < 0) {
 		TOUCH_ERR_MSG("Firmware upgrade was failed\n");
-		if (ts->pdata->role->operation_mode)
-			enable_irq(ts->client->irq);
-		else
-			hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+		enable_touch_operation(ts);
 
 		goto err_out;
 	}
@@ -2282,10 +2319,7 @@ static void touch_fw_upgrade_func(struct work_struct *work_fw_upgrade)
 		touch_power_cntl(ts, POWER_ON);
 		msleep(ts->pdata->role->booting_delay);
 
-		if (ts->pdata->role->operation_mode)
-			enable_irq(ts->client->irq);
-		else
-			hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+		enable_touch_operation(ts);
 
 		touch_ic_init(ts);
 
@@ -2348,7 +2382,9 @@ static irqreturn_t touch_irq_handler(int irq, void *dev_id)
 	do_gettimeofday(&t_debug[TIME_ISR_START]);
 #endif
 
-	atomic_inc(&ts->next_work);
+	if (ts->pdata->role->operation_mode == 1)
+		atomic_inc(&ts->next_work);
+
 	return IRQ_WAKE_THREAD;
 }
 
@@ -2366,9 +2402,18 @@ static irqreturn_t touch_thread_irq_handler(int irq, void *dev_id)
 	do_gettimeofday(&t_debug[TIME_THREAD_ISR_START]);
 #endif
 
-	disable_irq_nosync(ts->client->irq);
-	queue_work(touch_wq, &ts->work);
-	enable_irq(ts->client->irq);
+	if (ts->pdata->role->operation_mode == 1) {
+		disable_irq_nosync(ts->client->irq);
+		queue_work(touch_wq, &ts->work);
+		enable_irq(ts->client->irq);
+	} else if (ts->pdata->role->operation_mode == 2) {
+		disable_irq_nosync(ts->client->irq);
+		init_completion(&ts->timer_comp);
+		hrtimer_start(&ts->timer,
+				ktime_set(0, 0), HRTIMER_MODE_REL);
+		wait_for_completion(&ts->timer_comp);
+		enable_irq(ts->client->irq);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -2382,10 +2427,31 @@ static enum hrtimer_restart touch_timer_handler(struct hrtimer *timer)
 	struct lge_touch_data *ts =
 			container_of(timer, struct lge_touch_data, timer);
 
-	atomic_inc(&ts->next_work);
-	queue_work(touch_wq, &ts->work);
-	hrtimer_start(&ts->timer,
-			ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+	if (ts->pdata->role->operation_mode == 2) {
+
+		ts->int_pin_state = gpio_get_value(ts->pdata->int_pin);
+
+		if (ts->int_pin_state) { // high
+			complete(&ts->timer_comp);
+			return HRTIMER_NORESTART;
+		}
+
+		atomic_inc(&ts->next_work);
+		if (queue_work(touch_wq, &ts->work)) {
+			hrtimer_start(&ts->timer,
+					ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+		} else {
+			complete(&ts->timer_comp);
+		}
+
+	} else { // ts->pdata->role->operation_mode == 1
+
+		atomic_inc(&ts->next_work);
+		queue_work(touch_wq, &ts->work);
+		hrtimer_start(&ts->timer,
+				ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+	}
+
 
 	return HRTIMER_NORESTART;
 }
@@ -2436,9 +2502,9 @@ static int check_platform_data(struct syna_touch_platform_data *pdata)
 		}
 	}
 
-	if (!pdata->role->operation_mode) {
+	if (pdata->role->operation_mode != 1) {
 		if (!pdata->role->report_period) {
-			TOUCH_ERR_MSG("polling mode needs report_period\n");
+			TOUCH_ERR_MSG("polling and hybrid mode needs report_period\n");
 			return -1;
 		}
 	}
@@ -2687,10 +2753,7 @@ static ssize_t store_ts_reset(struct lge_touch_data *ts, const char *buf, size_t
 
 	sscanf(buf, "%s", string);
 
-	if (ts->pdata->role->operation_mode)
-		disable_irq_nosync(ts->client->irq);
-	else
-		hrtimer_cancel(&ts->timer);
+	disable_touch_operation(ts);
 
 #ifdef CUST_G_TOUCH
 	if (ts->pdata->role->ghost_detection_enable) {
@@ -2740,11 +2803,7 @@ static ssize_t store_ts_reset(struct lge_touch_data *ts, const char *buf, size_t
 	} else
 		TOUCH_INFO_MSG("Touch is suspend state. Don't need reset\n");
 
-	if (ts->pdata->role->operation_mode)
-		enable_irq(ts->client->irq);
-	else
-		hrtimer_start(&ts->timer,
-				ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+	enable_touch_operation(ts);
 
 	if (saved_state == POWER_ON || saved_state == POWER_WAKE)
 		touch_ic_init(ts);
@@ -3050,10 +3109,7 @@ static ssize_t show_f54(struct lge_touch_data *ts, char *buf)
 					break;
 		}
 
-		if (ts->pdata->role->operation_mode)
-			disable_irq(ts->client->irq);
-		else
-			hrtimer_cancel(&ts->timer);
+		disable_touch_operation(ts);
 
 		if (ts->pdata->role->ghost_detection_enable) {
 			hrtimer_cancel(&hr_touch_trigger_timer);
@@ -3065,10 +3121,7 @@ static ssize_t show_f54(struct lge_touch_data *ts, char *buf)
 		ret += sprintf(buf+ret, "F54_TxToGndReport() Test Result: %s", (F54_TxToGndReport() > 0) ? "Pass\n" : "Fail\n" );
 		ret += sprintf(buf+ret, "F54_HighResistance() Test Result: %s", (F54_HighResistance() > 0) ? "Pass\n" : "Fail\n" );
 
-		if (ts->pdata->role->operation_mode)
-			enable_irq(ts->client->irq);
-		else
-			hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+		enable_touch_operation(ts);
 
 	} else {
 		ret = sprintf(buf+ret, "state=[suspend]. we cannot use I2C, now. Test Result: Fail\n");
@@ -3164,13 +3217,11 @@ static ssize_t show_ts_noise(struct lge_touch_data *ts, char *buf)
 
 	if (ts->curr_pwr_state == POWER_ON || ts->curr_pwr_state == POWER_WAKE) {
 
-		if (ts->pdata->role->operation_mode)
-			disable_irq(ts->client->irq);
-		else
-			hrtimer_cancel(&ts->timer);
+		disable_touch_operation(ts);
 
 		if (unlikely(touch_i2c_write_byte(ts->client, 0xFF, 0x01) < 0)) {
 			ret = sprintf(buf+ret, "PAGE_SELECT_REG write fail\n");
+			enable_touch_operation(ts);
 			return ret;
 		}
 
@@ -3236,13 +3287,12 @@ static ssize_t show_ts_noise(struct lge_touch_data *ts, char *buf)
 
 		if (unlikely(touch_i2c_write_byte(ts->client, 0xFF, 0x00) < 0)) {
 			ret += sprintf(buf+ret, "PAGE_SELECT_REG write fail\n");
+			enable_touch_operation(ts);
 			return ret;
 		}
 
-		if (ts->pdata->role->operation_mode)
-			enable_irq(ts->client->irq);
-		else
-			hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+		enable_touch_operation(ts);
+
 	}else {
 		ret = sprintf(buf+ret, "state=[suspend]. we cannot use I2C, now. Test Result: Fail\n");
 	}
@@ -3452,6 +3502,8 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 	INIT_DELAYED_WORK(&ts->work_init, touch_init_func);
 	INIT_WORK(&ts->work_fw_upgrade, touch_fw_upgrade_func);
 
+	init_completion(&ts->timer_comp);
+
 	/* input dev setting */
 	ts->input_dev = input_allocate_device();
 	if (ts->input_dev == NULL) {
@@ -3515,7 +3567,7 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 #endif
 
 	/* interrupt mode */
-	if (ts->pdata->role->operation_mode) {
+	if (ts->pdata->role->operation_mode) {	// operation_mode == 1 or 2
 		ret = gpio_request(ts->pdata->int_pin, "touch_int");
 		if (ret < 0) {
 			TOUCH_ERR_MSG("FAIL: touch_int gpio_request\n");
@@ -3532,11 +3584,13 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 			goto err_interrupt_failed;
 		}
 	}
-	/* polling mode */
-	else{
+
+	if (ts->pdata->role->operation_mode == 2 || ts->pdata->role->operation_mode == 0) {
 		hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		ts->timer.function = touch_timer_handler;
-		hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+
+		if(ts->pdata->role->operation_mode == 0)
+			hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
 	}
 
 #ifdef CUST_G_TOUCH
@@ -3554,7 +3608,7 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 #if 1
 /*LGE_CHANGE_S : byungyong.hwang@lge.com touch - Unknown touch issue in first booting time, add soft-reset */
 		
-	if (ts->pdata->role->operation_mode){
+	if (ts->pdata->role->operation_mode){	// operation_mode == 1 or 2
 		disable_irq_nosync(ts->client->irq);
 	}
 	else{
@@ -3573,7 +3627,12 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 	touch_power_cntl(ts, POWER_ON);
 		
 	msleep(ts->pdata->role->booting_delay);
-	enable_irq(ts->client->irq);
+	if (ts->pdata->role->operation_mode){	// operation_mode == 1 or 2
+		enable_irq(ts->client->irq);
+	}
+	else{
+		hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+	}
 	ts->gf_ctrl.probe = 1;
 	touch_ic_init(ts);
 /*LGE_CHANGE_E : byungyong.hwang@lge.com touch - Unknown touch issue in first booting time, add soft-reset */
@@ -3682,7 +3741,7 @@ static int touch_remove(struct i2c_client *client)
 		gpio_free(ts->pdata->reset_pin);
 	}
 
-	if ((ts->pdata->int_pin > 0) && ts->pdata->role->operation_mode) {
+	if ((ts->pdata->int_pin > 0) && ts->pdata->role->operation_mode) { // operation_mode == 1 or 2
 		gpio_free(ts->pdata->int_pin);
 	}
 #endif
@@ -3693,10 +3752,14 @@ static int touch_remove(struct i2c_client *client)
 
 	unregister_early_suspend(&ts->early_suspend);
 
-	if (ts->pdata->role->operation_mode)
+	if (ts->pdata->role->operation_mode == 1) {
 		free_irq(client->irq, ts);
-	else
+	} else if (ts->pdata->role->operation_mode == 2) {
+		cancel_timer_completion(&ts->timer, &ts->timer_comp);
+		free_irq(client->irq, ts);
+	} else {
 		hrtimer_cancel(&ts->timer);
+	}
 #ifdef CUST_G_TOUCH
 	if (ts->pdata->role->ghost_detection_enable) {
 		hrtimer_cancel(&hr_touch_trigger_timer);
@@ -3729,10 +3792,7 @@ static void touch_early_suspend(struct early_suspend *h)
 	}
 #endif
 
-	if (ts->pdata->role->operation_mode)
-		disable_irq(ts->client->irq);
-	else
-		hrtimer_cancel(&ts->timer);
+	disable_touch_operation(ts);
 #ifdef CUST_G_TOUCH
 	if (ts->pdata->role->ghost_detection_enable) {
 		hrtimer_cancel(&hr_touch_trigger_timer);
@@ -3770,10 +3830,7 @@ static void touch_late_resume(struct early_suspend *h)
 	}
 #endif
 
-	if (ts->pdata->role->operation_mode)
-		enable_irq(ts->client->irq);
-	else
-		hrtimer_start(&ts->timer, ktime_set(0, ts->pdata->role->report_period), HRTIMER_MODE_REL);
+	enable_touch_operation(ts);
 
 	if (ts->pdata->role->resume_pwr == POWER_ON)
 		queue_delayed_work(touch_wq, &ts->work_init,

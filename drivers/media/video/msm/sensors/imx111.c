@@ -702,7 +702,7 @@ int32_t imx111_sensor_set_fps(struct msm_sensor_ctrl_t *s_ctrl,
 int32_t imx111_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
 		uint16_t gain, uint32_t line)
 {
-	uint32_t fl_lines;
+	uint32_t fl_lines, again, d_gain;
 	uint8_t offset;
 	fl_lines = s_ctrl->curr_frame_length_lines;
 	fl_lines = (fl_lines * s_ctrl->fps_divider) / Q10;
@@ -711,6 +711,36 @@ int32_t imx111_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
 		fl_lines = line + offset;
 
 	CDBG("\n%s:Gain:%d, Linecount:%d\n", __func__, gain, line);
+
+	if((gain >> 8) >0){
+    //d_gain = ((gain & 0xF00)>>8) + ((gain & 0xFF)<<8);
+	  again = 0xF0;
+    d_gain = gain;
+	} else {
+	  again = gain;
+	  d_gain = 0x0100;
+	}
+
+	printk("\n%s:Gain:%d, Linecount:%d, Again: %d, Dgain: %d\n", __func__, gain, line, again, d_gain);
+
+  msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x020E, (d_gain&0xF00)>>8,
+    MSM_CAMERA_I2C_BYTE_DATA);
+  msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x020F, d_gain&0xFF,
+    MSM_CAMERA_I2C_BYTE_DATA);
+  msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x0210, (d_gain&0xF00)>>8,
+    MSM_CAMERA_I2C_BYTE_DATA);
+  msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x0211, d_gain&0xFF,
+    MSM_CAMERA_I2C_BYTE_DATA);
+  msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x0212, (d_gain&0xF00)>>8,
+    MSM_CAMERA_I2C_BYTE_DATA);
+  msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x0213, d_gain&0xFF,
+    MSM_CAMERA_I2C_BYTE_DATA);
+  msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x0214, (d_gain&0xF00)>>8,
+    MSM_CAMERA_I2C_BYTE_DATA);
+  msm_camera_i2c_write(s_ctrl->sensor_i2c_client, 0x0215, d_gain&0xFF,
+    MSM_CAMERA_I2C_BYTE_DATA);
+
+
 	if (s_ctrl->curr_res == 0) { 
 		msm_camera_i2c_write_tbl(s_ctrl->sensor_i2c_client,
 			(struct msm_camera_i2c_reg_conf *)
@@ -725,7 +755,7 @@ int32_t imx111_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
 			s_ctrl->sensor_exp_gain_info->coarse_int_time_addr,
 			line, MSM_CAMERA_I2C_WORD_DATA);
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
-			s_ctrl->sensor_exp_gain_info->global_gain_addr, gain,
+			s_ctrl->sensor_exp_gain_info->global_gain_addr, again,
 			MSM_CAMERA_I2C_WORD_DATA);
 
 		msm_camera_i2c_write_tbl(s_ctrl->sensor_i2c_client,
@@ -758,7 +788,7 @@ int32_t imx111_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
 			s_ctrl->sensor_exp_gain_info->coarse_int_time_addr, line,
 			MSM_CAMERA_I2C_WORD_DATA);
 		msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
-			s_ctrl->sensor_exp_gain_info->global_gain_addr, gain,
+			s_ctrl->sensor_exp_gain_info->global_gain_addr, again,
 			MSM_CAMERA_I2C_WORD_DATA);
 		s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
 	}
@@ -774,7 +804,7 @@ int32_t imx111_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
 #define BLUE_START 	0xA1
 #define CRC_ADDR	0x7E
 #define R_REF_ADDR  0x80
-int32_t imx_i2c_read_eeprom_burst(unsigned char saddr, 
+int32_t imx111_i2c_read_eeprom_burst(unsigned char saddr, 
 		unsigned char *rxdata, int length)
 {
 	int32_t rc = 0;
@@ -811,7 +841,7 @@ static int imx111_read_eeprom_data(struct msm_sensor_ctrl_t *s_ctrl, struct sens
 
 	memset(eepromdata, 0, sizeof(eepromdata));
 	// for LSC data
-	if(imx_i2c_read_eeprom_burst(IMX111_EEPROM_SADDR | 0x0 /* page_no:0 */, 
+	if(imx111_i2c_read_eeprom_burst(IMX111_EEPROM_SADDR | 0x0 /* page_no:0 */, 
 		eepromdata, IMX111_EEPROM_PAGE_SIZE) < 0) {
 		pr_err("%s: Error Reading EEPROM : page_no:0 \n", __func__);
 		return rc;
@@ -837,7 +867,7 @@ static int imx111_read_eeprom_data(struct msm_sensor_ctrl_t *s_ctrl, struct sens
 	}
 
  	memset(eepromdata, 0, sizeof(eepromdata));
-	if(imx_i2c_read_eeprom_burst(IMX111_EEPROM_SADDR | 0x1 /* page_no:1 */, 
+	if(imx111_i2c_read_eeprom_burst(IMX111_EEPROM_SADDR | 0x1 /* page_no:1 */, 
 		eepromdata, IMX111_EEPROM_PAGE_SIZE) < 0) {
 		pr_err("%s: Error Reading EEPROM : page_no:1 \n", __func__);
 		return rc;
@@ -858,7 +888,7 @@ static int imx111_read_eeprom_data(struct msm_sensor_ctrl_t *s_ctrl, struct sens
 	}
 
  	memset(eepromdata, 0, sizeof(eepromdata));
-	if(imx_i2c_read_eeprom_burst(IMX111_EEPROM_SADDR | 0x2 /* page_no:2 */, 
+	if(imx111_i2c_read_eeprom_burst(IMX111_EEPROM_SADDR | 0x2 /* page_no:2 */, 
 		eepromdata, IMX111_EEPROM_PAGE_SIZE) < 0) {
 		pr_err("%s: Error Reading EEPROM : page_no:2 \n", __func__);
 		return rc;
@@ -876,7 +906,7 @@ static int imx111_read_eeprom_data(struct msm_sensor_ctrl_t *s_ctrl, struct sens
 	}
 
  	memset(eepromdata, 0, sizeof(eepromdata));
-	if(imx_i2c_read_eeprom_burst(IMX111_EEPROM_SADDR | 0x3 /* page_no:3 */, 
+	if(imx111_i2c_read_eeprom_burst(IMX111_EEPROM_SADDR | 0x3 /* page_no:3 */, 
 		eepromdata, ROLLOFF_CALDATA_SIZE + BLUE_START - IMX111_EEPROM_PAGE_SIZE + 4 /*checksum*/ + 17 /*red_ref*/) < 0) {
     	pr_err("%s: Error Reading EEPROM : page_no:3 \n", __func__);
     	return rc;
