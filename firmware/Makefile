@@ -185,7 +185,7 @@ fw-shipped-$(CONFIG_SENSORS_SSP_STM) += ssp_b.fw
 fw-shipped-$(CONFIG_SENSORS_SSP_ATMEL) += ssp.fw
 fw-shipped-$(CONFIG_SENSORS_SSP) += ssp_crashed.fw
 
-TSPFIRMWARE_DIRECTORY = firmware/tsp_atmel
+TSPFIRMWARE_DIRECTORY = $(srctree)/firmware/tsp_atmel
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT224E) += tsp_atmel/mXT224e.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT540E) += tsp_atmel/mXT540E.fw
@@ -200,7 +200,7 @@ else
 $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
 
-TSPFIRMWARE_DIRECTORY_MEL = firmware/tsp_melfas
+TSPFIRMWARE_DIRECTORY_MEL = $(srctree)/firmware/tsp_melfas
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY_MEL) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS) += tsp_melfas/CORE.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS) += tsp_melfas/PRIV.fw
@@ -209,7 +209,7 @@ else
 $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
 
-TSPFIRMWARE_DIRECTORY_MEL_GC = firmware/tsp_melfas/gc
+TSPFIRMWARE_DIRECTORY_MEL_GC = $(srctree)/firmware/tsp_melfas/gc
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY_MEL_GC) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_GC) += tsp_melfas/gc/A_CORE.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_GC) += tsp_melfas/gc/A_PRIV.fw
@@ -224,7 +224,7 @@ else
 $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
 
-TSPFIRMWARE_DIRECTORY_MEL_W = firmware/tsp_melfas/w
+TSPFIRMWARE_DIRECTORY_MEL_W = $(srctree)/firmware/tsp_melfas/w
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY_MEL_W) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_W) += tsp_melfas/w/CORE.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_W) += tsp_melfas/w/PRIV.fw
@@ -235,7 +235,7 @@ else
 $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
 
-TSPFIRMWARE_DIRECTORY_MEL_NOTE = firmware/tsp_melfas/note
+TSPFIRMWARE_DIRECTORY_MEL_NOTE = $(srctree)/firmware/tsp_melfas/note
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY_MEL_NOTE) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_NOTE) += tsp_melfas/note/melfas.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_NOTE) += tsp_melfas/note/BOOT.fw
@@ -246,7 +246,7 @@ else
 $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
 
-TSPFIRMWARE_DIRECTORY_MEL_TAB3 = firmware/tsp_melfas/tab3
+TSPFIRMWARE_DIRECTORY_MEL_TAB3 = $(srctree)/firmware/tsp_melfas/tab3
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY_MEL_TAB3) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_MMS152_TAB3) += tsp_melfas/tab3/melfas.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MMS152_TAB3) += tsp_melfas/tab3/BOOT.fw
@@ -257,7 +257,7 @@ else
 $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
 
-TSPFIRMWARE_DIRECTORY_MEL_MMS252 = firmware/tsp_melfas/lt
+TSPFIRMWARE_DIRECTORY_MEL_MMS252 = $(srctree)/firmware/tsp_melfas/lt
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY_MEL_MMS252) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_MMS252) += tsp_melfas/lt/melfas_yf.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MMS252) += tsp_melfas/lt/melfas_wt.fw
@@ -266,7 +266,7 @@ else
 $(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
 endif
 
-TSPFIRMWARE_DIRECTORY_MEL_GD2 = firmware/tsp_melfas/gd2
+TSPFIRMWARE_DIRECTORY_MEL_GD2 = $(srctree)/firmware/tsp_melfas/gd2
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY_MEL_GD2) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_GD2) += tsp_melfas/gd2/melfas.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_GD2) += tsp_melfas/gd2/BOOT.fw
