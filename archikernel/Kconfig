@@ -5,7 +5,7 @@ comment "Target options"
 
 choice
 	prompt "Target release"
-	default Production
+	default ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	help
 		Target release specifies if kernel should be more or less debuggable.
 
@@ -23,7 +23,7 @@ endchoice
 
 choice
 	prompt "Target system"
-	default AOSP
+	default ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	help
 		Kernel target. This variable determines needed hacks and workarounds 
 		to make kernel work properly in specific environment. This includes 
@@ -56,7 +56,7 @@ endchoice
 
 choice
 	prompt "Target architecture"
-	default Unknown
+	default ARCHIKERNEL_TARGET_ARCH_UNKNOWN
 	help
 		Target architecture. This enables architecture-specific -march 
 		optimization.
@@ -80,7 +80,7 @@ endchoice
 
 choice
 	prompt "Target CPU"
-	default Unknown
+	default ARCHIKERNEL_TARGET_CPU_UNKNOWN
 	help
 		Target CPU. This enables CPU-speficic -mcpu and -mtune optimizations.
 
@@ -105,7 +105,7 @@ endchoice
 
 choice
 	prompt "Target floating point ABI"
-	default Soft
+	default ARCHIKERNEL_TARGET_CPU_ABI_UNKNOWN
 	help
 		Target floating point ABI. This specifies which floating-point ABI to
 		use by specifying -mfloat-abi optimization.
@@ -137,7 +137,7 @@ endchoice
 
 choice
 	prompt "Target floating point optimization"
-	default Unknown
+	default ARCHIKERNEL_TARGET_CPU_FPU_UNKNOWN
 	help
 		Target floating point optimization. This specifies what floating point 
 		hardware (or hardware emulation) is available on the target by 
@@ -174,7 +174,7 @@ comment "Core options"
 
 choice
 	prompt "Sound Engine"
-	default None
+	default ARCHIKERNEL_SOUND_ENGINE_NONE
 	help
 		Kernel's sound engine. This mostly adds engine-specific sysfs and
 		a hook, which modifies sound on the kernel level.
@@ -192,7 +192,7 @@ endchoice
 
 choice
 	prompt "Main optimization level"
-	default -O2
+	default ARCHIKERNEL_OPTI_O2
 	help
 		Main optimization level.
 
@@ -232,7 +232,7 @@ endchoice
 
 choice
 	prompt "Mali GPU revision"
-	default r3p2
+	default ARCHIKERNEL_MALI_REVISION_R3P2
 	help
 		Kernel's sound engine. This mostly adds engine-specific sysfs and
 		a hook, which modifies sound on the kernel level.
@@ -249,13 +249,14 @@ config ARCHIKERNEL_MALI_REVISION_R4P0
 	select MALI_VER_R4P0
 	select PM_DEVFREQ
 	help
-		Mali GPU revision r4p0		
+		Mali GPU revision r4p0
 endchoice
 
 config ARCHIKERNEL_MALI_API_VERSION
 	int "Mali API version"
 	default "23" if MALI_VER_R3P2
 	default "401" if MALI_VER_R4P0
+	default "0"
 	help
 		Mali blobs which we're using are very picky about declaring proper API version.
 		Even if we may have totally different source files, API version declared in the
@@ -287,6 +288,7 @@ config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
 config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_ZRAM
 	bool "System has broken ZRAM"
 	depends on ZRAM_FOR_ANDROID
+	default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
 	help
 		Recently Samsung modified ZRAM implementation for their closed-source
 		zram solution in stock ROMs.
@@ -314,6 +316,7 @@ config ARCHIKERNEL_LED_SETTINGS
 config ARCHIKERNEL_HAPTIC_CONTROL_AOSP
 	bool "Enable haptic control on AOSP roms like CM/Omni"
 	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	default y if ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	help
 		This option enables the haptic feedback control on AOSP roms.
 
@@ -330,7 +333,6 @@ config ARCHIKERNEL_CPU_OC_1600
 config ARCHIKERNEL_CPU_OC_1600_DEFAULT
 	bool "Use 1600 MHz overclocking step by default"
 	depends on ARCHIKERNEL_CPU_OC_1600
-	default n
 	help
 		Normally enabling OC will still keep maximum frequency at stock value, while
 		giving user an option to change it as he wish.
@@ -340,19 +342,28 @@ config ARCHIKERNEL_CPU_OC_1600_DEFAULT
 config ARCHIKERNEL_GPU_CONTROL
 	bool "Enable GPU clock control and voltage interface"
 	depends on MALI400
-	default y
 	help
 		This enables a sysfs interface to control gpu clock and voltage.
 
 config ARCHIKERNEL_TOUCH_LED_CONTROL
 	bool "Enable touch LED control"
 	depends on !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+	default y if ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	help
 		This option enables the touch LED control to enable/disable the backlight
 		of the hardware buttons.
 
+config ARCHIKERNEL_TOUCH_LED_CONTROL_DEFAULT_KERNEL
+	bool "Use kernel LED handling by default"
+	depends on ARCHIKERNEL_TOUCH_LED_CONTROL
+	help
+		This option enables kernel handling of touch LED by default
+		Such method was used e.g. in CM-10.2 and OmniROM
+		Enable if target ROM doesn't care about controlling touch LEDs
+
 config ARCHIKERNEL_PRINTK_INTERFACE
 	bool "Enable printk interface"
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	help
 		This option enables printk interface developed by AndiP71
 		Notice: May cause audio issues on AOSP ROMs, like random silence
