@@ -1176,6 +1176,12 @@ static ssize_t touchkey_led_control(struct device *dev,
 		return size;
 	}
 
+#if defined(CONFIG_ARCHIKERNEL_TARGET_SYSTEM_USES_OLDER_LIGHTS)
+	if (data == 2) {
+		data = 0;
+	}
+#endif
+
 	if (data != 0 && data != 1) {
 		printk(KERN_DEBUG "[TouchKey] %s wrong cmd %x\n",
 			__func__, data);

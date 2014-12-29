@@ -251,6 +251,14 @@ menu "ArchiKernel settings"
 			bootloader for target device and the kernel should assume that it's
 			running under JB bootloader.
 
+	config ARCHIKERNEL_TARGET_SYSTEM_USES_OLDER_LIGHTS
+		bool "System may use older lights"
+		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+		help
+			In current kernel sources, 0 is used for OFF, and 1 is used for ON.
+			In older kernel sources, 2 was used for OFF, and 1 was used for ON.
+			This option makes kernel "accept" older 2 value for OFF command.
+
 	config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
 		bool "System does not support slice encoding"
 		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
