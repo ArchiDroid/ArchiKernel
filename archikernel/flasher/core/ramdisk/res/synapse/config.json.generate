@@ -25,10 +25,10 @@ echo "
 {
 	sections: [
 		$(
-			find "$AKSYNAPSE" -type f -name "config.json.generate.*" | while read line; do
+			find "$AKSYNAPSE" -type f -name "config.json.generate.*" | sort | while read line; do
 				source "$line"
 			done
 		)
-    ]
+	]
 }
 "

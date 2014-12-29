@@ -27,15 +27,15 @@ echo "
 	elements:[
 		{
 			SPane:{
-				title:"I/O schedulers",
-				description:"Set the active I/O elevator algorithm. The scheduler decides how to handle I/O requests and how to handle them."
+				title:\"I/O schedulers\",
+				description:\"Set the active I/O elevator algorithm. The scheduler decides how to handle I/O requests\"
 			}
 		},
 		{
 			SOptionList:{
-				title:"Internal storage scheduler",
-				default:$("$AKACTION/bracket-option" "/sys/block/mmcblk0/queue/scheduler"),
-				action:"bracket-option /sys/block/mmcblk0/queue/scheduler",
+				title:\"Internal storage scheduler\",
+				default:\"$("$AKACTION/bracket-option" "/sys/block/mmcblk0/queue/scheduler")\",
+				action:\"bracket-option /sys/block/mmcblk0/queue/scheduler\",
 				values:[
 					$(
 						for IOSCHED in $(cat /sys/block/mmcblk0/queue/scheduler | sed -e 's/\[//;s/\]//'); do
@@ -47,9 +47,9 @@ echo "
 		},
 		{
 			SOptionList:{
-				title:"SD card scheduler",
-				default:$("$AKACTION/bracket-option" "/sys/block/mmcblk1/queue/scheduler"),
-				action:"bracket-option /sys/block/mmcblk1/queue/scheduler",
+				title:\"SD card scheduler\",
+				default:\"$("$AKACTION/bracket-option" "/sys/block/mmcblk1/queue/scheduler")\",
+				action:\"bracket-option /sys/block/mmcblk1/queue/scheduler\",
 				values:[
 					$(
 						for IOSCHED in $(cat /sys/block/mmcblk1/queue/scheduler | sed -e 's/\[//;s/\]//'); do
@@ -61,20 +61,20 @@ echo "
 		},
 		{
 			SSeekBar:{
-				title:"Internal storage read-ahead",
-				description:"The read-ahead value on the internal phone memory.",
-				max:2048, min:128, unit:"kB", step:128,
+				title:\"Internal storage read-ahead\",
+				description:\"The read-ahead value on the internal phone memory.\",
+				max:2048, min:128, unit:\"kB\", step:128,
 				default:$("$AKACTION/generic" /sys/block/mmcblk0/queue/read_ahead_kb),
-				action:"generic /sys/block/mmcblk0/queue/read_ahead_kb"
+				action:\"generic /sys/block/mmcblk0/queue/read_ahead_kb\"
 			}
 		},
 		{
 			SSeekBar:{
-				title:"SD card read-ahead",
-				description:"The read-ahead value on the external SD card.",
-				max:2048, min:128, unit:"kB", step:128,
+				title:\"SD card read-ahead\",
+				description:\"The read-ahead value on the external SD card.\",
+				max:2048, min:128, unit:\"kB\", step:128,
 				default:$("$AKACTION/generic" /sys/block/mmcblk1/queue/read_ahead_kb),
-				action:"generic /sys/block/mmcblk1/queue/read_ahead_kb"
+				action:\"generic /sys/block/mmcblk1/queue/read_ahead_kb\"
 			}
 		},
     ]
