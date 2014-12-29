@@ -34,7 +34,7 @@ echo "
 		{
 			SOptionList:{
 				title:\"Internal storage scheduler\",
-				default:\"$("$AKACTION/bracket-option" "/sys/block/mmcblk0/queue/scheduler")\",
+				default:\"$(cat /sys/block/mmcblk0/queue/scheduler)\",
 				action:\"bracket-option /sys/block/mmcblk0/queue/scheduler\",
 				values:[
 					$(
@@ -48,7 +48,7 @@ echo "
 		{
 			SOptionList:{
 				title:\"SD card scheduler\",
-				default:\"$("$AKACTION/bracket-option" "/sys/block/mmcblk1/queue/scheduler")\",
+				default:\"$(cat /sys/block/mmcblk1/queue/scheduler)\",
 				action:\"bracket-option /sys/block/mmcblk1/queue/scheduler\",
 				values:[
 					$(
@@ -64,7 +64,7 @@ echo "
 				title:\"Internal storage read-ahead\",
 				description:\"The read-ahead value on the internal phone memory.\",
 				max:2048, min:128, unit:\"kB\", step:128,
-				default:$("$AKACTION/generic" /sys/block/mmcblk0/queue/read_ahead_kb),
+				default:$(cat /sys/block/mmcblk0/queue/read_ahead_kb),
 				action:\"generic /sys/block/mmcblk0/queue/read_ahead_kb\"
 			}
 		},
@@ -73,7 +73,7 @@ echo "
 				title:\"SD card read-ahead\",
 				description:\"The read-ahead value on the external SD card.\",
 				max:2048, min:128, unit:\"kB\", step:128,
-				default:$("$AKACTION/generic" /sys/block/mmcblk1/queue/read_ahead_kb),
+				default:$(cat /sys/block/mmcblk1/queue/read_ahead_kb),
 				action:\"generic /sys/block/mmcblk1/queue/read_ahead_kb\"
 			}
 		},
