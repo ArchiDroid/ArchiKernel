@@ -242,6 +242,15 @@ menu "ArchiKernel settings"
 
 	comment "Hacks / Workarounds"
 
+	config ARCHIKERNEL_TARGET_DEVICE_HAS_JB_BOOTLOADER
+		bool "Device has JellyBean bootloader"
+		default y if MACH_M0
+		help
+			Newer Samsung bootloaders changed some things that affect the kernel,
+			mostly LPM (offline charging). Select this option if there is no KK+
+			bootloader for target device and the kernel should assume that it's
+			running under JB bootloader.
+
 	config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
 		bool "System does not support slice encoding"
 		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
