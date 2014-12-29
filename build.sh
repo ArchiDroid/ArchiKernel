@@ -202,6 +202,11 @@ for TARGETCONFIG in "${TARGETCONFIGS[@]}"; do
 
 		if [[ "$BARE" -eq 1 ]]; then
 			continue
+		elif [[ -z "$(which zip)" ]]; then
+			echo "ERROR: Zip binary could not be found!"
+			echo "You can either install missing zip binary or build in --bare mode"
+			echo "For debian try: apt-get install zip"
+			exit 1
 		fi
 
 		mkdir -p "$TARGETDIRKERNEL" "$TARGETDIRMODULES"
