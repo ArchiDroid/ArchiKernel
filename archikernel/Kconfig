@@ -231,7 +231,7 @@ menu "ArchiKernel settings"
 
 	config ARCHIKERNEL_MALI_API_VERSION
 		int "Mali API version"
-		depends on CONFIG_MALI_UMP_R3P1
+		depends on MALI400
 		default "29"
 		help
 			Mali blobs which we're using are very picky about declaring proper API version.
