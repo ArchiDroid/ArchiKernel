@@ -1,0 +1,433 @@
+menu "ArchiKernel settings"
+
+	comment "Target options"
+
+	choice
+		prompt "Target release"
+		default ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+		help
+			Target release specifies if kernel should be more or less debuggable.
+
+	config ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+		bool "Production"
+		help
+			Production release minimizes debugging to the bare minimum.
+
+	config ARCHIKERNEL_TARGET_RELEASE_DEBUG
+		bool "Debug"
+		help
+			Debug release provides more information about what's going on in the
+			kernel. Console is much more verbose to allow easier debugging.
+	endchoice
+
+
+	choice
+		prompt "Target system"
+		default ARCHIKERNEL_TARGET_SYSTEM_AOSP
+		help
+			Kernel target. This variable determines needed hacks and workarounds 
+			to make kernel work properly in specific environment. This includes 
+			camera hacks, specifying USB gadget and more.
+
+	config ARCHIKERNEL_TARGET_SYSTEM_AOSP
+		bool "AOSP"
+		help
+			Select this option if the kernel should work properly in pure AOSP 
+			envioronment, i.e. CyanogenMod or Omni.
+
+	config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+		bool "Samsung"
+		select USB_ANDROID_SAMSUNG_COMPOSITE
+		select USB_ANDROID_SAMSUNG_MTP
+		help
+			Select this option if the kernel should work properly in Samsung 
+			environment, i.e. XXUGND5 or XXUGNA8.
+
+	config ARCHIKERNEL_TARGET_SYSTEM_UNKNOWN
+		bool "Unknown"
+		help
+			This option doesn't force any hacks/workarounds/presets based on 
+			target system. Select this if you're an expert and you want to cover 
+			all dependencies yourself
+	endchoice
+
+
+	choice
+		prompt "Target architecture"
+		default ARCHIKERNEL_TARGET_ARCH_UNKNOWN
+		help
+			Target architecture. This enables architecture-specific -march 
+			optimization.
+
+	config ARCHIKERNEL_TARGET_ARCH_ARMV7A
+		bool "ARMv7a"
+		help
+			ARMv7a architecture.
+
+	config ARCHIKERNEL_TARGET_ARCH_UNKNOWN
+		bool "Unknown"
+		help
+			Unknown architecture, select this if you don't want to apply -march 
+			optimization.
+	endchoice
+
+
+	choice
+		prompt "Target CPU"
+		default ARCHIKERNEL_TARGET_CPU_UNKNOWN
+		help
+			Target CPU. This enables CPU-speficic -mcpu and -mtune optimizations.
+
+	config ARCHIKERNEL_TARGET_CPU_CORTEXA15
+		bool "Cortex A15"
+		select ARCHIKERNEL_TARGET_CPU_FPU_NEONVFP4
+		help
+			Cortex A15 CPU.
+
+	config ARCHIKERNEL_TARGET_CPU_CORTEXA9
+		bool "Cortex A9"
+		select ARCHIKERNEL_TARGET_CPU_FPU_NEON
+		help
+			Cortex A9 CPU.
+
+	config ARCHIKERNEL_TARGET_CPU_UNKNOWN
+		bool "Unknown"
+		help
+			Unknown CPU, select this if you don't want to apply -mcpu and -mtune 
+			optimizations.
+	endchoice
+
+
+	choice
+		prompt "Target floating point ABI"
+		default ARCHIKERNEL_TARGET_CPU_ABI_UNKNOWN
+		help
+			Target floating point ABI. This specifies which floating-point ABI to
+			use by specifying -mfloat-abi optimization.
+
+	config ARCHIKERNEL_TARGET_CPU_ABI_SOFT
+		bool "Soft"
+		help
+			Causes GCC to generate output containing library calls for 
+			floating-point operations.
+			
+	config ARCHIKERNEL_TARGET_CPU_ABI_SOFTFP
+		bool "Softfp"
+		help
+			Allows the generation of code using hardware floating-point
+			instructions, but still uses the soft-float calling conventions.
+
+	config ARCHIKERNEL_TARGET_CPU_ABI_HARD
+		bool "Hard"
+		help
+			Allows generation of floating-point instructions and uses FPU-specific 
+			calling conventions.
+
+	config ARCHIKERNEL_TARGET_CPU_ABI_UNKNOWN
+		bool "Unknown"
+		help
+			Unknown floating point ABI, select this if you don't want to apply 
+			-mfloat-abi optimization.
+	endchoice
+
+
+	choice
+		prompt "Target floating point optimization"
+		default ARCHIKERNEL_TARGET_CPU_FPU_UNKNOWN
+		help
+			Target floating point optimization. This specifies what floating point 
+			hardware (or hardware emulation) is available on the target by 
+			specifying -mfpu optimization.
+
+	config ARCHIKERNEL_TARGET_CPU_FPU_NEONVFP4
+		bool "VFPv4 with NEON"
+		help
+			VFPv4 with NEON coprocessor.
+
+	config ARCHIKERNEL_TARGET_CPU_FPU_VFP4
+		bool "VFPv4"
+		help
+			VFPv4.
+
+	config ARCHIKERNEL_TARGET_CPU_FPU_NEON
+		bool "VFPv3 with NEON"
+		help
+			VFPv3 with NEON coprocessor.
+
+	config ARCHIKERNEL_TARGET_CPU_FPU_VFPV3
+		bool "VFPv3"
+		help
+			VFPv3.
+
+	config ARCHIKERNEL_TARGET_CPU_FPU_UNKNOWN
+		bool "Unknown"
+		help
+			Unknown FPU, select this if you don't want to apply -mfpu optimization.
+	endchoice
+
+
+
+	comment "Core options"
+
+	choice
+		prompt "Sound Engine"
+		default ARCHIKERNEL_SOUND_ENGINE_NONE
+		help
+			Kernel's sound engine. This mostly adds engine-specific sysfs and
+			a hook, which modifies sound on the kernel level.
+
+	config ARCHIKERNEL_SOUND_ENGINE_BOEFFLA
+		bool "Boeffla"
+		help
+			Boeffla sound engine developed by AndiP71.
+
+	config ARCHIKERNEL_SOUND_ENGINE_NONE
+		bool "None"
+		help
+			No sound engine.
+	endchoice
+
+
+	choice
+		prompt "Main optimization level"
+		default ARCHIKERNEL_OPTI_O2
+		help
+			Main optimization level.
+
+	config ARCHIKERNEL_OPTI_OFAST
+		bool "-Ofast"
+		help
+			Disregard strict standards compliance. -Ofast enables all -O3 
+			optimizations. It also enables optimizations that are not valid for 
+			all standard-compliant programs. It turns on -ffast-math and the 
+			Fortran-specific -fno-protect-parens and -fstack-arrays.
+
+	config ARCHIKERNEL_OPTI_O3
+		bool "-O3"
+		help
+			Optimize yet more. -O3 turns on all optimizations specified by -O2 and
+			also turns on the -finline-functions, -funswitch-loops, 
+			-fpredictive-commoning, -fgcse-after-reload, -ftree-loop-vectorize, 
+			-ftree-slp-vectorize, -fvect-cost-model, -ftree-partial-pre and 
+			-fipa-cp-clone options.
+
+	config ARCHIKERNEL_OPTI_O2
+		bool "-O2"
+		help
+			Optimize even more. GCC performs nearly all supported optimizations 
+			that do not involve a space-speed tradeoff. As compared to -O, this 
+			option increases both compilation time and the performance of the 
+			generated code.
+
+	config ARCHIKERNEL_OPTI_OS
+		bool "-Os"
+		select CC_OPTIMIZE_FOR_SIZE
+		help
+			Optimize for size. -Os enables all -O2 optimizations that do not 
+			typically increase code size. It also performs further optimizations 
+			designed to reduce code size.
+	endchoice
+
+
+	config ARCHIKERNEL_MALI_API_VERSION
+		int "Mali API version"
+		depends on CONFIG_MALI_UMP_R3P1
+		default "29"
+		help
+			Mali blobs which we're using are very picky about declaring proper API version.
+			Even if we may have totally different source files, API version declared in the
+			kernel and used by the blobs must be the same.
+
+
+
+	comment "Hacks / Workarounds"
+
+	config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
+		bool "System does not support slice encoding"
+		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+		help
+			This option disables slice encoding, which is active by default on 
+			Samsung ROMs.
+
+	config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
+		bool "System has broken S5C73M3 firmware"
+		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+		help
+			This option forces system to use system's firmware only if it's
+			newer than data's one. Stock behaviour is to use system's firmware
+			also if it's equal to data's one.
+
+	config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_ZRAM_GOVERNOR
+		bool "System does not have ZRAM governor"
+		depends on ZRAM_FOR_ANDROID
+		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+		help
+			Recently Samsung modified ZRAM implementation for their closed-source
+			zram solution in stock ROMs.
+			The side effect is the fact that ZRAM is not anymore controlled by the
+			kernel, but by the binary. Since we don't have this binary on AOSP ROMs,
+			kernel is not swapping anything, even when zram or swap file is enabled.
+			This option will turn off all breaks and returns added by Samsung to the
+			original source. This is absolutely required for AOSP ROMs, and may be
+			required also for stock ROMs, if they want to use kernel-based swap.
+
+
+
+	comment "Core features"
+
+
+
+	comment "Optimizations"
+
+	config ARCHIKERNEL_OPTI_L1_LINE_SIZE
+		int "L1 cache line size"
+		default "0"
+		help
+			This variable defines the size of cache line in L1 cache on target CPU, in bytes.
+			Defining "0" disables this optimization.
+
+	config ARCHIKERNEL_OPTI_L1_SIZE
+		int "L1 cache size"
+		default "0"
+		help
+			This variable defines the size of L1 cache on target CPU, in kilobytes.
+			Defining "0" disables this optimization.
+
+	config ARCHIKERNEL_OPTI_L2_SIZE
+		int "L2 cache size"
+		default "0"
+		help
+			This variable defines the size of L2 cache on target CPU, in kilobytes.
+			Defining "0" disables this optimization.
+
+	config ARCHIKERNEL_OPTI_DNDEBUG
+		bool "Disable debugging assertions"
+		help
+			Assertions are used only during debugging. Select this if you don't 
+			need them.
+
+	config ARCHIKERNEL_OPTI_FLTO
+			bool "Perform Link Time Optimization (LTO)"
+			help
+				This option runs the standard link-time optimizer. When invoked with source
+				code, it generates GIMPLE (one of GCC's internal representations) and writes
+				it to special ELF sections in the object file. When the object files are linked
+				together, all the function bodies are read from these ELF sections and
+				instantiated as if they had been part of the same translation unit.
+
+	config ARCHIKERNEL_OPTI_FSECTION_ANCHORS
+		bool "Try to reduce the number of symbolic address calculations"
+		help
+			Try to reduce the number of symbolic address calculations by using 
+			shared "anchor" symbols to address nearby objects. This transformation 
+			can help to reduce the number of GOT entries and GOT accesses on some
+			targets.
+
+	config ARCHIKERNEL_OPTI_FUNSAFE_LOOP_OPTIMIZATIONS
+		bool "Assume that loop indices do not overflow"
+		help
+			This option tells the loop optimizer to assume that loop indices do not overflow, and
+			that loops with nontrivial exit condition are not infinite. This enables a wider range
+			of loop optimizations even if the loop optimizer itself cannot prove that these
+			assumptions are valid.
+
+	config ARCHIKERNEL_OPTI_FIVOPTS
+		bool "Perform induction variable optimizations on trees"
+		help
+			Perform induction variable optimizations (strength reduction, 
+			induction variable merging and induction variable elimination) on trees.
+
+	config ARCHIKERNEL_OPTI_FTREE_LOOP_IM
+		bool "Perform loop invariant motion on trees"
+		help
+			Perform loop invariant motion on trees. This pass moves only 
+			invariants that are hard to handle at RTL level (function calls,
+			operations that expand to nontrivial sequences of insns). With 
+			-funswitch-loops it also moves operands of conditions that are 
+			invariant out of the loop, so that we can use just trivial 
+			invariantness analysis in loop unswitching. The pass also includes 
+			store motion.
+
+	config ARCHIKERNEL_OPTI_FTREE_LOOP_IVCANON
+		bool "Create a canonical counter for number of iterations in loops"
+		help
+			Create a canonical counter for number of iterations in loops for which 
+			determining number of iterations requires complicated analysis. Later 
+			optimizations then may determine the number easily. Useful especially 
+			in connection with unrolling.
+
+	config ARCHIKERNEL_OPTI_FUNSWITCH_LOOPS
+		bool "Move branches with loop invariant conditions out of the loop"
+		help
+			Move branches with loop invariant conditions out of the loop, with 
+			duplicates of the loop on both branches (modified according to result 
+			of the condition).
+
+	config ARCHIKERNEL_OPTI_FRENAME_REGISTERS
+		bool "Attempt to avoid false dependencies in scheduled code"
+		help
+			Attempt to avoid false dependencies in scheduled code by making use of 
+			registers left over after register allocation. This optimization most
+			benefits processors with lots of registers. Depending on the debug 
+			information format adopted by the target, however, it can make 
+			debugging impossible, since variables no longer stay in a “home 
+			register”.
+
+	config ARCHIKERNEL_OPTI_FGCSE_SM
+		bool "Run a store motion pass after global common subexpression elimination"
+		help
+			When enabled, a store motion pass is run after global common 
+			subexpression elimination. This pass attempts to move stores out of 
+			loops. When used in conjunction with -fgcse-lm, loops containing a
+			load/store sequence can be changed to a load before the loop and a 
+			store after the loop.
+
+	config ARCHIKERNEL_OPTI_FGCSE_LAS
+		bool "Eliminate redundant loads to the same memory location"
+		help
+			When enabled, the global common subexpression elimination pass 
+			eliminates redundant loads that come after stores to the same memory 
+			location (both partial and full redundancies).
+
+	config ARCHIKERNEL_OPTI_FWEB
+		bool "Construct webs as commonly used for register allocation purposes"
+		help
+			Constructs webs as commonly used for register allocation purposes and 
+			assign each web individual pseudo register. This allows the register
+			allocation pass to operate on pseudos directly, but also strengthens 
+			several other optimization passes, such as CSE, loop optimizer and 
+			trivial dead code remover. It can, however, make debugging impossible,
+			since variables no longer stay in a “home register”.
+
+	config ARCHIKERNEL_OPTI_FTRACER
+		bool "Perform tail duplication to enlarge superblock size"
+		help
+			Perform tail duplication to enlarge superblock size. This 
+			transformation simplifies the control flow of the function allowing 
+			other optimizations to do a better job.
+
+	config ARCHIKERNEL_OPTI_FIPA_PTA
+		bool "Perform interprocedural pointer analysis and interprocedural modification and reference analysis"
+		help
+			Perform interprocedural pointer analysis and interprocedural 
+			modification and reference analysis. This option can cause excessive
+			memory and compile-time usage on large compilation units. It is not 
+			enabled by default at any optimization level.
+
+	config ARCHIKERNEL_OPTI_FMODULO_SCHED
+		bool "Perform swing modulo scheduling immediately before the first scheduling pass"
+		help
+			Perform swing modulo scheduling immediately before the first scheduling pass.
+			This pass looks at innermost loops and reorders their instructions by overlapping
+			different iterations.
+
+	config ARCHIKERNEL_OPTI_FMODULO_SCHED_ALLOW_REGMOVES
+		bool "Perform more aggressive SMS-based modulo scheduling with register moves allowed"
+		depends on ARCHIKERNEL_OPTI_FMODULO_SCHED
+		help
+			Perform more aggressive SMS-based modulo scheduling with register moves allowed.
+			By setting this flag certain anti-dependences edges are deleted, which triggers the
+			generation of reg-moves based on the life-range analysis.
+			This option is effective only with -fmodulo-sched enabled.
+
+endmenu

@@ -1028,6 +1028,7 @@ config USB_G_ANDROID
 config USB_ANDROID_SAMSUNG_COMPOSITE
 	boolean "Samsung Composite function"
 	depends on USB_G_ANDROID
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	help
 	  Provides SAMSUNG composite driver.
 	  It also provides KIES connection and
@@ -1037,6 +1038,7 @@ config USB_ANDROID_SAMSUNG_COMPOSITE
 config USB_ANDROID_SAMSUNG_MTP
 	boolean "Samsung MTP function"
 	depends on USB_G_ANDROID
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	help
 	  Provides Media Transfer Protocol (MTP) support
 	  for samsung gadget driver.
@@ -1046,6 +1048,7 @@ config USB_ANDROID_SAMSUNG_MTP
 config USB_ANDROID_SAMSUNG_SIDESYNC
 	boolean "Samsung SIDESYNC function"
 	depends on USB_G_ANDROID
+	depends on !ARCHIKERNEL_TARGET_SYSTEM_AOSP
 	help
 	  Provides SIDESYNC support
 	  for samsung gadget driver.

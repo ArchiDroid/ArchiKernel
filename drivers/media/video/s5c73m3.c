@@ -1102,7 +1102,11 @@ request_fw:
 			retVal = s5c73m3_compare_date(sd,
 				S5C73M3_IN_DATA,
 				S5C73M3_IN_SYSTEM);
+#if defined(CONFIG_ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE)
+			if (retVal < 0) {
+#else
 			if (retVal <= 0) {
+#endif
 				/*unlink(&fw_path_in_data);*/
 				state->fw_index = S5C73M3_IN_SYSTEM;
 			} else {

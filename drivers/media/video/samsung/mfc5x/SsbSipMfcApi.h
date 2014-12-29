@@ -40,7 +40,11 @@
 
 #define SAMSUNG_MFC_DEV_NAME           "/dev/s3c-mfc"
 
+#if !defined(CONFIG_ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING) && (defined(CONFIG_CPU_EXYNOS4212) || defined(CONFIG_CPU_EXYNOS4412))
+#define SUPPORT_SLICE_ENCODING        1
+#else
 #define SUPPORT_SLICE_ENCODING        0
+#endif
 
 /*---------------------------*/
 /* Memory Type               */
