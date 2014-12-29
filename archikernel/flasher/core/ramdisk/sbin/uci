@@ -22,26 +22,28 @@
 # limitations under the License.
 
 AK="/data/.ArchiKernel"
-mkdir -p "$AK"
+CONFIG_JSON="$AK/config.json"
 
-LOG="$AK/ArchiKernel.log"
-exec 1>"$LOG"
-exec 2>&1
+AKSYNAPSE="/res/synapse"
+AKACTION="$AKSYNAPSE/actions"
 
-LASTVERSION="$AK/version.txt"
-VERSION="$(cat /proc/version)"
+RESET_CONFIG() {
+	source "$AKSYNAPSE/config.json.generate" > "$CONFIG_JSON"
+}
 
-date
-echo "ArchiKernel-Init called!"
-echo "Version: $VERSION"
+PRINT_CONFIG() {
+	if [[ ! -f "$CONFIG_JSON" ]]; then
+		RESET_CONFIG
+	fi
+	cat "$CONFIG_JSON"
+}
 
-# Regenerate config on every boot, this is for debug purposes, in final version we should enable IFs
-#if [[ ! -f "$LASTVERSION" || "$(cat "$LASTVERSION")" != "$VERSION" ]]; then
-	echo "NOTICE: Regenerating config.json!"
-	uci reset
-	echo "$VERSION" > "$LASTVERSION"
-#fi
+PRINT_ACTIONPATH() {
+	echo "$AKACTION"
+}
 
-echo "ArchiKernel-Init finished!"
-date
-exit 0
+case "$1" in
+	config) PRINT_CONFIG ;;
+	actionpath) PRINT_ACTIONPATH ;;
+	reset) RESET_CONFIG ;;
+esac
