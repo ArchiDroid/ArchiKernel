@@ -598,12 +598,12 @@ static int is_usb_chg_plugged_in_ex(struct pm8921_chg_chip *chip)
 	int usb_plugged = is_usb_chg_plugged_in(chip);
 
 	if (usb_plugged != usb_valid_irq)
-		pr_err("usb_plugged = %d but usb_valid_irq = %d", usb_plugged, usb_valid_irq);
+		pr_debug("usb_plugged = %d but usb_valid_irq = %d", usb_plugged, usb_valid_irq);
 
 	if (usb_plugged)
 		return usb_plugged;
 	else { 
-		pr_track("return usb_valid_irq = %d", usb_valid_irq);
+		pr_debug("return usb_valid_irq = %d", usb_valid_irq);
 		return usb_valid_irq;
 	}
 }
@@ -5449,7 +5449,7 @@ static void brain(struct work_struct *work)
 		set_rv(chip, true, __func__, __LINE__);
 	}
 
-	pr_err( "1:(%d %d %d)"
+	pr_debug( "1:(%d %d %d)"
 			"2:(%d %lld)" 
 			"3:(%d %lld)" 
 			"4:(%d)" 
