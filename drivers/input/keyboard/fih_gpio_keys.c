@@ -341,7 +341,7 @@ static void gpio_keys_report_event(struct gpio_button_data *bdata)
 	unsigned int type = button->type ?: EV_KEY;
 	int state = (gpio_get_value_cansleep(button->gpio) ? 1 : 0) ^ button->active_low;
 
-	printk( "GKEY : %s Key %s\n", button->desc, !!state ? "down" : "up" );
+	pr_debug( "GKEY : %s Key %s\n", button->desc, !!state ? "down" : "up" );
 
 	input_event(input, type, button->code, !!state);
 	input_sync(input);
@@ -352,7 +352,7 @@ static void gpio_keys_work_func(struct work_struct *work)
 	struct gpio_button_data *bdata =
 		container_of(work, struct gpio_button_data, work);
 
-	printk( "GKEY : Work queue(%s)\n", bdata->button->desc );
+	pr_debug( "GKEY : Work queue(%s)\n", bdata->button->desc );
 	gpio_keys_report_event(bdata);
 }
 
@@ -360,7 +360,7 @@ static void gpio_keys_timer(unsigned long _data)
 {
 	struct gpio_button_data *data = (struct gpio_button_data *)_data;
 
-	printk( "GKEY : Timer(%s)\n", data->button->desc );
+	pr_debug( "GKEY : Timer(%s)\n", data->button->desc );
 	schedule_work(&data->work);
 }
 
@@ -375,12 +375,12 @@ static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 	{
 		mod_timer(&bdata->timer,
 			jiffies + msecs_to_jiffies(bdata->timer_debounce));
-		printk( "GKEY : Debounce(%s)\n", bdata->button->desc );
+		pr_debug( "GKEY : Debounce(%s)\n", bdata->button->desc );
 	}
 	else
 	{
 		schedule_work(&bdata->work);
-		printk( "GKEY : Interrupt(%s)\n", bdata->button->desc );
+		pr_debug( "GKEY : Interrupt(%s)\n", bdata->button->desc );
 	}
 
 	return IRQ_HANDLED;
