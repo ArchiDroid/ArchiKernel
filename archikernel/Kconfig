@@ -298,6 +298,11 @@ menu "ArchiKernel settings"
 			Arch Power causes arch dependent power functions to be used instead
 			of generic high resolution timer ticks and double ticks.
 
+	config ARCHIKERNEL_CHARGE_LEVEL
+		bool "Charge level interface"
+		help
+			Developed by AndiP71, allows configuration of various charging levels.
+
 
 
 	comment "Optimizations"

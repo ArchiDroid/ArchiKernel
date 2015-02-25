@@ -42,7 +42,7 @@
 #endif
 
 
-#ifdef CONFIG_CHARGE_LEVEL
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 #include "linux/charge_level.h" 
 int ignore_unstable_power = IGNORE_UNSTABLE_POWER_DEFAULT;
 int ignore_safety_margin = IGNORE_SAFETY_MARGIN_DEFAULT;
@@ -1406,7 +1406,7 @@ static void max77693_softreg_work(struct work_struct *work)
 				int_ok, chgin_dtls, chg_dtls,
 				byp_dtls, mu_st2, in_curr);
 
-#ifdef CONFIG_CHARGE_LEVEL
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 	if ((0 == ignore_unstable_power) && ((in_curr > SW_REG_CURR_STEP_MA) && (chg_dtls != 0x8) &&
 		((byp_dtls & MAX77693_BYP_DTLS3) ||
 		((chgin_dtls != 0x3) && (vbvolt == 0x1))))) {
@@ -1446,7 +1446,7 @@ static void max77693_softreg_work(struct work_struct *work)
 		}
 
 		/* for margin */
-#ifdef CONFIG_CHARGE_LEVEL
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		if ((0 == ignore_safety_margin) && (chg_data->soft_reg_ing == true)) {
 #else
 		if (chg_data->soft_reg_ing == true) {
@@ -1847,7 +1847,7 @@ static irqreturn_t max77693_charger_irq(int irq, void *data)
 						chg_dtls, bat_dtls, mu_st2);
 
 #if defined(USE_CHGIN_INTR)
-#ifdef CONFIG_CHARGE_LEVEL
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 	if ((0 == ignore_unstable_power) && (((chgin_dtls == 0x0) || (chgin_dtls == 0x1)) &&
 			(vbvolt == 0x1) && (chg_dtls != 0x8))) {
 #else
