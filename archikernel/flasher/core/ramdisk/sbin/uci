@@ -6,7 +6,7 @@
 #  / ___ \| | | (__| | | | | . \  __/ |  | | | |  __/ |
 # /_/   \_\_|  \___|_| |_|_|_|\_\___|_|  |_| |_|\___|_|
 #
-# Copyright 2014 Łukasz "JustArchi" Domeradzki
+# Copyright 2015 Łukasz "JustArchi" Domeradzki
 # Contact: JustArchi@JustArchi.net
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,8 @@ CONFIG_JSON="$AK/config.json"
 AKSYNAPSE="/res/synapse"
 AKACTION="$AKSYNAPSE/actions"
 
-RESET_CONFIG() {
-	source "$AKSYNAPSE/config.json.generate" > "$CONFIG_JSON"
+PRINT_ACTIONPATH() {
+	echo "$AKACTION"
 }
 
 PRINT_CONFIG() {
@@ -38,12 +38,17 @@ PRINT_CONFIG() {
 	cat "$CONFIG_JSON"
 }
 
-PRINT_ACTIONPATH() {
-	echo "$AKACTION"
+DEBUG_CONFIG() {
+	source "$AKSYNAPSE/config.json.generate"
+}
+
+RESET_CONFIG() {
+	source "$AKSYNAPSE/config.json.generate" > "$CONFIG_JSON"
 }
 
 case "$1" in
-	config) PRINT_CONFIG ;;
 	actionpath) PRINT_ACTIONPATH ;;
+	config) PRINT_CONFIG ;;
+	debug) DEBUG_CONFIG ;;
 	reset) RESET_CONFIG ;;
 esac

@@ -21,16 +21,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export PATH="$AKACTION:$PATH"
+# Read -> Value between "[" and "]", e.g. "deadline" from "noop [deadline] cfq"
+# Write -> Generic
 
-cat << EOF
-{
-	sections: [
-		$(
-			find "$AKSYNAPSE" -type f -name "config.json.generate.*" | sort | while read line; do
-				source "$line"
-			done
-		)
-	]
-}
-EOF
+if [[ -f "$1" ]]; then
+	if [[ -n "$2" ]]; then
+		echo "$2" > "$1"
+	fi
+	sed -n -e '/\[[^]]/s/^[^[]*\[\([^]]*\)].*$/\1/p' < "$1"
+else
+	echo "N/A"
+fi

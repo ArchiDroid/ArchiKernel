@@ -6,7 +6,7 @@
 #  / ___ \| | | (__| | | | | . \  __/ |  | | | |  __/ |
 # /_/   \_\_|  \___|_| |_|_|_|\_\___|_|  |_| |_|\___|_|
 #
-# Copyright 2014 Łukasz "JustArchi" Domeradzki
+# Copyright 2015 Łukasz "JustArchi" Domeradzki
 # Contact: JustArchi@JustArchi.net
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,25 +21,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-echo "
+cat << EOF
 {
 	name:I/O,
 	elements:[
 		{
 			SPane:{
-				title:\"I/O schedulers\",
-				description:\"Set the active I/O elevator algorithm. The scheduler decides how to handle I/O requests\"
+				title:"I/O schedulers",
+				description:"Set the active I/O elevator algorithm. The scheduler decides how to handle I/O requests"
 			}
 		},
 		{
 			SOptionList:{
-				title:\"Internal storage scheduler\",
-				default:\"$(cat /sys/block/mmcblk0/queue/scheduler)\",
-				action:\"bracket-option /sys/block/mmcblk0/queue/scheduler\",
+				title:"Internal storage scheduler",
+				default:"$(AK_bracket /sys/block/mmcblk0/queue/scheduler)",
+				action:"AK_bracket /sys/block/mmcblk0/queue/scheduler",
 				values:[
 					$(
-						for IOSCHED in $(cat /sys/block/mmcblk0/queue/scheduler | sed -e 's/\[//;s/\]//'); do
-							echo "\"$IOSCHED\","
+						for IOSCHED in $(sed -e 's/\[//;s/\]//' < /sys/block/mmcblk0/queue/scheduler); do
+							echo ""$IOSCHED","
 						done
 					)
 				]
@@ -47,13 +47,13 @@ echo "
 		},
 		{
 			SOptionList:{
-				title:\"SD card scheduler\",
-				default:\"$(cat /sys/block/mmcblk1/queue/scheduler)\",
-				action:\"bracket-option /sys/block/mmcblk1/queue/scheduler\",
+				title:"SD card scheduler",
+				default:"$(AK_bracket /sys/block/mmcblk1/queue/scheduler)",
+				action:"AK_bracket /sys/block/mmcblk1/queue/scheduler",
 				values:[
 					$(
-						for IOSCHED in $(cat /sys/block/mmcblk1/queue/scheduler | sed -e 's/\[//;s/\]//'); do
-							echo "\"$IOSCHED\","
+						for IOSCHED in $(sed -e 's/\[//;s/\]//' < /sys/block/mmcblk1/queue/scheduler); do
+							echo ""$IOSCHED","
 						done
 					)
 				]
@@ -61,22 +61,22 @@ echo "
 		},
 		{
 			SSeekBar:{
-				title:\"Internal storage read-ahead\",
-				description:\"The read-ahead value on the internal phone memory.\",
-				max:2048, min:128, unit:\"kB\", step:128,
+				title:"Internal storage read-ahead",
+				description:"The read-ahead value on the internal phone memory.",
+				max:2048, min:128, unit:"kB", step:128,
 				default:$(cat /sys/block/mmcblk0/queue/read_ahead_kb),
-				action:\"generic /sys/block/mmcblk0/queue/read_ahead_kb\"
+				action:"AK_generic /sys/block/mmcblk0/queue/read_ahead_kb"
 			}
 		},
 		{
 			SSeekBar:{
-				title:\"SD card read-ahead\",
-				description:\"The read-ahead value on the external SD card.\",
-				max:2048, min:128, unit:\"kB\", step:128,
+				title:"SD card read-ahead",
+				description:"The read-ahead value on the external SD card.",
+				max:2048, min:128, unit:"kB", step:128,
 				default:$(cat /sys/block/mmcblk1/queue/read_ahead_kb),
-				action:\"generic /sys/block/mmcblk1/queue/read_ahead_kb\"
+				action:"AK_generic /sys/block/mmcblk1/queue/read_ahead_kb"
 			}
 		},
     ]
 }
-"
+EOF

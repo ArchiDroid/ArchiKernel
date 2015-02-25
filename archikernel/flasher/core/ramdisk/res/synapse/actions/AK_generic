@@ -6,7 +6,7 @@
 #  / ___ \| | | (__| | | | | . \  __/ |  | | | |  __/ |
 # /_/   \_\_|  \___|_| |_|_|_|\_\___|_|  |_| |_|\___|_|
 #
-# Copyright 2014 Łukasz "JustArchi" Domeradzki
+# Copyright 2015 Łukasz "JustArchi" Domeradzki
 # Contact: JustArchi@JustArchi.net
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,11 +21,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Read -> generic
+# Write -> generic
+
 if [[ -f "$1" ]]; then
-	if [[ ! -z "$2" ]]; then
+	if [[ -n "$2" ]]; then
 		echo "$2" > "$1"
 	fi
-	cat "$1" | sed -n -e '/\[[^]]/s/^[^[]*\[\([^]]*\)].*$/\1/p'
+	cat "$1"
 else
 	echo "N/A"
 fi
