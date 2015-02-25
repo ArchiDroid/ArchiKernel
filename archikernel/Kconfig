@@ -292,6 +292,12 @@ menu "ArchiKernel settings"
 
 	comment "Core features"
 
+	config ARCHIKERNEL_USE_ARCH_POWER
+		bool "Use arch dependent cpu power functions"
+		help
+			Arch Power causes arch dependent power functions to be used instead
+			of generic high resolution timer ticks and double ticks.
+
 
 
 	comment "Optimizations"
