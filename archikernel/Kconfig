@@ -292,6 +292,20 @@ menu "ArchiKernel settings"
 
 	comment "Core features"
 
+	config ARCHIKERNEL_CPU_OC
+		bool "Enable overclocking of the CPU up to 1600 MHz"
+		help
+			This option enables additional CPU clock frequencies up to 1600 Mhz.
+
+	config ARCHIKERNEL_CPU_OC_DEFAULT
+		bool "Use 1600 MHz overclocking step by default"
+		depends on ARCHIKERNEL_CPU_OC
+		help
+			Normally enabling OC will still keep maximum frequency at stock value, while
+			giving user an option to change it as he wish.
+			This option will set maximum frequency to OC frequency by default.
+			Use with caution!
+
 	config ARCHIKERNEL_USE_ARCH_POWER
 		bool "Use arch dependent cpu power functions"
 		help
