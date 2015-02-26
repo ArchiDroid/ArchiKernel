@@ -63,7 +63,7 @@ cat << EOF
 			SSeekBar:{
 				title:"Internal storage read-ahead",
 				description:"The read-ahead value on the internal phone memory.",
-				max:2048, min:128, unit:"kB", step:128,
+				max:2048, min:128, unit:" kB", step:128,
 				default:$(cat /sys/block/mmcblk0/queue/read_ahead_kb),
 				action:"AK_generic /sys/block/mmcblk0/queue/read_ahead_kb"
 			}
@@ -72,7 +72,7 @@ cat << EOF
 			SSeekBar:{
 				title:"SD card read-ahead",
 				description:"The read-ahead value on the external SD card.",
-				max:2048, min:128, unit:"kB", step:128,
+				max:2048, min:128, unit:" kB", step:128,
 				default:$(cat /sys/block/mmcblk1/queue/read_ahead_kb),
 				action:"AK_generic /sys/block/mmcblk1/queue/read_ahead_kb"
 			}

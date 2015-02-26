@@ -28,8 +28,8 @@ cat << EOF
 		{
 			SLiveLabel:{
 				title:"CPU temperature",
-				description:"Temperature sensor data as read from the TMU",
-				refresh:250,
+				description:"Data read from CPU temperature sensor",
+				refresh:500,
 				action:"echo \$(cat /sys/devices/platform/s5p-tmu/temperature) °C"
 			}
 		},
