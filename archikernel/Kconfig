@@ -334,6 +334,12 @@ menu "ArchiKernel settings"
 			A simple sysfs interface allowing user
 			to silent kernel's printk functions.
 
+	config ARCHIKERNEL_LOGCAT_INTERFACE
+		bool "Include logcat interface"
+		help
+			A simple sysfs interface allowing user
+			to silent android's logcat functions.
+
 
 
 	comment "Optimizations"
