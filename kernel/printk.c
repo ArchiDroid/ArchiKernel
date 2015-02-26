@@ -41,7 +41,9 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/rculist.h>
+#ifdef CONFIG_ARCHIKERNEL_PRINTK_INTERFACE
 #include "printk_interface.h"
+#endif
 
 #include <asm/uaccess.h>
 #include <mach/sec_debug.h>
@@ -833,11 +835,13 @@ asmlinkage int printk(const char *fmt, ...)
 	va_list args;
 	int r;
 
+#ifdef CONFIG_ARCHIKERNEL_PRINTK_INTERFACE
 	// if printk mode is disabled, terminate instantly
 	if (printk_mode == 0)
 	{
 		return 0;
 	}
+#endif
 
 #ifdef CONFIG_KGDB_KDB
 	if (unlikely(kdb_trap_printk)) {
@@ -934,11 +938,13 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	size_t plen;
 	char special;
 
+#ifdef CONFIG_ARCHIKERNEL_PRINTK_INTERFACE
         // if printk mode is disabled, terminate instantly
         if (printk_mode == 0)
         {
                 return 0;
         }
+#endif
 
 	boot_delay_msec();
 	printk_delay();

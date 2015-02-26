@@ -328,6 +328,12 @@ menu "ArchiKernel settings"
 			A simple sysfs interface to user customizable
 			pause to allow CRT off animation to be shown.
 
+	config ARCHIKERNEL_PRINTK_INTERFACE
+		bool "Include printk interface"
+		help
+			A simple sysfs interface allowing user
+			to silent kernel's printk functions.
+
 
 
 	comment "Optimizations"
