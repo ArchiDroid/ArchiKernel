@@ -43,7 +43,7 @@ cat << EOF
 				title:"CPU frequency",
 				description:"Current CPU frequency",
 				refresh:250,
-				action:"echo \$((\$(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq) / 1000)) MHz"
+				action:"for CORE in 0 1 2 3 4 5 6 7; do if [[ -e /sys/devices/system/cpu/cpu\${CORE} ]]; then if [[ -e /sys/devices/system/cpu/cpu\${CORE}/cpufreq/cpuinfo_cur_freq ]]; then echo CPU\${CORE}: \$((\$(cat /sys/devices/system/cpu/cpu\${CORE}/cpufreq/cpuinfo_cur_freq) / 1000)) MHz@n; else echo CPU\${CORE}: Offline@n; fi; else break; fi; done"
 			}
 		},
 		{
