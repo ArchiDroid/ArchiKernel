@@ -16,7 +16,7 @@
 #include <linux/earlysuspend.h>
 #include <linux/module.h>
 #include <linux/wait.h>
-#ifdef CONFIG_EARLY_SUSPEND_DELAY
+#ifdef CONFIG_ARCHIKERNEL_EARLY_SUSPEND_DELAY
 #include <linux/delay.h>
 #include <linux/fbearlysuspenddelay.h>
 #endif
@@ -37,7 +37,7 @@ static void stop_drawing_early_suspend(struct early_suspend *h)
 	int ret;
 	unsigned long irq_flags;
 
-#ifdef CONFIG_EARLY_SUSPEND_DELAY
+#ifdef CONFIG_ARCHIKERNEL_EARLY_SUSPEND_DELAY
 	if (early_suspend_delay != EARLY_SUSPEND_DISABLED)
 		msleep(early_suspend_delay); /* Allow for a little pause so CRT-off animation can be played (initial idea credits to codeworkx) */
 #endif

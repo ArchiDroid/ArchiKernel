@@ -17,7 +17,7 @@
 extern int early_suspend_delay;
 
 #define EARLY_SUSPEND_DISABLED 0
-#define EARLY_SUSPEND_DEFAULT 100	/* default is 100 ms */
+#define EARLY_SUSPEND_DEFAULT 0	/* disable by default */
 #define EARLY_SUSPEND_MAX 700
 
 #endif

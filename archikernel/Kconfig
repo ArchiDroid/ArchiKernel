@@ -322,6 +322,12 @@ menu "ArchiKernel settings"
 		help
 			Developed by AndiP71, allows configuration of various charging levels.
 
+	config ARCHIKERNEL_EARLY_SUSPEND_DELAY
+		bool "Include fbearlysuspend interface"
+		help
+			A simple sysfs interface to user customizable
+			pause to allow CRT off animation to be shown.
+
 
 
 	comment "Optimizations"
