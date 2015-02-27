@@ -21,14 +21,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Read -> generic, ARG1 only, strip all letters
-# Write -> generic
+# Read -> return current value from $1 for given $2 gain
+# Write -> set $3 value for given $2 gain in $1
 
-if [[ -f "$1" ]]; then
-	if [[ -n "$2" ]]; then
-		echo "$2" > "$1"
-	fi
-	awk '{print $1}' < "$1" | tr -d [:alpha:] | tr -d ':'
-else
-	echo "N/A"
+SYSFS_FILE="$1"
+GAIN="$2"
+
+if [[ -z "$3" ]]; then # Read mode
+	tr -d [:alpha:] < "$SYSFS_FILE" | tr -d ':' | awk "{print \$${GAIN}}" # Synapse return
+else # Write mode
+	GAIN_COUNTER=1
+	for GAIN_VALUE in $(tr -d [:alpha:] < "$SYSFS_FILE" | tr -d [:punct:]); do
+		if [[ "$GAIN_COUNTER" -eq "$GAIN" ]]; then
+			SYSFS_WRITE="$SYSFS_WRITE $3"
+		else
+			SYSFS_WRITE="$SYSFS_WRITE $GAIN_VALUE"
+		fi
+		((GAIN_COUNTER++))
+	done
+	echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
+	echo "$3" # Synapse return
 fi

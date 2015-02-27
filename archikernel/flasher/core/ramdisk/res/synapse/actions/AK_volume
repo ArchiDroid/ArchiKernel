@@ -21,14 +21,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Read -> generic, ARG1 only, strip all letters
-# Write -> generic
+# Read -> return current value from $1 for given $2 channel
+# Write -> set $3 value for given $2 channel in $1
 
-if [[ -f "$1" ]]; then
-	if [[ -n "$2" ]]; then
-		echo "$2" > "$1"
+SYSFS_FILE="$1"
+CHANNEL="$2"
+
+case "$CHANNEL" in
+	L) CHANNEL="2" ;;
+	R) CHANNEL="3" ;;
+esac
+
+if [[ -z "$3" ]]; then # Read mode
+	awk "FNR == $CHANNEL {print \$NF}" < "$1" # Synapse return
+else # Write mode
+	if [[ "$CHANNEL" -eq 2 ]]; then # Left
+		SYSFS_WRITE="$3 $(awk 'FNR == 3 {print $NF}' < "$1")"
+	else # Right
+		SYSFS_WRITE="$(awk 'FNR == 2 {print $NF}' < "$1") $3"
 	fi
-	awk '{print $1}' < "$1" | tr -d [:alpha:] | tr -d ':'
-else
-	echo "N/A"
+	echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
+	echo "$3" # Synapse return
 fi

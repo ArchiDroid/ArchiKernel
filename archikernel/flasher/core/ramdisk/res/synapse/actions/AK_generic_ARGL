@@ -21,14 +21,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Read -> generic, ARG1 only, strip all letters
+# Read -> generic, last ARG only
 # Write -> generic
 
 if [[ -f "$1" ]]; then
 	if [[ -n "$2" ]]; then
 		echo "$2" > "$1"
 	fi
-	awk '{print $1}' < "$1" | tr -d [:alpha:] | tr -d ':'
+	awk '{print $NF}' < "$1"
 else
 	echo "N/A"
 fi
