@@ -21,14 +21,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Read -> generic with newline
+# Read -> generic, ARG2 only
 # Write -> generic
 
 if [[ -f "$1" ]]; then
 	if [[ -n "$2" ]]; then
 		echo "$2" > "$1"
 	fi
-	echo "$(cat "$1" | awk '{print $1}')" # This is because returned value may have no newline
+	awk '{print $2}' < "$1"
 else
 	echo "N/A"
 fi

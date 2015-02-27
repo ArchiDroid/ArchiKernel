@@ -46,8 +46,8 @@ cat << EOF
 				title:"AC charge rate",
 				description:"This configures the charging rate when you load your phone via an AC charger",
 				max:1600, min:0, unit:" mA", step:25,
-				default:$(AK_generic_LF_ARG1 /sys/kernel/charge_levels/charge_level_ac),
-				action:"AK_generic_LF_ARG1 /sys/kernel/charge_levels/charge_level_ac"
+				default:$(AK_generic_ARG1 /sys/kernel/charge_levels/charge_level_ac),
+				action:"AK_generic_ARG1 /sys/kernel/charge_levels/charge_level_ac"
 			}
 		},
 		{
@@ -55,8 +55,8 @@ cat << EOF
 				title:"USB charge rate",
 				description:"This configures the charging rate when you load your phone via USB",
 				max:1600, min:0, unit:" mA", step:25,
-				default:$(AK_generic_LF_ARG1 /sys/kernel/charge_levels/charge_level_usb),
-				action:"AK_generic_LF_ARG1 /sys/kernel/charge_levels/charge_level_usb"
+				default:$(AK_generic_ARG1 /sys/kernel/charge_levels/charge_level_usb),
+				action:"AK_generic_ARG1 /sys/kernel/charge_levels/charge_level_usb"
 			}
 		},
 		{
@@ -64,8 +64,8 @@ cat << EOF
 				title:"Wireless charge rate",
 				description:"This configures the charging rate when you load your phone via a wireless charging cover",
 				max:1600, min:0, unit:" mA", step:25,
-				default:$(AK_generic_LF_ARG1 /sys/kernel/charge_levels/charge_level_wireless),
-				action:"AK_generic_LF_ARG1 /sys/kernel/charge_levels/charge_level_wireless"
+				default:$(AK_generic_ARG1 /sys/kernel/charge_levels/charge_level_wireless),
+				action:"AK_generic_ARG1 /sys/kernel/charge_levels/charge_level_wireless"
 			}
 		},
 		{

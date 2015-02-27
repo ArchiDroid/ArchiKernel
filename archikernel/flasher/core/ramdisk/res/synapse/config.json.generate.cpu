@@ -25,14 +25,35 @@ cat << EOF
 {
 	name:CPU,
 	elements:[
-		{
-			SLiveLabel:{
-				title:"CPU temperature",
-				description:"Data read from CPU temperature sensor",
-				refresh:500,
-				action:"echo \$(cat /sys/devices/platform/s5p-tmu/temperature) °C"
-			}
-		},
+		$(
+			if [[ -e /sys/devices/platform/s5p-tmu/temperature ]]; then
+cat << _EOF
+				{
+					SLiveLabel:{
+						title:"CPU temperature",
+						description:"Data read from CPU temperature sensor",
+						refresh:500,
+						action:"echo \$(cat /sys/devices/platform/s5p-tmu/temperature) °C"
+					}
+				},
+_EOF
+			fi
+		)
+		$(
+			if [[ -e /sys/devices/system/cpu/cpu0/cpufreq/asv_level ]]; then
+			ASV_LEVEL="$(cat /sys/devices/system/cpu/cpu0/cpufreq/asv_level)"
+cat << _EOF
+				{
+					SLiveLabel:{
+						title:"ASV level",
+						description:"ASV level is a measurement of your chip quality. Level 0 is the worst, while level 11 is the best. Better quality of the chip potentially improves OC/UV stability, giving you both faster and more battery-friendly values",
+						refresh:0,
+						action:"cat /sys/devices/system/cpu/cpu0/cpufreq/asv_level"
+					}
+				},
+_EOF
+			fi
+		)
 		{
 			STitleBar:{
 			title:"CPU frequency scaling"
@@ -82,21 +103,23 @@ cat << EOF
 			}
 		},
 		$(
-			cat /sys/devices/system/cpu/cpu0/cpufreq/UV_uV_table | sed -e 's/mhz://g;s/uV//g' | while read UV_TABLE; do
-				FREQ="$(echo "$UV_TABLE" | awk '{print $1}')"
-				VALUE="$(echo "$UV_TABLE" | awk '{print $2}')"
-cat << UV_EOF
-				{
-					SSeekBar:{
-						title:"$FREQ MHz step",
-						description:"asdasd",
-						max:1500000, min:600000, unit:" uV", step:12500,
-						default:$VALUE,
-						action:"AK_UV $FREQ"
-					}
-				},
-UV_EOF
-			done
+			if [[ -e /sys/devices/system/cpu/cpu0/cpufreq/UV_uV_table ]]; then
+				cat /sys/devices/system/cpu/cpu0/cpufreq/UV_uV_table | sed -e 's/mhz://g;s/uV//g' | while read UV_TABLE; do
+					FREQ="$(echo "$UV_TABLE" | awk '{print $1}')"
+					VALUE="$(echo "$UV_TABLE" | awk '{print $2}')"
+cat << _EOF
+					{
+						SSeekBar:{
+							title:"$FREQ MHz step",
+							description:"asdasd",
+							max:1500000, min:600000, unit:" uV", step:12500,
+							default:$VALUE,
+							action:"AK_UV $FREQ"
+						}
+					},
+_EOF
+				done
+			fi
 		)
 	]
 }

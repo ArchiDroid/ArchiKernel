@@ -77,6 +77,6 @@ cat << EOF
 				action:"AK_generic /sys/block/mmcblk1/queue/read_ahead_kb"
 			}
 		},
-    ]
+	]
 }
 EOF
