@@ -27,19 +27,37 @@
 SYSFS_FILE="$1"
 
 # Knows presets, don't forget to add them to the case below
-PRESETS="flat archi custom"
+PRESETS="Flat Archi BaseLand BassExtreme BassTreble Classic Dance Eargasm Pleasant Rock Treble Custom"
 PRESET_FLAT="0 0 0 0 0"
 PRESET_ARCHI="8 4 4 2 6"
+PRESET_BASELAND="8 7 4 3 3"
+PRESET_BASSEXTREME="12 8 3 -1 1"
+PRESET_BASSTREBLE="10 7 0 2 5"
+PRESET_CLASSIC="0 0 0 -3 -5"
+PRESET_DANCE="4 0 -6 0 3"
+PRESET_EARGASM="12 8 4 2 3"
+PRESET_PLEASANT="4 3 2 2 3"
+PRESET_ROCK="4 3 0 -4 3"
+PRESET_TREBLE="-5 1 0 4 3"
 
 if [[ "$SYSFS_FILE" = "ALL" ]]; then
 	echo "$PRESETS"
 else
 	if [[ -z "$2" ]]; then # Read mode
-		GAINS_CURRENT="$(tr -d '[:alpha:]' < "$SYSFS_FILE" | tr -d '[:punct:]')"
-		case "$GAINS_CURRENT" in # Known presets case
-			*"$PRESET_FLAT") echo "flat" ;; # Synapse return
-			*"$PRESET_ARCHI") echo "archi" ;; # Synapse return
-			*) echo "custom" ;; # Synapse return
+		GAINS_CURRENT="$(tr -d '[:alpha:]' < "$SYSFS_FILE" | tr -d ':')"
+		case "$GAINS_CURRENT" in # Known presets case, Synapse return
+			*"$PRESET_FLAT") echo "Flat" ;;
+			*"$PRESET_ARCHI") echo "Archi" ;;
+			*"$PRESET_BASELAND") echo "BaseLand" ;;
+			*"$PRESET_BASSEXTREME") echo "BassExtreme" ;;
+			*"$PRESET_BASSTREBLE") echo "BassTreble" ;;
+			*"$PRESET_CLASSIC") echo "Classic" ;;
+			*"$PRESET_DANCE") echo "Dance" ;;
+			*"$PRESET_EARGASM") echo "Eargasm" ;;
+			*"$PRESET_PLEASANT") echo "Pleasant" ;;
+			*"$PRESET_ROCK") echo "Rock" ;;
+			*"$PRESET_TREBLE") echo "Treble" ;;
+			*) echo "Custom"
 		esac
 	else # Write mode
 		PRESET_CHOSEN="$(echo "$2" | tr '[:lower:]' '[:upper:]')" # To uppercase
