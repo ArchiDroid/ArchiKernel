@@ -899,18 +899,8 @@ ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
 	int u[15];
    ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5], &u[6],
 															&u[7], &u[8], &u[9], &u[10], &u[11], &u[12], &u[13], &u[14]);
-	if(ret != 15) {
-		ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5], &u[6],
-															&u[7], &u[8], &u[9], &u[10], &u[11], &u[12], &u[13]);
-		if(ret != 14) {
-			ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5], &u[6],
-															&u[7], &u[8], &u[9], &u[10], &u[11], &u[12]);
-			if( ret != 12)
-				return -EINVAL;
-		}
-	}
 
-	for( i = 0; i < 15; i++ )
+	for( i = 0; i < ret; i++ )
 	{
 		u[i] *= 1000;
 		// round down voltages - thx to AndreiLux
@@ -925,7 +915,7 @@ ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
 		}
 	}
 
-	for( i = 0; i < 15; i++ ) {
+	for( i = 0; i < ret; i++ ) {
 		while(exynos_info->freq_table[i+j].frequency==CPUFREQ_ENTRY_INVALID)
 			j++;
 		exynos_info->volt_table[i+j] = u[i];
