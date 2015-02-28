@@ -32,12 +32,17 @@ set_progress(0.2);
 ui_print("root@ArchiKernel:~# Flashing ArchiKernel");
 delete_recursive("/tmp/archikernel");
 package_extract_dir("core", "/tmp/archikernel");
-set_perm(0, 0, 0755, "/tmp/archikernel/init.sh");
+set_metadata("/tmp/archikernel/init.sh", "uid", 0, "gid", 0, "mode", 0755);
+set_metadata("/tmp/archikernel/fixPreLollipop.sh", "uid", 0, "gid", 0, "mode", 0755);
 package_extract_file("prebuilt/zImage", "/tmp/archikernel/zImage");
 delete_recursive("/system/lib/modules");
 package_extract_dir("prebuilt/system", "/system");
 package_extract_dir("overlay", "/");
 set_progress(0.3);
+
+if run_program("/tmp/archikernel/fixPreLollipop.sh") != "0" then
+	ui_print("Notice: You're using pre-Lollipop ROM, perhaps it's time for update! :)");
+endif;
 
 if run_program("/tmp/archikernel/init.sh") == "0" then
 	ui_print("===================================");
