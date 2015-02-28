@@ -41,6 +41,7 @@ if [[ -e "$SYSFS_FILE" ]]; then
 			fi
 			((SLOPE_COUNTER++))
 		done
+		echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
 	fi
 else
 	echo "N/A"
