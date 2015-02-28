@@ -21,32 +21,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Read -> return current value for given $1 step
-# Write -> set $2 value for given $1 step
+# Read -> return current value for given $2 step from $1
+# Write -> set $3 value for given $2 step in $1
 
-SYSFS_FILE="/sys/devices/system/cpu/cpu0/cpufreq/UV_uV_table"
+SYSFS_FILE="$1"
+TARGET_TYPE="$2"
+TARGET_VALUE="$3"
 
-if [[ -z "$2" ]]; then # Read mode
-	sed -e 's/mhz://g;s/uV//g' < "$SYSFS_FILE" | while read UV_TABLE; do
-		FREQ="$(echo "$UV_TABLE" | awk '{print $1}')"
-		if [[ "$FREQ" -eq "$1" ]]; then
-			echo "$UV_TABLE" | awk '{print $2}' # Synapse return
-			break
-		fi
-	done
-else # Write mode
-	SYSFS_WRITE="$(
-		sed -e 's/mhz://g;s/uV//g' < "$SYSFS_FILE" | (while read UV_TABLE; do
+if [[ -e "$SYSFS_FILE" ]]; then
+	if [[ -z "$TARGET_VALUE" ]]; then # Read mode
+		sed -e 's/mhz://g;s/uV//g' < "$SYSFS_FILE" | while read UV_TABLE; do
 			FREQ="$(echo "$UV_TABLE" | awk '{print $1}')"
-			if [[ "$FREQ" -eq "$1" ]]; then
-				SYSFS_WRITE="$SYSFS_WRITE $2"
-			else
-				VALUE="$(echo "$UV_TABLE" | awk '{print $2}')"
-				SYSFS_WRITE="$SYSFS_WRITE $VALUE"
+			if [[ "$FREQ" -eq "$TARGET_TYPE" ]]; then
+				echo "$UV_TABLE" | awk '{print $2}' # Synapse return
+				break
 			fi
 		done
-		echo "$SYSFS_WRITE")
-	)"
-	echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
-	echo "$2" # Synapse return
+	else # Write mode
+		SYSFS_WRITE="$(
+			sed -e 's/mhz://g;s/uV//g' < "$SYSFS_FILE" | (while read UV_TABLE; do
+				FREQ="$(echo "$UV_TABLE" | awk '{print $1}')"
+				if [[ "$FREQ" -eq "$TARGET_TYPE" ]]; then
+					SYSFS_WRITE="$SYSFS_WRITE $TARGET_VALUE"
+				else
+					VALUE="$(echo "$UV_TABLE" | awk '{print $2}')"
+					SYSFS_WRITE="$SYSFS_WRITE $VALUE"
+				fi
+			done
+			echo "$SYSFS_WRITE")
+		)"
+		echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
+	fi
+else
+	echo "N/A"
 fi

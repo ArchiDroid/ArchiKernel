@@ -27,8 +27,9 @@
 if [[ -f "$1" ]]; then
 	if [[ -n "$2" ]]; then
 		echo "$2" > "$1"
+	else
+		cat "$1"
 	fi
-	cat "$1"
 else
 	echo "N/A"
 fi

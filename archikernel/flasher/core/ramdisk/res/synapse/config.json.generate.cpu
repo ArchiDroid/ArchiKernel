@@ -114,7 +114,7 @@ cat << _EOF
 							description:"asdasd",
 							max:1500000, min:600000, unit:" uV", step:12500,
 							default:$VALUE,
-							action:"AK_UV $FREQ"
+							action:"AK_UV /sys/devices/system/cpu/cpu0/cpufreq/UV_uV_table $FREQ"
 						}
 					},
 _EOF

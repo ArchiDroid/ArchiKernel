@@ -24,11 +24,12 @@
 # Read -> Value between "[" and "]", e.g. "deadline" from "noop [deadline] cfq"
 # Write -> Generic
 
-if [[ -f "$1" ]]; then
+if [[ -e "$1" ]]; then
 	if [[ -n "$2" ]]; then
 		echo "$2" > "$1"
+	else
+		sed -n -e '/\[[^]]/s/^[^[]*\[\([^]]*\)].*$/\1/p' < "$1"
 	fi
-	sed -n -e '/\[[^]]/s/^[^[]*\[\([^]]*\)].*$/\1/p' < "$1"
 else
 	echo "N/A"
 fi

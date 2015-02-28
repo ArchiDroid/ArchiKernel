@@ -25,20 +25,23 @@
 # Write -> set $3 value for given $2 slope in $1
 
 SYSFS_FILE="$1"
-SLOPE="$2"
+TARGET_TYPE="$2"
+TARGET_VALUE="$3"
 
-if [[ -z "$3" ]]; then # Read mode
-	tr -d '[:alpha:]' < "$SYSFS_FILE" | sed -e 's/,/ /g' | tr -d '[:punct:]' | awk "{print \$${SLOPE}}" # Synapse return
-else # Write mode
-	SLOPE_COUNTER=1
-	for SLOPE_VALUE in $(tr -d '[:alpha:]' < "$SYSFS_FILE" | sed -e 's/,/ /g' | tr -d '[:punct:]'); do
-		if [[ "$SLOPE_COUNTER" -eq "$SLOPE" ]]; then
-			SYSFS_WRITE="$SYSFS_WRITE $3"
-		else
-			SYSFS_WRITE="$SYSFS_WRITE $SLOPE_VALUE"
-		fi
-		((SLOPE_COUNTER++))
-	done
-	echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
-	echo "$3" # Synapse return
+if [[ -e "$SYSFS_FILE" ]]; then
+	if [[ -z "$TARGET_VALUE" ]]; then # Read mode
+		tr -d '[:alpha:]' < "$SYSFS_FILE" | sed -e 's/,/ /g' | tr -d '[:punct:]' | awk "{print \$${TARGET_TYPE}}" # Synapse return
+	else # Write mode
+		SLOPE_COUNTER=1
+		for SLOPE_VALUE in $(tr -d '[:alpha:]' < "$SYSFS_FILE" | sed -e 's/,/ /g' | tr -d '[:punct:]'); do
+			if [[ "$SLOPE_COUNTER" -eq "$TARGET_TYPE" ]]; then
+				SYSFS_WRITE="$SYSFS_WRITE $TARGET_VALUE"
+			else
+				SYSFS_WRITE="$SYSFS_WRITE $SLOPE_VALUE"
+			fi
+			((SLOPE_COUNTER++))
+		done
+	fi
+else
+	echo "N/A"
 fi

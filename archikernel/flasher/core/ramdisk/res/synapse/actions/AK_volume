@@ -25,21 +25,25 @@
 # Write -> set $3 value for given $2 channel in $1
 
 SYSFS_FILE="$1"
-CHANNEL="$2"
+TARGET_TYPE="$2"
+TARGET_VALUE="$3"
 
-case "$CHANNEL" in
-	L) CHANNEL="2" ;;
-	R) CHANNEL="3" ;;
-esac
+if [[ -e "$SYSFS_FILE" ]]; then
+	case "$TARGET_TYPE" in
+		L) TARGET_TYPE="2" ;;
+		R) TARGET_TYPE="3" ;;
+	esac
 
-if [[ -z "$3" ]]; then # Read mode
-	awk "FNR == $CHANNEL {print \$NF}" < "$1" # Synapse return
-else # Write mode
-	if [[ "$CHANNEL" -eq 2 ]]; then # Left
-		SYSFS_WRITE="$3 $(awk 'FNR == 3 {print $NF}' < "$1")"
-	else # Right
-		SYSFS_WRITE="$(awk 'FNR == 2 {print $NF}' < "$1") $3"
+	if [[ -z "$TARGET_VALUE" ]]; then # Read mode
+		awk "FNR == $TARGET_TYPE {print \$NF}" < "$SYSFS_FILE" # Synapse return
+	else # Write mode
+		if [[ "$TARGET_TYPE" -eq 2 ]]; then # Left
+			SYSFS_WRITE="$TARGET_VALUE $(awk 'FNR == 3 {print $NF}' < "$SYSFS_FILE")"
+		else # Right
+			SYSFS_WRITE="$(awk 'FNR == 2 {print $NF}' < "$SYSFS_FILE") $TARGET_VALUE"
+		fi
+		echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
 	fi
-	echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
-	echo "$3" # Synapse return
+else
+	echo "N/A"
 fi

@@ -25,6 +25,7 @@
 # Write -> set $2 preset in $1
 
 SYSFS_FILE="$1"
+TARGET_VALUE="$2"
 
 # Knows presets, don't forget to add them to the case below
 PRESETS="Flat Archi BaseLand BassExtreme BassTreble Classic Dance Eargasm Pleasant Rock Treble Custom"
@@ -42,8 +43,8 @@ PRESET_TREBLE="-5 1 0 4 3"
 
 if [[ "$SYSFS_FILE" = "ALL" ]]; then
 	echo "$PRESETS"
-else
-	if [[ -z "$2" ]]; then # Read mode
+elif [[ -e "$SYSFS_FILE" ]]; then
+	if [[ -z "$TARGET_VALUE" ]]; then # Read mode
 		GAINS_CURRENT="$(tr -d '[:alpha:]' < "$SYSFS_FILE" | tr -d ':')"
 		case "$GAINS_CURRENT" in # Known presets case, Synapse return
 			*"$PRESET_FLAT") echo "Flat" ;;
@@ -60,13 +61,14 @@ else
 			*) echo "Custom"
 		esac
 	else # Write mode
-		PRESET_CHOSEN="$(echo "$2" | tr '[:lower:]' '[:upper:]')" # To uppercase
+		PRESET_CHOSEN="$(echo "$TARGET_VALUE" | tr '[:lower:]' '[:upper:]')" # To uppercase
 		if [[ "$PRESET_CHOSEN" != "CUSTOM" ]]; then
 			eval SYSFS_WRITE="\${PRESET_$PRESET_CHOSEN}" # eval is evil
 			if [[ -n "$SYSFS_WRITE" ]]; then
 				echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
 			fi
 		fi
-		echo "$2" # Synapse return
 	fi
+else
+	echo "N/A"
 fi
