@@ -21,9 +21,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# exit 0 -> All fine, we're running Lollipop
+# exit 0 -> All fine, we're running Lollipop+
 # exit 1 -> All fine, we're running pre-Lollipop
-# exit 2 -> No build.prop detected, or invalid value, assume pre-Lollipop, which seems to still work
+# exit 2 -> No build.prop detected, or invalid value, assume Lollipop+
 
 APKS="/system/app/Synapse/Synapse.apk"
 

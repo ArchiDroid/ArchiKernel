@@ -40,8 +40,10 @@ package_extract_dir("prebuilt/system", "/system");
 package_extract_dir("overlay", "/");
 set_progress(0.3);
 
-if run_program("/tmp/archikernel/fixPreLollipop.sh") != "0" then
-	ui_print("Notice: You're using pre-Lollipop ROM, perhaps it's time for update! :)");
+if run_program("/tmp/archikernel/fixPreLollipop.sh") == "1" then
+	ui_print("ArchiDetect: Detected pre-Lollipop ROM. Perhaps it's time for update! :)");
+else
+	ui_print("ArchiDetect: Detected Lollipop+ ROM");
 endif;
 
 if run_program("/tmp/archikernel/init.sh") == "0" then
