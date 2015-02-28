@@ -77,6 +77,26 @@ cat << EOF
 				action:"AK_generic /sys/block/mmcblk1/queue/read_ahead_kb"
 			}
 		},
+		$(
+			if [[ -e /sys/kernel/dyn_fsync/Dyn_fsync_active ]]; then
+cat << _EOF
+				{
+					SPane:{
+						title:"Dynamic fsync",
+						description:"$(cat /sys/kernel/dyn_fsync/Dyn_fsync_version)"
+					}
+				},
+				{
+					SCheckBox:{
+						label:"Dynamic fsync",
+						description:"The dynamic fsync uses Android's early suspend / late resume interface. While screen is on, file sync is disabled, when screen goes off, a file sync is called to flush all outstanding writes and sync operates as normal. This option can provide additional smoothness related to I/O operations, for a minimal, negligible chance of data loss, in case of kernel panics",
+						default:$(AK_generic /sys/kernel/dyn_fsync/Dyn_fsync_active),
+						action:"AK_generic /sys/kernel/dyn_fsync/Dyn_fsync_active"
+					}
+				},
+_EOF
+			fi
+		)
 	]
 }
 EOF
