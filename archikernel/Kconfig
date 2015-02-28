@@ -340,6 +340,12 @@ menu "ArchiKernel settings"
 			A simple sysfs interface allowing user
 			to silent android's logcat functions.
 
+	config ARCHIKERNEL_LEDS_INTERFACE
+		bool "Include leds interface"
+		help
+			A simple sysfs interface allowing user
+			to modify led behaviour.
+
 
 
 	comment "Optimizations"
