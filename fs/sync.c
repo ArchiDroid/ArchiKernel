@@ -18,7 +18,7 @@
 #include <linux/backing-dev.h>
 #include "internal.h"
 
-#ifdef CONFIG_DYNAMIC_FSYNC
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 extern bool early_suspend_active;
 extern bool dyn_fsync_active;
 #endif
@@ -92,7 +92,11 @@ static void sync_one_sb(struct super_block *sb, void *arg)
  * Sync all the data for all the filesystems (called by sys_sync() and
  * emergency sync)
  */
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 void sync_filesystems(int wait)
+#else
+static void sync_filesystems(int wait)
+#endif
 {
 	iterate_supers(sync_one_sb, &wait);
 }
@@ -170,7 +174,7 @@ SYSCALL_DEFINE1(syncfs, int, fd)
  */
 int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
-#ifdef CONFIG_DYNAMIC_FSYNC
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 	if (unlikely(dyn_fsync_active && !early_suspend_active))
 		return 0;
 	else {
@@ -198,7 +202,7 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 
 out:
 	return ret;
-#ifdef CONFIG_DYNAMIC_FSYNC
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 	}
 #endif
 }
@@ -233,7 +237,7 @@ static int do_fsync(unsigned int fd, int datasync)
 
 SYSCALL_DEFINE1(fsync, unsigned int, fd)
 {
-#ifdef CONFIG_DYNAMIC_FSYNC
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 	if (unlikely(dyn_fsync_active && !early_suspend_active))
 		return 0;
 	else
@@ -243,7 +247,7 @@ SYSCALL_DEFINE1(fsync, unsigned int, fd)
 
 SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 {
-#ifdef CONFIG_DYNAMIC_FSYNC
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 	if (unlikely(dyn_fsync_active && !early_suspend_active))
 		return 0;
 	else
@@ -318,7 +322,7 @@ EXPORT_SYMBOL(generic_write_sync);
 SYSCALL_DEFINE(sync_file_range)(int fd, loff_t offset, loff_t nbytes,
 				unsigned int flags)
 {
-#ifdef CONFIG_DYNAMIC_FSYNC
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 	if (unlikely(dyn_fsync_active && !early_suspend_active))
 		return 0;
 	else {
@@ -403,7 +407,7 @@ out_put:
 	fput_light(file, fput_needed);
 out:
 	return ret;
-#ifdef CONFIG_DYNAMIC_FSYNC
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 	}
 #endif
 }
@@ -422,7 +426,7 @@ SYSCALL_ALIAS(sys_sync_file_range, SyS_sync_file_range);
 SYSCALL_DEFINE(sync_file_range2)(int fd, unsigned int flags,
 				 loff_t offset, loff_t nbytes)
 {
-#ifdef CONFIG_DYNAMIC_FSYNC
+#ifdef CONFIG_ARCHIKERNEL_DYNAMIC_FSYNC
 	if (unlikely(dyn_fsync_active && !early_suspend_active))
 		return 0;
 	else

@@ -346,6 +346,11 @@ menu "ArchiKernel settings"
 			A simple sysfs interface allowing user
 			to modify led behaviour.
 
+	config ARCHIKERNEL_DYNAMIC_FSYNC
+		bool "Include dynamic file sync control"
+		help
+			An experimental file sync control using Android's early suspend / late resume drivers.
+
 
 
 	comment "Optimizations"
