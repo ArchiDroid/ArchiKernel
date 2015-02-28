@@ -28,10 +28,10 @@ SYSFS_FILE="$1"
 GAIN="$2"
 
 if [[ -z "$3" ]]; then # Read mode
-	tr -d [:alpha:] < "$SYSFS_FILE" | tr -d ':' | awk "{print \$${GAIN}}" # Synapse return
+	tr -d '[:alpha:]' < "$SYSFS_FILE" | tr -d ':' | awk "{print \$${GAIN}}" # Synapse return
 else # Write mode
 	GAIN_COUNTER=1
-	for GAIN_VALUE in $(tr -d [:alpha:] < "$SYSFS_FILE" | tr -d [:punct:]); do
+	for GAIN_VALUE in $(tr -d '[:alpha:]' < "$SYSFS_FILE" | tr -d ':'); do
 		if [[ "$GAIN_COUNTER" -eq "$GAIN" ]]; then
 			SYSFS_WRITE="$SYSFS_WRITE $3"
 		else

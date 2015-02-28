@@ -28,7 +28,7 @@ if [[ -f "$1" ]]; then
 	if [[ -n "$2" ]]; then
 		echo "$2" > "$1"
 	fi
-	tr -d [:alpha:] < "$1" | tr -d ':'
+	tr -d '[:alpha:]' < "$1" | tr -d ':'
 else
 	echo "N/A"
 fi
