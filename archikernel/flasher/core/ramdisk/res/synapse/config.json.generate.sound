@@ -68,7 +68,7 @@ cat << _EOF
 				},
 				{
 					STitleBar:{
-					title:"Microphone"
+						title:"Microphone"
 					}
 				},
 				{
@@ -91,7 +91,7 @@ cat << _EOF
 				},
 				{
 					STitleBar:{
-					title:"Speakers"
+						title:"Speakers"
 					}
 				},
 				{
@@ -122,7 +122,7 @@ cat << _EOF
 				},
 				{
 					STitleBar:{
-					title:"Headphones"
+						title:"Headphones"
 					}
 				},
 				{
@@ -186,7 +186,7 @@ cat << _EOF
 				},
 				{
 					STitleBar:{
-					title:"Kernel equalizer"
+						title:"Kernel equalizer"
 					}
 				},
 				{
@@ -490,7 +490,7 @@ cat << _EOF
 				},
 				{
 					STitleBar:{
-					title:"Other"
+						title:"Other"
 					}
 				},
 				{
