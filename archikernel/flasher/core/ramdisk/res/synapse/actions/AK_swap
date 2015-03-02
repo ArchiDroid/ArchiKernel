@@ -41,6 +41,8 @@ else # Write mode
 	if [[ "$2" -gt 0 ]]; then
 		dd if=/dev/zero of="$1" bs=1m count="$2" >/dev/null 2>&1
 		mkswap "$1"
+		chown 0:0 "$1" # We don't want to create
+		chmod 0600 "$1" # A potential security risk
 
 		SWAP_BIN="swapon"
 		SWAP_CMD="-p 1"
