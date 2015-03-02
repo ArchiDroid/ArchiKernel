@@ -305,7 +305,6 @@ cat << _EOF
 								to:[
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 1 1",
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 1 2",
-									"AK_band /sys/class/misc/boeffla_sound/eq_bands 1 3",
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 1 4",
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 2 1",
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 2 2",
@@ -321,7 +320,6 @@ cat << _EOF
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 4 4",
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 5 1",
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 5 2",
-									"AK_band /sys/class/misc/boeffla_sound/eq_bands 5 3",
 									"AK_band /sys/class/misc/boeffla_sound/eq_bands 5 4",
 								]
 							}
@@ -344,15 +342,6 @@ cat << _EOF
 						max:65535, min:0, unit:"", step:1,
 						default:$(AK_band /sys/class/misc/boeffla_sound/eq_bands 1 2),
 						action:"AK_band /sys/class/misc/boeffla_sound/eq_bands 1 2"
-					}
-				},
-				{
-					SSeekBar:{
-						title:"Band 1 value C",
-						description:"",
-						max:65535, min:0, unit:"", step:1,
-						default:$(AK_band /sys/class/misc/boeffla_sound/eq_bands 1 3),
-						action:"AK_band /sys/class/misc/boeffla_sound/eq_bands 1 3"
 					}
 				},
 				{
@@ -488,15 +477,6 @@ cat << _EOF
 						max:65535, min:0, unit:"", step:1,
 						default:$(AK_band /sys/class/misc/boeffla_sound/eq_bands 5 2),
 						action:"AK_band /sys/class/misc/boeffla_sound/eq_bands 5 2"
-					}
-				},
-				{
-					SSeekBar:{
-						title:"Band 5 value C",
-						description:"",
-						max:65535, min:0, unit:"", step:1,
-						default:$(AK_band /sys/class/misc/boeffla_sound/eq_bands 5 3),
-						action:"AK_band /sys/class/misc/boeffla_sound/eq_bands 5 3"
 					}
 				},
 				{

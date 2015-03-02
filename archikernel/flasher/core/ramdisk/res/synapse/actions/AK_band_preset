@@ -28,7 +28,7 @@ SYSFS_FILE="$1"
 TARGET_VALUE="$2"
 
 # Knows presets
-KNOWN_PRESETS="Default BassOptimization"
+KNOWN_PRESETS="BassOptimization Default"
 ALL_PRESETS="$KNOWN_PRESETS Custom"
 
 PRESET_Default_1="4042 1024 0 215"
@@ -52,13 +52,13 @@ elif [[ -e "$SYSFS_FILE" ]]; then
 			eval PRESET_${PRESET_CHOSEN}_BOOL=1 # eval is evil
 		done
 		BAND_COUNTER=1
-		tr -d '[:alpha:]' < /sys/class/misc/boeffla_sound/eq_bands | cut -d ' ' -f 2- | (while read CURRENT_VALUES; do
-			if [[ -z "$CURRENT_VALUES" ]]; then
+		tr -d '[:alpha:]' < /sys/class/misc/boeffla_sound/eq_bands | cut -d ' ' -f 2- | (while read BANDS_CURRENT; do
+			if [[ -z "$BANDS_CURRENT" ]]; then
 				continue
 			fi
 			for PRESET_CHOSEN in $KNOWN_PRESETS; do
 				eval PRESET_VALUES="\${PRESET_${PRESET_CHOSEN}_${BAND_COUNTER}}" # eval is evil
-				if [[ "$CURRENT_VALUES" != "$PRESET_VALUES" ]]; then
+				if [[ "$BANDS_CURRENT" != "$PRESET_VALUES" ]]; then
 					eval PRESET_${PRESET_CHOSEN}_BOOL=0 # eval is evil
 				fi
 			done
@@ -78,7 +78,7 @@ elif [[ -e "$SYSFS_FILE" ]]; then
 			echo "Custom"
 		fi)
 	else # Write mode
-		if [[ "$TARGET_VALUE" != "CUSTOM" ]]; then
+		if [[ "$TARGET_VALUE" != "Custom" ]]; then
 			for BAND in "1" "2" "3" "4" "5"; do
 				eval SYSFS_WRITE="\${PRESET_${TARGET_VALUE}_${BAND}}" # eval is evil
 				if [[ -n "$SYSFS_WRITE" ]]; then
