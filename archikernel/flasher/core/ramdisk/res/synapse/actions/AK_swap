@@ -31,29 +31,31 @@ if [[ -z "$2" ]]; then # Read mode
 		echo "0"
 	fi
 else # Write mode
-	awk '{print $1}' < /proc/swaps | while read SWAP_ACTIVE; do
-		if [[ "$SWAP_ACTIVE" = "$1" && "$(du -m "$1" | awk '{print $1}')" -ne "$2" ]]; then
-			swapoff "$1"
-			rm $1
-			break
-		fi
-	done
-	if [[ "$2" -gt 0 ]]; then
-		dd if=/dev/zero of="$1" bs=1m count="$2" >/dev/null 2>&1
-		mkswap "$1"
-		chown 0:0 "$1" # We don't want to create
-		chmod 0600 "$1" # A potential security risk
-
-		SWAP_BIN="swapon"
-		SWAP_CMD="-p 1"
-		if ! swapon 2>&1 | grep -qi "\-p pri"; then # If swapon doesn't support priority
-			if ! busybox swapon 2>&1 | grep -qi "\-p pri"; then # If busybox swapon doesn't support priority
-				SWAP_CMD="" # Disable priority
-			else
-				SWAP_BIN="busybox swapon" # Change binary to busybox swapon, as it supports priority
+	if [[ "$(du -m "$1" | awk '{print $1}')" -ne "$2" ]]; then # Do something only when needed
+		awk '{print $1}' < /proc/swaps | while read SWAP_ACTIVE; do
+			if [[ "$SWAP_ACTIVE" = "$1" ]]; then
+				swapoff "$1"
+				rm $1
+				break
 			fi
-		fi
+		done
+		if [[ "$2" -gt 0 ]]; then
+			dd if=/dev/zero of="$1" bs=1m count="$2" >/dev/null 2>&1
+			mkswap "$1"
+			chown 0:0 "$1" # We don't want to create
+			chmod 0600 "$1" # A potential security risk
 
-		$SWAP_BIN $SWAP_CMD "$1"
+			SWAP_BIN="swapon"
+			SWAP_CMD="-p 1"
+			if ! swapon 2>&1 | grep -qi "\-p pri"; then # If swapon doesn't support priority
+				if ! busybox swapon 2>&1 | grep -qi "\-p pri"; then # If busybox swapon doesn't support priority
+					SWAP_CMD="" # Disable priority
+				else
+					SWAP_BIN="busybox swapon" # Change binary to busybox swapon, as it supports priority
+				fi
+			fi
+
+			$SWAP_BIN $SWAP_CMD "$1"
+		fi
 	fi
 fi
