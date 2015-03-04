@@ -3522,7 +3522,10 @@ CONFIG_STAGING=y
 # CONFIG_VME_BUS is not set
 # CONFIG_DX_SEP is not set
 # CONFIG_IIO is not set
+CONFIG_ZRAM=y
+# CONFIG_ZRAM_DEBUG is not set
 CONFIG_QCACHE=y
+CONFIG_ZSMALLOC=y
 # CONFIG_FB_SM7XX is not set
 # CONFIG_CRYSTALHD is not set
 # CONFIG_FB_XGI is not set
