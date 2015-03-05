@@ -106,7 +106,11 @@ static uint32_t oom_count = 0;
 #define OOM_DEPTH 7
 #endif
 
+#ifdef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+static uint32_t lowmem_debug_level = 0;
+#else
 static uint32_t lowmem_debug_level = 2;
+#endif
 static int lowmem_adj[6] = {
 	0,
 	1,
