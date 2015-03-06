@@ -95,4 +95,4 @@ obj-$(CONFIG_TIMA_LOG)		+= tima_debug_log.o
 endif
 
 # Touchwake
-obj-$(CONFIG_TOUCH_WAKE)        += touch_wake.o
+obj-$(CONFIG_ARCHIKERNEL_TOUCH_WAKE)        += touch_wake.o

@@ -367,6 +367,12 @@ menu "ArchiKernel settings"
 			A simple sysfs interface allowing user
 			to modify touchboost behaviour.
 
+	config ARCHIKERNEL_TOUCH_WAKE
+		bool "Include TouchWake"
+		depends on TOUCHSCREEN_MELFAS
+		help
+			A feature that allows to turn on the screen by screen event after timeout.
+
 
 
 	comment "Optimizations"

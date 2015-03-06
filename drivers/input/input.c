@@ -27,9 +27,9 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include "input-compat.h"
-#include <linux/telephony.h>
 
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
+#include <linux/telephony.h>
 #include <linux/touch_wake.h>
 #endif
 

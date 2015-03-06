@@ -14,7 +14,7 @@
  */
 #include "ssp.h"
 
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
 #include <linux/touch_wake.h>
 #endif
 
@@ -206,7 +206,7 @@ void report_prox_data(struct ssp_data *data, struct sensor_value *proxdata)
 	ssp_dbg("[SSP] Proximity Sensor Detect : %u, raw : %u\n",
 		proxdata->prox[0], proxdata->prox[1]);
 
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
 	if (proxdata->prox[0]) { // true if proximity detected
 		proximity_detected();
   } else {

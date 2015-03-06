@@ -30,7 +30,7 @@
 #include <linux/fake_shut_down.h>
 #include <linux/wakelock.h>
 #endif
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
 #include <linux/touch_wake.h>
 #endif
 
@@ -959,7 +959,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 		input_set_capability(input, type, button->code);
 
-		#ifdef CONFIG_TOUCH_WAKE
+		#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
 			  set_powerkeydev(input);
 		#endif		
 	}

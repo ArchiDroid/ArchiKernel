@@ -33,7 +33,7 @@
 #include <linux/sensor/cm36651.h>
 #include <linux/sensor/sensors_core.h>
 
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
 #include <linux/touch_wake.h>
 #endif
 
@@ -483,7 +483,7 @@ static ssize_t proximity_enable_store(struct device *dev,
 		return -EINVAL;
 	}
 	
-	#ifdef CONFIG_TOUCH_WAKE
+	#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
 		if (new_value) { // true if proximity detected
 			proximity_detected();
 		} else {

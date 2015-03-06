@@ -54,7 +54,7 @@
 #include "touchboost_switch.h"
 #endif
 
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
 #include <linux/touch_wake.h>
 #endif
 
@@ -795,7 +795,7 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 			touch_is_pressed++;
 	}
 
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
   touch_press();
 #endif
 
@@ -3128,7 +3128,7 @@ static int mms_ts_resume(struct device *dev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void mms_ts_early_suspend(struct early_suspend *h)
 {
-#ifndef CONFIG_TOUCH_WAKE
+#ifndef CONFIG_ARCHIKERNEL_TOUCH_WAKE
   struct mms_ts_info *info;
   info = container_of(h, struct mms_ts_info, early_suspend);
   mms_ts_suspend(&info->client->dev);
@@ -3137,7 +3137,7 @@ static void mms_ts_early_suspend(struct early_suspend *h)
 
 static void mms_ts_late_resume(struct early_suspend *h)
 {
-#ifndef CONFIG_TOUCH_WAKE
+#ifndef CONFIG_ARCHIKERNEL_TOUCH_WAKE
   struct mms_ts_info *info;
   info = container_of(h, struct mms_ts_info, early_suspend);
   mms_ts_resume(&info->client->dev);
@@ -3145,7 +3145,7 @@ static void mms_ts_late_resume(struct early_suspend *h)
 }
 #endif
 
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
 static struct mms_ts_info * touchwake_data;
 void touchscreen_disable(void)
 {
@@ -3352,7 +3352,7 @@ static int __devinit mms_ts_probe(struct i2c_client *client,
 #endif
 #endif
 
-#ifdef CONFIG_TOUCH_WAKE
+#ifdef CONFIG_ARCHIKERNEL_TOUCH_WAKE
   touchwake_data = info;
     if (touchwake_data == NULL)
     pr_err("[TOUCHWAKE] Failed to set touchwake_data\n");
