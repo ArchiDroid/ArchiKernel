@@ -63,7 +63,7 @@ BEEP=1 # This will beep three times on finish to wake me up :). Works even throu
 TARGETDIR="archikernel/flasher" # This is the general output path. Don't change it, change TARGETZIPDIR above instead
 TARGETDIRKERNEL="$TARGETDIR/prebuilt" # This is where zImage is put, this shouldn't be changed
 TARGETDIRMODULES="$TARGETDIRKERNEL/system/lib/modules" # Similar to above, but for modules
-TARGETZIPNAME="ArchiKernel_$(date '+%d%m%y_%H%M%S')" # Name of output zip. By keeping a date here we can be sure that all zips will be unique
+TARGETZIPNAME="ArchiKernel_$(date '+%y%m%d_%H%M%S')" # Name of output zip. By keeping a date here we can be sure that all zips will be unique
 JOBS="$(grep -c "processor" "/proc/cpuinfo")" # Maximum number of jobs, can be declared statically if needed, default to number of threads of the CPU
 
 # This is where magic starts
