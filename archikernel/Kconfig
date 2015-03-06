@@ -316,6 +316,12 @@ menu "ArchiKernel settings"
 		help
 			This option enables the voltage control interface of the CPU.
 
+	config ARCHIKERNEL_GPU_CLOCK_CONTROL
+		bool "Enable overcloking/undervolting of the GPU"
+		depends on MALI400
+		help
+			This enables a sysfs interface to control gpu clock and voltage.
+
 	config ARCHIKERNEL_USE_ARCH_POWER
 		bool "Use arch dependent cpu power functions"
 		help

@@ -120,7 +120,7 @@ ifneq ($(MALI_PLATFORM_FILES),)
 	mali-y += $(MALI_PLATFORM_FILES:.c=.o)
 endif
 
-ifeq ($(CONFIG_GPU_CLOCK_CONTROL),y)
+ifeq ($(CONFIG_ARCHIKERNEL_GPU_CLOCK_CONTROL),y)
 mali-y += common/gpu_clock_control.o
 mali-y += common/gpu_voltage_control.o
 endif
