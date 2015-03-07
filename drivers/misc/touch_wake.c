@@ -30,6 +30,15 @@
  * Bumped version to 1.2
  *
  *                                         Lord Boeffla aka andip71 <andip71@gmx.de>
+ *
+ * --------------------------------------------------------------------------------------
+ *
+ * Misc fixes in branch predictions, proper handling of "0" knockon_delay, tweak of
+ * default values
+ *
+ * Bumped version to 1.2a
+ *
+ *                            Łukasz "JustArchi" Domeradzki <JustArchi@JustArchi.net>
  */
 
 #include <linux/init.h>
@@ -55,7 +64,7 @@ static bool timed_out = true;
 static bool prox_near = false;
 bool knockon = false;
 static bool knocked = false;
-static unsigned int touchoff_delay = 45000;
+static unsigned int touchoff_delay = 10000;
 static unsigned int knockon_delay = 500;
 static bool charger_mode = false;
 
@@ -71,7 +80,7 @@ static struct input_dev * powerkey_device;
 static struct wake_lock touchwake_wake_lock;
 static struct timeval last_powerkeypress;
 
-#define TOUCHWAKE_VERSION "1.2"
+#define TOUCHWAKE_VERSION "1.2a"
 #define TIME_LONGPRESS 500
 #define POWERPRESS_DELAY 100
 #define POWERPRESS_TIMEOUT 1000
@@ -106,21 +115,19 @@ static void touchwake_early_suspend(struct early_suspend * h)
 	#endif
 
 	if (touchwake_enabled) {
-		if ((charge_info_cable_type != POWER_SUPPLY_TYPE_BATTERY) && charger_mode)	{
+		if ((charge_info_cable_type != POWER_SUPPLY_TYPE_BATTERY) && charger_mode) {
 			if (timed_out && !prox_near) {
 				#ifdef DEBUG_PRINT
-				pr_info("[TOUCHWAKE] Charger plug mode - keep touch enabled indefinately\n");
+				pr_info("[TOUCHWAKE] Charger plug mode - keep touch enabled indefinitely\n");
 				#endif
 				wake_lock(&touchwake_wake_lock);
 			}
-		}
-		else if (likely(touchoff_delay > 0))	{
+		} else if (likely(touchoff_delay > 0)) {
 			if (timed_out && !prox_near) {
 				#ifdef DEBUG_PRINT
 				pr_info("[TOUCHWAKE] Early suspend - enable touch delay\n");
 				#endif
 				wake_lock(&touchwake_wake_lock);
-
 				schedule_delayed_work(&touchoff_work, msecs_to_jiffies(touchoff_delay));
 			} else {
 				#ifdef DEBUG_PRINT
@@ -131,12 +138,12 @@ static void touchwake_early_suspend(struct early_suspend * h)
 		} else {
 			if (timed_out && !prox_near) {
 				#ifdef DEBUG_PRINT
-				pr_info("[TOUCHWAKE] Early suspend - keep touch enabled indefinately\n");
+				pr_info("[TOUCHWAKE] Early suspend - keep touch enabled indefinitely\n");
 				#endif
 				wake_lock(&touchwake_wake_lock);
 			} else {
 				#ifdef DEBUG_PRINT
-				pr_info("[TOUCHWAKE] Early suspend - disable touch immediately (indefinate mode)\n");
+				pr_info("[TOUCHWAKE] Early suspend - disable touch immediately (indefinite mode)\n");
 				#endif
 				touchwake_disable_touch();
 			}
@@ -436,7 +443,7 @@ void powerkey_released(void)
 	time_pressed = (now.tv_sec - last_powerkeypress.tv_sec) * MSEC_PER_SEC +
 	(now.tv_usec - last_powerkeypress.tv_usec) / USEC_PER_MSEC;
 
-	if (unlikely(time_pressed > TIME_LONGPRESS || device_suspended)) {
+	if (time_pressed > TIME_LONGPRESS || device_suspended) {
 		timed_out = true; // Yank555 : OK, user is not turning off device, but long-pressing Powerkey, or turing on device, so back to normal
 		#ifdef DEBUG_PRINT
 		pr_info("[TOUCHWAKE] Powerkey longpress detected released\n");
@@ -460,14 +467,16 @@ void touch_press(void)
 	if (knockon) {
 		if (knocked) {
 			knocked = false;
-			if (unlikely(device_suspended && touchwake_enabled && !prox_near && mutex_trylock(&lock)))
+			if (device_suspended && touchwake_enabled && !prox_near && mutex_trylock(&lock))
 				schedule_work(&presspower_work);
 		} else {
 			knocked = true;
-			schedule_delayed_work(&knockon_work, msecs_to_jiffies(knockon_delay));
+			if (likely(knockon_delay > 0)) {
+				schedule_delayed_work(&knockon_work, msecs_to_jiffies(knockon_delay));
+			}
 		}
 	} else {
-		if (unlikely(device_suspended && touchwake_enabled && !prox_near && mutex_trylock(&lock)))
+		if (device_suspended && touchwake_enabled && !prox_near && mutex_trylock(&lock))
 			schedule_work(&presspower_work);
 	}
 
