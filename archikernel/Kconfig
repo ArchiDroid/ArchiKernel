@@ -166,6 +166,30 @@ menu "ArchiKernel settings"
 	endchoice
 
 
+	choice
+		prompt "Target number of CPU cores"
+		default ARCHIKERNEL_TARGET_CPU_CORES_UNKNOWN
+		help
+			This specifies number of cores on target CPU. This enables optimizations
+			such as loop parallelizing or optimized word registers.
+
+	config ARCHIKERNEL_TARGET_CPU_CORES_QUAD
+		bool "Quad"
+		help
+			4 Cores.
+
+	config ARCHIKERNEL_TARGET_CPU_CORES_DOUBLE
+		bool "Double"
+		help
+			2 Cores.
+
+	config ARCHIKERNEL_TARGET_CPU_CORES_UNKNOWN
+		bool "Unknown"
+		help
+			Unknown number of cores, select this if you don't want to apply multicore optimizations.
+	endchoice
+
+
 
 	comment "Core options"
 
