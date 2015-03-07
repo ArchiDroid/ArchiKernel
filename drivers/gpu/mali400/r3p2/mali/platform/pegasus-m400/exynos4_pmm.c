@@ -293,7 +293,9 @@ void mali_regulator_set_voltage(int min_uV, int max_uV)
 		_mali_osk_lock_signal(mali_dvfs_lock, _MALI_OSK_LOCKMODE_RW);
 		return;
 	}
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	MALI_PRINT(("= regulator_set_voltage: %d, %d \n",min_uV, max_uV));
+#endif
 	regulator_set_voltage(g3d_regulator, min_uV, max_uV);
 	mali_gpu_vol = regulator_get_voltage(g3d_regulator);
 	MALI_DEBUG_PRINT(1, ("Mali voltage: %d\n", mali_gpu_vol));
@@ -505,7 +507,9 @@ void mali_clk_set_rate(unsigned int clk, unsigned int mhz)
 
 	rate = mali_clk_get_rate();
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	MALI_PRINT(("Mali frequency %d\n", rate / mhz));
+#endif
 	GPU_MHZ = mhz;
 	mali_gpu_clk = (int)(rate / mhz);
 

@@ -541,8 +541,10 @@ static void release_all_fingers(struct mms_ts_info *info)
 	printk(KERN_DEBUG "[TSP] %s\n", __func__);
 
 	for (i = 0; i < MAX_FINGERS; i++) {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 		if (info->finger_state[i] == 1)
 			dev_notice(&client->dev, "finger %d up(force)\n", i);
+#endif
 		info->finger_state[i] = 0;
 		input_mt_slot(info->input_dev, i);
 		input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER,
@@ -568,13 +570,19 @@ static void mms_set_noise_mode(struct mms_ts_info *info)
 
 	if (!(info->noise_mode && info->enabled))
 		return;
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	dev_notice(&client->dev, "%s\n", __func__);
+#endif
 
 	if (info->ta_status) {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 		dev_notice(&client->dev, "noise_mode & TA connect!!!\n");
+#endif
 		i2c_smbus_write_byte_data(info->client, 0x30, 0x1);
 	} else {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 		dev_notice(&client->dev, "noise_mode & TA disconnect!!!\n");
+#endif
 		i2c_smbus_write_byte_data(info->client, 0x30, 0x2);
 		info->noise_mode = 0;
 	}
@@ -587,7 +595,9 @@ static void reset_mms_ts(struct mms_ts_info *info)
 	if (info->enabled == false)
 		return;
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	dev_notice(&client->dev, "%s++\n", __func__);
+#endif
 	disable_irq_nosync(info->irq);
 	info->enabled = false;
 	touch_is_pressed = 0;
@@ -599,14 +609,20 @@ static void reset_mms_ts(struct mms_ts_info *info)
 	info->enabled = true;
 
 	if (info->ta_status) {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 		dev_notice(&client->dev, "TA connect!!!\n");
+#endif
 		i2c_smbus_write_byte_data(info->client, 0x33, 0x1);
 	} else {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 		dev_notice(&client->dev, "TA disconnect!!!\n");
+#endif
 		i2c_smbus_write_byte_data(info->client, 0x33, 0x2);
 	}
 	mms_set_noise_mode(info);
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	dev_notice(&client->dev, "%s--\n", __func__);
+#endif
 }
 
 static void melfas_ta_cb(struct tsp_callbacks *cb, bool ta_status)
@@ -615,16 +631,22 @@ static void melfas_ta_cb(struct tsp_callbacks *cb, bool ta_status)
 			container_of(cb, struct mms_ts_info, callbacks);
 	struct i2c_client *client = info->client;
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	dev_notice(&client->dev, "%s\n", __func__);
+#endif
 
 	info->ta_status = ta_status;
 
 	if (info->enabled) {
 		if (info->ta_status) {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 			dev_notice(&client->dev, "TA connect!!!\n");
+#endif
 			i2c_smbus_write_byte_data(info->client, 0x33, 0x1);
 		} else {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 			dev_notice(&client->dev, "TA disconnect!!!\n");
+#endif
 			i2c_smbus_write_byte_data(info->client, 0x33, 0x2);
 		}
 		mms_set_noise_mode(info);
@@ -739,8 +761,10 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 				y = 0;
 		}
 		if (id >= MAX_FINGERS) {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 			dev_notice(&client->dev, \
 				"finger id error [%d]\n", id);
+#endif
 			reset_mms_ts(info);
 			goto out;
 		}
@@ -752,10 +776,12 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 				id, x, y, tmp[5], tmp[4], tmp[6], tmp[7]
 				, angle, palm);
 #else
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 			if (info->finger_state[id] != 0) {
 				dev_notice(&client->dev,
 					"finger [%d] up, palm %d\n", id, palm);
 			}
+#endif
 #endif
 			input_mt_slot(info->input_dev, id);
 			input_mt_report_slot_state(info->input_dev,
@@ -791,8 +817,10 @@ static irqreturn_t mms_ts_interrupt(int irq, void *dev_id)
 #else
 		if (info->finger_state[id] == 0) {
 			info->finger_state[id] = 1;
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 			dev_notice(&client->dev,
 				"finger [%d] down, palm %d\n", id, palm);
+#endif
 		}
 #endif
 	}
@@ -3098,8 +3126,10 @@ static int mms_ts_suspend(struct device *dev)
   if (!info->enabled)
     return 0;
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
   dev_notice(&info->client->dev, "%s: users=%d\n", __func__,
        info->input_dev->users);
+#endif
 
   disable_irq(info->irq);
   info->enabled = false;
@@ -3121,16 +3151,22 @@ static int mms_ts_resume(struct device *dev)
   if (info->enabled)
     return 0;
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
   dev_notice(&info->client->dev, "%s: users=%d\n", __func__,
        info->input_dev->users);
+#endif
   info->pdata->power(true);
   msleep(120);
 
   if (info->ta_status) {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
     dev_notice(&client->dev, "TA connect!!!\n");
+#endif
     i2c_smbus_write_byte_data(info->client, 0x33, 0x1);
   } else {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
     dev_notice(&client->dev, "TA disconnect!!!\n");
+#endif
     i2c_smbus_write_byte_data(info->client, 0x33, 0x2);
   }
 
