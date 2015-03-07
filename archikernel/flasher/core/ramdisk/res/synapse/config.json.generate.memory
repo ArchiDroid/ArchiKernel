@@ -50,7 +50,7 @@ cat << EOF
 			}
 		},
 		$(
-			if [[ -e /storage/sdcard1/Android ]]; then
+			if [[ -e /sys/block/mmcblk1 ]]; then
 cat << _EOF
 				{
 					SSeekBar:{
