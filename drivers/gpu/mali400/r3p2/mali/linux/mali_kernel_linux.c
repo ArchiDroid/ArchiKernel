@@ -55,7 +55,11 @@
 extern const char *__malidrv_build_info(void);
 
 /* Module parameter to control log level */
+#ifdef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
+int mali_debug_level = 0;
+#else
 int mali_debug_level = 2;
+#endif
 module_param(mali_debug_level, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH); /* rw-rw-r-- */
 MODULE_PARM_DESC(mali_debug_level, "Higher number, more dmesg output");
 
