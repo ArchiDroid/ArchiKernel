@@ -22,7 +22,9 @@
 #include <linux/mfd/max77693.h>
 #include <linux/mfd/max77693-private.h>
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 #define SEC_DEBUG_VIB
+#endif
 
 struct max77693_haptic_data {
 	struct max77693_dev *max77693;

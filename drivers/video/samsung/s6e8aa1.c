@@ -286,9 +286,11 @@ static int s6e8ax0_set_brightness(struct backlight_device *bd)
 
 static int s6e8ax0_check_fb(struct lcd_device *ld, struct fb_info *fb)
 {
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	struct lcd_info *lcd = lcd_get_data(ld);
 
 	dev_info(&lcd->ld->dev, "%s, fb%d\n", __func__, fb->node);
+#endif
 
 	return 0;
 }

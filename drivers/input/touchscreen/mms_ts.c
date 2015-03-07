@@ -14,7 +14,9 @@
  *
  */
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 #define DEBUG
+#endif
 /* #define VERBOSE_DEBUG */
 /*#define SEC_TSP_DEBUG*/
 /* #define SEC_TSP_VERBOSE_DEBUG */
@@ -408,8 +410,10 @@ static void change_dvfs_lock(struct work_struct *work)
 	if (ret < 0)
 		pr_err("%s: dev change bud lock failed(%d)\n",\
 				__func__, __LINE__);
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	else
 		pr_info("[TSP] change_dvfs_lock");
+#endif
 	mutex_unlock(&info->dvfs_lock);
 }
 static void set_dvfs_off(struct work_struct *work)
@@ -428,7 +432,9 @@ static void set_dvfs_off(struct work_struct *work)
 
 	exynos_cpufreq_lock_free(DVFS_LOCK_ID_TSP);
 	info->dvfs_lock_status = false;
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 	pr_info("[TSP] DVFS Off!");
+#endif
 	mutex_unlock(&info->dvfs_lock);
 	}
 
@@ -483,7 +489,9 @@ static void set_dvfs_lock(struct mms_ts_info *info, uint32_t on)
 				msecs_to_jiffies(TOUCH_BOOSTER_CHG_TIME));
 
 			info->dvfs_lock_status = true;
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 			pr_info("[TSP] DVFS On![%d]", info->cpufreq_level);
+#endif
 		}
 	} else if (on == 2) {
 		cancel_delayed_work(&info->work_dvfs_off);
