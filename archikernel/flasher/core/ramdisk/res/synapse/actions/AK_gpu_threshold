@@ -31,18 +31,18 @@ TARGET_VALUE="$3"
 if [[ -e "$SYSFS_FILE" ]]; then
 	if [[ -z "$TARGET_VALUE" ]]; then # Read mode
 		if [[ "$TARGET_TYPE" -eq 0 ]]; then # Return all
-			grep "Step" "$SYSFS_FILE" | awk '{print $NF}' # Synapse return
+			grep "Threshold" "$SYSFS_FILE" | awk '{for (i=2; i<NF; i++) print $i; print $NF}' | tr -d '%' # Synapse return
 		else # Return specific one
-			grep "Step" "$SYSFS_FILE" | awk "FNR == $TARGET_TYPE {print \$NF}" # Synapse return
+			grep "Threshold" "$SYSFS_FILE" | awk '{for (i=2; i<NF; i++) print $i; print $NF}' | awk "FNR == $TARGET_TYPE" | tr -d '%' # Synapse return
 		fi
-	else # Write mode
+		else # Write mode
 		SYSFS_WRITE="$(
 			COUNT=1
-			grep "Step" "$SYSFS_FILE" | awk '{print $NF}' | (while read VOLTAGE; do
+			grep "Threshold" "$SYSFS_FILE" | awk '{for (i=2; i<NF; i++) print $i; print $NF}' | (while read THRESHOLD; do
 				if [[ "$COUNT" -eq "$TARGET_TYPE" ]]; then
-					SYSFS_WRITE="$SYSFS_WRITE $TARGET_VALUE"
+					SYSFS_WRITE="$SYSFS_WRITE ${TARGET_VALUE}%"
 				else
-					SYSFS_WRITE="$SYSFS_WRITE $VOLTAGE"
+					SYSFS_WRITE="$SYSFS_WRITE $THRESHOLD"
 				fi
 			((COUNT++))
 			done

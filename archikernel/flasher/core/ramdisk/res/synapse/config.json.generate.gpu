@@ -41,14 +41,26 @@ _EOF
 		)
 		$(
 			if [[ -e /sys/class/misc/gpu_clock_control/gpu_control ]]; then
+cat << _EOF
+				{
+					SPane:{
+						title:"GPU frequencies",
+						description:"These values control GPU frequencies on each step. Please keep in mind that higher frequencies require also more power, so don't forget to adjust voltages accordingly!"
+					}
+				},
+				{
+					SDescription:{
+						description:""
+					}
+				},
+_EOF
 				COUNT=1
-				grep -i "Step" /sys/class/misc/gpu_clock_control/gpu_control | while read FREQ; do
+				AK_gpu_frequency "/sys/class/misc/gpu_clock_control/gpu_control" "0" | while read FREQ; do
 cat << _EOF
 					{
 						SOptionList:{
 							title:"GPU step $COUNT frequency",
-							description:"",
-							default:$(echo "$FREQ" | awk '{print $NF}'),
+							default:$FREQ,
 							unit:" MHz",
 							action:"AK_gpu_frequency /sys/class/misc/gpu_clock_control/gpu_control $COUNT",
 							values:[
@@ -72,17 +84,64 @@ cat << _EOF
 _EOF
 				((COUNT++))
 				done
+cat << _EOF
+			{
+				SPane:{
+					title:"GPU thresholds",
+					description:"These values specify GPU load thresholds for GPU governor, which increases/decreases current frequency. Higher thresholds will be more battery-friendly (hard to increase, easy to decrease), while lower thresholds will provide the device with more performance (easy to increase, hard to decrease)"
+				}
+			},
+			{
+				SDescription:{
+					description:""
+				}
+			},
+_EOF
+				COUNT=1
+				HELP_COUNT=1
+				HELP_DIRECTION="up"
+				for THRESHOLD in $(AK_gpu_threshold "/sys/class/misc/gpu_clock_control/gpu_control" "0"); do
+cat << _EOF
+					{
+						SSeekBar:{
+							title:"GPU threshold $HELP_COUNT <-> $((HELP_COUNT + 1)) $HELP_DIRECTION",
+							max:100, min:0, unit:" %",
+							default:$THRESHOLD,
+							action:"AK_gpu_threshold /sys/class/misc/gpu_clock_control/gpu_control $COUNT"
+						}
+					},
+_EOF
+				((COUNT++))
+				if [[ "$HELP_DIRECTION" = "up" ]]; then
+					HELP_DIRECTION="down"
+				else
+					HELP_DIRECTION="up"
+					((HELP_COUNT++))
+				fi
+				done
 			fi
 		)
 		$(
 			if [[ -e /sys/class/misc/gpu_voltage_control/gpu_control ]]; then
+cat << _EOF
+				{
+					SPane:{
+						title:"GPU voltages",
+						description:"These values control GPU voltages on each step. Higher voltages consume more battery and produce more heat, but also increase GPU stability"
+					}
+				},
+				{
+					SDescription:{
+						description:""
+					}
+				},
+_EOF
 				COUNT=1
 				AK_generic_ARGL /sys/class/misc/gpu_voltage_control/gpu_control | while read VOLTAGE; do
 cat << _EOF
 					{
 						SSeekBar:{
 							title:"GPU step $COUNT voltage",
-							description:"",
 							max:1300000, min:500000, unit:" uV", step:12500,
 							default:$VOLTAGE,
 							action:"AK_gpu_voltage /sys/class/misc/gpu_voltage_control/gpu_control $COUNT"
