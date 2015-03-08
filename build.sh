@@ -81,7 +81,7 @@ for ARG in "$@"; do
 	esac
 done
 
-PREFIXES="arm-linux-gnueabihf arm-eabi" # Valid prefixes used by Linaro and Google
+PREFIXES="arm-architoolchain-linux-gnueabihf arm-linux-gnueabihf arm-eabi" # Valid prefixes used by ArchiToolchain, Linaro and Google
 for PREFIX in $PREFIXES; do
 	if [[ -x "$TOOLCHAIN/bin/${PREFIX}-gcc" ]]; then
 		CROSS_COMPILE="$TOOLCHAIN/bin/${PREFIX}-"
