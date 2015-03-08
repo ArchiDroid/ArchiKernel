@@ -81,7 +81,7 @@ cat << __EOF
 							SSeekBar:{
 								title:"$ZRAM_DEVICE block",
 								description:"",
-								max:200, min:0, unit:" MB",
+								max:300, min:0, unit:" MB",
 								default:$(AK_zram $ZRAM_DEVICE),
 								action:"AK_zram $ZRAM_DEVICE"
 							}
