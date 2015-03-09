@@ -92,6 +92,48 @@ __EOF
 _EOF
 			fi
 		)
+		$(
+			if [[ -e /sys/kernel/mm/ksm ]]; then
+cat << _EOF
+				{
+					STitleBar:{
+						title:"Kernel samepage merging"
+					}
+				},
+				{
+					SCheckBox:{
+						label:"[EXPERIMENTAL] Kernel samepage merging",
+						description:"KSM is a kernel thread that runs in the background and compares pages in memory that have been marked MADV_MERGEABLE by user-space. If two pages are found to be the same, the KSM thread merges them back as a single copy-on-write page of memory. WARNING: This feature may cause strange camera problems on exynos4 board, therefore it's called experimental, use at your own risk!",
+						default:$(AK_generic /sys/kernel/mm/ksm/run),
+						action:"AK_generic /sys/kernel/mm/ksm/run"
+					}
+				},
+				{
+					SDescription:{
+						description:""
+					}
+				},
+				{
+					SSeekBar:{
+						title:"KSM sleep duration",
+						description:"This value configures milliseconds ksmd should sleep between batches. Google suggests a value of 500 ms",
+						max:1000, min:10, unit:" ms",
+						default:$(AK_generic /sys/kernel/mm/ksm/sleep_millisecs),
+						action:"AK_generic /sys/kernel/mm/ksm/sleep_millisecs"
+					}
+				},
+				{
+					SSeekBar:{
+						title:"KSM pages to scan",
+						description:"This value configures the number of pages ksmd should scan in one batch. Google suggests a value of 100 pages",
+						max:1000, min:10, unit:" pages",
+						default:$(AK_generic /sys/kernel/mm/ksm/pages_to_scan),
+						action:"AK_generic /sys/kernel/mm/ksm/pages_to_scan"
+					}
+				},
+_EOF
+			fi
+		)
 	]
 }
 EOF
