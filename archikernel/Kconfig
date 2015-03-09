@@ -428,6 +428,114 @@ menu "ArchiKernel settings"
 			This variable defines the size of L2 cache on target CPU, in kilobytes.
 			Defining "0" disables this optimization.
 
+	choice
+		prompt "Linker"
+		default ARCHIKERNEL_OPTI_LDFLAGS_LINKER_DEFAULT
+		help
+			This option specifies the linker (LD) which should be used during compilation.
+			Your toolchain must support LD wrapper with support for CTNG_LD_IS variable.
+			If it does not, default linker will be used in all scenarios.
+
+	config ARCHIKERNEL_OPTI_LDFLAGS_LINKER_GOLD
+		bool "Gold"
+		help
+			New, shiny, modern and experimental Gold linker.
+
+	config ARCHIKERNEL_OPTI_LDFLAGS_LINKER_BFD
+		bool "BFD"
+		help
+			Old, default, stable BFD linker.
+
+	config ARCHIKERNEL_OPTI_LDFLAGS_LINKER_DEFAULT
+		bool "Default"
+		help
+			Don't specify linker, use the default one (most likely BFD)
+	endchoice
+
+	config ARCHIKERNEL_OPTI_LDFLAGS_OPTI
+		bool "Enable LDFLAGS optimizations"
+		help
+			Gold linker will use a higher compression level with --compress-debug-sections, and
+			will optimize string merge sections by finding strings that are suffixes of longer strings.
+			BFD linker will optimize the output.
+
+	config ARCHIKERNEL_OPTI_LDFLAGS_GC
+		bool "Enable garbage collection of unused input sections"
+		help
+			Enable garbage collection of unused input sections. It is ignored
+			on targets that do not support this option.
+
+	config ARCHIKERNEL_OPTI_LDFLAGS_SORT
+		bool "Enable sorting of the common symbols"
+		help
+			This option tells ld to sort the common symbols by size when it
+			places them in the appropriate output sections. First come all the
+			one byte symbols, then all the two byte, then all the four byte,
+			and then everything else.  This is to prevent gaps between symbols
+			due to alignment constraints.
+
+	config ARCHIKERNEL_OPTI_GRAPHITE
+		bool "Enable graphite optimizations"
+		help
+			This option enables (for activating) various graphite optimizations.
+			It requires proper support for CLooG and PPL (or ISL in newer GCC)
+			in the toolchain, such support is available by default e.g. in ArchiToolchain.
+			Deselect this option if your toolchain doesn't support that features.
+			This option doesn't apply any optimizations by itself, but acts as a boolean specifying
+			if your toolchain has proper graphite support.
+
+	config ARCHIKERNEL_OPTI_GRAPHITE_IDENTITY
+		bool "Enable the identity transformation for graphite"
+		depends on ARCHIKERNEL_OPTI_GRAPHITE
+		help
+			Enable the identity transformation for graphite. For every SCoP we generate the polyhedral
+			representation and transform it back to gimple. Using -fgraphite-identity we can check the
+			costs or benefits of the GIMPLE -> GRAPHITE -> GIMPLE transformation. Some minimal
+			optimizations are also performed by the code generator CLooG, like index splitting and
+			dead code elimination in loops.
+
+	config ARCHIKERNEL_OPTI_GRAPHITE_BLOCK
+		bool "Perform loop blocking transformations on loops"
+		depends on ARCHIKERNEL_OPTI_GRAPHITE
+		help
+			Perform loop blocking transformations on loops. Blocking strip mines each loop in the
+			loop nest such that the memory accesses of the element loops fit inside caches.
+
+	config ARCHIKERNEL_OPTI_GRAPHITE_INTERCHANGE
+		bool "Perform loop interchange transformations on loops"
+		depends on ARCHIKERNEL_OPTI_GRAPHITE
+		help
+			Perform loop interchange transformations on loops. Interchanging two nested loops
+			switches the inner and outer loops.
+
+	config ARCHIKERNEL_OPTI_GRAPHITE_NEST
+		bool "Enable the ISL based loop nest optimizer"
+		depends on ARCHIKERNEL_OPTI_GRAPHITE
+		help
+			Enable the ISL based loop nest optimizer. This is a generic loop nest optimizer based
+			on the Pluto optimization algorithms. It calculates a loop structure optimized for
+			data-locality and parallelism. This option is experimental.
+
+	config ARCHIKERNEL_OPTI_GRAPHITE_STRIP
+		bool "Perform loop strip mining transformations on loops"
+		depends on ARCHIKERNEL_OPTI_GRAPHITE
+		help
+			Perform loop strip mining transformations on loops. Strip mining splits a loop into two
+			nested loops. The outer loop has strides equal to the strip size and the inner loop has
+			strides of the original loop within a strip.
+
+	config ARCHIKERNEL_OPTI_GRAPHITE_PARALLELIZE
+		bool "Parallelize loops"
+		depends on ARCHIKERNEL_OPTI_GRAPHITE && !ARCHIKERNEL_TARGET_CPU_CORES_UNKNOWN
+		help
+			Parallelize loops, i.e., split their iteration space to run in n threads.
+			This is only possible for loops whose iterations are independent and can be arbitrarily reordered.
+			The optimization is only profitable on multiprocessor machines, for loops that are CPU-intensive,
+			rather than constrained e.g. by memory bandwidth. This option implies -pthread, and thus is only
+			supported on targets that have support for -pthread.
+			NOTICE: The number of parallel threads is specified in ARCHIKERNEL_TARGET_CPU_CORES config (above).
+			It will default to 4 on quad-core, 2 on double-core etc.
+
 	config ARCHIKERNEL_OPTI_DNDEBUG
 		bool "Disable debugging assertions"
 		help
