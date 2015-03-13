@@ -21,14 +21,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Read -> generic, ARG1 only, strip all letters
-# Write -> generic
+# Read -> generic
+# Write -> generic, with response to stdout
 
-if [[ -e "$1" ]]; then
+if [[ -f "$1" ]]; then
 	if [[ -n "$2" ]]; then
 		echo "$2" > "$1"
+		if [[ "$(cat "$1")" = "$2" ]]; then
+			echo "Success!"
+		else
+			echo "Failed!"
+		fi
 	else
-		tr -d '[:alpha:]' < "$1" | tr -d ':'
+		cat "$1"
 	fi
 else
 	echo "0"
