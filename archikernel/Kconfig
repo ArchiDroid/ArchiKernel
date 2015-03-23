@@ -481,8 +481,6 @@ menu "ArchiKernel settings"
 			It requires proper support for CLooG and PPL (or ISL in newer GCC)
 			in the toolchain, such support is available by default e.g. in ArchiToolchain.
 			Deselect this option if your toolchain doesn't support that features.
-			This option doesn't apply any optimizations by itself, but acts as a boolean specifying
-			if your toolchain has proper graphite support.
 
 	config ARCHIKERNEL_OPTI_GRAPHITE_IDENTITY
 		bool "Enable the identity transformation for graphite"

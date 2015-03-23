@@ -679,6 +679,10 @@ LDFLAGS += --sort-common
 endif
 
 # Graphite
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE
+KBUILD_CFLAGS   += -fgraphite
+endif
+
 ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_IDENTITY
 KBUILD_CFLAGS	+= -fgraphite-identity
 endif
