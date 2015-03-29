@@ -157,11 +157,6 @@ retry:
 		goto retry;
 	}
 
-	/*PERI-AH-VIBRATOR_Add_level_file_node-00+[ */
-	vib->level = vib_Level;
-	dev_info(vib->dev, "set vibrator level: %d, value: %d.\n", vib_Level, value);
-	/*PERI-AH-VIBRATOR_Add_level_file_node-00+] */
-
 	if (value == 0)
 		vib->state = 0;
 	else {
@@ -217,20 +212,31 @@ static ssize_t vib_level_show(struct device *dev,
 
 static ssize_t vib_level_store(struct device *dev,
 				     struct device_attribute *attr,
-				     const char *buf, size_t size)
+				     const char *buf, size_t count)
 {
-	int Level;
+	struct timed_output_dev *tdev = dev_get_drvdata(dev);
+	struct pm8xxx_vib *vib = container_of(tdev, struct pm8xxx_vib,
+							 timed_dev);
+	int val;
+	int rc;
 
-	Level = simple_strtoul(buf, NULL, 10);
-  
-  	dev_info(dev, "vib_level_store %d.\n", Level);
-	
-	if (Level > 0)
-	{
-		vib_Level = Level / 100;
+	rc = kstrtoint(buf, 10, &val);
+	if (rc) {
+		pr_err("%s: error getting level\n", __func__);
+		return -EINVAL;
 	}
-	
-	return sizeof(Level);
+
+	if (val < VIB_MIN_LEVEL_mV / 100) {
+		pr_err("%s: level %d not in range (%d - %d), using min.", __func__, val, VIB_MIN_LEVEL_mV / 100, VIB_MAX_LEVEL_mV / 100);
+		val = VIB_MIN_LEVEL_mV / 100;
+	} else if (val > VIB_MAX_LEVEL_mV / 100) {
+		pr_err("%s: level %d not in range (%d - %d), using max.", __func__, val, VIB_MIN_LEVEL_mV / 100, VIB_MAX_LEVEL_mV / 100);
+		val = VIB_MAX_LEVEL_mV / 100;
+	}
+
+	vib->level = val;
+
+	return strnlen(buf, count);
 }
 
 static struct device_attribute dev_attr_level = {
@@ -315,10 +321,6 @@ static int __devinit pm8xxx_vib_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto err_read_vib;
 
-	/*PERI-AH-VIBRATOR_Add_level_file_node-00+[ */
-	vib_Level = vib->level;
-	dev_info(&pdev->dev, "default vib_Level %d \n", vib_Level);
-	
 	/* Set voltage parameter of vibrator(corresponding to the file node /sys/class/timed_output/vibrator/level) */
 	rc = device_create_file(vib->timed_dev.dev, &dev_attr_level);	
 	if (rc) {
