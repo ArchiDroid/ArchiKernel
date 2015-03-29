@@ -1206,19 +1206,6 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 		goto fail3;
 	}
 
-   lp5521_run_led_pattern(1,chip); /* 1 : Power On pattern number of platform data */
-
-//[2013-01-03][junghoon79.kim@lge.com] sleep current issue in cal&auto test[START]
-#ifdef CONFIG_LGE_SUPPORT_MINIOS
-     if(lge_get_cable_info()==0x04/*USB_130K*/)
-     {
-         lp5521_set_led_current(chip, 0, 0);
-	      lp5521_set_led_current(chip, 1, 0);
-	      lp5521_set_led_current(chip, 2, 0);
-	      lp5521_run_led_pattern(PATTERN_OFF, chip);
-     }
-#endif
-//[2013-01-03][junghoon79.kim@lge.com] sleep current issue in cal&auto test[END]
 	printk(KERN_INFO"LP5521: probe END");
 	
 	return ret;
