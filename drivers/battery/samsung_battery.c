@@ -49,6 +49,7 @@
 #include <linux/fake_shut_down.h>
 #endif
 
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 #include "linux/charge_level.h"
 
 int ac_level 		= AC_CHARGE_LEVEL_DEFAULT;    // Set AC default charge level
@@ -57,6 +58,7 @@ int wireless_level	= WIRELESS_CHARGE_LEVEL_DEFAULT; // Set wireless default char
 char charge_info_text[30];	// Info text to be shown in config app
 int charge_info_level;		// Actual charge current, negotiated between charger and device
 unsigned int charge_info_cable_type = POWER_SUPPLY_TYPE_BATTERY;	// Actual charger type, default is none
+#endif
 
 static char *supply_list[] = {
 	"battery",
@@ -1745,10 +1747,11 @@ charge_ok:
 #if defined(CONFIG_MACH_GC1) || defined(CONFIG_MACH_GD2)
 	pr_err("%s: Updated Cable State(%d)\n", __func__, info->cable_type);
 #endif
-
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 	// store current charger type in variable to be used by other
 	// modules, like e.g. touch-to-wake
 	charge_info_cable_type = info->cable_type;
+#endif
 
 	switch (info->cable_type) {
 	case POWER_SUPPLY_TYPE_BATTERY:
@@ -1765,39 +1768,70 @@ charge_ok:
 		info->abstimer_active = false;
 		info->recharge_phase = false;
 
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		charge_info_level = 0;		
 		sprintf(charge_info_text, "No charger");
 		printk("Boeffla-Kernel: POWER_SUPPLY_TYPE_BATTERY\n");
+#endif
 		break;
 	case POWER_SUPPLY_TYPE_MAINS:
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		charge_info_level = ac_level;
 		sprintf(charge_info_text, "AC Charger");
 		printk("Boeffla-Kernel: POWER_SUPPLY_TYPE_MAINS, using charge rate %d mA\n", ac_level);
+#endif
 
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		battery_charge_control(info, ac_level, ac_level);
+#else
+#if defined(CONFIG_MACH_KONA)
+		if(mhl_connected==true)
+			battery_charge_control(info,info->pdata->chg_curr_mhl,
+				info->pdata->chg_curr_mhl);
+		else
+#endif
+		battery_charge_control(info, info->pdata->chg_curr_ta,
+						info->pdata->in_curr_limit);
+#endif
 		break;
 	case POWER_SUPPLY_TYPE_USB:
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		charge_info_level = usb_level;
 		sprintf(charge_info_text, "USB Charger");
 		printk("Boeffla-Kernel: POWER_SUPPLY_TYPE_USB, using charge rate %d mA\n", usb_level);
+#endif
 
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		battery_charge_control(info, usb_level, usb_level);
+#else
+		battery_charge_control(info, info->pdata->chg_curr_usb,
+						info->pdata->chg_curr_usb);
+#endif
 		break;
 	case POWER_SUPPLY_TYPE_USB_CDP:
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		charge_info_level = ac_level;
 		sprintf(charge_info_text, "USB CDP Charger");
 		printk("Boeffla-Kernel: POWER_SUPPLY_TYPE_USB_CDP, using charge rate %d mA\n", ac_level);
+#endif
 
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		battery_charge_control(info, ac_level, ac_level);
+#else
+		battery_charge_control(info, info->pdata->chg_curr_cdp,
+						info->pdata->chg_curr_cdp);
+#endif
 		break;
 	case POWER_SUPPLY_TYPE_DOCK:
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		printk("Boeffla-Kernel: POWER_SUPPLY_TYPE_DOCK\n");
+#endif
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
 		/* default dock prop is AC */
@@ -1805,62 +1839,105 @@ charge_ok:
 		muic_cb_typ = max77693_muic_get_charging_type();
 		switch (muic_cb_typ) {
 		case CABLE_TYPE_AUDIODOCK_MUIC:
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 			charge_info_level = ac_level;
 			sprintf(charge_info_text, "Audio dock");
 			printk("Boeffla-Kernel: CABLE_TYPE_AUDIODOCK_MUIC, using charge rate %d mA\n", ac_level);
-			
+#endif
 			pr_info("%s: audio dock, %d\n",
 					__func__, DOCK_TYPE_AUDIO_CURR);
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 			battery_charge_control(info, ac_level, ac_level);
+#else
+			battery_charge_control(info,
+						DOCK_TYPE_AUDIO_CURR,
+						DOCK_TYPE_AUDIO_CURR);
+#endif
 			break;
 		case CABLE_TYPE_SMARTDOCK_TA_MUIC:
 			if (info->cable_sub_type == ONLINE_SUB_TYPE_SMART_OTG) {
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 				charge_info_level = ac_level;
 				sprintf(charge_info_text, "Smart dock (host)");
 				printk("Boeffla-Kernel: CABLE_TYPE_SMARTDOCK_TA_MUIC (with host), using charge rate %d mA\n", ac_level);
+#endif
 
 				pr_info("%s: smart dock ta & host, %d\n",
 					__func__, DOCK_TYPE_SMART_OTG_CURR);
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 				battery_charge_control(info, ac_level, ac_level);
+#else
+				battery_charge_control(info,
+						DOCK_TYPE_SMART_OTG_CURR,
+						DOCK_TYPE_SMART_OTG_CURR);
+#endif
 			} else {
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 				charge_info_level = ac_level;
 				sprintf(charge_info_text, "Smart dock (no host)");
 				printk("Boeffla-Kernel: CABLE_TYPE_SMARTDOCK_TA_MUIC (no host), using charge rate %d mA\n", ac_level);
+#endif
 
 				pr_info("%s: smart dock ta & no host, %d\n",
 					__func__, DOCK_TYPE_SMART_NOTG_CURR);
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 				battery_charge_control(info, ac_level, ac_level);
+#else
+				battery_charge_control(info,
+						DOCK_TYPE_SMART_NOTG_CURR,
+						DOCK_TYPE_SMART_NOTG_CURR);
+#endif
 			}
 			break;
 		case CABLE_TYPE_SMARTDOCK_USB_MUIC:
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 			charge_info_level = ac_level;
 			sprintf(charge_info_text, "Smart dock USB");
 			printk("Boeffla-Kernel: CABLE_TYPE_SMARTDOCK_USB_MUIC, using charge rate %d mA\n", ac_level);
-			
+#endif
 			pr_info("%s: smart dock usb(low), %d\n",
 					__func__, DOCK_TYPE_LOW_CURR);
 			info->online_prop = ONLINE_PROP_USB;
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 			battery_charge_control(info, ac_level, ac_level);
+#else
+			battery_charge_control(info,
+						DOCK_TYPE_LOW_CURR,
+						DOCK_TYPE_LOW_CURR);
+#endif
 			break;
 		default:
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 			charge_info_level = ac_level;
 			sprintf(charge_info_text, "Default");
 			printk("Boeffla-Kernel: Default, using charge rate %d mA\n", ac_level);
-			
+#endif
 			pr_info("%s: general dock, %d\n",
 					__func__, info->pdata->chg_curr_dock);
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 			battery_charge_control(info, ac_level, ac_level);
+#else
+		battery_charge_control(info,
+			info->pdata->chg_curr_dock,
+			info->pdata->chg_curr_dock);
+#endif
 			break;
 		}
 		break;
 	case POWER_SUPPLY_TYPE_WIRELESS:
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		charge_info_level = wireless_level;
 		sprintf(charge_info_text, "Wireless charger");		
 		printk("Boeffla-Kernel: POWER_SUPPLY_TYPE_WIRELESS, using charge rate %d mA\n", wireless_level);
-		
+#endif
 		if (!info->pdata->suspend_chging)
 			wake_lock(&info->charge_wake_lock);
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 		battery_charge_control(info, wireless_level, wireless_level);
+#else
+		battery_charge_control(info, info->pdata->chg_curr_wpc,
+						info->pdata->chg_curr_wpc);
+#endif
 		break;
 	default:
 		break;
@@ -2942,9 +3019,11 @@ static struct platform_driver samsung_battery_driver = {
 
 static int __init samsung_battery_init(void)
 {
+#ifdef CONFIG_ARCHIKERNEL_CHARGE_LEVEL
 	// initialize charge info variables
 	charge_info_level = 0;	
 	sprintf(charge_info_text, "No charger");
+#endif
 
 	return platform_driver_register(&samsung_battery_driver);
 }
