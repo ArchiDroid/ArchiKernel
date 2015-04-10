@@ -365,6 +365,13 @@ menu "ArchiKernel settings"
 			A simple sysfs interface to user customizable
 			pause to allow CRT off animation to be shown.
 
+	config ARCHIKERNEL_HAPTIC_INTERFACE
+		bool "Include haptic interface"
+		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+		help
+			A simple sysfs interface allowing user
+			to modify haptic (vibrator) intensity.
+
 	config ARCHIKERNEL_PRINTK_INTERFACE
 		bool "Include printk interface"
 		help
