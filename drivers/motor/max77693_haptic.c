@@ -22,6 +22,9 @@
 #include <linux/mfd/max77693.h>
 #include <linux/mfd/max77693-private.h>
 
+#define ceil(x, y) \
+        ({ unsigned long __x = (x), __y = (y); (__x + __y - 1) / __y; })
+
 #ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 #define SEC_DEBUG_VIB
 #endif
@@ -303,7 +306,7 @@ ssize_t pwm_val_store(struct device *dev,
 
     pr_info("[VIB] %s: pwm_val=%lu\n", __func__, pwm_val);
 
-    pwm_duty = (pwm_val * 18525) / 100 + 18525;
+    pwm_duty = ceil((pwm_val * 18525), 100) + 18525;
 
     /* make sure new pwm duty is in range */
     if(pwm_duty > 37050) 
