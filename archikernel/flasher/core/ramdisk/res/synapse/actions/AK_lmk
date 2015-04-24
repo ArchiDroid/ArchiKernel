@@ -21,35 +21,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Read -> return current value for given $2 step from $1
-# Write -> set $3 value for given $2 step in $1
+# Read -> return current value from $1 for given $2 LMK type
+# Write -> set $3 value for given $2 LMK type in $1
 
 SYSFS_FILE="$1"
 TARGET_TYPE="$2"
 TARGET_VALUE="$3"
 
+LMK_MAX="6" # There are 6 LMK values
+
 if [[ -e "$SYSFS_FILE" ]]; then
 	if [[ -z "$TARGET_VALUE" ]]; then # Read mode
-		sed -e 's/mhz://g;s/uV//g' < "$SYSFS_FILE" | while read UV_TABLE; do
-			FREQ="$(echo "$UV_TABLE" | awk '{print $1}')"
-			if [[ "$FREQ" -eq "$TARGET_TYPE" ]]; then
-				echo "$UV_TABLE" | awk '{print $2}' # Synapse return
-				break
-			fi
-		done
+		chmod 660 "$SYSFS_FILE" # For some reason google limited minfree access to 220 in Lollipop+
+		cut -d ',' -f "$TARGET_TYPE" < "$SYSFS_FILE"
 	else # Write mode
-		SYSFS_WRITE="$(
-			sed -e 's/mhz://g;s/uV//g' < "$SYSFS_FILE" | (while read UV_TABLE; do
-				FREQ="$(echo "$UV_TABLE" | awk '{print $1}')"
-				if [[ "$FREQ" -eq "$TARGET_TYPE" ]]; then
-					SYSFS_WRITE+=" $TARGET_VALUE"
-				else
-					VALUE="$(echo "$UV_TABLE" | awk '{print $2}')"
-					SYSFS_WRITE+=" $VALUE"
-				fi
-			done
-			echo "$SYSFS_WRITE")
-		)"
+		LMK_COUNTER=1
+		for LMK_VALUE in $(tr ',' '\n' < "$SYSFS_FILE"); do
+			if [[ "$LMK_COUNTER" -eq "$TARGET_TYPE" ]]; then
+				SYSFS_WRITE+="$TARGET_VALUE"
+			else
+				SYSFS_WRITE+="$LMK_VALUE"
+			fi
+			if [[ "$LMK_COUNTER" -lt "$LMK_MAX" ]]; then
+				SYSFS_WRITE+=","
+			fi
+			((LMK_COUNTER++))
+		done
 		echo "$SYSFS_WRITE" > "$SYSFS_FILE" # Write effect
 	fi
 else
