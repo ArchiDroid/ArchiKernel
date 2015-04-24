@@ -32,8 +32,12 @@ cat << EOF
 			}
 		},
 		$(
-			while [[ -z "$(AK_lmk /sys/module/lowmemorykiller/parameters/minfree 1)" ]]; do
-				sleep 1 # Wait till minfree gets populated
+			LMK_1="$(AK_lmk /sys/module/lowmemorykiller/parameters/minfree 1)"
+			LOOP=0
+			while [[ "$LOOP" -lt 30 ]] && [[ -z "$LMK_1" || "$LMK_1" -eq 1536 ]]; do # Wait till Android populates minfree with proper device (NOT default) values
+				((LOOP++))
+				sleep 1
+				LMK_1="$(AK_lmk /sys/module/lowmemorykiller/parameters/minfree 1)"
 			done
 		)
 		{
