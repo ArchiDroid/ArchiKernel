@@ -32,8 +32,13 @@ LMK_MAX="6" # There are 6 LMK values
 
 if [[ -e "$SYSFS_FILE" ]]; then
 	if [[ -z "$TARGET_VALUE" ]]; then # Read mode
-		chmod 660 "$SYSFS_FILE" # For some reason google limited minfree access to 220 in Lollipop+
-		cut -d ',' -f "$TARGET_TYPE" < "$SYSFS_FILE"
+		LMK="$(cut -d ',' -f "$TARGET_TYPE" < "$SYSFS_FILE" 2>/dev/null)"
+		while [[ -z "$LMK" ]]; do
+			sleep 1
+			chmod 660 "$SYSFS_FILE" # For some reason google limited minfree access to 220 in Lollipop+
+			LMK="$(cut -d ',' -f "$TARGET_TYPE" < "$SYSFS_FILE" 2>/dev/null)"
+		done
+		echo "$LMK" # Synapse return
 	else # Write mode
 		LMK_COUNTER=1
 		for LMK_VALUE in $(tr ',' '\n' < "$SYSFS_FILE"); do
