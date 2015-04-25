@@ -19,7 +19,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ui_print(">>> ArchiKerel flasher is now loading...");
+ui_print(">>> ArchiKernel flasher is now loading...");
 #sleep (1);
 assert(getprop("ro.product.device") == "m0" || getprop("ro.build.product") == "m0" || 
        getprop("ro.product.device") == "i9300" || getprop("ro.build.product") == "i9300" || 
