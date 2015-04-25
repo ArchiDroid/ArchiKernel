@@ -212,9 +212,13 @@ int exynos_find_cpufreq_level_by_volt(unsigned int arm_volt,
 	}
 
 	/* find cpufreq level in volt_table */
+	pr_err("ARCHIDEBUG: min: %d", exynos_info->min_support_idx);
+	pr_err("ARCHIDEBUG: max: %d", exynos_info->max_support_idx);
 	for (i = exynos_info->min_support_idx;
 			i >= exynos_info->max_support_idx; i--) {
+		pr_err("ARCHIDEBUG: cmp: %u %u", volt_table[i], arm_volt);
 		if (volt_table[i] >= arm_volt) {
+			pr_err("ARCHIDEBUG: FOUND: %d", i);
 			*level = (unsigned int)i;
 			return 0;
 		}
