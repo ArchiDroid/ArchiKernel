@@ -721,9 +721,7 @@ static struct notifier_block exynos_cpufreq_policy_notifier = {
 
 static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-#ifdef CONFIG_ARCHIKERNEL_CPU_OC
 	int retval;
-#endif
 
 	policy->cur = policy->min = policy->max = exynos_getspeed(policy->cpu);
 
@@ -745,21 +743,13 @@ static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		cpumask_setall(policy->cpus);
 	}
 
-#ifdef CONFIG_ARCHIKERNEL_CPU_OC
 	retval = cpufreq_frequency_table_cpuinfo(policy, exynos_info->freq_table);
 
 	/* Keep stock frq. as default startup frq. */
-#ifdef CONFIG_ARCHIKERNEL_CPU_OC_DEFAULT
-	policy->max = 1600000;
-#else
 	policy->max = 1400000;
-#endif
 	policy->min = 200000;
 
 	return retval;
-#else
-	return cpufreq_frequency_table_cpuinfo(policy, exynos_info->freq_table);
-#endif
 }
 
 static int exynos_cpufreq_reboot_notifier_call(struct notifier_block *this,
