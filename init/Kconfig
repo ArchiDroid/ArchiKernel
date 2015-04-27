@@ -29,6 +29,8 @@ config IRQ_WORK
 
 source init/Kconfig_FIH
 
+source archikernel/Kconfig
+
 menu "General setup"
 
 config EXPERIMENTAL
@@ -943,6 +945,7 @@ endif
 
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"
+	depends on ARCHIKERNEL_OPTI_OS
 	help
 	  Enabling this option will pass "-Os" instead of "-O2" to gcc
 	  resulting in a smaller kernel.

@@ -562,11 +562,226 @@ endif # $(dot-config)
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
-ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS	+= -Os
-else
+# ArchiKernel flags
+
+# Target architecture
+ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7A
+KBUILD_CFLAGS	+= -marm -march=armv7-a
+endif
+
+# Target CPU
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA15
+KBUILD_CFLAGS	+= -mcpu=cortex-a15 -mtune=cortex-a15
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA9
+KBUILD_CFLAGS	+= -mcpu=cortex-a9 -mtune=cortex-a9
+endif
+
+# Target ABI
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_SOFT
+KBUILD_CFLAGS	+= -mfloat-abi=soft
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_SOFTFP
+KBUILD_CFLAGS	+= -mfloat-abi=softfp
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_HARD
+KBUILD_CFLAGS	+= -mfloat-abi=hard
+endif
+
+# Target FPU
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_FPU_NEONVFP4
+KBUILD_CFLAGS	+= -mfpu=neon-vfpv4
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_FPU_VFP4
+KBUILD_CFLAGS	+= -mfpu=vfpv4
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_FPU_NEON
+KBUILD_CFLAGS	+= -mfpu=neon
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_FPU_VFPV3
+KBUILD_CFLAGS	+= -mfpu=vfpv3
+endif
+
+# Target cores
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORES_QUAD
+KBUILD_CFLAGS	+= -mvectorize-with-neon-quad
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_PARALLELIZE
+KBUILD_CFLAGS	+= -ftree-parallelize-loops=4
+endif
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORES_DOUBLE
+KBUILD_CFLAGS	+= -mvectorize-with-neon-double
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_PARALLELIZE
+KBUILD_CFLAGS	+= -ftree-parallelize-loops=2
+endif
+endif
+
+# Main optimization level
+ifdef CONFIG_ARCHIKERNEL_OPTI_OFAST
+KBUILD_CFLAGS	+= -Ofast
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_O3
+KBUILD_CFLAGS	+= -O3
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_O2
 KBUILD_CFLAGS	+= -O2
 endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_OS
+KBUILD_CFLAGS	+= -Os
+endif
+
+# L1/L2 Caches
+ifdef CONFIG_ARCHIKERNEL_OPTI_L1_LINE_SIZE
+ifneq ($(CONFIG_ARCHIKERNEL_OPTI_L1_LINE_SIZE),0)
+KBUILD_CFLAGS	+= --param l1-cache-line-size=$(CONFIG_ARCHIKERNEL_OPTI_L1_LINE_SIZE)
+endif
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_L1_SIZE
+ifneq ($(CONFIG_ARCHIKERNEL_OPTI_L1_SIZE),0)
+KBUILD_CFLAGS	+= --param l1-cache-size=$(CONFIG_ARCHIKERNEL_OPTI_L1_SIZE)
+endif
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_L2_SIZE
+ifneq ($(CONFIG_ARCHIKERNEL_OPTI_L2_SIZE),0)
+KBUILD_CFLAGS	+= --param l2-cache-size=$(CONFIG_ARCHIKERNEL_OPTI_L2_SIZE)
+endif
+endif
+
+# LDFLAGS
+ifdef CONFIG_ARCHIKERNEL_OPTI_LDFLAGS_LINKER_GOLD
+export CTNG_LD_IS = gold
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_LDFLAGS_LINKER_BFD
+export CTNG_LD_IS = bfd
+endif
+
+# GOLD supports integer levels, and recognizes 0, 1, and >= 2
+# BFD supports integer levels, and recognizes 0 (false), and everything else (true)
+ifdef CONFIG_ARCHIKERNEL_OPTI_LDFLAGS_OPTI
+LDFLAGS += -O3
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_LDFLAGS_GC
+LDFLAGS += --gc-sections
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_LDFLAGS_SORT
+LDFLAGS += --sort-common
+endif
+
+# Graphite
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE
+KBUILD_CFLAGS   += -fgraphite
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_IDENTITY
+KBUILD_CFLAGS	+= -fgraphite-identity
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_BLOCK
+KBUILD_CFLAGS	+= -floop-block
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_INTERCHANGE
+KBUILD_CFLAGS	+= -floop-interchange
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_NEST
+KBUILD_CFLAGS	+= -floop-nest-optimize
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_STRIP
+KBUILD_CFLAGS	+= -floop-strip-mine
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_PARALLELIZE
+KBUILD_CFLAGS	+= -floop-parallelize-all
+endif
+
+# Other flags
+ifdef CONFIG_ARCHIKERNEL_OPTI_DNDEBUG
+KBUILD_CFLAGS	+= -DNDEBUG
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FLTO
+KBUILD_CFLAGS	+= -flto
+LDFLAGS	+= -flto
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FSECTION_ANCHORS
+KBUILD_CFLAGS	+= -fsection-anchors
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FUNSAFE_LOOP_OPTIMIZATIONS
+KBUILD_CFLAGS	+= -funsafe-loop-optimizations
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FIVOPTS
+KBUILD_CFLAGS	+= -fivopts
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FTREE_LOOP_IM
+KBUILD_CFLAGS	+= -ftree-loop-im
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FTREE_LOOP_IVCANON
+KBUILD_CFLAGS	+= -ftree-loop-ivcanon
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FUNSWITCH_LOOPS
+KBUILD_CFLAGS	+= -funswitch-loops
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FRENAME_REGISTERS
+KBUILD_CFLAGS	+= -frename-registers
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FGCSE_SM
+KBUILD_CFLAGS	+= -fgcse-sm
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FGCSE_LAS
+KBUILD_CFLAGS	+= -fgcse-las
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FWEB
+KBUILD_CFLAGS	+= -fweb
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FTRACER
+KBUILD_CFLAGS	+= -ftracer
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FIPA_PTA
+KBUILD_CFLAGS	+= -fipa-pta
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FMODULO_SCHED
+KBUILD_CFLAGS	+= -fmodulo-sched
+endif
+
+ifdef CONFIG_ARCHIKERNEL_OPTI_FMODULO_SCHED_ALLOW_REGMOVES
+KBUILD_CFLAGS	+= -fmodulo-sched-allow-regmoves
+endif
+
+#ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+#KBUILD_CFLAGS	+= -Os
+#else
+#KBUILD_CFLAGS	+= -O2
+#endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
 

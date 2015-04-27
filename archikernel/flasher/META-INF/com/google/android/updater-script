@@ -1,0 +1,66 @@
+#     _             _     _ _  __                    _
+#    / \   _ __ ___| |__ (_) |/ /___ _ __ _ __   ___| |
+#   / _ \ | '__/ __| '_ \| | ' // _ \ '__| '_ \ / _ \ |
+#  / ___ \| | | (__| | | | | . \  __/ |  | | | |  __/ |
+# /_/   \_\_|  \___|_| |_|_|_|\_\___|_|  |_| |_|\___|_|
+#
+# Copyright 2014 Łukasz "JustArchi" Domeradzki
+# Contact: JustArchi@JustArchi.net
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+ui_print(">>> ArchiKernel flasher is now loading...");
+#sleep (1);
+assert(getprop("ro.product.device") == "m0" || getprop("ro.build.product") == "m0" || 
+       getprop("ro.product.device") == "i9300" || getprop("ro.build.product") == "i9300" || 
+       getprop("ro.product.device") == "GT-I9300" || getprop("ro.build.product") == "GT-I9300" || abort("This package is for \"m0,i9300,GT-I9300\" devices; this is a \"" + getprop("ro.product.device") + "\"."););
+ui_print("root@ArchiKernel:~# Ready!");
+set_progress(0.1);
+run_program("/sbin/mount", "-t", "auto", "/system");
+run_program("/sbin/mount", "-t", "auto", "/data");
+set_progress(0.2);
+ui_print("root@ArchiKernel:~# Flashing ArchiKernel");
+delete_recursive("/tmp/archikernel");
+package_extract_dir("core", "/tmp/archikernel");
+set_metadata("/tmp/archikernel/init.sh", "uid", 0, "gid", 0, "mode", 0755);
+set_metadata("/tmp/archikernel/fixPreLollipop.sh", "uid", 0, "gid", 0, "mode", 0755);
+package_extract_file("prebuilt/zImage", "/tmp/archikernel/zImage");
+delete_recursive("/system/lib/modules");
+package_extract_dir("prebuilt/system", "/system");
+package_extract_dir("overlay", "/");
+set_progress(0.3);
+
+if run_program("/tmp/archikernel/fixPreLollipop.sh") == "1" then
+	ui_print("ArchiDetect: Detected pre-Lollipop ROM. Perhaps it's time for update! :)");
+else
+	ui_print("ArchiDetect: Detected Lollipop+ ROM");
+endif;
+
+if run_program("/tmp/archikernel/init.sh") == "0" then
+	ui_print("===================================");
+	ui_print("  ArchiKernel Flashed Successfully ");
+	ui_print("Please share your experience on XDA");
+	ui_print("===================================");
+else
+	ui_print("=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=");
+	ui_print("ERROR!!! Please attach: ");
+	ui_print("/data/media/0/ArchiKernelError.log");
+	ui_print("on forum.xda-developers.com");
+	ui_print("=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=!=");
+	run_program("/sbin/cp", "/tmp/archikernel/ArchiKernel.log", "/data/media/0/ArchiKernelError.log");
+endif;
+
+set_progress(0.9);
+unmount("/system");
+unmount("/data");
+set_progress(1.0);

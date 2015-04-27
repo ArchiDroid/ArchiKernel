@@ -71,6 +71,10 @@ patches-*
 patches
 series
 
+# Generated prebuilt binaries for ArchiKernel flasher
+archikernel/flasher/*.zip
+archikernel/flasher/prebuilt
+
 # cscope files
 cscope.*
 ncscope.*
