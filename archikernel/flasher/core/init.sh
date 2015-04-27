@@ -24,7 +24,7 @@
 set -e
 
 # Device-specific
-KERNEL="/dev/block/mmcblk0p5" # THIS IS FOR GALAXY S3 ONLY
+KERNEL="/dev/block/mmcblk0p17" # THIS IS FOR XPERIA M ONLY
 PARSERAMDISK=1 # If we don't need to worry about compressed ramdisk (i.e. putting modules inside), we can skip it
 
 # Global
