@@ -41,19 +41,19 @@ EXTRACT_RAMDISK() {
 	fi
 
 	echo "INFO: Detecting $1 ramdisk format..."
-	if gunzip -t "$1" >/dev/null 2>&1; then
+	if gunzip --help 2>&1 | grep -q "\-\-test" && gunzip --test "$1"; then
 		echo "INFO: GZIP format detected"
 		CBIN="gzip -9"
 		DBIN="gunzip -c"
-	elif lzop -t "$1" >/dev/null 2>&1; then
+	elif lzop --help 2>&1 | grep -q "\-\-test" && lzop --test "$1"; then
 		echo "INFO: LZO format detected"
 		CBIN="lzop -9"
 		DBIN="lzop -dc"
-	elif xz -t "$1" >/dev/null 2>&1; then
+	elif xz --help 2>&1 | grep -q "\-\-test" && xz --test "$1"; then
 		echo "INFO: XZ format detected"
 		CBIN="xz -9"
 		DBIN="xz -dc"
-	elif lzma -t "$1" >/dev/null 2>&1; then
+	elif lzma --help 2>&1 | grep -q "\-\-test" && lzma --test "$1"; then
 		echo "INFO: LZMA format detected"
 		CBIN="lzma -9"
 		DBIN="lzma -dc"
@@ -80,17 +80,17 @@ REPACK_RAMDISK() {
 	cd "$1" || return 1
 
 	# Find which compression we should use
-	CBIN_LOCAL="raw" # Default to raw
+	local LOCAL_CBIN="raw" # Default to raw
 	if [[ -n "$3" ]]; then
-		CBIN_LOCAL="$3" # If there is argument passed, use it
+		LOCAL_CBIN="$3" # If there is argument passed, use it
 	elif [[ -n "$CBIN" ]]; then
-		CBIN_LOCAL="$CBIN" # Otherwise check if we have global $CBIN declared
+		LOCAL_CBIN="$CBIN" # Otherwise check if we have global $CBIN declared
 	fi
 
 	echo "INFO: Repacking $1 folder into $2 ramdisk using $3 compression type"
 
-	if [[ "$CBIN_LOCAL" != "raw" ]]; then
-		find . | cpio -o -H newc | $CBIN_LOCAL > "$2"
+	if [[ "$LOCAL_CBIN" != "raw" ]]; then
+		find . | cpio -o -H newc | $LOCAL_CBIN > "$2"
 	else
 		find . | cpio -o -H newc > "$2"
 	fi
