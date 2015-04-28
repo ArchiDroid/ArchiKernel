@@ -565,6 +565,10 @@ all: vmlinux
 # ArchiKernel flags
 
 # Target architecture
+ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7VE
+KBUILD_CFLAGS	+= -marm -march=armv7ve
+endif
+
 ifdef CONFIG_ARCHIKERNEL_TARGET_ARCH_ARMV7A
 KBUILD_CFLAGS	+= -marm -march=armv7-a
 endif
@@ -576,6 +580,10 @@ endif
 
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA9
 KBUILD_CFLAGS	+= -mcpu=cortex-a9 -mtune=cortex-a9
+endif
+
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA7
+KBUILD_CFLAGS	+= -mcpu=cortex-a7 -mtune=cortex-a7
 endif
 
 # Target ABI
