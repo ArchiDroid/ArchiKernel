@@ -42,7 +42,11 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
 /*
  * Use arch dependent cpu power functions
  */
+#if defined(CONFIG_ARCHIKERNEL_USE_ARCH_POWER)
+SCHED_FEAT(ARCH_POWER, true)
+#else
 SCHED_FEAT(ARCH_POWER, false)
+#endif
 
 SCHED_FEAT(HRTICK, false)
 SCHED_FEAT(DOUBLE_TICK, false)

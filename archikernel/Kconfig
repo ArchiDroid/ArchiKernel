@@ -200,11 +200,6 @@ menu "ArchiKernel settings"
 			Kernel's sound engine. This mostly adds engine-specific sysfs and
 			a hook, which modifies sound on the kernel level.
 
-	config ARCHIKERNEL_SOUND_ENGINE_BOEFFLA
-		bool "Boeffla"
-		help
-			Boeffla sound engine developed by AndiP71.
-
 	config ARCHIKERNEL_SOUND_ENGINE_NONE
 		bool "None"
 		help
@@ -253,115 +248,24 @@ menu "ArchiKernel settings"
 	endchoice
 
 
-	config ARCHIKERNEL_MALI_API_VERSION
-		int "Mali API version"
-		depends on MALI400
-		default "29"
-		help
-			Mali blobs which we're using are very picky about declaring proper API version.
-			Even if we may have totally different source files, API version declared in the
-			kernel and used by the blobs must be the same.
-
-
 
 	comment "Hacks / Workarounds"
-
-	config ARCHIKERNEL_TARGET_DEVICE_HAS_JB_BOOTLOADER
-		bool "Device has JellyBean bootloader"
-		default y if MACH_M0
-		help
-			Newer Samsung bootloaders changed some things that affect the kernel,
-			mostly LPM (offline charging). Select this option if there is no KK+
-			bootloader for target device and the kernel should assume that it's
-			running under JB bootloader.
-
-	config ARCHIKERNEL_TARGET_SYSTEM_USES_OLDER_LIGHTS
-		bool "System may use older lights"
-		depends on KEYBOARD_CYPRESS_TOUCH
-		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-		help
-			In current kernel sources, 0 is used for OFF, and 1 is used for ON.
-			In older kernel sources, 2 was used for OFF, and 1 was used for ON.
-			This option makes kernel "accept" older 2 value for OFF command.
-
-	config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
-		bool "System does not support slice encoding"
-		depends on VIDEO_MFC5X
-		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-		help
-			This option disables slice encoding, which is active by default on 
-			Samsung ROMs.
-
-	config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
-		bool "System has broken S5C73M3 firmware"
-		depends on VIDEO_S5C73M3
-		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-		help
-			This option forces system to use system's firmware only if it's
-			newer than data's one. Stock behaviour is to use system's firmware
-			also if it's equal to data's one.
-
-	config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_ZRAM_GOVERNOR
-		bool "System does not have ZRAM governor"
-		depends on ZRAM_FOR_ANDROID
-		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-		help
-			Recently Samsung modified ZRAM implementation for their closed-source
-			zram solution in stock ROMs.
-			The side effect is the fact that ZRAM is not anymore controlled by the
-			kernel, but by the binary. Since we don't have this binary on AOSP ROMs,
-			kernel is not swapping anything, even when zram or swap file is enabled.
-			This option will turn off all breaks and returns added by Samsung to the
-			original source. This is absolutely required for AOSP ROMs, and may be
-			required also for stock ROMs, if they want to use kernel-based swap.
 
 
 
 	comment "Core features"
 
 	config ARCHIKERNEL_CPU_OC
-		bool "Enable overclocking of the CPU up to 1600 MHz"
+		bool "Enable overclocking of the CPU"
 		depends on CPU_FREQ
 		help
-			This option enables additional CPU clock frequencies up to 1600 Mhz.
-
-	config ARCHIKERNEL_CPU_UV
-		bool "Enable voltage control of the CPU"
-		depends on CPU_FREQ
-		help
-			This option enables the voltage control interface of the CPU.
-
-	config ARCHIKERNEL_GPU_CLOCK_CONTROL
-		bool "Enable overcloking/undervolting of the GPU"
-		depends on MALI400
-		help
-			This enables a sysfs interface to control gpu clock and voltage.
+			This option enables additional CPU clock frequencies.
 
 	config ARCHIKERNEL_USE_ARCH_POWER
 		bool "Use arch dependent cpu power functions"
 		help
 			Arch Power causes arch dependent power functions to be used instead
 			of generic high resolution timer ticks and double ticks.
-
-	config ARCHIKERNEL_CHARGE_LEVEL
-		bool "Charge level interface"
-		depends on BATTERY_SAMSUNG
-		help
-			Developed by AndiP71, allows configuration of various charging levels.
-
-	config ARCHIKERNEL_EARLY_SUSPEND_DELAY
-		bool "Include fbearlysuspend interface"
-		depends on FB_EARLYSUSPEND
-		help
-			A simple sysfs interface to user customizable
-			pause to allow CRT off animation to be shown.
-
-	config ARCHIKERNEL_HAPTIC_INTERFACE
-		bool "Include haptic interface"
-		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-		help
-			A simple sysfs interface allowing user
-			to modify haptic (vibrator) intensity.
 
 	config ARCHIKERNEL_PRINTK_INTERFACE
 		bool "Include printk interface"
@@ -375,31 +279,6 @@ menu "ArchiKernel settings"
 		help
 			A simple sysfs interface allowing user
 			to silent android's logcat functions.
-
-	config ARCHIKERNEL_LEDS_INTERFACE
-		bool "Include leds interface"
-		depends on LEDS_AN30259A
-		help
-			A simple sysfs interface allowing user
-			to modify led behaviour.
-
-	config ARCHIKERNEL_DYNAMIC_FSYNC
-		bool "Include dynamic file sync control"
-		help
-			An experimental file sync control using Android's early suspend / late resume drivers.
-
-	config ARCHIKERNEL_TOUCHBOOST_INTERFACE
-		bool "Include touchboost interface"
-		depends on TOUCHSCREEN_MELFAS
-		help
-			A simple sysfs interface allowing user
-			to modify touchboost behaviour.
-
-	config ARCHIKERNEL_TOUCH_WAKE
-		bool "Include TouchWake"
-		depends on TOUCHSCREEN_MELFAS
-		help
-			A feature that allows to turn on the screen by screen event after timeout.
 
 
 
