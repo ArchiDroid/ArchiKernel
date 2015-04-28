@@ -56,7 +56,7 @@ fi
 
 # You may need to change these variables
 TOOLCHAIN="$HOME/TC" # This is where your toolchain is located. Current default ArchiKernel toolchain: https://github.com/ArchiDroid/Toolchain/tree/linaro-4.9-arm-linux-gnueabihf
-TARGETZIPDIR="$HOME/shared/kernel/m0" # If valid, output zip will be moved there from default TARGETDIR location
+TARGETZIPDIR="$HOME/shared/kernel/nicki" # If valid, output zip will be moved there from default TARGETDIR location
 BEEP=1 # This will beep three times on finish to wake me up :). Works even through SSH!
 
 # Above settings should be enough, changing below things shouldn't be required
