@@ -35,14 +35,6 @@ menu "ArchiKernel settings"
 			Select this option if the kernel should work properly in pure AOSP 
 			envioronment, i.e. CyanogenMod or Omni.
 
-	config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
-		bool "Samsung"
-		select USB_ANDROID_SAMSUNG_COMPOSITE
-		select USB_ANDROID_SAMSUNG_MTP
-		help
-			Select this option if the kernel should work properly in Samsung 
-			environment, i.e. XXUGND5 or XXUGNA8.
-
 	config ARCHIKERNEL_TARGET_SYSTEM_UNKNOWN
 		bool "Unknown"
 		help
@@ -58,6 +50,11 @@ menu "ArchiKernel settings"
 		help
 			Target architecture. This enables architecture-specific -march 
 			optimization.
+
+	config ARCHIKERNEL_TARGET_ARCH_ARMV7VE
+		bool "ARMv7ve"
+		help
+			ARMv7a architecture with virtualization extensions.
 
 	config ARCHIKERNEL_TARGET_ARCH_ARMV7A
 		bool "ARMv7a"
@@ -80,15 +77,18 @@ menu "ArchiKernel settings"
 
 	config ARCHIKERNEL_TARGET_CPU_CORTEXA15
 		bool "Cortex A15"
-		select ARCHIKERNEL_TARGET_CPU_FPU_NEONVFP4
 		help
 			Cortex A15 CPU.
 
 	config ARCHIKERNEL_TARGET_CPU_CORTEXA9
 		bool "Cortex A9"
-		select ARCHIKERNEL_TARGET_CPU_FPU_NEON
 		help
 			Cortex A9 CPU.
+
+	config ARCHIKERNEL_TARGET_CPU_CORTEXA7
+		bool "Cortex A7"
+		help
+			Cortex A7 CPU.
 
 	config ARCHIKERNEL_TARGET_CPU_UNKNOWN
 		bool "Unknown"
