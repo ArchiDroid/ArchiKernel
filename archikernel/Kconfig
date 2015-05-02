@@ -166,28 +166,14 @@ menu "ArchiKernel settings"
 	endchoice
 
 
-	choice
-		prompt "Target number of CPU cores"
-		default ARCHIKERNEL_TARGET_CPU_CORES_UNKNOWN
+	config ARCHIKERNEL_TARGET_CPU_CORES
+		int "Target number of CPU cores"
+		default "0"
 		help
-			This specifies number of cores on target CPU. This enables optimizations
-			such as loop parallelizing or optimized word registers.
-
-	config ARCHIKERNEL_TARGET_CPU_CORES_QUAD
-		bool "Quad"
-		help
-			4 Cores.
-
-	config ARCHIKERNEL_TARGET_CPU_CORES_DOUBLE
-		bool "Double"
-		help
-			2 Cores.
-
-	config ARCHIKERNEL_TARGET_CPU_CORES_UNKNOWN
-		bool "Unknown"
-		help
-			Unknown number of cores, select this if you don't want to apply multicore optimizations.
-	endchoice
+			This specifies number of cores on target CPU. It affects optimizations
+			such as loop parallelizing or optimized word registers, but also some
+			built-in defaults such as number of zRAM devices (if available).
+			Specifying 0 disables all of that.
 
 
 
@@ -401,7 +387,7 @@ menu "ArchiKernel settings"
 
 	config ARCHIKERNEL_OPTI_GRAPHITE_PARALLELIZE
 		bool "Parallelize loops"
-		depends on ARCHIKERNEL_OPTI_GRAPHITE && !ARCHIKERNEL_TARGET_CPU_CORES_UNKNOWN
+		depends on ARCHIKERNEL_OPTI_GRAPHITE
 		help
 			Parallelize loops, i.e., split their iteration space to run in n threads.
 			This is only possible for loops whose iterations are independent and can be arbitrarily reordered.
@@ -409,7 +395,6 @@ menu "ArchiKernel settings"
 			rather than constrained e.g. by memory bandwidth. This option implies -pthread, and thus is only
 			supported on targets that have support for -pthread.
 			NOTICE: The number of parallel threads is specified in ARCHIKERNEL_TARGET_CPU_CORES config (above).
-			It will default to 4 on quad-core, 2 on double-core etc.
 
 	config ARCHIKERNEL_OPTI_DNDEBUG
 		bool "Disable debugging assertions"
