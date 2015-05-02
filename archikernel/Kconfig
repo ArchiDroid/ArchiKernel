@@ -255,6 +255,7 @@ menu "ArchiKernel settings"
 			Mali blobs which we're using are very picky about declaring proper API version.
 			Even if we may have totally different source files, API version declared in the
 			kernel and used by the blobs must be the same.
+			You can specify 0 here to use default API version if you're unsure.
 
 
 
