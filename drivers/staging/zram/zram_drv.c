@@ -657,6 +657,10 @@ static int __init zram_init(void)
 {
 	int ret, dev_id;
 
+#if defined(CONFIG_ARCHIKERNEL_TARGET_CPU_CORES) && CONFIG_ARCHIKERNEL_TARGET_CPU_CORES > 0
+	num_devices = CONFIG_ARCHIKERNEL_TARGET_CPU_CORES;
+#endif
+
 	if (num_devices > max_num_devices) {
 		pr_warning("Invalid value for num_devices: %u\n",
 				num_devices);
