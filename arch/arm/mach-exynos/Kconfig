@@ -394,6 +394,14 @@ config EXYNOS4_SETUP_THERMAL
 	help
 	  Common setup code for Exynos4 TMU
 
+config EXYNOS4_EXPORT_TEMP
+	bool "Support for CPU temperature export from exynos4"
+	depends on EXYNOS4_SETUP_THERMAL
+	help
+	  Exports current CPU temperature from Exynos4 TMU to be able to
+	  use it externally from the driver. You can use the special function
+	  get_exynos4_temperature for that purpose after activating this option.
+
 config EXYNOS_SETUP_THERMAL
 	bool "Use thermal management"
 	depends on CPU_FREQ
