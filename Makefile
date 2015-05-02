@@ -613,17 +613,11 @@ KBUILD_CFLAGS	+= -mfpu=vfpv3
 endif
 
 # Target cores
-ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORES_QUAD
-KBUILD_CFLAGS	+= -mvectorize-with-neon-quad
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORES
+ifneq ($(CONFIG_ARCHIKERNEL_TARGET_CPU_CORES),0)
 ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_PARALLELIZE
-KBUILD_CFLAGS	+= -ftree-parallelize-loops=4
+KBUILD_CFLAGS	+= -ftree-parallelize-loops=$(CONFIG_ARCHIKERNEL_TARGET_CPU_CORES)
 endif
-endif
-
-ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORES_DOUBLE
-KBUILD_CFLAGS	+= -mvectorize-with-neon-double
-ifdef CONFIG_ARCHIKERNEL_OPTI_GRAPHITE_PARALLELIZE
-KBUILD_CFLAGS	+= -ftree-parallelize-loops=2
 endif
 endif
 
