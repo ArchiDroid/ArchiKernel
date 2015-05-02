@@ -35,6 +35,14 @@ menu "ArchiKernel settings"
 			Select this option if the kernel should work properly in pure AOSP 
 			envioronment, i.e. CyanogenMod or Omni.
 
+	config ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+		bool "Samsung"
+		select USB_ANDROID_SAMSUNG_COMPOSITE
+		select USB_ANDROID_SAMSUNG_MTP
+		help
+			Select this option if the kernel should work properly in Samsung 
+			environment, i.e. XXUGND5 or XXUGNA8.
+
 	config ARCHIKERNEL_TARGET_SYSTEM_UNKNOWN
 		bool "Unknown"
 		help
