@@ -409,6 +409,12 @@ menu "ArchiKernel settings"
 		help
 			A feature that allows to turn on the screen by screen event after timeout.
 
+	config ARCHIKERNEL_MDNIE_SHARPNESS
+		bool "Enable mDNie sharpness feature"
+		depends on FB_S5P_MDNIE
+		help
+			A feature that allows to switch between sharp/blurry display.
+
 
 
 	comment "Optimizations"
