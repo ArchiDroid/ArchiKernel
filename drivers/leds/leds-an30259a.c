@@ -324,7 +324,11 @@ static void leds_on(enum an30259a_led_enum led, bool on, bool slopemode,
 		data->shadow_reg[AN30259A_REG_LED1CNT2 + led * 4] &=
 							~AN30259A_MASK_DELAY;
 	}
+#ifdef CONFIG_ARCHIKERNEL_LEDS_INTERFACE
 	if ((slopemode) && (led_speed != 0))
+#else
+	if (slopemode)
+#endif
 		data->shadow_reg[AN30259A_REG_LEDON] |= LED_SLOPE_MODE << led;
 	else
 		data->shadow_reg[AN30259A_REG_LEDON] &=
