@@ -28,7 +28,9 @@ void __generic_unplug_device(struct request_queue *);
  */
 enum rq_atomic_flags {
 	REQ_ATOM_COMPLETE = 0,
+#ifdef CONFIG_IOSCHED_ROW
 	REQ_ATOM_URGENT = 1,
+#endif
 };
 
 /*
@@ -45,6 +47,7 @@ static inline void blk_clear_rq_complete(struct request *rq)
 	clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
 }
 
+#ifdef CONFIG_IOSCHED_ROW
 static inline int blk_mark_rq_urgent(struct request *rq)
 {
 	return test_and_set_bit(REQ_ATOM_URGENT, &rq->atomic_flags);
@@ -54,6 +57,7 @@ static inline void blk_clear_rq_urgent(struct request *rq)
 {
 	clear_bit(REQ_ATOM_URGENT, &rq->atomic_flags);
 }
+#endif
 
 /*
  * Internal elevator interface

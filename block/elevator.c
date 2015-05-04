@@ -602,6 +602,7 @@ void elv_requeue_request(struct request_queue *q, struct request *rq)
 	__elv_add_request(q, rq, ELEVATOR_INSERT_REQUEUE);
 }
 
+#ifdef CONFIG_IOSCHED_ROW
 /**
  * elv_reinsert_request() - Insert a request back to the scheduler
  * @q:		request queue where request should be inserted
@@ -636,6 +637,7 @@ int elv_reinsert_request(struct request_queue *q, struct request *rq)
 
 	return res;
 }
+#endif
 
 void elv_drain_elevator(struct request_queue *q)
 {
@@ -841,11 +843,13 @@ void elv_completed_request(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
 
+#ifdef CONFIG_IOSCHED_ROW
 	if (test_bit(REQ_ATOM_URGENT, &rq->atomic_flags)) {
 		q->notified_urgent = false;
 		q->dispatched_urgent = false;
 		blk_clear_rq_urgent(rq);
 	}
+#endif
 	/*
 	 * request is released from the driver, io must be done
 	 */

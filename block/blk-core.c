@@ -308,6 +308,7 @@ void __blk_run_queue(struct request_queue *q)
 	if (unlikely(blk_queue_stopped(q)))
 		return;
 
+#ifdef CONFIG_IOSCHED_ROW
 	if (!q->notified_urgent &&
 		q->elevator->elevator_type->ops.elevator_is_urgent_fn &&
 		q->urgent_request_fn &&
@@ -316,6 +317,9 @@ void __blk_run_queue(struct request_queue *q)
 		q->urgent_request_fn(q);
 	} else
 		q->request_fn(q);
+#else
+	q->request_fn(q);
+#endif
 }
 EXPORT_SYMBOL(__blk_run_queue);
 
@@ -942,6 +946,7 @@ void blk_requeue_request(struct request_queue *q, struct request *rq)
 }
 EXPORT_SYMBOL(blk_requeue_request);
 
+#ifdef CONFIG_IOSCHED_ROW
 /**
  * blk_reinsert_request() - Insert a request back to the scheduler
  * @q:		request queue
@@ -986,6 +991,7 @@ bool blk_reinsert_req_sup(struct request_queue *q)
 		true : false;
 }
 EXPORT_SYMBOL(blk_reinsert_req_sup);
+#endif
 
 static void add_acct_request(struct request_queue *q, struct request *rq,
 			     int where)
@@ -2027,6 +2033,7 @@ struct request *blk_fetch_request(struct request_queue *q)
 	struct request *rq;
 
 	rq = blk_peek_request(q);
+#ifdef CONFIG_IOSCHED_ROW
 	if (rq) {
 		/*
 		 * Assumption: the next request fetched from scheduler after we
@@ -2038,6 +2045,10 @@ struct request *blk_fetch_request(struct request_queue *q)
 		}
 		blk_start_request(rq);
 	}
+#else
+	if (rq)
+		blk_start_request(rq);
+#endif
 	return rq;
 }
 EXPORT_SYMBOL(blk_fetch_request);
