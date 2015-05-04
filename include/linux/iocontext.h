@@ -1,14 +1,23 @@
 #ifndef IOCONTEXT_H
 #define IOCONTEXT_H
 
+#ifdef CONFIG_IOSCHED_BFQ
 #include <linux/bitmap.h>
+#endif
 #include <linux/radix-tree.h>
 #include <linux/rcupdate.h>
 
+#ifndef CONFIG_IOSCHED_BFQ
+struct cfq_queue;
+#endif
 struct cfq_io_context {
 	void *key;
 
+#ifdef CONFIG_IOSCHED_BFQ
 	void *cfqq[2];
+#else
+	struct cfq_queue *cfqq[2];
+#endif
 
 	struct io_context *ioc;
 
@@ -18,6 +27,7 @@ struct cfq_io_context {
 	unsigned long ttime_samples;
 	unsigned long ttime_mean;
 
+#ifdef CONFIG_IOSCHED_BFQ
 	unsigned int wr_time_left;
 	bool saved_idle_window;
 	bool saved_IO_bound;
@@ -27,6 +37,7 @@ struct cfq_io_context {
 
 	unsigned int cooperations;
 	unsigned int failed_cooperations;
+#endif
 
 	struct list_head queue_list;
 	struct hlist_node cic_list;
@@ -37,6 +48,7 @@ struct cfq_io_context {
 	struct rcu_head rcu_head;
 };
 
+#ifdef CONFIG_IOSCHED_BFQ
 /*
  * Indexes into the ioprio_changed bitmap.  A bit set indicates that
  * the corresponding I/O scheduler needs to see a ioprio update.
@@ -46,6 +58,7 @@ enum {
 	IOC_BFQ_IOPRIO_CHANGED,
 	IOC_IOPRIO_CHANGED_BITS
 };
+#endif
 
 /*
  * I/O subsystem state of the associated processes.  It is refcounted
@@ -59,7 +72,11 @@ struct io_context {
 	spinlock_t lock;
 
 	unsigned short ioprio;
+#ifdef CONFIG_IOSCHED_BFQ
 	DECLARE_BITMAP(ioprio_changed, IOC_IOPRIO_CHANGED_BITS);
+#else
+	unsigned short ioprio_changed;
+#endif
 
 #if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 	unsigned short cgroup_changed;
@@ -73,8 +90,10 @@ struct io_context {
 
 	struct radix_tree_root radix_root;
 	struct hlist_head cic_list;
+#ifdef CONFIG_IOSCHED_BFQ
 	struct radix_tree_root bfq_radix_root;
 	struct hlist_head bfq_cic_list;
+#endif
 	void __rcu *ioc_data;
 };
 

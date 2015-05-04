@@ -30,7 +30,11 @@
 
 int set_task_ioprio(struct task_struct *task, int ioprio)
 {
+#ifdef CONFIG_IOSCHED_BFQ
 	int err, i;
+#else
+	int err;
+#endif
 	struct io_context *ioc;
 	const struct cred *cred = current_cred(), *tcred;
 
@@ -60,17 +64,23 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 			err = -ENOMEM;
 			break;
 		}
+#ifdef CONFIG_IOSCHED_BFQ
 		/* let other ioc users see the new values */
 		smp_wmb();
+#endif
 		task->io_context = ioc;
 	} while (1);
 
 	if (!err) {
 		ioc->ioprio = ioprio;
+#ifdef CONFIG_IOSCHED_BFQ
 		/* make sure schedulers see the new ioprio value */
 		wmb();
 		for (i = 0; i < IOC_IOPRIO_CHANGED_BITS; i++)
 			set_bit(i, ioc->ioprio_changed);
+#else
+		ioc->ioprio_changed = 1;
+#endif
 	}
 
 	task_unlock(task);
