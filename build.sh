@@ -65,6 +65,8 @@ TARGETDIRKERNEL="$TARGETDIR/prebuilt" # This is where zImage is put, this should
 TARGETDIRMODULES="$TARGETDIRKERNEL/system/lib/modules" # Similar to above, but for modules
 TARGETZIPNAME="ArchiKernel_$(date '+%y%m%d_%H%M%S')" # Name of output zip. By keeping a date here we can be sure that all zips will be unique
 JOBS="$(grep -c "processor" "/proc/cpuinfo")" # Maximum number of jobs, can be declared statically if needed, default to number of threads of the CPU
+SUGGESTED_PREFIX="arm-architoolchain-linux-gnueabihf"
+SUGGESTED_TOOLCHAIN="https://github.com/ArchiDroid/Toolchain/tree/architoolchain-5.1-arm-linux-gnueabihf-cortex_a9_neon" # Suggested toolchain for this variant of AK
 
 # This is where magic starts
 for ARG in "$@"; do
@@ -81,12 +83,19 @@ for ARG in "$@"; do
 	esac
 done
 
-PREFIXES="arm-architoolchain-linux-gnueabihf arm-linux-gnueabihf arm-eabi" # Valid prefixes used by ArchiToolchain, Linaro and Google
+PREFIXES="$SUGGESTED_PREFIX arm-architoolchain-linux-gnueabihf arm-linux-gnueabihf arm-eabi" # Valid prefixes used by ArchiToolchain, Linaro and Google
 for PREFIX in $PREFIXES; do
 	if [[ -x "$TOOLCHAIN/bin/${PREFIX}-gcc" ]]; then
 		CROSS_COMPILE="$TOOLCHAIN/bin/${PREFIX}-"
 		echo "Found ${PREFIX} toolchain!"
 		echo
+		if [[ "$PREFIX" != "$SUGGESTED_PREFIX" ]]; then
+			echo "NOTICE: Your compiler looks good, but ArchiKernel suggests of using $SUGGESTED_PREFIX"
+			echo "Recommended toolchain mentioned above can be found here: $SUGGESTED_TOOLCHAIN"
+			echo "You can safely ignore this notice if you know what you're doing"
+			echo "Just keep in mind that outdated or buggy toolchains can cause compilation issues"
+			echo
+		fi
 		break
 	fi
 done
