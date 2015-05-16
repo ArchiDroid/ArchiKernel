@@ -66,7 +66,7 @@ TARGETDIRMODULES="$TARGETDIRKERNEL/system/lib/modules" # Similar to above, but f
 TARGETZIPNAME="ArchiKernel_$(date '+%y%m%d_%H%M%S')" # Name of output zip. By keeping a date here we can be sure that all zips will be unique
 JOBS="$(grep -c "processor" "/proc/cpuinfo")" # Maximum number of jobs, can be declared statically if needed, default to number of threads of the CPU
 SUGGESTED_PREFIX="arm-architoolchain-linux-gnueabihf"
-SUGGESTED_TOOLCHAIN="https://github.com/ArchiDroid/Toolchain/tree/architoolchain-5.1-arm-linux-gnueabihf-cortex_a9_neon" # Suggested toolchain for this variant of AK
+SUGGESTED_TOOLCHAIN="https://github.com/ArchiDroid/Toolchain/tree/architoolchain-5.1-arm-linux-gnueabihf-cortex_a15_neon_vfpv4" # Suggested toolchain for this variant of AK
 
 # This is where magic starts
 for ARG in "$@"; do
