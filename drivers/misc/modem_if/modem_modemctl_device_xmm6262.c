@@ -14,7 +14,9 @@
  *
  */
 
+#ifndef CONFIG_ARCHIKERNEL_TARGET_RELEASE_PRODUCTION
 #define DEBUG
+#endif
 
 #include <linux/init.h>
 #include <linux/irq.h>
