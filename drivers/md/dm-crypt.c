@@ -1587,7 +1587,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned long long tmpll;
 	int ret;
 
-	if (argc != 5) {
+	if (argc < 5) {
 		ti->error = "Not enough arguments";
 		return -EINVAL;
 	}
