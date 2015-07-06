@@ -195,8 +195,11 @@ struct msm_fb_data_type {
 	u32 writeback_state;
 	bool writeback_active_cnt;
 	int cont_splash_done;
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 	void *copy_splash_buf;
 	unsigned char *copy_splash_phys;
+#endif
 	void *cpu_pm_hdl;
 	u32 avtimer_phy;
 	int vsync_sysfs_created;

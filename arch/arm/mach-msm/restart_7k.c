@@ -108,7 +108,9 @@ static void msm_pm_restart(char str, const char *cmd)
 
 	pr_debug("The reset reason is %x\n", restart_reason);
 
+#ifdef CONFIG_MACH_LGE_NO_STOCK_INFO
 	set_magicnum_restart(restart_reason);
+#endif
 
 	/* Disable interrupts */
 	local_irq_disable();

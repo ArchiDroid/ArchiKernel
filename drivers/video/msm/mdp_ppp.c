@@ -1024,18 +1024,15 @@ struct mdp_blit_req *req, struct file *p_src_file, struct file *p_dst_file)
 		if (iBuf->mdpImg.mdpOp & MDPOP_ROT90) {
 			ppp_operation_reg |= PPP_OP_ROT_90;
 		}
-//<sinjo.mattappallil@lge.com><LCD 180 rotation patch><06Dec2011><START>		
-        #if (!defined(CONFIG_MACH_MSM7X25A_V3) && !defined(CONFIG_MACH_MSM7X25A_V3_DS) && !defined(CONFIG_MACH_MSM7X25A_V3BR_REV_B) && !defined(CONFIG_MACH_MSM7X25A_V3BR_REV_C) && !defined(CONFIG_MACH_MSM7X25A_V1))
+#if (!defined(CONFIG_MACH_MSM7X25A_V3) && !defined(CONFIG_MACH_MSM7X25A_V1))
 		if((iBuf->mdpImg.mdpOp&MDPOP_ROTATION) == (MDPOP_LR|MDPOP_ROT90))
 		{
             ppp_operation_reg |= PPP_OP_FLIP_LR;
 		}
-		else if (iBuf->mdpImg.mdpOp & MDPOP_ROT180) { // YOONSOO_TEMP 20111202
-   //         printk("<6>""drivers/video/msm/mdp_ppp.c : Rotate LCD for vee7 series\n");
+		else if (iBuf->mdpImg.mdpOp & MDPOP_ROT180) {
             ppp_operation_reg |= PPP_OP_FLIP_LR|PPP_OP_FLIP_UD;
         }
-        #endif
-//<sinjo.mattappallil@lge.com><LCD 180 rotation patch><06Dec2011><END>		
+#endif
 		if (iBuf->mdpImg.mdpOp & MDPOP_LR) {
 			ppp_operation_reg |= PPP_OP_FLIP_LR;
 		}

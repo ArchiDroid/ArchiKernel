@@ -174,18 +174,11 @@ typedef struct {
 // END: 0009484 sehyuny.kim@lge.com 2010-09-24
 #define MMC_DEVICENAME "/dev/block/mmcblk0"
 
-// LGE_CHANGE_S, sohyun.nam@lge.com 
-#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
-#define LCD_K_CAL_SIZE 13
-static unsigned char lcd_buf[LCD_K_CAL_SIZE]={0,};
-#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
-// LGE_CHANGE_S, sohyun.nam@lge.com 
-
 /*LGE_CHANGE_S, 2012-06-29, sohyun.nam@lge.com add silence reset to enable controling in hidden menu*/
 #ifdef CONFIG_LGE_SILENCE_RESET
 #define SILENT_RESET_SIZE 2
 static unsigned char silent_reset_buf[SILENT_RESET_SIZE]={0,};
-#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
+#endif /* CONFIG_LGE_SILENCE_RESET */
 // LGE_CHANGE_S, sohyun.nam@lge.com 
 
 /* BEGIN: 0013860 jihoon.lee@lge.com 20110111 */
@@ -775,41 +768,6 @@ int lge_emmc_misc_write(unsigned int blockNo, const char* buffer, int size);
 int lge_emmc_misc_write_pos(unsigned int blockNo, const char* buffer, int size, int pos);
 int lge_emmc_misc_read(unsigned int blockNo, char* buffer, int size);
 
-// LGE_CHANGE_S, sohyun.nam@lge.com
-#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
-static int write_lcd_k_cal(const char *val, struct kernel_param *kp)
-{
-	int size;
-
-	memcpy(lcd_buf, val, LCD_K_CAL_SIZE);
-	memcpy(lcd_buf+9, "cal", 4);
-	lcd_buf[LCD_K_CAL_SIZE-1] = '\0';
-	printk("write_lcd_k_cal :[%s] - [%s]:\n", val, lcd_buf);
-#if 0//def LG_MISC_DATA
-	size = lge_emmc_misc_write_crc(LG_MISC_IO_DISPLAY_KCAL,LG_MISC_DATA_MAGIC, lcd_buf, LCD_K_CAL_SIZE,0);
-#else
-	size = lge_emmc_misc_write(44, lcd_buf, LCD_K_CAL_SIZE);
-#endif
-	if (size == LCD_K_CAL_SIZE)
-		printk("<6>" "write %d block\n", size);
-	else
-		printk("<6>" "write fail (%d)\n", size);
-
-	return size;
-}
-
-static int read_lcd_k_cal(char *buf, struct kernel_param *kp)
-{
-#if 0//def LG_MISC_DATA
-	int size = lge_emmc_misc_read_crc(LG_MISC_IO_DISPLAY_KCAL, buf, LCD_K_CAL_SIZE);
-#else
-	int size = lge_emmc_misc_read(44, buf, LCD_K_CAL_SIZE);
-#endif
-	buf[LCD_K_CAL_SIZE-1] = '\0';
-	return size;
-}
-module_param_call(lcd_k_cal, write_lcd_k_cal, read_lcd_k_cal, NULL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);  
-#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
 // LGE_CHANGE_E, sohyun.nam@lge.com
 
 /*LGE_CHANGE_S, 2012-06-29, sohyun.nam@lge.com add silence reset to enable controling in hidden menu*/
@@ -1035,7 +993,6 @@ module_param_call(hiddenmenu_factory_reset, NULL, do_hiddenmenu_frst, NULL, S_IR
 //[LGE_UPDATE_E] 20120215 minwoo.jung
 #endif
 // Begin: hyechan.lee 2011-04-06
-// 0018768: [fota]Fix an issue that when VZW logo is displayed, remove battery it won¡¯t enter recovery mode 
 static int fota_write_block(const char *val, struct kernel_param *kp)
 {
 

@@ -35,12 +35,6 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 
-//[2012-12-21][junghoon79.kim@lge.com] sleep current issue in cal&auto test[START]
-#ifdef CONFIG_LGE_SUPPORT_MINIOS
-#include <mach/lge/lge_proc_comm.h>
-#endif
-//[2012-12-21][junghoon79.kim@lge.com] sleep current issue in cal&auto test[START]
-
 /*[LGE_BSP_START] yunmo.yang@lge.com*/
 #if defined(CONFIG_MACH_MSM8X25_V7)
 #define LP5521_MAX_LED_CURRENT 217
@@ -836,15 +830,12 @@ static ssize_t store_led_current_index(struct device *dev,
       switch(i)
 		{
 			case LP5521_R:/*Red*/
-				//printk(KERN_INFO"[%s][R] modify_current : %d", __func__,  modify_current + LP5521_R_INDEX);
 				ret = lp5521_set_led_current(chip, i, modify_current + LP5521_R_INDEX);
 				break;
 			case LP5521_G:/*Green*/
-				//printk(KERN_INFO"[%s][G] modify_current : %d", __func__,  modify_current + LP5521_G_INDEX);
 				ret = lp5521_set_led_current(chip, i, modify_current + LP5521_G_INDEX);
 				break;
 			case LP5521_B:/*Blue*/
-				//printk(KERN_INFO"[%s][B] modify_current : %d", __func__,  modify_current + LP5521_B_INDEX);
 				ret = lp5521_set_led_current(chip, i, modify_current + LP5521_B_INDEX);
 				break;
 			default:

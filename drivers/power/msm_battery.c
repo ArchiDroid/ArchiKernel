@@ -475,12 +475,6 @@ static struct power_supply msm_psy_batt = {
 	.get_property = msm_batt_power_get_property,
 };
 
-/*2012-11-13 sungchul.jung@lge.com did not used 'CONFIG_BATTERY_MSM_FAKE' flag [START] */
-#ifdef CONFIG_LGE_BATTERY_SUSPEND_RESUME
-//#ifndef CONFIG_BATTERY_MSM_FAKE
-#endif /*CONFIG_LGE_BATTERY_SUSPEND_RESUME*/
-/*2012-11-13 sungchul.jung@lge.com did not used 'CONFIG_BATTERY_MSM_FAKE' flag [END] */
-
 struct msm_batt_get_volt_ret_data {
 	u32 battery_voltage;
 };
@@ -1214,8 +1208,6 @@ static int msm_batt_modify_client(u32 client_handle, u32 desired_batt_voltage,
 	return 0;
 }
 
-/*2012-11-13 sungchul.jung@lge.com registration suspend and resume for v3 [START] */
-
 /* by baborobo@lge.com
 * it is notthing at early-suspend / msm_batt_late_resume
 * the rpc_client-setting is executed at suspend/resume
@@ -1333,8 +1325,6 @@ void msm_batt_late_resume(struct early_suspend *h)
 	pr_debug("%s: exit\n", __func__);
 }
 #endif /*CONFIG_LGE_BATTERY_SUSPEND_RESUME*/
-/*2012-11-13 sungchul.jung@lge.com registration suspend and resume for v3 [END] */
-
 
 struct msm_batt_vbatt_filter_req {
 	u32 batt_handle;
@@ -1701,13 +1691,9 @@ static int msm_batt_cleanup(void)
 	}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-/*2012-11-13 sungchul.jung@lge.com did not used early_suspend and late_resume  [START] */
-#ifdef CONFIG_LGE_BATTERY_SUSPEND_RESUME
-//	if (msm_batt_info.early_suspend.suspend == msm_batt_early_suspend)
-#else
+#ifndef CONFIG_LGE_BATTERY_SUSPEND_RESUME
 	if (msm_batt_info.early_suspend.suspend == msm_batt_early_suspend)
 #endif /*CONFIG_LGE_BATTERY_SUSPEND_RESUME*/
-/*2012-11-13 sungchul.jung@lge.com did not used early_suspend and late_resume [END] */
 		unregister_early_suspend(&msm_batt_info.early_suspend);
 #endif
 #endif
@@ -2195,15 +2181,10 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	msm_batt_info.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
-/*2012-11-13 sungchul.jung@lge.com did not used early_suspend and late_resume [START] */
-#ifdef CONFIG_LGE_BATTERY_SUSPEND_RESUME
-//	msm_batt_info.early_suspend.suspend = msm_batt_early_suspend;
-//	msm_batt_info.early_suspend.resume = msm_batt_late_resume;
-#else
+#ifndef CONFIG_LGE_BATTERY_SUSPEND_RESUME
 	msm_batt_info.early_suspend.suspend = msm_batt_early_suspend;
 	msm_batt_info.early_suspend.resume = msm_batt_late_resume;
 #endif /*CONFIG_LGE_BATTERY_SUSPEND_RESUME*/
-/*2012-11-13 sungchul.jung@lge.com did not used early_suspend and late_resume [END] */
 	register_early_suspend(&msm_batt_info.early_suspend);
 #endif
 	msm_batt_update_psy_status();
@@ -2261,14 +2242,10 @@ static int __devexit msm_batt_remove(struct platform_device *pdev)
 static struct platform_driver msm_batt_driver = {
 	.probe = msm_batt_probe,
 	.remove = __devexit_p(msm_batt_remove),
-/*2012-11-13 sungchul.jung@lge.com registration suspend and resume for v3 [START] */
 #ifdef CONFIG_LGE_BATTERY_SUSPEND_RESUME
 	.suspend = msm_batt_suspend,
 	.resume = msm_batt_resume,
-#else
-	/*nothing*/
 #endif /*CONFIG_LGE_BATTERY_SUSPEND_RESUME*/
-/*2012-11-13 sungchul.jung@lge.com registration suspend and resume for v3 [END] */
 
 	.driver = {
 		   .name = "msm-battery",

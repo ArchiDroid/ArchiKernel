@@ -20,31 +20,27 @@ config LGE_HANDLE_PANIC
 	depends on ANDROID_RAM_CONSOLE
 	help
 	 LGE crash handler
-      
-# LGE_CHANGE_S,narasimha.chikka@lge.com,Add last Sysfs info
+
 config LGE_LAST_SYSFS_FILE_INFO
         depends on MACH_LGE
         default n
         bool "Last Sysfs info"
         help
-		  Provides last sysfs file accessed info
-# LGE_CHANGE_E,narasimha.chikka@lge.com,Add last Sysfs info
+	 Provides last sysfs file accessed info
 
 config LGE_REPORT_RMT_STORAGE_CLIENT_READY
        bool "Report that RMT_STORAGE_CLIENT is ready to modem"
        depends on MACH_LGE
        default n
        help
-        Report that Remote storage client is ready to modem.
-        After this signal modem can call efs_sync().
+	 Report that Remote storage client is ready to modem.
+	 After this signal modem can call efs_sync().
 
-#LGE_CHANGE_S, lge specific proc com commands
 config LGE_PROC_COMM
-	   bool "LGE added proc comm"
-	   default y
-       help
-		LGE added proc_comm 
-#LGE_CHANGE_E, lge specific proc com commands
+	bool "LGE added proc comm"
+	default y
+	help
+	 LGE added proc_comm
 
 config LGE_BOOT_MODE
 	bool "LGE boot mode"
@@ -52,8 +48,7 @@ config LGE_BOOT_MODE
 	default n
 	help
 	 This feature shows boot mode to userspace through sysfs
-		
-# LGE_CHANGE_S,narasimha.chikka@lge.com,Add Blocking Monitor
+
 config LGE_BLOCKING_MONITOR
 	bool "LGE Blocking Monitor"
 	depends on MACH_LGE
@@ -61,58 +56,32 @@ config LGE_BLOCKING_MONITOR
 	help
 	 This feature shows call stack when the function call is blocked
 	 for predefined time
-# LGE_CHANGE_E,narasimha.chikka@lge.com,Add Blocking Monitor
 
-#LGE_CHANGE_S, for lge pcb revision
 config LGE_HW_REVISION
-	   bool "LGE PCB Revision"
-	   default y
-       help
-		Detects LGE Board PCB Revision 
-#LGE_CHANGE_E, for lge pcb revision
+	bool "LGE PCB Revision"
+	default y
+	help
+	 Detects LGE Board PCB Revision
 
-
-#LGE_CHANGE_S, for lge lcd k cal
-config LGE_FB_MSM_MDP_LUT_ENABLE
-	   bool "LGE LCD K calibration"
-	   default n
-       help
-		Detects LGE Board PCB Revision 
-#LGE_CHANGE_E, for lge lcd k cal
-#menu "LGE Board Selection"
-
-# LGE_CHANGE_S,narasimha.chikka@lge.com,Add BATT_ID Check Config
 config LGE_PM_BATT_ID_DETECTION
        bool "Detects Battery Id from modem"
        default n
        help
-		Detects Battery ID from modem(See lge_pm.h
-		for battery id types)
-# LGE_CHANGE_E,narasimha.chikka@lge.com,Add BATT_ID Check Config
+	 Detects Battery ID from modem(See lge_pm.h for battery id types)
 
 config LGE_LCD_ESD_DETECTION
-   bool "Enable to reset LCD on ESD detection"
-   depends on MACH_LGE
-   default n
-   help
-    This enables ESD detection of LCD & resets LCD if ESD shock occurs.
+	bool "Enable to reset LCD on ESD detection"
+	depends on MACH_LGE
+	default n
+	help
+	 This enables ESD detection of LCD & resets LCD if ESD shock occurs.
 
-config LGE_SUPPORT_MINIOS
-        depends on MACH_LGE
-        default n
-        bool "LGE MiniOS 2.0 Support"
-        help
-                LGE MiniOS 2.0 Supports
-
-#LGE_CHANGE_S,narasimha.chikka@lge.com,Add UART enable Config
 config LGE_UART_MODE
 	bool "Support LGE UART ENABLE DISABLE"
 	default n
 	depends on SERIAL_MSM_CONSOLE
 	help
 	 UART ENABLE DISABLE HANDLING
-
-#LGE_CHANGE_E,narasimha.chikka@lge.com,Add UART enable Config
 
 config LGE_BOARD_HEADER_FILE
 	string "LGE board specific header file name"
@@ -121,6 +90,7 @@ config LGE_BOARD_HEADER_FILE
 	help
 	 Specifies the board header file for particular model
 	 (Eg: board_v7.h).This config must be set
+
 config LGE_BDI_TIMER_BUG_PATCH
 	bool "LGE bdi timer bug patch"
 	default n 
@@ -147,12 +117,17 @@ config LGE_WAIT_FOR_EFS_SYNC_COMPLETE
 	 Turn Off phone only when currently active sync complete.This makes sure that
 	 modem file system is proper.
 
-#LGE_CHANGE_S : bohyun.jung@lge.com - remove debug feature 
 config MACH_LGE_NO_DEBUG_INFO
-    depends on MACH_LGE
+	depends on MACH_LGE
 	default n
-    bool "MSM7x27A U0 DEBUG Option"
-    help
-        Support for the LG Electronics MSM7x27A U0.
-#LGE_CHANGE_E : bohyun.jung@lge.com - remove debug feature 
+	bool "MSM7x27A U0 DEBUG Option"
+	help
+	 Support for the LG Electronics MSM7x27A U0.
+
+config MACH_LGE_NO_STOCK_INFO
+	depends on MACH_LGE
+	default y
+	bool "LG Stock DEBUG INFO"
+	help
+	 LG Stock DEBUG INFO
 

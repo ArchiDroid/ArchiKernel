@@ -58,13 +58,7 @@ enum {
 #define GPIO_EAR_SENSE_N          41
 #define GPIO_EARPOL_DETECT        4
 #define GPIO_EAR_MIC_EN           127
-/* 2012-09-27 JongKwang-Lee(jongkwang.lee@lge.com) [V3] change HOOK Button  on V3 Rev.C [START] */
-#ifdef CONFIG_MACH_MSM7X25A_V3BR_REV_C
-#define GPIO_EAR_KEY_INT          28
-#else
-#define GPIO_EAR_KEY_INT          29
-#endif
-/* 2012-09-27 JongKwang-Lee(jongkwang.lee@lge.com) [V3] change HOOK Button  on V3 Rev.C [END] */
+#define GPIO_EAR_KEY_INT	29
 #else
 #define GPIO_EAR_SENSE			41
 #define GPIO_BUTTON_DETECT		29

@@ -4,10 +4,7 @@
 #include <linux/syscalls.h>
 
 #include <lg_diag_unifiedmsgtool.h>
-/*BEGIN: 0011452 kiran.kanneganti@lge.com 2010-11-26*/
-/*ADD 0011452: Noice cancellation check support for testmode*/
-#include <mach/qdsp5v2/audio_def.h>
-/* END: 0011452 kiran.kanneganti@lge.com 2010-11-26 */
+
 #include <linux/delay.h>
 
 #ifndef SKW_TEST
