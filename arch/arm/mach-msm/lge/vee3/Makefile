@@ -9,4 +9,3 @@ obj-$(CONFIG_MACH_MSM7X25A_V3) += board-msm7627a-io_vee3.o
 obj-$(CONFIG_MACH_MSM7X25A_V3) += board-msm7627a-storage_vee3.o
 obj-$(CONFIG_MACH_MSM7X25A_V3) += board-msm7627a-wlan_vee3.o
 obj-$(CONFIG_MACH_MSM7X25A_V3) += board-msm7627a-display_vee3.o
-#obj-$(CONFIG_MACH_MSM7X25A_V3) += board-v3-panel.o

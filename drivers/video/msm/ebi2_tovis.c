@@ -333,7 +333,7 @@ static void panel_tianmaDisplay_init(void)
                 EBI2_WRITE16D(DISP_DATA_PORT,0xb9);	 //8F	//VCOM OFFSET	
 
     EBI2_WRITE16C(DISP_CMD_PORT,0x36);
-                EBI2_WRITE16D(DISP_DATA_PORT,0x00);   //80 -> 00 бзб■?воиби╧во 	RGB
+                EBI2_WRITE16D(DISP_DATA_PORT,0x00);
 
     EBI2_WRITE16C(DISP_CMD_PORT,0x3A);
                 EBI2_WRITE16D(DISP_DATA_PORT,0x55);
@@ -585,23 +585,6 @@ static void panel_lgdisplay_init(void)
 }
 #endif
 
-
-
-#if 0/*2012-09-26 junghoon-kim(junghoon79.kim@lge.com) V3 not use [START]*/
-/* LGE_CHANGE_S: E0 jiwon.seo@lge.com [2011-11-22] : BL control error fix */
-extern int Is_Backlight_Set ; 
-#ifdef CONFIG_BACKLIGHT_RT9396
-extern int rt9396_force_set(void);
-#else
-extern int bu61800_force_set(void);
-#endif
-//extern int mcs8000_ts_on(void);//dajiniv
-
-/* LGE_CHANGE_E: E0 jiwon.seo@lge.com [2011-11-22] : BL control error fix */
-#endif/*2012-09-26 junghoon-kim(junghoon79.kim@lge.com) V3 not use [END]*/
-
-
-
 static int ilitek_qvga_disp_on(struct platform_device *pdev)
 {
 #ifdef CONFIG_MACH_MSM7X25A_V1
@@ -619,7 +602,7 @@ static int ilitek_qvga_disp_on(struct platform_device *pdev)
    if((pdata->initialized && system_state == SYSTEM_BOOTING) || lcd_init_skip_cnt < 1) {
    
       lcd_init_skip_cnt =1;
-      printk("%s: display on...Skip!!!!!! and back light off charger logo mode\n", __func__);
+      printk("%s: display on...Skip! and back light off charger logo mode\n", __func__);
 	  
 #else
 	if(pdata->initialized && system_state == SYSTEM_BOOTING) {
@@ -702,21 +685,6 @@ static int ilitek_qvga_disp_on(struct platform_device *pdev)
 #endif
 	pm_qos_update_request(tovis_pm_qos_req, 65000);
 	display_on = TRUE;
-
-#if 0 /*2012-09-26 junghoon-kim(junghoon79.kim@lge.com) V3 not use [START]*/
-/* LGE_CHANGE_S: E0 jiwon.seo@lge.com [2011-11-22] : BL control error fix */
-	if(!Is_Backlight_Set)
-	{
-		msleep(50);
-      #ifdef CONFIG_BACKLIGHT_RT9396
-		rt9396_force_set();    //backlight current level force setting here
-		#else
-      bu61800_force_set();    //backlight current level force setting here
-      #endif
-	}
-   /* LGE_CHANGE_E: E0 jiwon.seo@lge.com [2011-11-22] : BL control error fix */
-#endif/*2012-09-26 junghoon-kim(junghoon79.kim@lge.com) V3 not use [END]*/
-
 	  
 	return 0;
 }
@@ -758,7 +726,7 @@ static int __init tovis_qvga_probe(struct platform_device *pdev)
 
 	ret = device_create_file(&pdev->dev, &dev_attr_lcd_onoff);
 	if (ret) {
-		printk("tovis_qvga_probe device_creat_file failed!!!\n");
+		printk("tovis_qvga_probe device_creat_file failed!\n");
 	}
 
 #ifndef CONFIG_ARCH_MSM7X27A

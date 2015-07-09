@@ -412,10 +412,13 @@ struct msm_panel_common_pdata {
 	u32 ov1_wb_size;  /* overlay1 writeback size */
 	u32 mem_hid;
 	char cont_splash_enabled;
+	char mdp_iommu_split_domain;
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 	u32 splash_screen_addr;
 	u32 splash_screen_size;
-	char mdp_iommu_split_domain;
-        u32 avtimer_phy;
+	u32 avtimer_phy;
+#endif
 };
 
 

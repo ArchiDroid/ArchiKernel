@@ -483,949 +483,6 @@ error:
 
 DEFINE_MUTEX(mdp_lut_push_sem);
 static int mdp_lut_i;
-// LGE_CHANGE_S, sohyun.nam@lge.com
-//#define LCDCal_LUT_enable	1 //sohyun.nam
-#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
-extern int g_lge_lcd_k_cal[6];
-
-uint32 lge_gc_lut[] = {	
-
-/* LGE_CHANGE_S, sohyun.nam@lge.com, 12-11-26, for V7 HW_PP2st */
-/* LGE_CHANGE_S, jungrock.oh@lge.com, 2012-12-07, add U0_featuring for at_cmd*/
-#if defined(CONFIG_MACH_MSM8X25_V7)||defined(CONFIG_MACH_MSM7X27A_U0) //sohyun.nam@lge.com, 12-11-26, for V7 HW_PP2st lut_test_tune_25
-/* LGE_CHANGE_E, jungrock.oh@lge.com, 2012-12-07, add U0_featuring for at_cmd*/
-0x00000000,
-0x00010101,
-0x00010101,
-0x00020202,
-0x00020202,
-0x00030303,
-0x00030303,
-0x00040404,
-0x00050505,
-0x00050505,
-0x00060606,
-0x00060606,
-0x00070707,
-0x00080808,
-0x00080808,
-0x00090909,
-0x000A0A0A,
-0x000A0A0A,
-0x000B0B0B,
-0x000B0B0B,
-0x000C0C0C,
-0x000D0D0D,
-0x000D0D0D,
-0x000E0E0E,
-0x000F0F0F,
-0x000F0F0F,
-0x00101010,
-0x00111111,
-0x00121212,
-0x00121212,
-0x00131313,
-0x00141414,
-0x00151515,
-0x00151515,
-0x00161616,
-0x00171717,
-0x00181818,
-0x00181818,
-0x00191919,
-0x001A1A1A,
-0x001B1B1B,
-0x001C1C1C,
-0x001D1D1D,
-0x001D1D1D,
-0x001E1E1E,
-0x001F1F1F,
-0x00202020,
-0x00212121,
-0x00222222,
-0x00232323,
-0x00242424,
-0x00252525,
-0x00262626,
-0x00262626,
-0x00272727,
-0x00282828,
-0x00292929,
-0x002A2A2A,
-0x002B2B2B,
-0x002C2C2C,
-0x002D2D2D,
-0x002E2E2E,
-0x002F2F2F,
-0x00303030,
-0x00313131,
-0x00323232,
-0x00343434,
-0x00353535,
-0x00363636,
-0x00373737,
-0x00383838,
-0x00393939,
-0x003A3A3A,
-0x003B3B3B,
-0x003C3C3C,
-0x003E3E3E,
-0x003F3F3F,
-0x00404040,
-0x00414141,
-0x00424242,
-0x00434343,
-0x00444444,
-0x00454545,
-0x00474747,
-0x00484848,
-0x00494949,
-0x004A4A4A,
-0x004B4B4B,
-0x004C4C4C,
-0x004D4D4D,
-0x004F4F4F,
-0x00505050,
-0x00515151,
-0x00525252,
-0x00535353,
-0x00545454,
-0x00555555,
-0x00565656,
-0x00585858,
-0x00595959,
-0x005A5A5A,
-0x005B5B5B,
-0x005C5C5C,
-0x005D5D5D,
-0x005E5E5E,
-0x005F5F5F,
-0x00606060,
-0x00626262,
-0x00636363,
-0x00646464,
-0x00656565,
-0x00666666,
-0x00676767,
-0x00686868,
-0x00696969,
-0x006A6A6A,
-0x006B6B6B,
-0x006C6C6C,
-0x006D6D6D,
-0x006E6E6E,
-0x00707070,
-0x00717171,
-0x00727272,
-0x00737373,
-0x00747474,
-0x00757575,
-0x00767676,
-0x00777777,
-0x00787878,
-0x00797979,
-0x007B7B7B,
-0x007C7C7C,
-0x007D7D7D,
-0x007E7E7E,
-0x00808080,
-0x00818181,
-0x00828282,
-0x00848484,
-0x00858585,
-0x00868686,
-0x00888888,
-0x00898989,
-0x008A8A8A,
-0x008B8B8B,
-0x008D8D8D,
-0x008E8E8E,
-0x008F8F8F,
-0x00909090,
-0x00929292,
-0x00939393,
-0x00949494,
-0x00959595,
-0x00979797,
-0x00989898,
-0x00999999,
-0x009A9A9A,
-0x009C9C9C,
-0x009D9D9D,
-0x009E9E9E,
-0x009F9F9F,
-0x00A0A0A0,
-0x00A1A1A1,
-0x00A3A3A3,
-0x00A4A4A4,
-0x00A5A5A5,
-0x00A6A6A6,
-0x00A7A7A7,
-0x00A8A8A8,
-0x00A9A9A9,
-0x00ABABAB,
-0x00ACACAC,
-0x00ADADAD,
-0x00AEAEAE,
-0x00AFAFAF,
-0x00B0B0B0,
-0x00B1B1B1,
-0x00B2B2B2,
-0x00B3B3B3,
-0x00B4B4B4,
-0x00B5B5B5,
-0x00B6B6B6,
-0x00B7B7B7,
-0x00B8B8B8,
-0x00B9B9B9,
-0x00BABABA,
-0x00BBBBBB,
-0x00BCBCBC,
-0x00BDBDBD,
-0x00BEBEBE,
-0x00BFBFBF,
-0x00C0C0C0,
-0x00C1C1C1,
-0x00C2C2C2,
-0x00C4C4C4,
-0x00C5C5C5,
-0x00C6C6C6,
-0x00C7C7C7,
-0x00C8C8C8,
-0x00CACACA,
-0x00CBCBCB,
-0x00CCCCCC,
-0x00CDCDCD,
-0x00CECECE,
-0x00CFCFCF,
-0x00D1D1D1,
-0x00D2D2D2,
-0x00D3D3D3,
-0x00D4D4D4,
-0x00D5D5D5,
-0x00D6D6D6,
-0x00D7D7D7,
-0x00D8D8D8,
-0x00D9D9D9,
-0x00DBDBDB,
-0x00DCDCDC,
-0x00DDDDDD,
-0x00DEDEDE,
-0x00DFDFDF,
-0x00E0E0E0,
-0x00E1E1E1,
-0x00E2E2E2,
-0x00E3E3E3,
-0x00E4E4E4,
-0x00E5E5E5,
-0x00E6E6E6,
-0x00E7E7E7,
-0x00E7E7E7,
-0x00E8E8E8,
-0x00E9E9E9,
-0x00EAEAEA,
-0x00EBEBEB,
-0x00ECECEC,
-0x00EDEDED,
-0x00EEEEEE,
-0x00EFEFEF,
-0x00EFEFEF,
-0x00F0F0F0,
-0x00F1F1F1,
-0x00F2F2F2,
-0x00F3F3F3,
-0x00F3F3F3,
-0x00F4F4F4,
-0x00F5F5F5,
-0x00F6F6F6,
-0x00F7F7F7,
-0x00F7F7F7,
-0x00F8F8F8,
-0x00F9F9F9,
-0x00FAFAFA,
-0x00FAFAFA,
-0x00FBFBFB,
-0x00FCFCFC,
-0x00FDFDFD,
-0x00FDFDFD,
-0x00FEFEFE,
-0x00FFFFFF,
-/* LGE_CHANGE_E, sohyun.nam@lge.com, 12-11-26, for V7 HW_PP2st */	
-#elif defined(CONFIG_MACH_MSM7X25A_V3) || defined(CONFIG_MACH_MSM7X25A_V1)
-#if 1/*2013-01-03 junghoon.kim(junghoon79.kim@lge.com) V3 LUT: 01/03 tune*/
-0x00000000,0x00010001,0x00020102,0x00030203,0x00040304,0x00050405,0x00060506,0x00070607,
-0x00080708,0x00090809,0x000a090a,0x000b0a0b,0x000c0b0c,0x000d0c0d,0x000e0d0e,0x000f0e0f,
-0x00100f10,0x00111011,0x00121112,0x00131213,0x00141314,0x00151415,0x00161516,0x00171617,
-0x00181718,0x00191819,0x001a191a,0x001b1a1b,0x001c1b1c,0x001d1c1d,0x001e1c1e,0x001f1d1f,
-0x00201e20,0x00211f21,0x00222022,0x00232123,0x00242224,0x00252325,0x00262426,0x00272527,
-0x00282628,0x00292729,0x002a282a,0x002b292b,0x002c2a2c,0x002d2b2d,0x002e2c2e,0x002f2d2f,
-0x00302e30,0x00312f31,0x00323032,0x00333133,0x00343234,0x00353335,0x00363436,0x00373537,
-0x00383638,0x00393739,0x003a383a,0x003b393b,0x003c3a3c,0x003d3a3d,0x003e3b3e,0x003f3c3f,
-0x00403d40,0x00413e41,0x00423f42,0x00434043,0x00444144,0x00454245,0x00464346,0x00474447,
-0x00484548,0x00494649,0x004a474a,0x004b484b,0x004c494c,0x004d4a4d,0x004e4b4e,0x004f4c4f,
-0x00504d50,0x00514e51,0x00524f52,0x00535053,0x00545154,0x00555255,0x00565356,0x00575457,
-0x00585558,0x00595659,0x005a575a,0x005b585b,0x005c585c,0x005d595d,0x005e5a5e,0x005f5b5f,
-0x00605c60,0x00615d61,0x00625e62,0x00635f63,0x00646064,0x00656165,0x00666266,0x00676367,
-0x00686468,0x00696569,0x006a666a,0x006b676b,0x006c686c,0x006d696d,0x006e6a6e,0x006f6b6f,
-0x00706c70,0x00716d71,0x00726e72,0x00736f73,0x00747074,0x00757175,0x00767276,0x00777377,
-0x00787478,0x00797579,0x007a767a,0x007b767b,0x007c777c,0x007d787d,0x007e797e,0x007f7a7f,
-0x00807b80,0x00817c81,0x00827d82,0x00837e83,0x00847f84,0x00858085,0x00868186,0x00878287,
-0x00888388,0x00898489,0x008a858a,0x008b868b,0x008c878c,0x008d888d,0x008e898e,0x008f8a8f,
-0x00908b90,0x00918c91,0x00928d92,0x00938e93,0x00948f94,0x00959095,0x00969196,0x00979297,
-0x00989398,0x00999499,0x009a959a,0x009b969b,0x009c979c,0x009d989d,0x009e999e,0x009f9a9f,
-0x00a09ba0,0x00a19ca1,0x00a29da2,0x00a39ea3,0x00a49ea4,0x00a59fa5,0x00a6a0a6,0x00a7a1a7,
-0x00a8a2a8,0x00a9a3a9,0x00aaa4aa,0x00aba5ab,0x00aca6ac,0x00ada7ad,0x00aea8ae,0x00afa9af,
-0x00b0aab0,0x00b1abb1,0x00b2acb2,0x00b3adb3,0x00b4aeb4,0x00b5afb5,0x00b6b0b6,0x00b7b1b7,
-0x00b8b2b8,0x00b9b3b9,0x00bab4ba,0x00bbb5bb,0x00bcb6bc,0x00bdb7bd,0x00beb8be,0x00bfb9bf,
-0x00c0bac0,0x00c1bbc1,0x00c2bcc2,0x00c3bcc3,0x00c4bdc4,0x00c5bec5,0x00c6bfc6,0x00c7c0c7,
-0x00c8c1c8,0x00c9c2c9,0x00cac3ca,0x00cbc4cb,0x00ccc5cc,0x00cdc6cd,0x00cec7ce,0x00cfc8cf,
-0x00d0c9d0,0x00d1cad1,0x00d2cbd2,0x00d3ccd3,0x00d4cdd4,0x00d5ced5,0x00d6cfd6,0x00d7d0d7,
-0x00d8d1d8,0x00d9d2d9,0x00dad3da,0x00dbd4db,0x00dcd5dc,0x00ddd6dd,0x00ded7de,0x00dfd8df,
-0x00e0d9e0,0x00e1dae1,0x00e2dbe2,0x00e3dde3,0x00e4dfe4,0x00e5e0e5,0x00e6e1e6,0x00e7e2e7,
-0x00e8e3e8,0x00e9e4e9,0x00eae5ea,0x00ebe7eb,0x00ece9ec,0x00edebed,0x00eeedee,0x00efeeef,
-0x00f0f0f0,0x00f1f1f1,0x00f2f2f2,0x00f3f3f3,0x00f4f4f4,0x00f5f5f5,0x00f6f6f6,0x00f7f7f7,
-0x00f8f8f8,0x00f9f9f9,0x00fafafa,0x00fbfbfb,0x00fcfcfc,0x00fdfdfd,0x00fefefe,0x00ffffff,
-#else/*2012-11-29 junghoon.kim(junghoon79.kim@lge.com) V3 LUT: linear lut*/
-0x00000000, 0x00010101, 0x00020202, 0x00030303,0x00040404, 0x00050505, 0x00060606, 0x00070707,
-0x00080808, 0x00090909, 0x000a0a0a, 0x000b0b0b,0x000c0c0c, 0x000d0d0d, 0x000e0e0e, 0x000f0f0f,
-0x00101010, 0x00111111, 0x00121212, 0x00131313,0x00141414, 0x00151515, 0x00161616, 0x00171717,
-0x00181818, 0x00191919, 0x001a1a1a, 0x001b1b1b,0x001c1c1c, 0x001d1d1d, 0x001e1e1e, 0x001f1f1f,
-0x00202020, 0x00212121, 0x00222222, 0x00232323,0x00242424, 0x00252525, 0x00262626, 0x00272727,
-0x00282828, 0x00292929, 0x002a2a2a, 0x002b2b2b,0x002c2c2c, 0x002d2d2d, 0x002e2e2e, 0x002f2f2f,
-0x00303030, 0x00313131, 0x00323232, 0x00333333,0x00343434, 0x00353535, 0x00363636, 0x00373737,
-0x00383838, 0x00393939, 0x003a3a3a, 0x003b3b3b,0x003c3c3c, 0x003d3d3d, 0x003e3e3e, 0x003f3f3f,
-0x00404040, 0x00414141, 0x00424242, 0x00434343,0x00444444, 0x00454545, 0x00464646, 0x00474747,
-0x00484848, 0x00494949, 0x004a4a4a, 0x004b4b4b,0x004c4c4c, 0x004d4d4d, 0x004e4e4e, 0x004f4f4f,
-0x00505050, 0x00515151, 0x00525252, 0x00535353,0x00545454, 0x00555555, 0x00565656, 0x00575757,
-0x00585858, 0x00595959, 0x005a5a5a, 0x005b5b5b,0x005c5c5c, 0x005d5d5d, 0x005e5e5e, 0x005f5f5f,
-0x00606060, 0x00616161, 0x00626262, 0x00636363,0x00646464, 0x00656565, 0x00666666, 0x00676767,
-0x00686868, 0x00696969, 0x006a6a6a, 0x006b6b6b,0x006c6c6c, 0x006d6d6d, 0x006e6e6e, 0x006f6f6f,
-0x00707070, 0x00717171, 0x00727272, 0x00737373,0x00747474, 0x00757575, 0x00767676, 0x00777777,
-0x00787878, 0x00797979, 0x007a7a7a, 0x007b7b7b,0x007c7c7c, 0x007d7d7d, 0x007e7e7e, 0x007f7f7f,
-0x00808080, 0x00818181, 0x00828282, 0x00838383,0x00848484, 0x00858585, 0x00868686, 0x00878787,
-0x00888888, 0x00898989, 0x008a8a8a, 0x008b8b8b,0x008c8c8c, 0x008d8d8d, 0x008e8e8e, 0x008f8f8f,
-0x00909090, 0x00919191, 0x00929292, 0x00939393,0x00949494, 0x00959595, 0x00969696, 0x00979797,
-0x00989898, 0x00999999, 0x009a9a9a, 0x009b9b9b,0x009c9c9c, 0x009d9d9d, 0x009e9e9e, 0x009f9f9f,
-0x00a0a0a0, 0x00a1a1a1, 0x00a2a2a2, 0x00a3a3a3,0x00a4a4a4, 0x00a5a5a5, 0x00a6a6a6, 0x00a7a7a7,
-0x00a8a8a8, 0x00a9a9a9, 0x00aaaaaa, 0x00ababab,0x00acacac, 0x00adadad, 0x00aeaeae, 0x00afafaf,
-0x00b0b0b0, 0x00b1b1b1, 0x00b2b2b2, 0x00b3b3b3,0x00b4b4b4, 0x00b5b5b5, 0x00b6b6b6, 0x00b7b7b7,
-0x00b8b8b8, 0x00b9b9b9, 0x00bababa, 0x00bbbbbb,0x00bcbcbc, 0x00bdbdbd, 0x00bebebe, 0x00bfbfbf,
-0x00c0c0c0, 0x00c1c1c1, 0x00c2c2c2, 0x00c3c3c3,0x00c4c4c4, 0x00c5c5c5, 0x00c6c6c6, 0x00c7c7c7,
-0x00c8c8c8, 0x00c9c9c9, 0x00cacaca, 0x00cbcbcb,0x00cccccc, 0x00cdcdcd, 0x00cecece, 0x00cfcfcf,
-0x00d0d0d0, 0x00d1d1d1, 0x00d2d2d2, 0x00d3d3d3,0x00d4d4d4, 0x00d5d5d5, 0x00d6d6d6, 0x00d7d7d7,
-0x00d8d8d8, 0x00d9d9d9, 0x00dadada, 0x00dbdbdb,0x00dcdcdc, 0x00dddddd, 0x00dedede, 0x00dfdfdf,
-0x00e0e0e0, 0x00e1e1e1, 0x00e2e2e2, 0x00e3e3e3,0x00e4e4e4, 0x00e5e5e5, 0x00e6e6e6, 0x00e7e7e7,
-0x00e8e8e8, 0x00e9e9e9, 0x00eaeaea, 0x00ebebeb,0x00ececec, 0x00ededed, 0x00eeeeee, 0x00efefef,
-0x00f0f0f0, 0x00f1f1f1, 0x00f2f2f2, 0x00f3f3f3,0x00f4f4f4, 0x00f5f5f5, 0x00f6f6f6, 0x00f7f7f7,
-0x00f8f8f8, 0x00f9f9f9, 0x00fafafa, 0x00fbfbfb,0x00fcfcfc, 0x00fdfdfd, 0x00fefefe, 0x00ffffff,
-#endif
-#else  //  yangwook.lim@lge.com [2012-02-20] 
-/* LGE_CHANGE_S, sohyun.nam@lge.com, porting U0 LUT value */
-0x00000000,
-0x00010101,
-0x00020202,
-0x00030302,
-0x00030303,
-0x00040404,
-0x00050505,
-0x00060606,
-0x00070706,
-0x00080807,
-0x00090908,
-0x00090909,
-0x000A0A0A,
-0x000B0B0A,
-0x000C0C0B,
-0x000D0D0C,
-0x000E0E0D,
-0x000E0F0D,
-0x000F0F0E,
-0x0010100F,
-0x00111110,
-0x00121210,
-0x00121311,
-0x00131312,
-0x00141413,
-0x00151513,
-0x00161614,
-0x00171715,
-0x00171816,
-0x00181817,
-0x00191917,
-0x001A1A18,
-0x001B1B19,
-0x001C1C1A,
-0x001D1D1B,
-0x001D1E1B,
-0x001E1F1C,
-0x001F1F1D,
-0x0020201E,
-0x0021211F,
-0x00222220,
-0x00232320,
-0x00242421,
-0x00252522,
-0x00262623,
-0x00272724,
-0x00272825,
-0x00282926,
-0x00292A27,
-0x002A2B27,
-0x002B2C28,
-0x002C2D29,
-0x002D2E2A,
-0x002E2F2B,
-0x002F302C,
-0x0030312D,
-0x0031322E,
-0x0032332F,
-0x00333430,
-0x00343531,
-0x00353632,
-0x00373733,
-0x00383834,
-0x00393935,
-0x003A3A36,
-0x003B3B36,
-0x003C3C37,
-0x003D3D38,
-0x003E3E39,
-0x003F3F3A,
-0x0040403B,
-0x0041413C,
-0x0042423D,
-0x0043433E,
-0x0044443F,
-0x00454540,
-0x00464641,
-0x00474742,
-0x00484843,
-0x00494944,
-0x004A4A45,
-0x004B4C46,
-0x004C4D47,
-0x004D4E47,
-0x004E4F48,
-0x004F5049,
-0x0050514A,
-0x0051524B,
-0x0052534C,
-0x0053544D,
-0x0054554E,
-0x0055564F,
-0x00565750,
-0x00575851,
-0x00595952,
-0x005A5A53,
-0x005B5C54,
-0x005C5D55,
-0x005D5E56,
-0x005E5F57,
-0x005F6058,
-0x00606159,
-0x0061625A,
-0x0062635B,
-0x0063645C,
-0x0064655D,
-0x0066675E,
-0x00676860,
-0x00686961,
-0x00696A62,
-0x006A6B63,
-0x006B6C64,
-0x006C6D65,
-0x006D6E66,
-0x006E7067,
-0x00707168,
-0x00717269,
-0x0072736A,
-0x0073746B,
-0x0074756C,
-0x0075766D,
-0x0076776E,
-0x0077796F,
-0x00797A70,
-0x007A7B71,
-0x007B7C72,
-0x007C7D73,
-0x007D7E74,
-0x007E7F75,
-0x007F8076,
-0x00808177,
-0x00818378,
-0x00828479,
-0x0083857A,
-0x0085867B,
-0x0086877C,
-0x0087887D,
-0x0088897E,
-0x00898A7F,
-0x008A8B80,
-0x008B8D81,
-0x008C8E82,
-0x008D8F83,
-0x008E9085,
-0x00909186,
-0x00919287,
-0x00929388,
-0x00939489,
-0x0094958A,
-0x0095978B,
-0x0096988C,
-0x0097998D,
-0x00989A8E,
-0x00999B8F,
-0x009B9C90,
-0x009C9D91,
-0x009D9E92,
-0x009E9F93,
-0x009FA094,
-0x00A0A295,
-0x00A1A396,
-0x00A2A497,
-0x00A3A598,
-0x00A4A699,
-0x00A5A79A,
-0x00A6A89B,
-0x00A7A99C,
-0x00A9AA9D,
-0x00AAAB9E,
-0x00ABAC9F,
-0x00ACADA0,
-0x00ADAFA1,
-0x00AEB0A2,
-0x00AFB1A3,
-0x00B0B2A4,
-0x00B1B3A5,
-0x00B2B4A6,
-0x00B3B5A7,
-0x00B4B6A8,
-0x00B5B7A9,
-0x00B6B8A9,
-0x00B7B9AA,
-0x00B8BAAB,
-0x00B9BBAC,
-0x00BABCAD,
-0x00BBBDAE,
-0x00BCBEAF,
-0x00BDBFB0,
-0x00BFC0B1,
-0x00C0C1B2,
-0x00C1C2B3,
-0x00C2C4B4,
-0x00C3C5B5,
-0x00C4C6B6,
-0x00C5C7B7,
-0x00C6C8B8,
-0x00C7C9B9,
-0x00C8CABA,
-0x00C9CBBB,
-0x00CACCBC,
-0x00CBCDBC,
-0x00CCCEBD,
-0x00CDCFBE,
-0x00CED0BF,
-0x00CFD1C0,
-0x00D0D2C1,
-0x00D1D3C2,
-0x00D2D4C3,
-0x00D3D5C4,
-0x00D4D6C5,
-0x00D5D7C6,
-0x00D6D8C7,
-0x00D6D9C7,
-0x00D7DAC8,
-0x00D8DBC9,
-0x00D9DCCA,
-0x00DADDCB,
-0x00DBDECC,
-0x00DCDECD,
-0x00DDDFCE,
-0x00DEE0CF,
-0x00DFE1D0,
-0x00E0E2D0,
-0x00E1E3D1,
-0x00E2E4D2,
-0x00E3E5D3,
-0x00E4E6D4,
-0x00E4E7D4,
-0x00E5E7D5,
-0x00E6E8D6,
-0x00E7E9D6,
-0x00E7EAD7,
-0x00E8EAD8,
-0x00E9EBD9,
-0x00EAECD9,
-0x00EBEDDA,
-0x00EBEEDB,
-0x00ECEFDC,
-0x00EDF0DD,
-0x00EEF1DD,
-0x00EFF1DE,
-0x00F0F2DF,
-0x00F1F3E0,
-0x00F2F4E1,
-0x00F3F5E2,
-0x00F4F6E3,
-0x00F5F8E4,
-0x00F6F9E5,
-0x00F7FAE6,
-0x00F8FBE7,
-0x00F9FCE8,
-0x00FBFDE9,
-0x00FCFEEA,
-0x00FDFFEB,
-0x00FEFFEC,
-0x00FFFFED,
-/* LGE_CHANGE_E, sohyun.nam@lge.com, porting U0 LUT value */
-
-#endif
-};
-
-#if defined(CONFIG_MACH_MSM8X25_V7)
-extern unsigned int maker_id;
-uint32 lge_gc_lut_tovis[] = {
-	0x00000000,
-	0x00010101,
-	0x00020202,
-	0x00030303,
-	0x00040404,
-	0x00050505,
-	0x00060606,
-	0x00070707,
-	0x00080808,
-	0x00090909,
-	0x000A0A0A,
-	0x000B0B0B,
-	0x000C0C0C,
-	0x000D0D0D,
-	0x000E0E0E,
-	0x000F0F0F,
-	0x00101010,
-	0x00111111,
-	0x00121212,
-	0x00131313,
-	0x00141414,
-	0x00151515,
-	0x00161616,
-	0x00171717,
-	0x00181818,
-	0x00191919,
-	0x001A1A1A,
-	0x001B1B1B,
-	0x001C1C1C,
-	0x001D1D1D,
-	0x001E1E1E,
-	0x001F1F1F,
-	0x00202020,
-	0x00212121,
-	0x00222222,
-	0x00232323,
-	0x00242424,
-	0x00252525,
-	0x00262626,
-	0x00272727,
-	0x00282828,
-	0x00292929,
-	0x002A2A2A,
-	0x002B2B2B,
-	0x002C2C2C,
-	0x002D2D2D,
-	0x002E2E2E,
-	0x002F2F2F,
-	0x00303030,
-	0x00313131,
-	0x00323232,
-	0x00333333,
-	0x00343434,
-	0x00353535,
-	0x00363636,
-	0x00373737,
-	0x00383838,
-	0x00393939,
-	0x003A3A3A,
-	0x003B3B3B,
-	0x003C3C3C,
-	0x003D3D3D,
-	0x003E3E3E,
-	0x003F3F3F,
-	0x00404040,
-	0x00414141,
-	0x00424242,
-	0x00434343,
-	0x00444444,
-	0x00454545,
-	0x00464646,
-	0x00474747,
-	0x00484848,
-	0x00494949,
-	0x004A4A4A,
-	0x004B4B4B,
-	0x004C4C4C,
-	0x004D4D4D,
-	0x004E4E4E,
-	0x004F4F4F,
-	0x00505050,
-	0x00515151,
-	0x00525252,
-	0x00535353,
-	0x00545454,
-	0x00555555,
-	0x00565656,
-	0x00575757,
-	0x00585858,
-	0x00595959,
-	0x005A5A5A,
-	0x005B5B5B,
-	0x005C5C5C,
-	0x005D5D5D,
-	0x005E5E5E,
-	0x005F5F5F,
-	0x00606060,
-	0x00616161,
-	0x00626262,
-	0x00636363,
-	0x00646464,
-	0x00656565,
-	0x00666666,
-	0x00676767,
-	0x00686868,
-	0x00696969,
-	0x006A6A6A,
-	0x006B6B6B,
-	0x006C6C6C,
-	0x006D6D6D,
-	0x006E6E6E,
-	0x006F6F6F,
-	0x00707070,
-	0x00717171,
-	0x00727272,
-	0x00737373,
-	0x00747474,
-	0x00757575,
-	0x00767676,
-	0x00777777,
-	0x00787878,
-	0x00797979,
-	0x007A7A7A,
-	0x007B7B7B,
-	0x007C7C7C,
-	0x007D7D7D,
-	0x007E7E7E,
-	0x007F7F7F,
-	0x00808080,
-	0x00818181,
-	0x00828282,
-	0x00838383,
-	0x00848484,
-	0x00858585,
-	0x00868686,
-	0x00878787,
-	0x00888888,
-	0x00898989,
-	0x008A8A8A,
-	0x008B8B8B,
-	0x008C8C8C,
-	0x008D8D8D,
-	0x008E8E8E,
-	0x008F8F8F,
-	0x00909090,
-	0x00919191,
-	0x00929292,
-	0x00939393,
-	0x00949494,
-	0x00959595,
-	0x00969696,
-	0x00979797,
-	0x00989898,
-	0x00999999,
-	0x009A9A9A,
-	0x009B9B9B,
-	0x009C9C9C,
-	0x009D9D9D,
-	0x009E9E9E,
-	0x009F9F9F,
-	0x00A0A0A0,
-	0x00A1A1A1,
-	0x00A2A2A2,
-	0x00A3A3A3,
-	0x00A4A4A4,
-	0x00A5A5A5,
-	0x00A6A6A6,
-	0x00A7A7A7,
-	0x00A8A8A8,
-	0x00A9A9A9,
-	0x00AAAAAA,
-	0x00ABABAB,
-	0x00ACACAC,
-	0x00ADADAD,
-	0x00AEAEAE,
-	0x00AFAFAF,
-	0x00B0B0B0,
-	0x00B1B1B1,
-	0x00B2B2B2,
-	0x00B3B3B3,
-	0x00B4B4B4,
-	0x00B5B5B5,
-	0x00B6B6B6,
-	0x00B7B7B7,
-	0x00B8B8B8,
-	0x00B9B9B9,
-	0x00BABABA,
-	0x00BBBBBB,
-	0x00BCBCBC,
-	0x00BDBDBD,
-	0x00BEBEBE,
-	0x00BFBFBF,
-	0x00C0C0C0,
-	0x00C1C1C1,
-	0x00C2C2C2,
-	0x00C3C3C3,
-	0x00C4C4C4,
-	0x00C5C5C5,
-	0x00C6C6C6,
-	0x00C7C7C7,
-	0x00C8C8C8,
-	0x00C9C9C9,
-	0x00CACACA,
-	0x00CBCBCB,
-	0x00CCCCCC,
-	0x00CDCDCD,
-	0x00CECECE,
-	0x00CFCFCF,
-	0x00D0D0D0,
-	0x00D1D1D1,
-	0x00D2D2D2,
-	0x00D3D3D3,
-	0x00D4D4D4,
-	0x00D5D5D5,
-	0x00D6D6D6,
-	0x00D7D7D7,
-	0x00D8D8D8,
-	0x00D9D9D9,
-	0x00DADADA,
-	0x00DBDBDB,
-	0x00DCDCDC,
-	0x00DDDDDD,
-	0x00DEDEDE,
-	0x00DFDFDF,
-	0x00E0E0E0,
-	0x00E1E1E1,
-	0x00E2E2E2,
-	0x00E3E3E3,
-	0x00E4E4E4,
-	0x00E5E5E5,
-	0x00E6E6E6,
-	0x00E7E7E7,
-	0x00E8E8E8,
-	0x00E9E9E9,
-	0x00EAEAEA,
-	0x00EBEBEB,
-	0x00ECECEC,
-	0x00EDEDED,
-	0x00EEEEEE,
-	0x00EFEFEF,
-	0x00F0F0F0,
-	0x00F1F1F1,
-	0x00F2F2F2,
-	0x00F3F3F3,
-	0x00F4F4F4,
-	0x00F5F5F5,
-	0x00F6F6F6,
-	0x00F7F7F7,
-	0x00F8F8F8,
-	0x00F9F9F9,
-	0x00FAFAFA,
-	0x00FBFBFB,
-	0x00FCFCFC,
-	0x00FDFDFD,
-	0x00FEFEFE,
-	0x00FFFFFF,
-};
-#endif
-
-// mdp_lut_initial_hw_update function has been done during booting if g_lge_lcd_k_cal have 
-static int mdp_lut_initial_hw_update(void )
-{
-	int i;
-	uint32 r, g, b;
-	uint32 cal_R, cal_G, cal_B;
-	uint32 gain_R, gain_G, gain_B;
-
-	printk("### mdp_lut_hw_updae++: mdp_lut_i = %d\n", mdp_lut_i);
-	
-	cal_R = g_lge_lcd_k_cal[0]; cal_G = g_lge_lcd_k_cal[1]; cal_B = g_lge_lcd_k_cal[2];
-
-	if (memcmp(g_lge_lcd_k_cal+3, "cal", 3) == 0) {
-		gain_R = (uint32)((cal_R * 100000) / 255);
-		gain_G = (uint32)((cal_G * 100000) / 255);
-		gain_B = (uint32)((cal_B * 100000) / 255);
-
-		printk("#### Sign is Matched, Gain RGB : %d,%d,%d\n", gain_R, gain_G, gain_B);
-	}
-	else {
-		printk("#### Sign is not Matched");
-		gain_R = gain_G = gain_B = 100000;
-	}
-
-	for (i=0; i<256; i++)
-	{
-		r = lge_gc_lut[i];
-		g = lge_gc_lut[i];
-		b = lge_gc_lut[i];
-
-/* LGE_CHANGE_S, sohyun.nam@lge.com, 2012-11-07, to swap cal_R and cal_B for V7 for lut tuing*/
-/* LGE_CHANGE_S, jungrock.oh@lge.com, 2012-12-07, add U0_featuring for at_cmd*/
-#if defined(CONFIG_MACH_MSM8X25_V7)||defined(CONFIG_MACH_MSM7X27A_U0)
-/* LGE_CHANGE_E, jungrock.oh@lge.com, 2012-12-07, add U0_featuring for at_cmd*/
-		cal_B = (uint32)((((r & 0xff0000) >> 16) * gain_R) / 100000);
-		cal_G = (uint32)((((g & 0x00ff00) >> 8)  * gain_G) / 100000);
-		cal_R = (uint32) (((b & 0x0000ff)        * gain_B) / 100000);
-#else
-		cal_R = (uint32)((((r & 0xff0000) >> 16) * gain_R) / 100000);
-		cal_G = (uint32)((((g & 0x00ff00) >> 8)  * gain_G) / 100000);
-		cal_B = (uint32) (((b & 0x0000ff)        * gain_B) / 100000);
-#endif
-/* LGE_CHANGE_S, sohyun.nam@lge.com, 2012-11-07, to swap cal_R and cal_B for V7 for lut tuing*/
-
-#ifdef CONFIG_FB_MSM_MDP40
-		MDP_OUTP(MDP_BASE + 0x94800 + (0x400*mdp_lut_i) + i*4, ((cal_G & 0xff) | ((cal_B & 0xff) << 8) | (cal_R << 16)));
-#else
-     	MDP_OUTP(MDP_BASE + 0x93800 + (0x400*mdp_lut_i) + i*4, ((cal_G & 0xff) | ((cal_B & 0xff) << 8) | (cal_R << 16)));
-#endif
-	}
-
-	printk("#### Cal value R=%d G=%d B=%d\n", cal_R, cal_G, cal_B);
-	return 0;
-}
-
-/*sohyun.nam@lge.com 12-02-10, add lut parsing*/
-int mdp_lut_init_update_lcdc(void)
-{
-	int ret;
-
-	printk("%s start ..\n", __func__);
-
-	printk("### %s mdp_lut_init_update_lcdc++: mdp_lut_i = %d\n", __func__,mdp_lut_i);
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	// ret = mdp_lut_hw_update(cmap);
-
-	ret = mdp_lut_initial_hw_update();
-	if (ret) {
-		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-		return ret;
-	}
-
-	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x17);
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	mdp_lut_i = (mdp_lut_i+1) % 2;
-	printk("%s end.........\n", __func__);
-
-	return 0;
-}
-
-#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
-// LGE_CHANGE_E, sohyun.nam@lge.com
 
 static int mdp_lut_hw_update(struct fb_cmap *cmap)
 {
@@ -3539,86 +2596,6 @@ static int mdp_irq_clk_setup(struct platform_device *pdev,
 	return 0;
 }
 
-// LGE_CHANGE_S, sohyun.nam@lge.com
-#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
-#define __LGE_TO_INT(ch)		((ch)-'0')
-int k_cal_flag = 0;
-
-int mdp_write_kcal_reg(const char* buf)
-{
-	int i, result;
-	uint32 r, g, b;
-	uint32 cal_R, cal_G, cal_B;
-	uint32 gain_R, gain_G, gain_B;
-/* LGE_CHANGE_S, sohyun.nam@lge.com, 2012-10-26, to swap cal_R and cal_B for V7*/
-/* LGE_CHANGE_S, jungrock.oh@lge.com, 2012-12-09, add cal_R , cal_G and cal_C for U0*/
-#if defined(CONFIG_MACH_MSM7X27A_U0)
-	int iRed, iGreen, iBlue;
-	sscanf(buf, "%d,%d,%d", &iRed, &iGreen, &iBlue);
-	cal_R = (unsigned int)iRed;
-	cal_G = (unsigned int)iGreen;
-	cal_B = (unsigned int)iBlue;
-/* LGE_CHANGE_E, jungrock.oh@lge.com, 2012-12-09, add cal_R , cal_G and cal_C for U0*/
-#else 
-	cal_R = __LGE_TO_INT(buf[0])*100 + __LGE_TO_INT(buf[1])*10 + __LGE_TO_INT(buf[2]);
-        cal_G = __LGE_TO_INT(buf[3])*100 + __LGE_TO_INT(buf[4])*10 + __LGE_TO_INT(buf[5]);
-        cal_B = __LGE_TO_INT(buf[6])*100 + __LGE_TO_INT(buf[7])*10 + __LGE_TO_INT(buf[8]);
-#endif
-/* LGE_CHANGE_E, sohyun.nam@lge.com, 2012-10-26, to swap cal_R and cal_B for V7 */
-	if(g_lge_lcd_k_cal[0]==cal_R && g_lge_lcd_k_cal[1] == cal_G && g_lge_lcd_k_cal[2] ==cal_B)
-	{
-		printk("####%s g_lge_lcd_k_cal the same new one \n", __func__);
-		return 1;
-	}
-	else{
-		g_lge_lcd_k_cal[0] = cal_R;
-		g_lge_lcd_k_cal[1] = cal_G;
-		g_lge_lcd_k_cal[2] = cal_B;
-		memcpy(&g_lge_lcd_k_cal[3], "cal", 3);
-	}
-	printk("####%s cal_R:%d, cal_G:%d, cal_B:%d\n",__func__, cal_R,cal_G,cal_B );
-	gain_R = (uint32)((cal_R * 100000)/255);
-	gain_G = (uint32)((cal_G * 100000)/255);
-	gain_B = (uint32)((cal_B * 100000)/255);
-	printk("####%s mdp_write_kcal color : R=%d, G=%d, B=%d AND gain : R=%d, G=%d, B=%d\n",
-			__func__,cal_R, cal_G, cal_B, gain_R, gain_G, gain_B);
-	printk("####%s : mdp_lut_i = %d\n", __func__,mdp_lut_i);	
-
-	k_cal_flag = 1;
-	msleep(500); /* for remaing framebuffer is all display */
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-
-	for (i=0; i<256; i++) {
-		r = lge_gc_lut[i];
-		g = lge_gc_lut[i];
-		b = lge_gc_lut[i];
-
-		cal_R = (uint32)((((r & 0xff0000) >> 16) * gain_R) / 100000);
-		cal_G = (uint32)((((g & 0x00ff00) >> 8)  * gain_G) / 100000);
-		cal_B = (uint32) (((b & 0x0000ff)        * gain_B) / 100000);
-
-#ifdef CONFIG_FB_MSM_MDP40
-		MDP_OUTP(MDP_BASE + 0x94800 + (0x400*mdp_lut_i) + i*4, ((cal_G & 0xff) | ((cal_B & 0xff) << 8) | (cal_R << 16)));
-#else		
-		MDP_OUTP(MDP_BASE + 0x93800 + (0x400*mdp_lut_i) + i*4, ((cal_G & 0xff) | ((cal_B & 0xff) << 8) | (cal_R << 16)));
-#endif
-	}
-
-	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x17);
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);	
-	k_cal_flag = 0;
-	mdp_lut_i = (mdp_lut_i+1) % 2;
-	printk("####%s : mdp_lut_i = %d\n", __func__,mdp_lut_i);
-
-	result = mdp_lut_init_update_lcdc();
-	printk("####%s : result = %d\n", __func__,result);
-
-	return 1;
-}
-EXPORT_SYMBOL(mdp_write_kcal_reg);
-#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
-// LGE_CHANGE_E, sohyun.nam@lge.com
-
 static int mdp_probe(struct platform_device *pdev)
 {
 	struct platform_device *msm_fb_dev = NULL;
@@ -3635,10 +2612,13 @@ static int mdp_probe(struct platform_device *pdev)
 	struct mipi_panel_info *mipi;
 #endif
         static int contSplash_update_done;
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 	void *splash_virt_addr;
 	int cur_page;
 	unsigned long cur_addr;
 	struct splash_pages page_data;
+#endif
 
 	if ((pdev->id == 0) && (pdev->num_resources > 0)) {
 		mdp_init_pdev = pdev;
@@ -3677,7 +2657,12 @@ static int mdp_probe(struct platform_device *pdev)
 		if (!(mdp_pdata->cont_splash_enabled))
 			mdp4_hw_init();
 #else
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 		mdp_hw_init(mdp_pdata->cont_splash_enabled);
+#else
+		mdp_hw_init();
+#endif
 #endif
 
 #ifdef CONFIG_FB_MSM_OVERLAY
@@ -3716,6 +2701,8 @@ static int mdp_probe(struct platform_device *pdev)
 
         if (mdp_pdata) {
 		if (mdp_pdata->cont_splash_enabled) {
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 			uint32 bpp = 3;
 			mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 			/*read panel wxh and calculate splash screen
@@ -3779,6 +2766,7 @@ static int mdp_probe(struct platform_device *pdev)
 			MDP_OUTP(MDP_BASE + 0x90008,
 				mfd->copy_splash_phys);
 			mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+#endif
 
 			mfd->cont_splash_done = 0;
 			if (!contSplash_update_done) {
@@ -3800,12 +2788,18 @@ static int mdp_probe(struct platform_device *pdev)
 		mfd->ov0_wb_buf->size = mdp_pdata->ov0_wb_size;
 		mfd->ov1_wb_buf->size = mdp_pdata->ov1_wb_size;
 		mfd->mem_hid = mdp_pdata->mem_hid;
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 		mfd->avtimer_phy = mdp_pdata->avtimer_phy;
+#endif
 	} else {
 		mfd->ov0_wb_buf->size = 0;
 		mfd->ov1_wb_buf->size = 0;
 		mfd->mem_hid = 0;
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 		mfd->avtimer_phy = 0;
+#endif
 	}
 
 	/* initialize Post Processing data*/
@@ -3931,10 +2925,9 @@ static int mdp_probe(struct platform_device *pdev)
 		pdata->off = mdp_dsi_video_off;
 		mfd->hw_refresh = TRUE;
 		mfd->dma_fnc = mdp_dsi_video_update;
-// LGE_CHANGE_S, sohyun.nam@lge.com
-#ifndef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
+
 		mfd->do_histogram = mdp_do_histogram;
-#endif
+
 		mfd->start_histogram = mdp_histogram_start;
 		mfd->stop_histogram = mdp_histogram_stop;
 		mfd->vsync_ctrl = mdp_dma_video_vsync_ctrl;
@@ -3981,11 +2974,7 @@ static int mdp_probe(struct platform_device *pdev)
 		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 #else
 		mfd->dma_fnc = mdp_dma2_update;
-// LGE_CHANGE_S, sohyun.nam@lge.com
-#ifndef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
 		mfd->do_histogram = mdp_do_histogram;
-#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
-// LGE_CHANGE_E, sohyun.nam@lge.com
 		mfd->start_histogram = mdp_histogram_start;
 		mfd->stop_histogram = mdp_histogram_stop;
 		mfd->vsync_ctrl = mdp_dma_vsync_ctrl;
@@ -4138,17 +3127,6 @@ static int mdp_probe(struct platform_device *pdev)
 			(MDP_BUS_SCALE_INIT, MDP_BUS_SCALE_INIT);
 #endif
 
-// LGE_CHANGE_S, sohyun.nam@lge.com
-#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE //sohyun.nam
-		printk("### call the initial lut update routine\n");
-#if defined(CONFIG_MACH_MSM8X25_V7)
-		if(maker_id == 0)
-			memcpy(lge_gc_lut, lge_gc_lut_tovis, sizeof(lge_gc_lut));
-#endif
-		mdp_lut_init_update_lcdc();
-#endif /* CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE */
-// LGE_CHANGE_E, sohyun.nam@lge.com
-
 	/* set driver data */
 	platform_set_drvdata(msm_fb_dev, mfd);
 
@@ -4244,6 +3222,8 @@ void mdp_footswitch_ctrl(boolean on)
 	mutex_unlock(&mdp_suspend_mutex);
 }
 
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 void mdp_free_splash_buffer(struct msm_fb_data_type *mfd)
 {
 	if (mfd->copy_splash_buf) {
@@ -4254,6 +3234,7 @@ void mdp_free_splash_buffer(struct msm_fb_data_type *mfd)
 		mfd->copy_splash_buf = NULL;
 	}
 }
+#endif
 
 #ifdef CONFIG_PM
 static void mdp_suspend_sub(void)

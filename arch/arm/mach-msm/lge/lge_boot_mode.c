@@ -112,15 +112,10 @@ static int update_lge_boot_mode(void)
 {
 	unsigned smem_size;
 // 2012-11-05 Sonchiwon(chiwon.son@lge.com) [V3/V7][Hidden.Menu] HiddenMenu > Settings > Battery > Charging Bypass Boot [START]
-    int test_mode, factory_cable, charger, charging_bypass;
+	int test_mode, factory_cable, charger, charging_bypass;
 //LGE_CHANGE_S FTM boot mode
 #if (defined (CONFIG_MACH_MSM7X25A_V3) && !defined (CONFIG_MACH_MSM7X25A_M4)) || defined (CONFIG_MACH_MSM8X25_V7) || defined(CONFIG_MACH_MSM7X25A_V1)
-    int first_boot_check = 0;
-#endif
-//LGE_CHANGE_E FTM boot mode
-// 2012-11-05 Sonchiwon(chiwon.son@lge.com) [V3/V7][Hidden.Menu] HiddenMenu > Settings > Battery > Charging Bypass Boot [END]
-#ifdef CONFIG_LGE_SUPPORT_MINIOS
-	int cable_type = lge_get_cable_info();
+	int first_boot_check = 0;
 #endif
 
 // LGE_CHANGE_S, youngbae.choi@lge.com, Because of crash boot, don't check the other reason.
@@ -163,26 +158,11 @@ static int update_lge_boot_mode(void)
     else if (factory_cable) {
         printk(KERN_INFO "factory_cable is detected\n");
 	if (test_mode) {
-#ifdef CONFIG_LGE_SUPPORT_MINIOS
-			if (cable_type == USB_130K) {
-				boot_mode = LGE_BOOT_MODE_MINIOS;
-			} else {
-				boot_mode = LGE_BOOT_MODE_FACTORY;
-			}
-#else
+
 			boot_mode = LGE_BOOT_MODE_UNKOWN;
-#endif
 	} else {
 
-#ifdef CONFIG_LGE_SUPPORT_MINIOS
-			if (cable_type == USB_130K) {
-				boot_mode = LGE_BOOT_MODE_MINIOS;
-			} else {
-				boot_mode = LGE_BOOT_MODE_UNKOWN;
-			}
-#else
 			boot_mode = LGE_BOOT_MODE_UNKOWN;
-#endif
 	}
 	} 
 	else if (charger && (apps_boot_mode == 0 || apps_boot_mode == REASON_APPS_UART_ENABLE)) {

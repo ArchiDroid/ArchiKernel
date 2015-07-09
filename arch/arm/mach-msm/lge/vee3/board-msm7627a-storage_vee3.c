@@ -18,23 +18,13 @@
 #include <asm/mach/mmc.h>
 #include <mach/gpiomux.h>
 #include <mach/board.h>
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.4 for v3/v5*/
-#if defined (CONFIG_MACH_LGE)
+
 #include "../../devices.h"
 #include "../../pm.h"
 #include "../../board-msm7627a.h"
 #include CONFIG_LGE_BOARD_HEADER_FILE
-#else /*qct original*/
-#include "devices.h"
-#include "pm.h"
-#include "board-msm7627a.h"
-#endif /*CONFIG_MACH_LGE*/
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.4 for v3/v5*/
 
-#if (defined(CONFIG_MMC_MSM_SDC1_SUPPORT)\
-	|| defined(CONFIG_MMC_MSM_SDC2_SUPPORT)\
-	|| defined(CONFIG_MMC_MSM_SDC3_SUPPORT)\
-	|| defined(CONFIG_MMC_MSM_SDC4_SUPPORT))
+#if (defined(CONFIG_MMC_MSM_SDC1_SUPPORT) || defined(CONFIG_MMC_MSM_SDC2_SUPPORT) || defined(CONFIG_MMC_MSM_SDC3_SUPPORT) || defined(CONFIG_MMC_MSM_SDC4_SUPPORT))
 
 #define MAX_SDCC_CONTROLLER 4
 static unsigned long vreg_sts, gpio_sts;
@@ -52,8 +42,6 @@ struct sdcc_gpio {
  * require higher value since it should handle bad signal quality due
  * to size of T-flash adapters.
  */
-/*LGE_CHANGE_S[jyothishre.nk@lge.com]20121112:
- *Increase GPIO strength 14MA->16MA some SD card needs higher value*/
 static struct msm_gpio sdc1_cfg_data[] = {
 	{GPIO_CFG(51, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_16MA),
 								"sdc1_dat_3"},
@@ -68,7 +56,6 @@ static struct msm_gpio sdc1_cfg_data[] = {
 	{GPIO_CFG(56, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),
 								"sdc1_clk"},
 };
-/*LGE_CHANGE_E[jyothishre.nk@lge.com]20121112*/
 
 static struct msm_gpio sdc2_cfg_data[] = {
 	{GPIO_CFG(62, 2, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
@@ -124,7 +111,6 @@ static struct msm_gpio sdc3_cfg_data[] = {
 #endif
 };
 
-/*LGE_CHANGE_S [jyothishre.nk@lge.com] 20120913: Adding sleep configuration for eMMC GPIO*/
 static struct msm_gpio sdc3_sleep_cfg_data[] = {
 	{GPIO_CFG(88, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
 								"sdc3_clk"},
@@ -149,7 +135,6 @@ static struct msm_gpio sdc3_sleep_cfg_data[] = {
 								"sdc3_dat_4"},
 #endif
 };
-/*LGE_CHANGE_E [jyothishre.nk@lge.com] 20120913: Adding sleep configuration for eMMC GPIO*/
 
 static struct msm_gpio sdc4_cfg_data[] = {
 	{GPIO_CFG(19, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_10MA),
@@ -166,8 +151,6 @@ static struct msm_gpio sdc4_cfg_data[] = {
 								"sdc4_clk"},
 };
 
-/*LGE_CHANGE_S [jyothishre.nk@lge.com] 20120913
- *Adding sdc3_sleep_cfg_data*/
 static struct sdcc_gpio sdcc_cfg_data[] = {
 	{
 		.cfg_data = sdc1_cfg_data,
@@ -188,7 +171,6 @@ static struct sdcc_gpio sdcc_cfg_data[] = {
 		.size = ARRAY_SIZE(sdc4_cfg_data),
 	},
 };
-/*LGE_CHANGE_E [jyothishre.nk@lge.com] 20120913*/
 
 static int gpio_sdc1_hw_det = 85;
 static void gpio_sdc1_config(void)
@@ -248,10 +230,7 @@ static int msm_sdcc_setup_vreg(int dev_id, unsigned int enable)
 		if (rc)
 			pr_err("%s: could not enable regulator: %d\n",
 						__func__, rc);
-/*LGE_CHANGE_S[jyothishre.nk@lge.com]20121112:
- *SD card always on, never disable voltage line ldo13(VREG_SDCARD_2.85V) always on*/
 	} else if(dev_id !=1){
-/*LGE_CHANGE_E[jyothishre.nk@lge.com]20121112*/
 		clear_bit(dev_id, &vreg_sts);
 
 		rc = regulator_disable(curr);
@@ -283,8 +262,6 @@ static unsigned int msm7627a_sdcc_slot_status(struct device *dev)
 {
 	int status;
 
-/*LGE_CHANGE_S : [kyeongdon.kim@lge.com] 20120409 : SD cad GPIO to detect */
-#ifdef CONFIG_MACH_LGE
 	status = gpio_tlmm_config(GPIO_CFG(GPIO_SD_DETECT_N, 0, GPIO_CFG_INPUT,
 					GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 	if (status)
@@ -301,34 +278,6 @@ static unsigned int msm7627a_sdcc_slot_status(struct device *dev)
 
 	gpio_free(GPIO_SD_DETECT_N);
 
-#else
-	status = gpio_tlmm_config(GPIO_CFG(gpio_sdc1_hw_det, 2, GPIO_CFG_INPUT,
-				GPIO_CFG_PULL_UP, GPIO_CFG_8MA),
-				GPIO_CFG_ENABLE);
-	if (status)
-		pr_err("%s:Failed to configure tlmm for GPIO %d\n", __func__,
-				gpio_sdc1_hw_det);
-
-	status = gpio_request(gpio_sdc1_hw_det, "SD_HW_Detect");
-	if (status) {
-		pr_err("%s:Failed to request GPIO %d\n", __func__,
-				gpio_sdc1_hw_det);
-	} else {
-		status = gpio_direction_input(gpio_sdc1_hw_det);
-		if (!status) {
-			if (machine_is_msm7627a_qrd1() ||
-					machine_is_msm7627a_evb() ||
-					machine_is_msm8625_evb()  ||
-					machine_is_msm7627a_qrd3() ||
-					machine_is_msm8625_qrd7())
-				status = !gpio_get_value(gpio_sdc1_hw_det);
-			else
-				status = gpio_get_value(gpio_sdc1_hw_det);
-		}
-		gpio_free(gpio_sdc1_hw_det);
-	}
-#endif
-/*LGE_CHANGE_E : [kyeongdon.kim@lge.com] 20120409 : SD cad GPIO to detect */	
 	return status;
 }
 
@@ -340,9 +289,7 @@ static struct mmc_platform_data sdc1_plat_data = {
 	.msmsdcc_fmid   = 24576000,
 	.msmsdcc_fmax   = 49152000,
 	.status      = msm7627a_sdcc_slot_status,
-/*LGE_CHANGE_S : [kyeongdon.kim@lge.com] 20120409 : SD cad detect */
 	.status_irq  = MSM_GPIO_TO_INT(GPIO_SD_DETECT_N),
-/*LGE_CHANGE_E : [kyeongdon.kim@lge.com] 20120409 : SD cad detect */
 	.irq_flags   = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 };
 #endif
@@ -435,15 +382,11 @@ void __init msm7627a_init_mmc(void)
 #ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
 
 	/* There is no eMMC on SDC3 for QRD3 based devices */
-/*LGE_CHANGE_S [jyothishre.nk@lge.com] 20120913:
- *VREG_P3_2.85V is connected to ldo12->gp2 not to ldo10->emmc
- *Driven Voltage level is 2.85V*/
 	if (!(machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7())) {
 		if (mmc_regulator_init(3, "gp2", 2850000))
 			return;
 		msm_add_sdcc(3, &sdc3_plat_data);
 	}
-/*LGE_CHANGE_E [jyothishre.nk@lge.com] 20120913*/
 #endif
 	/* Micro-SD slot */
 #ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
@@ -451,14 +394,6 @@ void __init msm7627a_init_mmc(void)
 	if (mmc_regulator_init(1, "mmc", 2850000))
 		return;
 	/* 8x25 EVT do not use hw detector */
-/*LGE_CHANGE_S [jyothishre.nk@lge.com] 20120913
- * Comment below code to detect SD card same as V7*/
-/*	if (!(machine_is_msm8625_evt()))
-		sdc1_plat_data.status_irq = MSM_GPIO_TO_INT(gpio_sdc1_hw_det);
-	if (machine_is_msm8625_evt())
-		sdc1_plat_data.status = NULL;
-*/
-/*LGE_CHANGE_E [jyothishre.nk@lge.com] 20120913*/
 	msm_add_sdcc(1, &sdc1_plat_data);
 #endif
 	/* SDIO WLAN slot */

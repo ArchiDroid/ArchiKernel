@@ -24,6 +24,7 @@
 #include CONFIG_LGE_BOARD_HEADER_FILE
 #include <mach/lge/lge_pm.h>
 
+#ifdef CONFIG_MACH_LGE_NO_STOCK_INFO
 /* setting whether uart console is enabled or disabled */
 static int uart_console_mode = 0;
 static int reboot_mode = 0;
@@ -45,9 +46,9 @@ static int __init lge_uart_mode(char *uart_mode)
 }
 
 __setup("uart_console=", lge_uart_mode);
+#endif
 
 #ifdef CONFIG_LGE_HW_REVISION
-
 /* setting board revision information */
 lge_pcb_rev  lge_bd_rev = 0;
 
@@ -78,6 +79,7 @@ __setup("lge.rev=", board_revno_setup);
 
 #endif
 
+#ifdef CONFIG_MACH_LGE_NO_STOCK_INFO
 /* setting whether factory reset is */
 static char frst_mode[6];
 
@@ -100,7 +102,7 @@ char* get_frst_mode(void)
 }
 EXPORT_SYMBOL(get_frst_mode);
 #endif
-
+#endif
 
 /* LGE_CHANGE_S,narasimha.chikka@lge.com,Add BATT_ID Check */
 #ifdef CONFIG_LGE_PM_BATT_ID_DETECTION
@@ -146,6 +148,7 @@ void __init lge_board_pwr_on_status(void)
 }
 #endif /* CONFIG_LGE_POWER_ON_STATUS_PATCH */
 
+#ifdef CONFIG_MACH_LGE_NO_STOCK_INFO
 /* LGE_CHANGE_S, [20121110][youngbae.choi@lge.com] */
 static int __init panicmode_setup(char *arg)
 {	
@@ -186,7 +189,9 @@ static int atoi(const char *name)
 		}
 	}
 }
+#endif
 
+#ifdef CONFIG_MACH_LGE_NO_STOCK_INFO
 static int __init rebootmode_setup(char *arg)
 {	
 	reboot_mode = atoi(arg);
@@ -195,8 +200,10 @@ static int __init rebootmode_setup(char *arg)
 	return 1;
 }
 __setup("lge.reboot=", rebootmode_setup);
+#endif
 
 //LGE_CHANGE_S FTM boot mode
+#ifdef CONFIG_MACH_LGE_NO_STOCK_INFO
 #if (defined (CONFIG_MACH_MSM7X25A_V3) && !defined (CONFIG_MACH_MSM7X25A_M4)) || defined (CONFIG_MACH_MSM8X25_V7) || defined(CONFIG_MACH_MSM7X25A_V1)
 static enum lge_fboot_mode_type lge_fboot_mode = second_boot;
 int __init lge_fboot_mode_init(char *s)
@@ -241,8 +248,9 @@ void __init lge_add_boot_mode_devices(void)
 	platform_device_register(&lge_boot_mode_device);
 }
 #endif
+#endif
 
-#if defined(CONFIG_ANDROID_RAM_CONSOLE) && defined(CONFIG_LGE_HANDLE_PANIC)
+#ifdef CONFIG_LGE_HANDLE_PANIC
 static struct resource crash_log_resource[] = {
 	{
 		.name = "crash_log",
@@ -272,7 +280,7 @@ void __init lge_add_panic_handler_devices(void)
 
 	platform_device_register(&panic_handler_device);
 }
-#endif /*CONFIG_ANDROID_RAM_CONSOLE && CONFIG_LGE_HANDLE_PANIC*/
+#endif
 
 // LGE_CHANGE_S, narasimha.chikka@lge.com,Add pm device
 static struct platform_device lge_pm_device = {

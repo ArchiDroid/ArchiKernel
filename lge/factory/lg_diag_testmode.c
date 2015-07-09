@@ -5,7 +5,6 @@
 
 #include <lg_fw_diag_communication.h>
 #include <lg_diag_testmode.h>
-#include <mach/qdsp5v2/audio_def.h>
 #include <linux/delay.h>
 
 #ifndef SKW_TEST
@@ -817,16 +816,9 @@ void* LGF_TestModeSleepMode(test_mode_req_type * pReq, DIAG_TEST_MODE_F_rsp_type
 		case SLEEP_MODE_ON:
 #ifdef CONFIG_PM
 #ifdef CONFIG_EARLYSUSPEND
-#ifdef CONFIG_LGE_SUPPORT_MINIOS
-			state = PM_SUSPEND_MEM;
-			if (state == PM_SUSPEND_ON || valid_state(state)) {
-				request_suspend_state(state);
-			}
-#else
 			state = get_suspend_state();
 			if (state == PM_SUSPEND_ON)
 				LGF_SendKey(KEY_POWER);
-#endif /* CONFIG_LGE_SUPPORT_MINIOS */
 #else
 			error = pm_suspend(state);
 #endif /* CONFIG_EARLYSUSPEND */
@@ -836,16 +828,9 @@ void* LGF_TestModeSleepMode(test_mode_req_type * pReq, DIAG_TEST_MODE_F_rsp_type
 		case FLIGHT_MODE_OFF:
 #ifdef CONFIG_PM
 #ifdef CONFIG_EARLYSUSPEND
-#ifdef CONFIG_LGE_SUPPORT_MINIOS
-			state = PM_SUSPEND_ON;
-			if (state == PM_SUSPEND_ON || valid_state(state)) {
-				request_suspend_state(state);
-			}
-#else
 			state = get_suspend_state();
 			if (state != PM_SUSPEND_ON)
 				LGF_SendKey(KEY_POWER);
-#endif /* CONFIG_LGE_SUPPORT_MINIOS */
 #else
 			error = pm_suspend(state);
 #endif /* CONFIG_EARLYSUSPEND */
@@ -3145,9 +3130,7 @@ PACK (void *)LGE_Dload_SRD (PACK (void *)req_pkt_ptr, uint16 pkg_len)
 				
 			case USERDATA_BACKUP_REQUEST:
 				printk(KERN_WARNING "USERDATA_BACKUP_REQUEST");
-				//CSFB SRD remote 제거 -> diag_userDataBackUp_data 에서 처리함
-				//remote_rpc_srd_cmmand(req_ptr, rsp_ptr);  //userDataBackUpStart() 여기서 ... shared ram 저장 하도록. .. 
-				diag_userDataBackUp_entrySet(req_ptr,rsp_ptr,0);  //write info data ,  after rpc respons include write_sector_counter  
+				diag_userDataBackUp_entrySet(req_ptr,rsp_ptr,0);
 
 				//CSFB SRD
 				load_srd_base=kmalloc(SIZE_OF_SHARD_RAM, GFP_KERNEL);  //384K byte 
@@ -3199,43 +3182,6 @@ PACK (void *)LGE_Dload_SRD (PACK (void *)req_pkt_ptr, uint16 pkg_len)
 				break;
 
 			case USERDATA_BACKUP_REQUEST_MDM:
-				//MDM backup 
-//CSFB SRD
-/*				((udbp_rsp_type*)rsp_ptr)->header.err_code = UDBU_ERROR_SUCCESS;	
-				load_srd_shard_base=smem_alloc(SMEM_ERR_CRASH_LOG, SIZE_OF_SHARD_RAM);  //384K byte 
-				
-				if (load_srd_shard_base ==NULL)
-				 {
-				 	((udbp_rsp_type*)rsp_ptr)->header.err_code = UDBU_ERROR_CANNOT_COMPLETE;	
-					break;
-				 	// return rsp_ptr;
-				 }	
-				load_srd_shard_base+=1200*256 ; //mdm ram offset 
-				
-				// CSFB remote 제거 -> diag_userDataBackUp_data 에서 처리함
-				//remote_rpc_srd_cmmand(req_ptr, rsp_ptr);  //userDataBackUpStart() 여기서 ... ram 저장 하도록. .. 
-				diag_userDataBackUp_entrySet(req_ptr,rsp_ptr,1);  //write info data ,  after rpc respons include write_sector_counter  remote_rpc_srd_cmmand(req_ptr, rsp_ptr);  //userDataBackUpStart() 여기서 ... ram 저장 하도록. .. 
-				write_size= rsp_ptr->rsp_data.write_sector_counter *256;	 //return nv backup counters  
-
-				 if( write_size >0x15000)  //384K = mode ram (300K) + mdm (80K)
-				 {
-				 	((udbp_rsp_type*)rsp_ptr)->header.err_code = UDBU_ERROR_CANNOT_COMPLETE;  //hue..
-				 	break;
-				 }
-				  load_srd_kernel_base=kmalloc((size_t)write_size, GFP_KERNEL);
-				  memcpy(load_srd_kernel_base,load_srd_shard_base,write_size);	
-				  
-				 mtd_op_result = lge_write_block(srd_bytes_pos_in_emmc+0x400000+512, load_srd_kernel_base, write_size);  //not sector address > 4M byte offset  
-
-				if(mtd_op_result!= write_size)
-        			{
-				((udbp_rsp_type*)rsp_ptr)->header.err_code = UDBU_ERROR_CANNOT_COMPLETE;	
-				kfree(load_srd_kernel_base);
-				break;
-				//return rsp_ptr;
-                   
-        			}
-				kfree(load_srd_kernel_base);*/
 				break;
 			
 

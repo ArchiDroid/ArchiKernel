@@ -584,7 +584,12 @@ static void mdp_load_lut_param(void)
 
 #define   IRQ_EN_1__MDP_IRQ___M    0x00000800
 
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 void mdp_hw_init(int splash)
+#else
+void mdp_hw_init(void)
+#endif
 {
 	int i;
 
@@ -632,8 +637,11 @@ void mdp_hw_init(int splash)
 	MDP_OUTP(MDP_CMD_DEBUG_ACCESS_BASE + 0x01e4, 0);
 
 #ifndef CONFIG_FB_MSM_MDP22
+//[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
+#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 	if (!splash)
 		MDP_OUTP(MDP_BASE + 0xE0000, 0);
+#endif
 	MDP_OUTP(MDP_BASE + 0x100, 0xffffffff);
 	MDP_OUTP(MDP_BASE + 0x90070, 0);
 #endif

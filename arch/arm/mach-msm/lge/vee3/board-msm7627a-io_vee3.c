@@ -29,32 +29,21 @@
 #include <mach/pmic.h>
 #include <linux/ktime.h>
 
-/*[LGE_BSP_S][yunmo.yang@lge.com] LP5521 RGB Driver*/
 #ifdef CONFIG_LEDS_LP5521
 #include <linux/leds-lp5521.h>
 #endif
-/*[LGE_BSP_E][yunmo.yang@lge.com] LP5521 RGB Driver*/
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.4 for v3/v5*/
-#if defined (CONFIG_MACH_LGE)
+
 #include "../../devices.h"
 #include "../../board-msm7627a.h"
 #include "../../devices-msm7x2xa.h"
 #include CONFIG_LGE_BOARD_HEADER_FILE
-#else /*qct original*/
-#include "devices.h"
-#include "board-msm7627a.h"
-#include "devices-msm7x2xa.h"
-#endif /*CONFIG_MACH_LGE*/
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.4 for v3/v5*/
-
 
 #define ATMEL_TS_I2C_NAME "maXTouch"
 #define ATMEL_X_OFFSET 13
 #define ATMEL_Y_OFFSET 0
 
 
-#if defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C) || \
-	defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_MODULE)
+#if defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C) || defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_MODULE)
 
 #ifndef CLEARPAD3000_ATTEN_GPIO
 #define CLEARPAD3000_ATTEN_GPIO (48)
@@ -186,7 +175,7 @@ static struct platform_device kp_pdev_8625 = {
 #define MAX_VKEY_LEN		100
 
 static ssize_t mxt_virtual_keys_register(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+struct kobj_attribute *attr, char *buf)
 {
 	char *virtual_keys = __stringify(EV_KEY) ":" __stringify(KEY_MENU) \
 		":60:840:120:80" ":" __stringify(EV_KEY) \
@@ -488,7 +477,7 @@ static int synaptics_touchpad_setup(void)
 /* handset device */
 static struct msm_handset_platform_data hs_platform_data = {
 	.hs_name = "7k_handset",
-	.pwr_key_delay_ms = 500, /* 0 will disable end key */
+	.pwr_key_delay_ms = 500,
 };
 
 static struct platform_device hs_pdev = {
@@ -498,20 +487,7 @@ static struct platform_device hs_pdev = {
 		.platform_data = &hs_platform_data,
 	},
 };
- 
-/* LGE_CHANGE_S [dajin.kim@lge.com] : V3 Rev.B Key Configuration */
-/* 2012-10-23 JongWook-Park(blood9874@lge.com) [V3] Single HOME Key Bring Up [START] */ 
-#if defined(CONFIG_MACH_MSM7X25A_V3_DS)
-static unsigned int keypad_row_gpios[] = {36, 37};
-static unsigned int keypad_col_gpios[] = {33};
 
-#define KEYMAP_INDEX(col, row) ((col)*ARRAY_SIZE(keypad_row_gpios) + (row))
-
-static const unsigned short keypad_keymap_v3[] = {
-	[KEYMAP_INDEX(0, 0)] = KEY_VOLUMEDOWN,
-	[KEYMAP_INDEX(0, 1)] = KEY_VOLUMEUP,
-};
-#else
 static unsigned int keypad_row_gpios[] = {36, 37, 38};
 static unsigned int keypad_col_gpios[] = {33, 32};
 
@@ -522,8 +498,6 @@ static const unsigned short keypad_keymap_v3[] = {
 	[KEYMAP_INDEX(0, 1)] = KEY_VOLUMEUP,
 	[KEYMAP_INDEX(1, 2)] = KEY_HOMEPAGE,
 };
-#endif
-/* 2012-10-23 JongWook-Park(blood9874@lge.com) [V3] Single HOME Key Bring Up [END] */ 
 
 int v3_matrix_info_wrapper(struct gpio_event_input_devs *input_dev,
 			   struct gpio_event_info *info, void **data, int func)
@@ -540,16 +514,9 @@ int v3_matrix_info_wrapper(struct gpio_event_input_devs *input_dev,
 	ret = gpio_event_matrix_func(input_dev, info, data, func);
 	return ret ;
 }
-/* LGE_CHANGE_E [dajin.kim@lge.com] : V3 Rev.B Key Configuration */
 
 static int v3_gpio_matrix_power(const struct gpio_event_platform_data *pdata, bool on)
 {
-	/* this is dummy function
-	 * to make gpio_event driver register suspend function
-	 * 2010-01-29, cleaneye.kim@lge.com
-	 * copy from ALOHA code
-	 * 2010-04-22 younchan.kim@lge.com
-	 */
 	return 0;
 }
 
@@ -560,11 +527,8 @@ static struct gpio_event_matrix_info v3_keypad_matrix_info = {
 	.input_gpios	= keypad_row_gpios,
 	.noutputs	= ARRAY_SIZE(keypad_col_gpios),
 	.ninputs	= ARRAY_SIZE(keypad_row_gpios),	
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.0 proting
- * gpio_event_matrix_info structure member was changed, ktime_t -> struct timespec */	
 	.settle_time.tv64 = 40 * NSEC_PER_USEC,
 	.poll_time.tv64 = 20 * NSEC_PER_MSEC,
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.0 proting*/
 	.flags		= GPIOKPF_LEVEL_TRIGGERED_IRQ | GPIOKPF_PRINT_UNMAPPED_KEYS | GPIOKPF_DRIVE_INACTIVE
 };
 
@@ -593,8 +557,6 @@ static struct platform_device *v3_input_devices[] __initdata = {
 	&keypad_device_v3,
 };
 
-
-/* LGE_CHANGE_S [seven.kim@lge.com] 20110922 New Bosch compass+accel Sensor Porting*/ 
 #if defined (CONFIG_SENSORS_BMM050) || defined (CONFIG_SENSORS_BMA250)
 static struct gpio_i2c_pin accel_i2c_pin[] = {
 	[0] = {
@@ -628,8 +590,6 @@ static struct platform_device sensor_i2c_device = {
 static struct i2c_board_info sensor_i2c_bdinfo[] = {
 	[0] = {
 #if defined (CONFIG_SENSORS_BMA2X2)
-/*#LGE_CHANGE : 2012-10-24 Sanghun,Lee(eee3114.@lge.com) sensor change from bmc150 to bmc050
-*/
 		I2C_BOARD_INFO("bma2x2", ACCEL_I2C_ADDRESS),
 		.type = "bma2x2",
 #else
@@ -643,29 +603,15 @@ static struct i2c_board_info sensor_i2c_bdinfo[] = {
 	},
 };
 
-#if defined (CONFIG_MACH_MSM7X25A_V3)
 static void __init v3_init_i2c_sensor(int bus_num)
 {
 	sensor_i2c_device.id = bus_num;
 	lge_init_gpio_i2c_pin(&sensor_i2c_pdata, accel_i2c_pin[0], &sensor_i2c_bdinfo[0]);
 	lge_init_gpio_i2c_pin(&sensor_i2c_pdata, ecom_i2c_pin[0], &sensor_i2c_bdinfo[1]);
 	i2c_register_board_info(bus_num, sensor_i2c_bdinfo, ARRAY_SIZE(sensor_i2c_bdinfo));
-	platform_device_register(&sensor_i2c_device);
-}
-#else
-static void __init v3_init_i2c_sensor(int bus_num)
-{
-	sensor_i2c_device.id = bus_num;
-
-	lge_init_gpio_i2c_pin(&sensor_i2c_pdata, accel_i2c_pin[0], &sensor_i2c_bdinfo[0]);
-	lge_init_gpio_i2c_pin(&sensor_i2c_pdata, ecom_i2c_pin[0], &sensor_i2c_bdinfo[1]);
-
-	i2c_register_board_info(bus_num, sensor_i2c_bdinfo, ARRAY_SIZE(sensor_i2c_bdinfo));
-
 	platform_device_register(&sensor_i2c_device);
 }
 #endif
-#endif /* LGE_CHANGE_E [seven.kim@lge.com 20110922 New Bosch compass+accel Sensor Porting*/ 
 
 #if defined (CONFIG_SENSOR_APDS9190)
 extern int rt9396_ldo_enable(struct device *dev, unsigned num, unsigned enable);
@@ -688,7 +634,6 @@ static int prox_power_set(unsigned char onoff)
 	}
 
 #endif
-	//Need to implement Power Control : PMIC L12 Block use
 	return 0;
 }
 
@@ -747,8 +692,6 @@ static struct platform_device proxi_i2c_device = {
 	.dev.platform_data = &proxi_i2c_pdata,
 };
 
-
-#if defined (CONFIG_SENSOR_APDS9190)
 static void __init v3_init_i2c_prox(int bus_num)
 {
 	proxi_i2c_device.id = bus_num;
@@ -757,97 +700,52 @@ static void __init v3_init_i2c_prox(int bus_num)
 	platform_device_register(&proxi_i2c_device);
 }
 
-#else
-static void __init v3_init_i2c_prox(int bus_num)
-{
-	proxi_i2c_device.id = bus_num;
-
-	lge_init_gpio_i2c_pin(
-		&proxi_i2c_pdata, proxi_i2c_pin[0], &prox_i2c_bdinfo[0]);
-
-	i2c_register_board_info(bus_num, &prox_i2c_bdinfo[0], 1);
-	platform_device_register(&proxi_i2c_device);
-}
-#endif
-/*[LGE_BSP_S][yunmo.yang@lge.com] LP5521 RGB Driver*/
 #ifdef CONFIG_LEDS_LP5521
 
 static struct lp5521_led_config lp5521_led_config[] = {
 	{
 		.name = "R",
 		.chan_nr	= 0,
-		//.led_current	= 150,
 		.led_current	= 110,
 		.max_current	= 255,
 	},
 	{
 		.name = "G",
 		.chan_nr	= 1,
-		//.led_current	= 70,
 		.led_current	= 110,
 		.max_current	= 255,
 	},
 	{
 		.name = "B",
 		.chan_nr	= 2,
-		//.led_current	= 40,
 		.led_current	= 110,
 		.max_current	= 255,
 	},
 };
 
-
-//[pattern_id : 1, PowerOn_Animation]
-//static u8 mode1_red[] = {0x40, 0x00, 0x08, 0x7e, 0x08, 0x7f, 0x08, 0xff, 0x08, 0xfe};
-//static u8 mode1_green[] = {0x40, 0x00, 0x08, 0x7e, 0x08, 0x7f, 0x08, 0xff, 0x08, 0xfe};
-//static u8 mode1_blue[] = {0x40, 0x00, 0x08, 0x7e, 0x08, 0x7f, 0x08, 0xff, 0x08, 0xfe};
-//[Tuning 20121119]
 static u8 mode1_red[] = {0xE0, 0x0C, 0x40, 0x00, 0x0C, 0x2F, 0x06, 0x28, 0x05, 0x2D, 0x06, 0x2A, 0x06, 0x25, 0x03, 0xDC, 0x02, 0xFA, 0x48, 0x00, 0x03, 0x54, 0x44, 0x01, 0x23, 0x06, 0x31, 0x84, 0x06, 0xA8, 0x0C, 0xAF};
 static u8 mode1_green[] = {0xE0, 0x80, 0x40, 0x00, 0x52, 0x00, 0x0B, 0x15, 0x05, 0x2D, 0x03, 0x48, 0x03, 0x4B, 0x09, 0x1B, 0x02, 0x63, 0x19, 0x89, 0x03, 0xCA, 0x04, 0xC1, 0x05, 0xB2, 0x06, 0xA6, 0x12, 0x8D, 0x52, 0x00};
 static u8 mode1_blue[] = {0xE0, 0x80, 0x40, 0x00, 0x12, 0xFE, 0x40, 0xC0, 0x0A, 0x18, 0x06, 0xA6, 0x06, 0xAA, 0x03, 0xCF, 0x04, 0xB6, 0x52, 0x00};
 
-//[pattern_id : 2, Not used, LCDOn]
 static u8 mode2_red[]={0x40, 0xff, 0x4d, 0x00, 0x0a, 0xff, 0x0a, 0xfe, 0xc0, 0x00};
 static u8 mode2_green[]={0x40, 0xff, 0x4d, 0x00, 0x0a, 0xff, 0x0a, 0xfe, 0xc0, 0x00};
 static u8 mode2_blue[]={0x40, 0xff, 0x4d, 0x00, 0x0a, 0xff, 0x0a, 0xfe, 0xc0, 0x00};
 
-//[pattern_id : 3, Charging0_99]
-//static u8 mode3_red[] = {0x40, 0x19, 0x27, 0x19, 0x0c, 0x65, 0x0c, 0x65, 0x0c, 0xe5, 0x0c, 0xe5, 0x29, 0x98, 0x5a, 0x00};
-//[Tuning 20121119]
-//static u8 mode3_red[] = {0x40, 0x0D, 0x44, 0x0C, 0x24, 0x32, 0x24, 0x32, 0x66, 0x00, 0x24, 0xB2, 0x24, 0xB2, 0x44, 0x8C};
 static u8 mode3_red[] = {0x40, 0x1a, 0x42, 0x18, 0x12, 0x65, 0x12, 0x65, 0x66, 0x00, 0x12, 0xe5, 0x12, 0xe5, 0x42, 0x98};
 
-//[pattern_id : 4, Charging100]
 static u8 mode4_green[]={0x40, 0xff};
 
-//[pattern_id : 5, Not used, Charging16_99]
 static u8 mode5_red[]={0x40, 0x19, 0x27, 0x19, 0xe0, 0x04, 0x0c, 0x65, 0xe0, 0x04, 0x0c, 0x65, 0xe0, 0x04, 0x0c, 0xe5, 0xe0, 0x04, 0x0c, 0xe5, 0xe0, 0x04, 0x29, 0x98, 0xe0, 0x04, 0x5a, 0x00};
 static u8 mode5_green[]={0x40, 0x0c, 0x43, 0x0b, 0xe0, 0x80, 0x19, 0x30, 0xe0, 0x80, 0x19, 0x30, 0xe0, 0x80, 0x19, 0xb0, 0xe0, 0x80, 0x19, 0xb0, 0xe0, 0x80, 0x43, 0x8b, 0xe0, 0x80, 0x5a, 0x00};
 
-
-//[pattern_id : 6, PowerOff]
-//static u8 mode6_red[] = {0x08, 0x7e, 0x08, 0x7f, 0x10, 0xff, 0x10, 0xFe};
-//static u8 mode6_green[] = {0x08, 0x7e, 0x08, 0x7f, 0x10, 0xff, 0x10, 0xFe};
-//static u8 mode6_blue[] = {0x08, 0x7e, 0x08, 0x7f, 0x10, 0xff, 0x10, 0xFe};
-//[Tuning 20121119]
 static u8 mode6_red[] = {0xE0, 0x0C, 0x40, 0x00, 0x0C, 0x2F, 0x06, 0x28, 0x05, 0x2D, 0x06, 0x2A, 0x06, 0x25, 0x03, 0xDC, 0x02, 0xFA, 0x48, 0x00, 0x03, 0x54, 0x44, 0x01, 0x23, 0x06, 0x31, 0x84, 0x06, 0xA8, 0x0C, 0xAF};
 static u8 mode6_green[] = {0xE0, 0x80, 0x40, 0x00, 0x52, 0x00, 0x0B, 0x15, 0x05, 0x2D, 0x03, 0x48, 0x03, 0x4B, 0x09, 0x1B, 0x02, 0x63, 0x19, 0x89, 0x03, 0xCA, 0x04, 0xC1, 0x05, 0xB2, 0x06, 0xA6, 0x12, 0x8D, 0x52, 0x00};
 static u8 mode6_blue[] = {0xE0, 0x80, 0x40, 0x00, 0x12, 0xFE, 0x40, 0xC0, 0x0A, 0x18, 0x06, 0xA6, 0x06, 0xAA, 0x03, 0xCF, 0x04, 0xB6, 0x52, 0x00,};
 
-
-//[pattern_id : 7, MissedNoti]
-//static u8 mode7_green[]={0x40, 0xff, 0x02, 0xff, 0x02, 0xfe, 0x48, 0x00, 0x40, 0xff, 0x02, 0xff, 0x02, 0xfe, 0x7f, 0x00, 0x7f, 0x00, 0x7f, 0x00, 0x52, 0x00};
-//static u8 mode7_blue[]={0x40, 0xff, 0x02, 0xff, 0x02, 0xfe, 0x48, 0x00, 0x40, 0xff, 0x02, 0xff, 0x02, 0xfe, 0x7f, 0x00, 0x7f, 0x00, 0x7f, 0x00, 0x52, 0x00};
-//[Tuning 20121119]
-//static u8 mode7_red[]={0x40, 0x00, 0x10, 0xFE, 0x40, 0x5D, 0xE2, 0x00, 0x07, 0xAD, 0xE2, 0x00, 0x07, 0xAE, 0xE2, 0x00, 0x48, 0x00, 0x40, 0x5D, 0xE2, 0x00, 0x07, 0xAD, 0xE2, 0x00, 0x07, 0xAE, 0xE2, 0x00, 0x25, 0xFE,};
-//static u8 mode7_green[]={0x40, 0x00, 0x10, 0xFE, 0x40, 0xCD, 0xE2, 0x00, 0x03, 0xE6, 0xE2, 0x00, 0x03, 0xE5, 0xE2, 0x00, 0x48, 0x00, 0x40, 0xCD, 0xE2, 0x00, 0x03, 0xE6, 0xE2, 0x00, 0x03, 0xE5, 0xE2, 0x00, 0x25, 0xFE,};
-//static u8 mode7_blue[]={0x40, 0x00, 0x10, 0xFE, 0x40, 0xE6, 0xE0, 0x06, 0x03, 0xF2, 0xE0, 0x06, 0x03, 0xF2, 0xE0, 0x06, 0x48, 0x00, 0x40, 0xE6, 0xE0, 0x06, 0x03, 0xF2, 0xE0, 0x06, 0x03, 0xF2, 0xE0, 0x06, 0x25, 0xFE,};
-/*[2013-02-04][junghoon79.kim@lge.com]changed scenario.*/
 static u8 mode7_red[]={};
 static u8 mode7_green[]={0x40, 0x00, 0x10, 0xfe, 0x40, 0xff, 0x02, 0xd4, 0x02, 0xd4, 0x02, 0xd4, 0x48, 0x00, 0x40, 0xff, 0x02, 0xd4, 0x02, 0xd4, 0x02, 0xd4, 0x25, 0xfe};
 static u8 mode7_blue[]={};
 
-//[pattern_id : 14, MissedNoti(favorite)]
 static u8 mode8_red[]={0x40, 0x00, 0x10, 0xFE, 0x40, 0xE6, 0xE2, 0x00, 0x03, 0xF2, 0xE2, 0x00, 0x03, 0xF2, 0xE2, 0x00, 0x48, 0x00, 0x40, 0xE6, 0xE2, 0x00, 0x03, 0xF2, 0xE2, 0x00, 0x03, 0xF2, 0xE2, 0x00, 0x25, 0xFE,};
 static u8 mode8_green[]={0x40, 0x00, 0x10, 0xFE, 0x40, 0x66, 0x4F, 0x00, 0x0B, 0xA8, 0xE0, 0x80, 0x0B, 0xA8, 0xE0, 0x80, 0x40, 0x66, 0x4F, 0x00, 0x09, 0xB2, 0xE0, 0x80, 0x09, 0xB2, 0xE0, 0x80, 0x1A, 0xFE,};
 static u8 mode8_blue[]={0x40, 0x00, 0x10, 0xFE, 0x40, 0x73, 0x4F, 0x00, 0x08, 0xBC, 0xE0, 0x80, 0x0F, 0x9E, 0xE0, 0x80, 0x40, 0x73, 0x4F, 0x00, 0x05, 0xD5, 0xE0, 0x80, 0x10, 0x9C, 0xE0, 0x80, 0x1A, 0xFE,};
@@ -871,27 +769,17 @@ static struct lp5521_led_pattern board_led_patterns[] = {
 		},
 	{
 		.r = mode3_red,
-		/*.g = mode3_green,*/
-		/*.b = mode3_blue,*/
 		.size_r = ARRAY_SIZE(mode3_red),
-		/*.size_g = ARRAY_SIZE(mode3_green),*/
-		/*.size_b = ARRAY_SIZE(mode3_blue),*/
 	},
 	{
-//		.r = mode4_red,
 		.g = mode4_green,
-//		.b = mode4_blue,
-//		.size_r = ARRAY_SIZE(mode4_red),
 		.size_g = ARRAY_SIZE(mode4_green),
-//		.size_b = ARRAY_SIZE(mode4_blue),
 	},
 	{
 		.r = mode5_red,
 		.g = mode5_green,
-//		.b = mode5_blue,
 		.size_r = ARRAY_SIZE(mode5_red),
 		.size_g = ARRAY_SIZE(mode5_green),
-//		.size_b = ARRAY_SIZE(mode5_blue),
 	},
 	{
 		.r = mode6_red,
@@ -966,9 +854,7 @@ static void lp5521_enable(bool state)
        return;
 }
       
-#define LP5521_CONFIGS	(LP5521_PWM_HF | LP5521_PWRSAVE_EN | \
-			LP5521_CP_MODE_AUTO | \
-			LP5521_CLK_SRC_EXT)
+#define LP5521_CONFIGS	(LP5521_PWM_HF | LP5521_PWRSAVE_EN | LP5521_CP_MODE_AUTO | LP5521_CLK_SRC_EXT)
 
 static struct lp5521_platform_data lp5521_pdata = {
 	.led_config = lp5521_led_config,
@@ -1015,16 +901,13 @@ static void __init lp5521_init_i2c_rgb(int bus_num)
 	if (rc) {
 			pr_err("[LP5521] %s: Error requesting GPIO gpio_tlmm_config, ret %d\n", __func__, rc);
 		} else {
-		    pr_err ("[LP5521] %s: success gpio_tlmm_config, ret %d\n", __func__, rc);
+			pr_err ("[LP5521] %s: success gpio_tlmm_config, ret %d\n", __func__, rc);
 		}
 }
 
 
 #endif /*LP5521*/
 
-/*[LGE_BSP_E][yunmo.yang@lge.com] LP5521 RGB Driver*/
-
-/*LGE_CHANGE_S : seven.kim@lge.com for v3 melfas mms128s touch*/
 #if defined(CONFIG_TOUCHSCREEN_MELFAS_MMS128S)
 static struct gpio_i2c_pin ts_i2c_pin[] = {
 	[0] = {
@@ -1053,17 +936,15 @@ int ts_set_vreg(unsigned char onoff)
 {
 	int rc;
 	
-#if defined(CONFIG_MACH_MSM7X25A_V3) /*LGE_CHANGE_S : seven.kim@lge.com : V3 Touch Porting*/
-
-	//if (is_touch_Initialized == 0) {
+#if defined(CONFIG_MACH_MSM7X25A_V3)
 	if (1) {
 		regulator_ts = regulator_get(NULL, "rfrx1");
 		if (regulator_ts == NULL)
-				pr_err("%s: regulator_get(regulator_ts) failed\n",__func__);
+			pr_err("%s: regulator_get(regulator_ts) failed\n",__func__);
 			
 		rc = regulator_set_voltage(regulator_ts, 3000000, 3000000);
 		if (rc < 0)
-				pr_err("%s: regulator_set_voltage(regulator_ts) failed\n", __func__);
+			pr_err("%s: regulator_set_voltage(regulator_ts) failed\n", __func__);
 		
 		is_touch_Initialized = 1;
 	}
@@ -1076,10 +957,10 @@ int ts_set_vreg(unsigned char onoff)
 	} else {
 		rc = regulator_disable(regulator_ts);
 		if (rc < 0)
-				pr_err("%s: regulator_disble(regulator_ts) failed\n", __func__);
+			pr_err("%s: regulator_disble(regulator_ts) failed\n", __func__);
 	}
 
-#endif  /*LGE_CHANGE_E : seven.kim@lge.com : V3 Touch Porting*/
+#endif
 
 	return rc;
 }
@@ -1097,14 +978,8 @@ static struct touch_platform_data ts_pdata = {
 
 static struct i2c_board_info ts_i2c_bdinfo[] = {
 	[0] = {
-#if defined(CONFIG_MACH_MSM7X25A_V3BR_REV_B) /*V3 BR OPEN Touch*/
 		I2C_BOARD_INFO("touch_mcs8000", TS_I2C_SLAVE_ADDR),
 		.type = "touch_mcs8000",
-#else /*V3 EU OPEN Touch*/
-		I2C_BOARD_INFO("touch_mcs8000", TS_I2C_SLAVE_ADDR),
-		.type = "touch_mcs8000",
-#endif
-/* LGE_CHANGE_S : RECENT_APPS_KEY (Bell Operator in Canada) */ 
 		.platform_data = &ts_pdata,
 	},
 };
@@ -1118,11 +993,9 @@ static int init_gpio_i2c_pin_touch(
 	i2c_adap_pdata->sda_pin = gpio_i2c_pin.sda_pin;
 	i2c_adap_pdata->scl_pin = gpio_i2c_pin.scl_pin;
 
-/* LGE_CHANGE_S: seven.kim@lge.com [V3 Touch Porting] : Fix Touch GPIO Warning Message*/
 	gpio_request(TS_GPIO_I2C_SDA, "Melfas_I2C_SDA");
 	gpio_request(TS_GPIO_I2C_SCL, "Melfas_I2C_SCL");
 	gpio_request(TS_GPIO_IRQ, "Melfas_I2C_INT");
-/* LGE_CHANGE_E: seven.kim@lge.com [V3 Touch Porting] : Fix Touch GPIO Warning Message*/
 
 	gpio_tlmm_config(
 		GPIO_CFG(gpio_i2c_pin.sda_pin, 0, GPIO_CFG_OUTPUT,
@@ -1140,14 +1013,6 @@ static int init_gpio_i2c_pin_touch(
 		gpio_set_value(gpio_i2c_pin.reset_pin, 1);
 	}
 
-#if 0	/*LGE_CHANGE_S : seven.kim@lge.com for V3 Touch Porting*/
-#if (defined(CONFIG_MACH_MSM7X25A_M4EU_REV_A) || defined(CONFIG_MACH_MSM7X25A_M4BR_REV_B))
-	gpio_tlmm_config(
-		GPIO_CFG(TS_GPIO_POWER, 0, GPIO_CFG_OUTPUT,
-				GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-#endif
-#endif /*LGE_CHANGE_E : seven.kim@lge.com for V3 Touch Porting*/
-
 	if (gpio_i2c_pin.irq_pin) {
 		gpio_tlmm_config(
 			GPIO_CFG(gpio_i2c_pin.irq_pin, 0, GPIO_CFG_INPUT,
@@ -1156,11 +1021,9 @@ static int init_gpio_i2c_pin_touch(
 			MSM_GPIO_TO_INT(gpio_i2c_pin.irq_pin);
 	}
 
-/* LGE_CHANGE_S : seven.kim@lge.com [V3 Touch Porting] : Fix Touch GPIO Warning Message*/
 	gpio_free(TS_GPIO_I2C_SDA);
 	gpio_free(TS_GPIO_I2C_SCL);
 	gpio_free(TS_GPIO_IRQ);
-/* LGE_CHANGE_E: seven.kim@lge.com [V3 Touch Porting] : Fix Touch GPIO Warning Message*/
 
 	return 0;
 }
@@ -1175,7 +1038,6 @@ static void __init v3eu_init_i2c_touch(int bus_num)
 		bus_num, &ts_i2c_bdinfo[0], 1);
 	platform_device_register(&ts_i2c_device);
 }
-/*LGE_CHANGE_E : seven.kim@lge.com for v3 melfas mms128s touch*/
 #else /*qct original touch codes*/
 static struct regulator_bulk_data regs_atmel[] = {
 	{ .supply = "ldo12", .min_uV = 2700000, .max_uV = 3300000 },
@@ -1298,213 +1160,13 @@ static struct i2c_board_info atmel_ts_i2c_info[] __initdata = {
 		.irq = MSM_GPIO_TO_INT(ATMEL_TS_GPIO_IRQ),
 	},
 };
-#endif 
-#if 0
-static struct msm_handset_platform_data hs_platform_data = {
-	.hs_name = "7k_handset",
-	.pwr_key_delay_ms = 500, /* 0 will disable end key */
-};
-
-static struct platform_device hs_pdev = {
-	.name   = "msm-handset",
-	.id     = -1,
-	.dev    = {
-		.platform_data = &hs_platform_data,
-	},
-};
-
-#define FT5X06_IRQ_GPIO		48
-#define FT5X06_RESET_GPIO	26
-
-static ssize_t
-ft5x06_virtual_keys_register(struct kobject *kobj,
-			     struct kobj_attribute *attr,
-			     char *buf)
-{
-	return snprintf(buf, 200,
-	__stringify(EV_KEY) ":" __stringify(KEY_MENU)  ":40:510:80:60"
-	":" __stringify(EV_KEY) ":" __stringify(KEY_HOME)   ":120:510:80:60"
-	":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":200:510:80:60"
-	":" __stringify(EV_KEY) ":" __stringify(KEY_BACK)   ":280:510:80:60"
-	"\n");
-}
-
-static struct kobj_attribute ft5x06_virtual_keys_attr = {
-	.attr = {
-		.name = "virtualkeys.ft5x06_ts",
-		.mode = S_IRUGO,
-	},
-	.show = &ft5x06_virtual_keys_register,
-};
-
-static struct attribute *ft5x06_virtual_key_properties_attrs[] = {
-	&ft5x06_virtual_keys_attr.attr,
-	NULL,
-};
-
-static struct attribute_group ft5x06_virtual_key_properties_attr_group = {
-	.attrs = ft5x06_virtual_key_properties_attrs,
-};
-
-struct kobject *ft5x06_virtual_key_properties_kobj;
-
-static struct ft5x06_ts_platform_data ft5x06_platformdata = {
-	.x_max		= 320,
-	.y_max		= 480,
-	.reset_gpio	= FT5X06_RESET_GPIO,
-	.irq_gpio	= FT5X06_IRQ_GPIO,
-	.irqflags	= IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-};
-
-static struct i2c_board_info ft5x06_device_info[] __initdata = {
-	{
-		I2C_BOARD_INFO("ft5x06_ts", 0x38),
-		.platform_data = &ft5x06_platformdata,
-		.irq = MSM_GPIO_TO_INT(FT5X06_IRQ_GPIO),
-	},
-};
-
-static void __init ft5x06_touchpad_setup(void)
-{
-	int rc;
-
-	rc = gpio_tlmm_config(GPIO_CFG(FT5X06_IRQ_GPIO, 0,
-			GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
-			GPIO_CFG_8MA), GPIO_CFG_ENABLE);
-	if (rc)
-		pr_err("%s: gpio_tlmm_config for %d failed\n",
-			__func__, FT5X06_IRQ_GPIO);
-
-	rc = gpio_tlmm_config(GPIO_CFG(FT5X06_RESET_GPIO, 0,
-			GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
-			GPIO_CFG_8MA), GPIO_CFG_ENABLE);
-	if (rc)
-		pr_err("%s: gpio_tlmm_config for %d failed\n",
-			__func__, FT5X06_RESET_GPIO);
-
-	ft5x06_virtual_key_properties_kobj =
-			kobject_create_and_add("board_properties", NULL);
-
-	if (ft5x06_virtual_key_properties_kobj)
-		rc = sysfs_create_group(ft5x06_virtual_key_properties_kobj,
-				&ft5x06_virtual_key_properties_attr_group);
-
-	if (!ft5x06_virtual_key_properties_kobj || rc)
-		pr_err("%s: failed to create board_properties\n", __func__);
-
-	i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
-				ft5x06_device_info,
-				ARRAY_SIZE(ft5x06_device_info));
-}
-
-/* SKU3/SKU7 keypad device information */
-#define KP_INDEX_SKU3(row, col) ((row)*ARRAY_SIZE(kp_col_gpios_sku3) + (col))
-static unsigned int kp_row_gpios_sku3[] = {31, 32};
-static unsigned int kp_col_gpios_sku3[] = {36, 37};
-
-static const unsigned short keymap_sku3[] = {
-	[KP_INDEX_SKU3(0, 0)] = KEY_VOLUMEUP,
-	[KP_INDEX_SKU3(0, 1)] = KEY_VOLUMEDOWN,
-	[KP_INDEX_SKU3(1, 1)] = KEY_CAMERA,
-};
-
-static struct gpio_event_matrix_info kp_matrix_info_sku3 = {
-	.info.func      = gpio_event_matrix_func,
-	.keymap         = keymap_sku3,
-	.output_gpios   = kp_row_gpios_sku3,
-	.input_gpios    = kp_col_gpios_sku3,
-	.noutputs       = ARRAY_SIZE(kp_row_gpios_sku3),
-	.ninputs        = ARRAY_SIZE(kp_col_gpios_sku3),
-	.settle_time.tv64 = 40 * NSEC_PER_USEC,
-	.poll_time.tv64 = 20 * NSEC_PER_MSEC,
-	.flags          = GPIOKPF_LEVEL_TRIGGERED_IRQ | GPIOKPF_DRIVE_INACTIVE |
-				GPIOKPF_PRINT_UNMAPPED_KEYS,
-};
-
-static struct gpio_event_info *kp_info_sku3[] = {
-	&kp_matrix_info_sku3.info,
-};
-static struct gpio_event_platform_data kp_pdata_sku3 = {
-	.name           = "7x27a_kp",
-	.info           = kp_info_sku3,
-	.info_count     = ARRAY_SIZE(kp_info_sku3)
-};
-
-static struct platform_device kp_pdev_sku3 = {
-	.name   = GPIO_EVENT_DEV_NAME,
-	.id     = -1,
-	.dev    = {
-		.platform_data  = &kp_pdata_sku3,
-	},
-};
-
-static struct led_info ctp_backlight_info = {
-	.name           = "button-backlight",
-	.flags          = PM_MPP__I_SINK__LEVEL_40mA << 16 | PM_MPP_7,
-};
-
-static struct led_platform_data ctp_backlight_pdata = {
-	.leds = &ctp_backlight_info,
-	.num_leds = 1,
-};
-
-static struct platform_device pmic_mpp_leds_pdev = {
-	.name   = "pmic-mpp-leds",
-	.id     = -1,
-	.dev    = {
-		.platform_data  = &ctp_backlight_pdata,
-	},
-};
-
-static struct led_info tricolor_led_info[] = {
-	[0] = {
-		.name           = "red",
-		.flags          = LED_COLOR_RED,
-	},
-	[1] = {
-		.name           = "green",
-		.flags          = LED_COLOR_GREEN,
-	},
-};
-
-static struct led_platform_data tricolor_led_pdata = {
-	.leds = tricolor_led_info,
-	.num_leds = ARRAY_SIZE(tricolor_led_info),
-};
-
-static struct platform_device tricolor_leds_pdev = {
-	.name   = "msm-tricolor-leds",
-	.id     = -1,
-	.dev    = {
-		.platform_data  = &tricolor_led_pdata,
-	},
-};
 #endif
-
-/* 2012-10-16 JongWook-Park(blood9874@lge.com) [V3] DIAG Touch Key patch [START] */
-#ifdef CONFIG_LGE_DIAGTEST
-static struct platform_device lg_diag_input_device = {
-	.name = "ats_input",
-	.id = -1,
-	.dev = { .platform_data = 0, },
-};
-
-static struct platform_device *v3_ats_input_devices[] __initdata = {
-       &lg_diag_input_device,
-};
-#endif
-/* 2012-10-16 JongWook-Park(blood9874@lge.com) [V3] DIAG Touch Key patch [END] */
 
 void __init msm7627a_add_io_devices(void)
 {
-
-	/*LGE_CHANGE_S : seven.kim@lge.com JB 2035.2B Migration*/
-	/* ignore end key as this target doesn't need it */
 	hs_platform_data.ignore_end_key = true;
-	/*LGE_CHANGE_E : seven.kim@lge.com JB 2035.2B Migration*/
 	platform_add_devices(v3_input_devices, ARRAY_SIZE(v3_input_devices));
 
-/*LGE_CHANGE_S : seven.kim@lge.com for v3 mms128 touch*/
 #if defined(CONFIG_TOUCHSCREEN_MELFAS_MMS128S)
 	lge_add_gpio_i2c_device(v3eu_init_i2c_touch);
 #else /*qct original*/
@@ -1520,138 +1182,18 @@ void __init msm7627a_add_io_devices(void)
 				atmel_ts_i2c_info,
 				ARRAY_SIZE(atmel_ts_i2c_info));
 #endif
-/*LGE_CHANGE_E : seven.kim@lge.com for v3 mms128 touch*/
-
-/* 2012-10-16 JongWook-Park(blood9874@lge.com) [V3] DIAG Touch Key patch [START] */
-#ifdef CONFIG_LGE_DIAGTEST
-	platform_add_devices(v3_ats_input_devices, ARRAY_SIZE(v3_ats_input_devices));
-#endif
-/* 2012-10-16 JongWook-Park(blood9874@lge.com) [V3] DIAG Touch Key patch [END] */
 
 #if defined (CONFIG_SENSORS_BMM050) ||defined(CONFIG_SENSORS_BMA250)
-#if defined (CONFIG_MACH_MSM7X25A_V3)
-	lge_add_gpio_i2c_device(v3_init_i2c_sensor);
-#else
 	lge_add_gpio_i2c_device(v3_init_i2c_sensor);
 #endif
-#endif
+	lge_add_gpio_i2c_device(v3_init_i2c_prox);
 
-	//eee3114.lee@lge.com sensor
-#if defined (CONFIG_MACH_MSM7X25A_V3)
-	lge_add_gpio_i2c_device(v3_init_i2c_prox);
-#else
-	lge_add_gpio_i2c_device(v3_init_i2c_prox);
-#endif	
-	
-/*[LGE_BSP_S][yunmo.yang@lge.com] LP5521 RGB Driver*/
 #ifdef CONFIG_LEDS_LP5521	
 	lge_add_gpio_i2c_device(lp5521_init_i2c_rgb);
 #endif	
-/*[LGE_BSP_E][yunmo.yang@lge.com] LP5521 RGB Driver*/	
-#if 0
-	/* keypad */
-	platform_device_register(&kp_pdev);
-
-	/* headset */
-	platform_device_register(&hs_pdev);
-
-	/* LED: configure it as a pdm function */
-	if (gpio_tlmm_config(GPIO_CFG(LED_GPIO_PDM, 3,
-				GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
-				GPIO_CFG_8MA), GPIO_CFG_ENABLE))
-		pr_err("%s: gpio_tlmm_config for %d failed\n",
-			__func__, LED_GPIO_PDM);
-	else
-		platform_device_register(&led_pdev);
-#endif
-	/* Vibrator */
-	//if (machine_is_msm7x27a_ffa() || machine_is_msm7625a_ffa()
-	//				|| machine_is_msm8625_ffa())
-		msm_init_pmic_vibrator();
+	msm_init_pmic_vibrator();
 }
 
 void __init qrd7627a_add_io_devices(void)
 {
-#if 0
-	int rc;
-	/* touchscreen */
-	if (machine_is_msm7627a_qrd1()) {
-		i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
-					synaptic_i2c_clearpad3k,
-					ARRAY_SIZE(synaptic_i2c_clearpad3k));
-	} else if (machine_is_msm7627a_evb() || machine_is_msm8625_evb() ||
-			machine_is_msm8625_evt()) {
-		/* Use configuration data for EVT */
-		if (machine_is_msm8625_evt()) {
-			mxt_config_array[0].config = mxt_config_data_evt;
-			mxt_config_array[0].config_length =
-					ARRAY_SIZE(mxt_config_data_evt);
-			mxt_platform_data.panel_maxy = 875;
-			mxt_platform_data.need_calibration = true;
-			mxt_vkey_setup();
-		}
-
-		rc = gpio_tlmm_config(GPIO_CFG(MXT_TS_IRQ_GPIO, 0,
-				GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
-				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config for %d failed\n",
-				__func__, MXT_TS_IRQ_GPIO);
-		}
-
-		rc = gpio_tlmm_config(GPIO_CFG(MXT_TS_RESET_GPIO, 0,
-				GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
-				GPIO_CFG_8MA), GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config for %d failed\n",
-				__func__, MXT_TS_RESET_GPIO);
-		}
-
-		i2c_register_board_info(MSM_GSBI1_QUP_I2C_BUS_ID,
-					mxt_device_info,
-					ARRAY_SIZE(mxt_device_info));
-	} else if (machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()) {
-		ft5x06_touchpad_setup();
-	}
-
-	/* headset */
-	platform_device_register(&hs_pdev);
-
-	/* vibrator */
-#ifdef CONFIG_MSM_RPC_VIBRATOR
-	msm_init_pmic_vibrator();
-#endif
-
-	/* keypad */
-	if (machine_is_msm8625_evt())
-		kp_matrix_info_8625.keymap = keymap_8625_evt;
-
-	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb() ||
-			machine_is_msm8625_evt())
-		platform_device_register(&kp_pdev_8625);
-	else if (machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7())
-		platform_device_register(&kp_pdev_sku3);
-
-	/* leds */
-	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()) {
-		rc = gpio_tlmm_config(GPIO_CFG(LED_RED_GPIO_8625, 0,
-				GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
-				GPIO_CFG_16MA), GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config for %d failed\n",
-				__func__, LED_RED_GPIO_8625);
-		}
-
-		rc = gpio_tlmm_config(GPIO_CFG(LED_GREEN_GPIO_8625, 0,
-				GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
-				GPIO_CFG_16MA), GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config for %d failed\n",
-				__func__, LED_GREEN_GPIO_8625);
-		}
-
-		platform_device_register(&gpio_leds_8625);
-		platform_device_register(&pmic_mpp_leds_pdev);
-	}
-#endif
 }
