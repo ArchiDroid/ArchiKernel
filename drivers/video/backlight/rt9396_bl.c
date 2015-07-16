@@ -63,11 +63,8 @@
 #define RT9396BL_REG_CURRENT		0x47	/* Register address to control Backlight Level */
 #define RT9396BL_REG_LED_ON		0x83	/* Register address for LED1 ~ LED4 on seting */
 #define RT9396BL_REG_LED_OFF		0x80	/* Register address for LED1 ~ LED4 off seting */
-// [Caio99BR][caiooliveirafarias0@gmail.com] Workaround for bug of screen still awake after lock
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 #define RT9396BL_REG_KEYLED_ON		0x93	/* Register address for LED5 ~ LED6 on seting */
 #define RT9396BL_REG_KEYLED_OFF		0x90	/* Register address for LED5 ~ LED6 off seting */
-#endif
 
 //LDO ON
 #define RT9396BL_REG_LDO1_ON	0x23	/* Register address for LDO 1 voltage setting */
@@ -87,13 +84,10 @@
 #define RT9396BL_VAL_LDO4	0x04	/* value for LDO 4 voltage setting */
 #define RT9396BL_VAL_LED_SET	0x34
 
-// [Caio99BR][caiooliveirafarias0@gmail.com] Workaround for bug of screen still awake after lock
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 #ifdef CONFIG_LEDS_LP5521
 #define RT9396BL_VAL_KEYLED_SET	0x05	// 2.34mA
 #else
 #define RT9396BL_VAL_KEYLED_SET	0x04	//1.95mA
-#endif
 #endif
 
 #define LEDS_BACKLIGHT_NAME		"lcd-backlight"
@@ -169,7 +163,9 @@ static int rt9396_powerstate = POWERON_STATE;
 static struct rt9396_ctrl_tbl rt9396bl_inital_tbl[] = {
 	{ RT9396BL_REG_LED_ON, RT9396BL_VAL_LED_SET },
 // [Caio99BR][caiooliveirafarias0@gmail.com] Workaround for bug of screen still awake after lock
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifdef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
+	{ RT9396BL_REG_KEYLED_OFF, 0x00 },
+#else
 	{ RT9396BL_REG_KEYLED_ON, RT9396BL_VAL_KEYLED_SET },
 #endif
 	{ 0xFF, 0xFE }
@@ -178,10 +174,7 @@ static struct rt9396_ctrl_tbl rt9396bl_inital_tbl[] = {
 /* Set to sleep mode  */
 static struct rt9396_ctrl_tbl rt9396bl_sleep_tbl[] = {
 	{ RT9396BL_REG_LED_OFF, 0x00 },
-// [Caio99BR][caiooliveirafarias0@gmail.com] Workaround for bug of screen still awake after lock
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 	{ RT9396BL_REG_KEYLED_OFF, 0x00 },
-#endif
 	{ 0xFF, 0xFE }
 };
 static int bl_chargerlogo = 0;
@@ -476,7 +469,7 @@ static int rt9396_send_intensity(struct rt9396_driver_data *drvdata, int next)
 int rt9396_send_intensity_button(struct rt9396_driver_data *drvdata, int level)
 {
 // [Caio99BR][caiooliveirafarias0@gmail.com] Workaround for bug of screen still awake after lock
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 	if(level)
 	{
 	printk("[%s] key-backlight ON ! \n", __func__);
@@ -724,8 +717,6 @@ static struct led_classdev rt9396_led_dev = {
 	.brightness_set = leds_brightness_set,
 };
 
-// [Caio99BR][caiooliveirafarias0@gmail.com] Workaround for bug of screen still awake after lock
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
 static void button_leds_brightness_set(struct led_classdev *led_cdev, enum led_brightness value)
 {
 	struct rt9396_driver_data *drvdata = dev_get_drvdata(led_cdev->dev->parent);
@@ -742,7 +733,6 @@ static struct led_classdev rt9396_keyled_dev = {
 	.brightness_set = button_leds_brightness_set,
 	.brightness		= LED_OFF,
 };
-#endif
 
 static int rt9396_probe(struct i2c_client *i2c_dev, const struct i2c_device_id *i2c_dev_id)
 {
@@ -809,13 +799,11 @@ static int rt9396_probe(struct i2c_client *i2c_dev, const struct i2c_device_id *
 		err = device_create_file(drvdata->led->dev, &dev_attr_drvstat);
 		err = device_create_file(drvdata->led->dev, &dev_attr_chargerlogo);
 	}
-// [Caio99BR][caiooliveirafarias0@gmail.com] Workaround for bug of screen still awake after lock
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+
 	if (led_classdev_register(&i2c_dev->dev, &rt9396_keyled_dev) == 0) {
 		eprintk("Registering led class dev successfully.\n");
 		drvdata->led = &rt9396_keyled_dev;
 	}
-#endif
 
 	i2c_set_clientdata(i2c_dev, drvdata);
 	i2c_set_adapdata(i2c_dev->adapter, i2c_dev);

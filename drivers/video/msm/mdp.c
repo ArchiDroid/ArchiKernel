@@ -2613,7 +2613,7 @@ static int mdp_probe(struct platform_device *pdev)
 #endif
         static int contSplash_update_done;
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 	void *splash_virt_addr;
 	int cur_page;
 	unsigned long cur_addr;
@@ -2658,7 +2658,7 @@ static int mdp_probe(struct platform_device *pdev)
 			mdp4_hw_init();
 #else
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 		mdp_hw_init(mdp_pdata->cont_splash_enabled);
 #else
 		mdp_hw_init();
@@ -2702,7 +2702,7 @@ static int mdp_probe(struct platform_device *pdev)
         if (mdp_pdata) {
 		if (mdp_pdata->cont_splash_enabled) {
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 			uint32 bpp = 3;
 			mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 			/*read panel wxh and calculate splash screen
@@ -2789,7 +2789,7 @@ static int mdp_probe(struct platform_device *pdev)
 		mfd->ov1_wb_buf->size = mdp_pdata->ov1_wb_size;
 		mfd->mem_hid = mdp_pdata->mem_hid;
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 		mfd->avtimer_phy = mdp_pdata->avtimer_phy;
 #endif
 	} else {
@@ -2797,7 +2797,7 @@ static int mdp_probe(struct platform_device *pdev)
 		mfd->ov1_wb_buf->size = 0;
 		mfd->mem_hid = 0;
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 		mfd->avtimer_phy = 0;
 #endif
 	}
@@ -3223,7 +3223,7 @@ void mdp_footswitch_ctrl(boolean on)
 }
 
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 void mdp_free_splash_buffer(struct msm_fb_data_type *mfd)
 {
 	if (mfd->copy_splash_buf) {

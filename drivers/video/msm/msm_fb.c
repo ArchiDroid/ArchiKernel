@@ -2130,7 +2130,7 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 				backlight_duration);
 
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 	if (info->node == 0 && (mfd->cont_splash_done)) /* primary */
 		mdp_free_splash_buffer(mfd);
 #endif

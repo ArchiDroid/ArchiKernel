@@ -14,14 +14,6 @@ config MACH_MSM7X25A_V3_DS
     help
         Support for the LG Electronics MSM7x25A V3 DualSim.
 
-config MACH_MSM7X25A_V3_KK_WORKAROUD
-    depends on MACH_MSM7X25A_V3
-    bool "MSM7x25A V3 errors Workaround"
-    default n
-    help
-        Disable support for "Copy splash image to kernel memory".
-        Used to fix fb0 error in vee3 devices and disable keyled.
-
 config LGE_BATTERY_SUSPEND_RESUME
     depends on ARCH_MSM7X27A
     select MACH_LGE

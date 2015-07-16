@@ -77,7 +77,7 @@ extern uint32 mdp_intr_mask;
 #define MDP_ALLOC(x)  kmalloc(x, GFP_KERNEL)
 
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 struct splash_pages {
 	struct page **pages;
 	int nrpages;
@@ -752,7 +752,7 @@ extern struct mdp_hist_mgmt *mdp_hist_mgmt_array[];
 #define MDP_DMA_P_LUT_POST    BIT(4)
 
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 void mdp_hw_init(int splash);
 #else
 void mdp_hw_init(void);
@@ -802,7 +802,7 @@ int mdp_lcdc_on(struct platform_device *pdev);
 int mdp_lcdc_off(struct platform_device *pdev);
 void mdp_lcdc_update(struct msm_fb_data_type *mfd);
 //[Caio99BR][caiooliveirafarias0@gmail.com] Workaround for broken fb0 with splash_screen
-#ifndef CONFIG_MACH_MSM7X25A_V3_KK_WORKAROUD
+#ifndef CONFIG_MACH_LGE_2ND_GEN_KK_WORKAROUD
 void mdp_free_splash_buffer(struct msm_fb_data_type *mfd);
 #endif
 #ifdef CONFIG_FB_MSM_MDP303
