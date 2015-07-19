@@ -187,45 +187,6 @@ static void __init register_i2c_devices(void)
 }
 #endif
 
-/* LGE_CHANGE_S, sohyun.nam@lge.com, parsing kcal from cmdline */
-#ifdef CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
-static int atoi(const char *name)
-{
-	int val = 0;
-
-	for (;; name++) {
-		switch (*name) {
-		case '0' ... '9': val = 10*val + (*name-'0'); break;
-		default: return val;
-		}
-	}
-}
-
-int g_lge_lcd_k_cal[6];
-static int __init lcd_k_cal_setup(char *arg)
-{
-	char buf[4]={0,};
-
-	memcpy(buf, arg+0, 3); // R
-	g_lge_lcd_k_cal[0] = atoi(buf);
-
-	memcpy(buf, arg+3, 3); // G
-	g_lge_lcd_k_cal[1] = atoi(buf);
-
-	memcpy(buf, arg+6, 3); // B
-	g_lge_lcd_k_cal[2] = atoi(buf);
-
-	// magic code => "cal"
-	memcpy(g_lge_lcd_k_cal+3, arg+9, 3);
-
-	printk(KERN_INFO " *** lcd_k_cal=%s, r:%d, g:%d, b:%d \n", arg, g_lge_lcd_k_cal[0], g_lge_lcd_k_cal[1], g_lge_lcd_k_cal[2]);
-	return 1;
-}
-__setup("lge.lcd_k_cal=", lcd_k_cal_setup);
-#endif //CONFIG_LGE_FB_MSM_MDP_LUT_ENABLE
-/* LGE_CHANGE_E, sohyun.nam@lge.com, parsing kcal from cmdline */
-
-
 static struct msm_gpio qup_i2c_gpios_io[] = {
 	{ GPIO_CFG(60, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
 		"qup_scl" },

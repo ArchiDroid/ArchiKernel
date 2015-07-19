@@ -69,11 +69,12 @@
 
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 #include <asm/setup.h>
-#endif /*CONFIG_ANDROID_RAM_CONSOLE*/
+#endif
 
 #ifdef CONFIG_LGE_BOOT_MODE
 #include <mach/lge/lge_boot_mode.h>
 #endif
+
 #define RESERVE_KERNEL_EBI1_SIZE	0x3A000
 #define MSM_RESERVE_AUDIO_SIZE		0xF0000
 #define BOOTLOADER_BASE_ADDR		0x10000
@@ -139,7 +140,6 @@ static void gsbi_qup_i2c_gpio_config(int adap_id, int config_type)
 	if (adap_id < 0 || adap_id > 1)
 		return;
 
-	/* Each adapter gets 2 lines from the table */
 	if (config_type)
 		rc = msm_gpios_request_enable(&qup_i2c_gpios_hw[adap_id*2], 2);
 	else
@@ -159,9 +159,9 @@ static struct msm_i2c_platform_data msm_gsbi1_qup_i2c_pdata = {
 };
 
 #ifdef CONFIG_ARCH_MSM7X27A
-#define MSM_RESERVE_MDP_SIZE		0xD00000
+#define MSM_RESERVE_MDP_SIZE		0xE00000
 #define MSM7x25A_MSM_RESERVE_MDP_SIZE	0x1500000
-#define MSM_RESERVE_ADSP_SIZE		0x1200000
+#define MSM_RESERVE_ADSP_SIZE		0x1300000
 #define MSM7x25A_MSM_RESERVE_ADSP_SIZE	0xB91000
 #define CAMERA_ZSL_SIZE			(SZ_1M * 60)
 #endif
@@ -429,7 +429,6 @@ static struct msm_pm_boot_platform_data msm_pm_8625_boot_pdata __initdata = {
 	.v_addr = MSM_CFG_CTL_BASE,
 };
 
-
 static unsigned reserve_mdp_size = MSM_RESERVE_MDP_SIZE;
 static int __init reserve_mdp_size_setup(char *p)
 {
@@ -601,6 +600,7 @@ static void fix_sizes(void)
 #endif
 #endif
 }
+
 #ifdef CONFIG_ION_MSM
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 static struct ion_co_heap_pdata co_ion_pdata = {
@@ -749,6 +749,7 @@ static void __init msm7x27a_reserve(void)
 #endif
 }
 
+
 static void __init msm7x27a_device_i2c_init(void)
 {
 	msm_gsbi0_qup_i2c_device.dev.platform_data = &msm_gsbi0_qup_i2c_pdata;
@@ -768,12 +769,11 @@ static void __init msm7x27a_init_ebi2(void)
 		return;
 
 	ebi2_cfg = readl(ebi2_cfg_ptr);
-		ebi2_cfg |= (1 << 4); /* CS2 */
+		ebi2_cfg |= (1 << 4);
 
 	writel(ebi2_cfg, ebi2_cfg_ptr);
 	iounmap(ebi2_cfg_ptr);
 
-	/* Enable A/D MUX[bit 31] from EBI2_XMEM_CS2_CFG1 */
 	ebi2_cfg_ptr = ioremap_nocache(MSM_EBI2_XMEM_CS2_CFG1,
 							 sizeof(uint32_t));
 	if (!ebi2_cfg_ptr)

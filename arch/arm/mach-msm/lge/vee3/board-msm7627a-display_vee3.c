@@ -306,17 +306,16 @@ void __init msm_fb_add_devices(void)
 		ebi2_tovis_power_save(1);
 
 	fb_register_client(&v3eu_fb_event_notifier);
-	
 	platform_add_devices(msm_fb_devices, ARRAY_SIZE(msm_fb_devices));
 	platform_add_devices(v3eu_panel_devices, ARRAY_SIZE(v3eu_panel_devices));
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("lcdc", 0);
 #ifdef CONFIG_FB_MSM_EBI2
 	msm_fb_register_device("ebi2", 0);
-#endif /*CONFIG_FB_MSM_EBI2*/
+#endif
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 	msm_fb_register_device("mipi_dsi", &mipi_dsi_pdata);
-#endif /*CONFIG_FB_MSM_MIPI_DSI*/
+#endif
 
 	lge_add_gpio_i2c_device(msm7x27a_v3eu_init_i2c_backlight);
 }

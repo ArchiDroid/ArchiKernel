@@ -21,16 +21,15 @@
 #include <mach/msm_iomap.h>
 #include <mach/board.h>
 #include <mach/irqs-7xxx.h>
-
 #include "../../devices-msm7x2xa.h"
 #include "../../board-msm7627a.h"
-#include CONFIG_LGE_BOARD_HEADER_FILE
 
 #include <mach/vreg.h>
+#include CONFIG_LGE_BOARD_HEADER_FILE
 
 #ifdef CONFIG_HI351
 #if defined (CONFIG_SENSOR_APDS9190)
-extern int rt9396_ldo_enable(struct device *dev, unsigned num, unsigned enable); 
+extern int rt9396_ldo_enable(struct device *dev, unsigned num, unsigned enable);
 #else
 extern int bu61800_ldo_enable(struct device *dev, unsigned num, unsigned enable);
 #endif
@@ -47,14 +46,7 @@ extern int bu61800_ldo_enable(struct device *dev, unsigned num, unsigned enable)
 #define GPIO_SKU7_CAM_5MP_CAMIF_RESET		23
 
 #ifdef CONFIG_MSM_CAMERA_V4L2
-
 static struct camera_vreg_t msm_cam_vreg[] = {
-
-#ifndef CONFIG_MACH_LGE
-	{"msme1", REG_LDO, 1800000, 1800000, 0},
-	{"ldo10", REG_LDO, 2850000, 2850000, 0},
-	{"usb2", REG_LDO, 1800000, 1800000, 0},
-#endif // CONFIG_MACH_LGE
 };
 
 #ifdef CONFIG_HI351
@@ -91,88 +83,70 @@ static int msm_camera_vreg_config(int vreg_en)
 	int rc = 0;
 
 #if defined (CONFIG_SENSOR_APDS9190)
-	
+
 		if (vreg_en) {
 			pr_err("%s: msm_camera_vreg_config power on vreg_en enable\n", __func__);
-	
-			//IOVDD: 1.8V START
-	
-			rc = rt9396_ldo_enable(NULL,4,vreg_en); 
+
+			rc = rt9396_ldo_enable(NULL,4,vreg_en);
 			if (rc < 0) {
 				pr_err("%s: rt9396_ldo_enable(ldo4) failed\n", __func__);
 			}
-			//IOVDD: 1.8V END
-	
-			//AVDD: 2.8V START
-	
+
 			rc = rt9396_ldo_enable(NULL,2,vreg_en);
 			if (rc < 0) {
 				pr_err("%s: rt9396_ldo_enable(ldo2) failed\n", __func__);
 			}
-			//AVDD: 2.8V END
-	
-			//DVDD: 1.2V START
-	
+
 			rc = rt9396_ldo_enable(NULL,3,vreg_en);
 			if (rc < 0) {
 				pr_err("%s: rt9396_ldo_enable(ldo3) failed\n", __func__);
 			}
-			//DVDD: 1.2V END
-	
-		} 
+
+		}
 		else {
-			
+
 			pr_err("%s: msm_camera_vreg_config power on vreg_en disable start\n", __func__);
-	
+
 			rc = rt9396_ldo_enable(NULL,3,vreg_en);
 			if (rc < 0) {
 				pr_err("%s: rt9396_ldo_enable(ldo3) OFF failed\n", __func__);
 			}
-	
+
 			rc = rt9396_ldo_enable(NULL,2,vreg_en);
 			if (rc < 0) {
 				pr_err("%s: rt9396_ldo_enable(ldo2) OFF failed\n", __func__);
 			}
-	
+
 			rc = rt9396_ldo_enable(NULL,4,vreg_en);
 			if (rc < 0) {
 				pr_err("%s: rt9396_ldo_enable(ldo4) OFF failed\n", __func__);
 			}
 			pr_err("%s: msm_camera_vreg_config power on vreg_en disable end\n", __func__);
-	
-		}	
+
+		}
 #else
 
 	if (vreg_en) {
 		pr_err("%s: msm_camera_vreg_config power on vreg_en enable\n", __func__);
 
-		//IOVDD: 1.8V START
-
-		rc = bu61800_ldo_enable(NULL,4,vreg_en); 
+		rc = bu61800_ldo_enable(NULL,4,vreg_en);
 		if (rc < 0) {
 			pr_err("%s: bu61800_ldo_enable(ldo4) failed\n", __func__);
 		}
-		//IOVDD: 1.8V END
-
-		//AVDD: 2.8V START
 
 		rc = bu61800_ldo_enable(NULL,2,vreg_en);
 		if (rc < 0) {
 			pr_err("%s: bu61800_ldo_enable(ldo2) failed\n", __func__);
 		}
-		//AVDD: 2.8V END
-
-		//DVDD: 1.2V START
 
 		rc = bu61800_ldo_enable(NULL,3,vreg_en);
 		if (rc < 0) {
 			pr_err("%s: bu61800_ldo_enable(ldo3) failed\n", __func__);
 		}
-		//DVDD: 1.2V END
 
-	} 
+	}
 	else {
-		
+
 	 	pr_err("%s: msm_camera_vreg_config power on vreg_en disable start\n", __func__);
 
 		rc = bu61800_ldo_enable(NULL,3,vreg_en);
@@ -193,11 +167,9 @@ static int msm_camera_vreg_config(int vreg_en)
 
 	}
 
-	//default
 #endif
 	return rc;
 }
-
 
 static int32_t msm_camera_7x27a_ext_power_ctrl(int enable)
 {
@@ -209,10 +181,6 @@ static int32_t msm_camera_7x27a_ext_power_ctrl(int enable)
 	}
 	return rc;
 }
-
-
-
-
 #endif
 
 struct msm_camera_device_platform_data msm_camera_device_data_csi1[] = {
@@ -363,7 +331,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_hi351_data = {
 	.sensor_name    = "hi351",
 	.sensor_reset_enable = 1,
 	.sensor_reset           = 34, 		// GPIO_34
-	.sensor_pwd 			= 42, 		// GPIO_42	
+	.sensor_pwd 			= 42, 		// GPIO_42
 	.pdata                  = &msm_camera_device_data_csi1[0],
 	.flash_data             = &flash_hi351,
 	.sensor_platform_info   = &sensor_board_info_hi351,
@@ -387,27 +355,12 @@ static void __init msm7x27a_init_cam(void)
 	if (!(machine_is_msm7x27a_ffa() || machine_is_msm7625a_ffa()
 				|| machine_is_msm7627a_qrd1()
 				|| machine_is_msm8625_ffa())) {
-#ifdef CONFIG_MACH_LGE
 #ifdef CONFIG_HI351
 		sensor_board_info_hi351.cam_vreg = NULL;
 		sensor_board_info_hi351.num_vreg = 0;
 		s_info = &msm_camera_sensor_hi351_data;
 		s_info->sensor_platform_info->ext_power_ctrl =
 			msm_camera_7x27a_ext_power_ctrl;
-#endif
-#else
-		sensor_board_info_s5k4e1.cam_vreg = NULL;
-		sensor_board_info_s5k4e1.num_vreg = 0;
-		sensor_board_info_mt9e013.cam_vreg = NULL;
-		sensor_board_info_mt9e013.num_vreg = 0;
-		sensor_board_info_ov9726.cam_vreg = NULL;
-		sensor_board_info_ov9726.num_vreg = 0;
-		sensor_board_info_ov7692.cam_vreg = NULL;
-		sensor_board_info_ov7692.num_vreg = 0;
-		sensor_board_info_ov5647.cam_vreg = NULL;
-		sensor_board_info_ov5647.num_vreg = 0;
-		sensor_board_info_ov8825.cam_vreg = NULL;
-		sensor_board_info_ov8825.num_vreg = 0;
 #endif
 	}
 	platform_device_register(&msm_camera_server);
@@ -422,14 +375,12 @@ static void __init msm7x27a_init_cam(void)
 }
 
 static struct i2c_board_info i2c_camera_devices[] = {
-
 #ifdef CONFIG_HI351
 	{
 		I2C_BOARD_INFO("hi351", 0x40),
 		.platform_data = &msm_camera_sensor_hi351_data,
 	},
 #endif
-
 };
 #else
 static uint32_t camera_off_gpio_table[] = {
@@ -514,7 +465,6 @@ static void qrd1_camera_gpio_cfg(void)
 
 static void evb_camera_gpio_cfg(void)
 {
-// [Caio99BR][caiooliveirafarias0@gmail.com] ?
 }
 
 #ifndef CONFIG_MSM_CAMERA_V4L2
@@ -1068,14 +1018,12 @@ EXPORT_SYMBOL(lcd_camera_power_onoff);
 
 void __init msm7627a_camera_init(void)
 {
-
 #ifndef CONFIG_MSM_CAMERA_V4L2
 	int rc;
 #endif
 
 	pr_debug("msm7627a_camera_init Entered\n");
 
-	/* LCD and camera power (VREG & LDO) init */
 	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
 			|| machine_is_msm8625_evt()
 			|| machine_is_msm7627a_qrd3()

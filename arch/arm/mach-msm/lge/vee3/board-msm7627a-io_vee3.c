@@ -42,7 +42,6 @@
 #define ATMEL_X_OFFSET 13
 #define ATMEL_Y_OFFSET 0
 
-
 #if defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C) || defined(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_MODULE)
 
 #ifndef CLEARPAD3000_ATTEN_GPIO
@@ -526,7 +525,7 @@ static struct gpio_event_matrix_info v3_keypad_matrix_info = {
 	.output_gpios	= keypad_col_gpios,
 	.input_gpios	= keypad_row_gpios,
 	.noutputs	= ARRAY_SIZE(keypad_col_gpios),
-	.ninputs	= ARRAY_SIZE(keypad_row_gpios),	
+	.ninputs	= ARRAY_SIZE(keypad_row_gpios),
 	.settle_time.tv64 = 40 * NSEC_PER_USEC,
 	.poll_time.tv64 = 20 * NSEC_PER_MSEC,
 	.flags		= GPIOKPF_LEVEL_TRIGGERED_IRQ | GPIOKPF_PRINT_UNMAPPED_KEYS | GPIOKPF_DRIVE_INACTIVE
