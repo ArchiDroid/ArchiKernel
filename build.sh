@@ -14,18 +14,13 @@ rm -rf zip-creator/*.zip
 rm -rf zip-creator/zImage
 rm -rf zip-creator/system/lib/modules/*.ko
 cleanzipcheck="Done"
-zippackagecheck=""
-adbcopycheck=""
+unset zippackagecheck adbcopycheck
 }
 
 cleankernel() {
 make clean mrproper &> /dev/null
 cleankernelcheck="Done"
-buildprocesscheck=""
-target=""
-serie=""
-variant=""
-maindevicecheck=""
+unset buildprocesscheck target serie variant maindevicecheck BUILDTIME
 }
 
 # Clean - End
@@ -33,20 +28,22 @@ maindevicecheck=""
 # Main Process - Start
 
 maindevice() {
-echo "1) L3 II Single"
-echo "2) L3 II Dual"
-echo "3) L5 NFC"
-echo "4) L5 NoNFC"
-echo "5) L7 NFC"
-echo "6) L7 NoNFC"
+echo "1) L1 II Single/Dual"
+echo "2) L3 II Single"
+echo "3) L3 II Dual"
+echo "4) L5 NFC"
+echo "5) L5 NoNFC"
+echo "6) L7 NFC"
+echo "7) L7 NoNFC"
 read -p "Choice: " -n 1 -s choice
 case "$choice" in
-	1 ) target="L3II-"; variant="Single"; echo "$choice - $target$variant"; make cyanogenmod_vee3_defconfig &> /dev/null; maindevicecheck="On";;
-	2 ) target="L3II-"; variant="Dual"; echo "$choice - $target$variant"; make cyanogenmod_vee3ds_defconfig &> /dev/null; maindevicecheck="On";;
-	3 ) target="L5-"; variant="Single"; echo "$choice - $target$variant"; make cyanogenmod_m4_defconfig &> /dev/null; maindevicecheck="On";;
-	4 ) target="L5NoNFC-"; variant="Single"; echo "$choice - $target$variant"; make cyanogenmod_m4_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
-	5 ) target="L7-"; variant="Single"; echo "$choice - $target$variant"; make cyanogenmod_u0_defconfig &> /dev/null; maindevicecheck="On";;
-	6 ) target="L7NoNFC-"; variant="Single"; echo "$choice - $target$variant"; make cyanogenmod_u0_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
+	1 ) target="L1II-"; variant=""; echo "$choice - $target$variant"; make cyanogenmod_v1_defconfig &> /dev/null; maindevicecheck="On";;
+	2 ) target="L3II-"; variant="Single"; echo "$choice - $target$variant"; make cyanogenmod_vee3_defconfig &> /dev/null; maindevicecheck="On";;
+	3 ) target="L3II-"; variant="Dual"; echo "$choice - $target$variant"; make cyanogenmod_vee3ds_defconfig &> /dev/null; maindevicecheck="On";;
+	4 ) target="L5-"; variant="NFC"; echo "$choice - $target$variant"; make cyanogenmod_m4_defconfig &> /dev/null; maindevicecheck="On";;
+	5 ) target="L5-"; variant="NoNFC"; echo "$choice - $target$variant"; make cyanogenmod_m4_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
+	6 ) target="L7-"; variant="NFC"; echo "$choice - $target$variant"; make cyanogenmod_u0_defconfig &> /dev/null; maindevicecheck="On";;
+	7 ) target="L7-"; variant="NoNFC"; echo "$choice - $target$variant"; make cyanogenmod_u0_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
 	* ) echo "$choice - This option is not valid"; sleep 2;;
 esac
 }
@@ -56,9 +53,9 @@ if [ -d ../android_prebuilt_toolchains ]; then
 	echo "1) 4.7 Google GCC"
 	echo "2) 4.8 Google GCC"
 	echo "3) 4.6.4 Linaro GCC"
-	echo "3) 4.7.4 Linaro GCC"
-	echo "3) 4.8.4 Linaro GCC"
-	echo "3) 4.9.3 Linaro GCC"
+	echo "4) 4.7.4 Linaro GCC"
+	echo "5) 4.8.4 Linaro GCC"
+	echo "6) 4.9.3 Linaro GCC"
 	read -p "Choice: " -n 1 -s toolchain
 	case "$toolchain" in
 		1 ) export CROSS_COMPILE="../android_prebuilt_toolchains/arm-eabi-4.7/bin/arm-eabi-";;
@@ -90,7 +87,7 @@ END=$(date +"%s")
 BUILDTIME=$(($END - $START))
 if [ -f arch/arm/boot/zImage ]; then
 	buildprocesscheck="Done"
-	cleankernelcheck=""
+	unset cleankernelcheck
 else
 	buildprocesscheck="Something is wrong, contact Dev!"
 fi
@@ -101,15 +98,15 @@ if [ "$variant" == "Dual" ]; then
 	todual
 fi
 
+if [ "$target" == "L1II-" ]; then
+	tol1ii
+fi
+
 if [ "$target" == "L3II-" ]; then
 	tol3ii
 fi
 
 if [ "$target" == "L7-" ]; then
-	tol7
-fi
-
-if [ "$target" == "L7NoNFC-" ]; then
 	tol7
 fi
 
@@ -122,10 +119,6 @@ cd zip-creator
 zip -r $zipfile * -x */.gitignore* &> /dev/null
 cd ..
 
-if [ "$target" == "L7NoNFC-" ]; then
-	ofl7
-fi
-
 if [ "$target" == "L7-" ]; then
 	ofl7
 fi
@@ -134,11 +127,15 @@ if [ "$target" == "L3II-" ]; then
 	ofl3ii
 fi
 
+if [ "$target" == "L1II-" ]; then
+	ofl1ii
+fi
+
 if [ "$variant" == "Dual" ]; then
 	tosingle
 fi
 zippackagecheck="Done"
-cleanzipcheck=""
+unset cleanzipcheck
 }
 
 todual() {
@@ -149,6 +146,31 @@ mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-
 
 tosingle() {
 sed 's/Dual/Single/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
+rm zip-creator/META-INF/com/google/android/updater-script
+mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
+}
+
+tol1ii() {
+sed 's/m4/vee3/' zip-creator/tools/kernel_flash.sh > zip-creator/tools/kernel_flash-temp.sh
+rm zip-creator/tools/kernel_flash.sh
+mv zip-creator/tools/kernel_flash-temp.sh zip-creator/tools/kernel_flash.sh
+sed 's/14/15/' zip-creator/tools/kernel_flash.sh > zip-creator/tools/kernel_flash-temp.sh
+rm zip-creator/tools/kernel_flash.sh
+mv zip-creator/tools/kernel_flash-temp.sh zip-creator/tools/kernel_flash.sh
+sed 's/L5 Single/L1 II/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
+rm zip-creator/META-INF/com/google/android/updater-script
+mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
+
+}
+
+ofl1ii() {
+sed 's/vee3/m4/' zip-creator/tools/kernel_flash.sh > zip-creator/tools/kernel_flash-temp.sh
+rm zip-creator/tools/kernel_flash.sh
+mv zip-creator/tools/kernel_flash-temp.sh zip-creator/tools/kernel_flash.sh
+sed 's/15/14/' zip-creator/tools/kernel_flash.sh > zip-creator/tools/kernel_flash-temp.sh
+rm zip-creator/tools/kernel_flash.sh
+mv zip-creator/tools/kernel_flash-temp.sh zip-creator/tools/kernel_flash.sh
+sed 's/L1 II/L5 Single/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
 rm zip-creator/META-INF/com/google/android/updater-script
 mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
 }
@@ -206,8 +228,8 @@ echo "i) For Internal"
 echo "e) For External"
 read -p "Choice: " -n 1 -s adbcoping
 case "$adbcoping" in
-	i ) echo "Coping to Internal Card..."; adb shell rm -rf /storage/sdcard0/$zipfile; adb push zip-creator/$zipfile /storage/sdcard0/$zipfile &> /dev/null; adbcopycheck="Done";;
-	e ) echo "Coping to External Card..."; adb shell rm -rf /storage/sdcard1/$zipfile; adb push zip-creator/$zipfile /storage/sdcard1/$zipfile &> /dev/null; adbcopycheck="Done";;
+	i ) echo "Coping to Internal Card..."; adb shell rm -rf /storage/sdcard0/$zipfile &> /dev/null; adb push zip-creator/$zipfile /storage/sdcard0/$zipfile &> /dev/null; adbcopycheck="Done";;
+	e ) echo "Coping to External Card..."; adb shell rm -rf /storage/sdcard1/$zipfile &> /dev/null; adb push zip-creator/$zipfile /storage/sdcard1/$zipfile &> /dev/null; adbcopycheck="Done";;
 	* ) echo "$adbcoping - This option is not valid"; sleep 2;;
 esac
 }
@@ -216,7 +238,7 @@ esac
 
 # Menu - Start
 
-customkernel=THLGKernel
+customkernel=CAFKernel
 export ARCH=arm
 
 buildsh() {
@@ -252,6 +274,7 @@ if [ -f arch/arm/boot/zImage ]; then
 fi
 if [ -f zip-creator/*.zip ]; then
 	echo
+	echo "Test Process:"
 	echo "7) Copy to device - Via Adb ($adbcopycheck)"
 fi
 if [ "$adbcopycheck" == "Done" ]; then
@@ -272,17 +295,25 @@ case $x in
 	4) echo "$x - Toolchain choice"; maintoolchain; buildsh;;
 	5) if [ -f .config ]; then
 		echo "$x - Building Kernel..."; buildprocess; buildsh
+	else
+		echo "$x - This option is not valid"; sleep 2; buildsh
 	fi;;
 	6) if [ -f arch/arm/boot/zImage ]; then
 		echo "$x - Ziping Kernel..."; zippackage; buildsh
+	else
+		echo "$x - This option is not valid"; sleep 2; buildsh
 	fi;;
 	7) if [ -f zip-creator/*.zip ]; then
 		echo "$x - Coping Kernel..."; adbcopy; buildsh
+	else
+		echo "$x - This option is not valid"; sleep 2; buildsh
 	fi;;
 	8) if [ "$adbcopycheck" == "Done" ]; then
-		echo "$x - Rebooting $target$variant..."; adb reboot recovery; buildsh
+		echo "$x - Rebooting to Recovery..."; adb reboot recovery; buildsh
+	else
+		echo "$x - This option is not valid"; sleep 2; buildsh
 	fi;;
-	q) echo "Ok, Bye!"; zippackagecheck="";;
+	q) echo "Ok, Bye!"; unset zippackagecheck;;
 	*) echo "$x - This option is not valid"; sleep 2; buildsh;;
 esac
 }
@@ -300,13 +331,13 @@ if ! [ -e build.sh ]; then
 	echo; sleep 3
 else
 	if [ -f zip-creator/*.zip ]; then
-		cleanzipcheck=""
+		unset cleanzipcheck
 	else
 		cleanzipcheck="Done"
 	fi
 
 	if [ -f .config ]; then
-		cleankernelcheck=""
+		unset cleankernelcheck
 	else
 		cleankernelcheck="Done"
 	fi
@@ -314,7 +345,7 @@ else
 	if [ -f arch/arm/boot/zImage ]; then
 		buildprocesscheck="Done"
 	else
-		buildprocesscheck=""
+		unset buildprocesscheck
 	fi
 
 	buildsh
