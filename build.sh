@@ -28,22 +28,24 @@ unset buildprocesscheck target serie variant maindevicecheck BUILDTIME
 # Main Process - Start
 
 maindevice() {
-echo "1) L1 II Single/Dual"
-echo "2) L3 II Single"
-echo "3) L3 II Dual"
-echo "4) L5 NFC"
-echo "5) L5 NoNFC"
-echo "6) L7 NFC"
-echo "7) L7 NoNFC"
+echo "1) L5 NFC"
+echo "2) L5 NoNFC"
+echo "3) L7 NFC - 8m"
+echo "4) L7 NFC"
+echo "5) L7 NoNFC"
+echo "6) L1 II Single/Dual"
+echo "7) L3 II Single"
+echo "8) L3 II Dual"
 read -p "Choice: " -n 1 -s choice
 case "$choice" in
-	1 ) target="L1II-"; variant=""; echo "$choice - $target$variant"; make cyanogenmod_v1_defconfig &> /dev/null; maindevicecheck="On";;
-	2 ) target="L3II-"; variant="Single"; echo "$choice - $target$variant"; make cyanogenmod_vee3_defconfig &> /dev/null; maindevicecheck="On";;
-	3 ) target="L3II-"; variant="Dual"; echo "$choice - $target$variant"; make cyanogenmod_vee3ds_defconfig &> /dev/null; maindevicecheck="On";;
-	4 ) target="L5-"; variant="NFC"; echo "$choice - $target$variant"; make cyanogenmod_m4_defconfig &> /dev/null; maindevicecheck="On";;
-	5 ) target="L5-"; variant="NoNFC"; echo "$choice - $target$variant"; make cyanogenmod_m4_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
-	6 ) target="L7-"; variant="NFC"; echo "$choice - $target$variant"; make cyanogenmod_u0_defconfig &> /dev/null; maindevicecheck="On";;
-	7 ) target="L7-"; variant="NoNFC"; echo "$choice - $target$variant"; make cyanogenmod_u0_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
+	1 ) target="L5-"; variant="NFC"; echo "$choice - $target$variant"; make cyanogenmod_m4_defconfig &> /dev/null; maindevicecheck="On";;
+	2 ) target="L5-"; variant="NoNFC"; echo "$choice - $target$variant"; make cyanogenmod_m4_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
+	3 ) target="L7-"; variant="NFC-8m"; echo "$choice - $target$variant"; make cyanogenmod_u0_8m_defconfig &> /dev/null; maindevicecheck="On";;
+	4 ) target="L7-"; variant="NFC"; echo "$choice - $target$variant"; make cyanogenmod_u0_defconfig &> /dev/null; maindevicecheck="On";;
+	5 ) target="L7-"; variant="NoNFC"; echo "$choice - $target$variant"; make cyanogenmod_u0_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
+	6 ) target="L1II-"; variant="SD"; echo "$choice - $target$variant"; make cyanogenmod_v1_defconfig &> /dev/null; maindevicecheck="On";;
+	7 ) target="L3II-"; variant="Single"; echo "$choice - $target$variant"; make cyanogenmod_vee3_defconfig &> /dev/null; maindevicecheck="On";;
+	8 ) target="L3II-"; variant="Dual"; echo "$choice - $target$variant"; make cyanogenmod_vee3ds_defconfig &> /dev/null; maindevicecheck="On";;
 	* ) echo "$choice - This option is not valid"; sleep 2;;
 esac
 }
