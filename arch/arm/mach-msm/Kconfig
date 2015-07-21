@@ -420,6 +420,8 @@ config MSM_REMOTE_SPINLOCK_SFPB
 config MSM_ADM3
 	bool
 
+source "arch/arm/mach-msm/lge/Kconfig"
+
 menu "MSM Board Selection"
 
 config MACH_HALIBUT
@@ -879,10 +881,6 @@ config MACH_FSM9XXX_SURF
 	  FFA board.
 
 endmenu
-
-# LGE_CHANGE_S : seven.kim@lge.com for v3/v5
-source "arch/arm/mach-msm/lge/Kconfig"
-# LGE_CHANGE_E : seven.kim@lge.com for v3/v5
 
 config MSM_STACKED_MEMORY
 	bool "Stacked Memory"

@@ -1,9 +1,19 @@
+menu "LGE Board Selection"
+
 config MACH_LGE
 	bool
-	
-menu "LGE Board Selection"
+
 source "arch/arm/mach-msm/lge/Kconfig.board"
-endmenu
+
+config LGE_BOARD_HEADER_FILE
+	string "LGE board specific header file name"
+	depends on MACH_LGE
+	default ""
+	help
+	 Specifies the board header file for particular model
+	 (Eg: board_v7.h).This config must be set
+
+comment "LGE Special Configs"
 
 config LGE_SILENCE_RESET
        tristate "Support LGE Kernel Silence Reset"
@@ -83,14 +93,6 @@ config LGE_UART_MODE
 	help
 	 UART ENABLE DISABLE HANDLING
 
-config LGE_BOARD_HEADER_FILE
-	string "LGE board specific header file name"
-	depends on MACH_LGE
-	default ""
-	help
-	 Specifies the board header file for particular model
-	 (Eg: board_v7.h).This config must be set
-
 config LGE_BDI_TIMER_BUG_PATCH
 	bool "LGE bdi timer bug patch"
 	default n 
@@ -117,6 +119,46 @@ config LGE_WAIT_FOR_EFS_SYNC_COMPLETE
 	 Turn Off phone only when currently active sync complete.This makes sure that
 	 modem file system is proper.
 
+config LGE_BATTERY_SUSPEND_RESUME
+	depends on MACH_LGE
+	bool "Battery Supend Resume"
+	help
+	 Support for the LG Electronics Power.
+
+config LGE_POWER_ON_STATUS_PATCH
+	bool "Report power on satus of handset"
+	depends on MACH_LGE
+	default n
+	help
+	 This patch is added to read the power on status from modem and update
+	 the same in apps processor's /proc/sys/kernel/boot_reason file.
+	 Ref: Documentation/arcr/arm/msm/boot.txt
+
+config LGE_TOUCH_FOUR_BUTTON_SUPPORT
+	bool "Dual Sim model support 4 button"
+	depends on MACH_LGE
+	default n
+
+config LGE_TOUCH_POWER_USING_PMIC
+	bool "Touch 3.0V power from PMIC LDO1"
+	depends on MACH_LGE
+	default n
+
+config LGE_REBOOT_REASON_IN_EMMC
+	bool "Reboot reason in emmc"
+	depends on MACH_LGE
+	default n
+	help
+	  Stores reboot reason in emmc
+
+config LGE_DETECT_USB_CABLE_TYPE
+	bool "Check the type of usb cable is connected to Handset"
+	depends on MACH_LGE
+	default n
+	help
+	  Check the type of usb cable is connected to handset, like Factory USB or UART, normal
+	  charger and unknown cable.
+
 config MACH_LGE_NO_DEBUG_INFO
 	depends on MACH_LGE
 	default n
@@ -139,4 +181,4 @@ config MACH_LGE_2ND_GEN_KK_WORKAROUD
 	 Disable support for "Copy splash image to kernel memory" and KeyLED.
 	 The 2nd gen devices not have this support in bootloader.
 	 And KeyLED make screen On forever.
-
+endmenu

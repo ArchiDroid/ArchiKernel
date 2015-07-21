@@ -222,6 +222,12 @@ config FB_MSM_MIPI_DSI_LG4573B
 	default n
 #LGE_CHANGE_E : seven.kim@lge.com kernel3.0 porting
 
+config FB_MSM_MIPI_DSI_LG4573B_BOOT_LOGO
+	bool "Removes the glitch in lg booting logo"
+	default n
+	help
+	  Removes the glitch in lg booting logo
+
 #LGE_CHANGE_S : sohyun.nam@lge.com tovis porting
 config FB_MSM_MIPI_DSI_HX8379A
 	bool
