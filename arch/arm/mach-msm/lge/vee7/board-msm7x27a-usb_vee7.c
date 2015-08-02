@@ -104,7 +104,6 @@ static int msm_hsusb_ldo_init(int init)
 
 		return 0;
 	}
-	/* else fall through */
 reg_free:
 	regulator_put(reg_hsusb);
 out:
@@ -175,7 +174,7 @@ static void __init msm7x27a_otg_gadget(void)
 	msm8625_device_otg.dev.platform_data = &msm_otg_pdata;
 	msm8625_device_gadget_peripheral.dev.platform_data =
 		&msm_gadget_pdata;
-		
+
 }
 
 void __init lge_add_usb_devices(void)

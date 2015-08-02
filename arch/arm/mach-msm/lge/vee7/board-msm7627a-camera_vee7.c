@@ -21,26 +21,17 @@
 #include <mach/msm_iomap.h>
 #include <mach/board.h>
 #include <mach/irqs-7xxx.h>
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.4 for v3/v5*/
-#if defined (CONFIG_MACH_LGE)
+
 #include "../../devices-msm7x2xa.h"
 #include "../../board-msm7627a.h"
-#else /*qct original*/
-#include "devices-msm7x2xa.h"
-#include "board-msm7627a.h"
-#endif /*CONFIG_MACH_LGE*/
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.4 for v3/v5*/
+
 #include <mach/vreg.h>
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifdef CONFIG_MACH_LGE
+
 #include CONFIG_LGE_BOARD_HEADER_FILE
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
-/* LGE_CHANGE_S : 2012-09-15 sungmin.cho@lge.com flash led porting */
+
 #ifdef CONFIG_LEDS_AS364X
 #include <linux/leds-as364x.h>
 #endif
-/* LGE_CHANGE_E : 2012-09-15 sungmin.cho@lge.com flash led porting */
 
 #define GPIO_SKU1_CAM_VGA_SHDN    18
 #define GPIO_SKU1_CAM_VGA_RESET_N 29
@@ -52,99 +43,7 @@
 #define GPIO_SKU7_CAM_5MP_CAMIF_RESET   23   /* (board_is(EVT))?123:121 RESET */
 
 #ifdef CONFIG_MSM_CAMERA_V4L2
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-static uint32_t camera_off_gpio_table[] = {
-	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-};
 
-static uint32_t camera_on_gpio_table[] = {
-	GPIO_CFG(15, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-};
-
-static struct gpio s5k4e1_cam_req_gpio[] = {
-	{GPIO_CAM_GP_CAMIF_RESET_N, GPIOF_DIR_OUT, "CAM_RESET"},
-};
-
-static struct msm_gpio_set_tbl s5k4e1_cam_gpio_set_tbl[] = {
-	{GPIO_CAM_GP_CAMIF_RESET_N, GPIOF_OUT_INIT_LOW, 1000},
-	{GPIO_CAM_GP_CAMIF_RESET_N, GPIOF_OUT_INIT_HIGH, 4000},
-};
-
-static struct msm_camera_gpio_conf gpio_conf_s5k4e1 = {
-	.camera_off_table = camera_off_gpio_table,
-	.camera_off_table_size = ARRAY_SIZE(camera_off_gpio_table),
-	.camera_on_table = camera_on_gpio_table,
-	.camera_on_table_size = ARRAY_SIZE(camera_on_gpio_table),
-	.cam_gpio_req_tbl = s5k4e1_cam_req_gpio,
-	.cam_gpio_req_tbl_size = ARRAY_SIZE(s5k4e1_cam_req_gpio),
-	.cam_gpio_set_tbl = s5k4e1_cam_gpio_set_tbl,
-	.cam_gpio_set_tbl_size = ARRAY_SIZE(s5k4e1_cam_gpio_set_tbl),
-	.gpio_no_mux = 1,
-};
-
-static struct msm_camera_gpio_conf gpio_conf_mt9e013 = {
-	.camera_off_table = camera_off_gpio_table,
-	.camera_on_table = camera_on_gpio_table,
-	.gpio_no_mux = 1,
-};
-
-static struct msm_camera_gpio_conf gpio_conf_ov9726 = {
-	.camera_off_table = camera_off_gpio_table,
-	.camera_on_table = camera_on_gpio_table,
-	.gpio_no_mux = 1,
-};
-
-#ifdef CONFIG_OV7692
-static struct gpio ov7692_cam_req_gpio[] = {
-	{GPIO_SKU1_CAM_VGA_RESET_N, GPIOF_DIR_OUT, "CAM_VGA_RESET"},
-};
-
-static struct msm_gpio_set_tbl ov7692_cam_gpio_set_tbl[] = {
-	{GPIO_SKU1_CAM_VGA_SHDN, GPIOF_OUT_INIT_HIGH, 5000},
-	{GPIO_SKU1_CAM_VGA_SHDN, GPIOF_OUT_INIT_LOW, 5000},
-	{GPIO_SKU1_CAM_VGA_RESET_N, GPIOF_OUT_INIT_HIGH, 5000},
-	{GPIO_SKU1_CAM_VGA_RESET_N, GPIOF_OUT_INIT_LOW, 5000},
-};
-
-static struct msm_camera_gpio_conf gpio_conf_ov7692 = {
-	.cam_gpio_req_tbl = ov7692_cam_req_gpio,
-	.cam_gpio_req_tbl_size = ARRAY_SIZE(ov7692_cam_req_gpio),
-	.cam_gpio_set_tbl = ov7692_cam_gpio_set_tbl,
-	.cam_gpio_set_tbl_size = ARRAY_SIZE(ov7692_cam_gpio_set_tbl),
-	.gpio_no_mux = 1,
-};
-#endif
-
-#ifdef CONFIG_OV5647
-static struct msm_camera_gpio_conf gpio_conf_ov5647 = {
-	.camera_off_table = camera_off_gpio_table,
-	.camera_on_table = camera_on_gpio_table,
-	.gpio_no_mux = 1,
-};
-#endif
-
-#ifdef CONFIG_MSM_CAMERA_FLASH
-static struct msm_camera_sensor_flash_src msm_flash_src = {
-	.flash_sr_type = MSM_CAMERA_FLASH_SRC_EXT,
-	._fsrc.ext_driver_src.led_en = GPIO_CAM_GP_LED_EN1,
-	._fsrc.ext_driver_src.led_flash_en = GPIO_CAM_GP_LED_EN2,
-};
-#endif
-#endif // CONFIG_MACH_LGE
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
-/* LGE_CHANGE 2012-03-29, woonrae.cho@lge.com, becasue of ldo change */
-//static struct camera_vreg_t msm_cam_vreg[] = {
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-//#ifndef CONFIG_MACH_LGE
-//	{"msme1", REG_LDO, 1800000, 1800000, 0},
-//	{"ldo10", REG_LDO, 2850000, 2850000, 0},
-//	{"usb2", REG_LDO, 1800000, 1800000, 0},
-//#endif // CONFIG_MACH_LGE
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
-//};
-
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
 #ifdef CONFIG_T8EV4
 static uint32_t t8ev4_cam_off_gpio_table[] = {
 	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), // mclk
@@ -305,27 +204,6 @@ static struct msm_camera_gpio_conf gpio_conf_hi707 = {
 	.gpio_no_mux = 1,
 };
 #endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-static struct camera_vreg_t ov5647_gpio_vreg[] = {
-	{"cam_ov5647_avdd", REG_GPIO, 0, 0, 0},
-	{"cam_ov5647_vdd", REG_GPIO, 0, 0, 0},
-};
-
-static struct camera_vreg_t ov8825_gpio_vreg[] = {
-	{"cam_ov8825_avdd", REG_GPIO, 0, 0, 0},
-	{"cam_ov8825_vdd", REG_GPIO, 0, 0, 0},
-};
-
-static struct camera_vreg_t ov7692_gpio_vreg[] = {
-	{"cam_ov7692_avdd", REG_GPIO, 0, 0, 0},
-	{"cam_ov7692_vdd", REG_GPIO, 0, 0, 0},
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_s5k4e1_data;
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 
 struct msm_camera_device_platform_data msm_camera_device_data_csi1[] = {
 	{
@@ -359,17 +237,14 @@ struct msm_camera_device_platform_data msm_camera_device_data_csi0[] = {
 
 #ifdef CONFIG_T8EV4
 static struct i2c_board_info msm_act_main_cam_i2c_info = {
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
 #if defined(CONFIG_T8EV4_ACT) 
 	I2C_BOARD_INFO("msm_actuator", 0x18),
 #else
 	I2C_BOARD_INFO("msm_actuator", 0x11),
 #endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 };
 #endif
 
-/* LGE_CHANGE_S : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
 #if defined(CONFIG_IMX111) || defined(CONFIG_IMX219)
 static struct i2c_board_info msm_act_main_cam_i2c_info = {
 #if defined(CONFIG_IMX111_ACT) || defined(CONFIG_IMX219_ACT)
@@ -379,19 +254,6 @@ static struct i2c_board_info msm_act_main_cam_i2c_info = {
 #endif
 };
 #endif
-/* LGE_CHANGE_E : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
-
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-static struct msm_actuator_info msm_act_main_cam_4_info = {
-	.board_info     = &msm_act_main_cam_i2c_info,
-	.cam_name   = MSM_ACTUATOR_MAIN_CAM_4,
-	.bus_id         = MSM_GSBI0_QUP_I2C_BUS_ID,
-	.vcm_pwd        = GPIO_CAM_GP_CAM_PWDN,
-	.vcm_enable     = 1,
-};
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 
 #ifdef CONFIG_S5K4E1
 static struct msm_camera_sensor_flash_data flash_s5k4e1 = {
@@ -489,147 +351,41 @@ static struct msm_camera_sensor_info msm_camera_sensor_ov5647_data = {
 
 #endif
 
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-static struct msm_camera_gpio_conf gpio_conf_ov8825 = {
-	.camera_off_table = camera_off_gpio_table,
-	.camera_on_table = camera_on_gpio_table,
-	.gpio_no_mux = 1,
-};
-
-static struct msm_camera_sensor_flash_src msm_flash_src_ov8825 = {
-	.flash_sr_type = MSM_CAMERA_FLASH_SRC_LED1,
-	._fsrc.ext_driver_src.led_en = 13,
-	._fsrc.ext_driver_src.led_flash_en = 32,
-};
-
-static struct msm_camera_sensor_flash_data flash_ov8825 = {
-	.flash_type     = MSM_CAMERA_FLASH_LED,
-	.flash_src      = &msm_flash_src_ov8825,
-};
-
-static struct msm_camera_sensor_platform_info sensor_board_info_ov8825 = {
-	.mount_angle  = 90,
-	.cam_vreg = msm_cam_vreg,
-	.num_vreg = ARRAY_SIZE(msm_cam_vreg),
-	.gpio_conf = &gpio_conf_ov8825,
-};
-
-static struct msm_actuator_info msm_act_main_cam_3_info = {
-	.board_info     = &msm_act_main_cam_i2c_info,
-	.cam_name   = MSM_ACTUATOR_MAIN_CAM_3,
-	.bus_id         = MSM_GSBI0_QUP_I2C_BUS_ID,
-	.vcm_pwd        = GPIO_SKU3_CAM_5MP_CAM_DRIVER_PWDN,
-	.vcm_enable     = 0,
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_ov8825_data = {
-	.sensor_name    = "ov8825",
-	.sensor_reset_enable    = 1,
-	.pmic_gpio_enable = 1,
-	.sensor_reset           = GPIO_SKU3_CAM_5MP_CAMIF_RESET,
-	.sensor_pwd     = GPIO_SKU3_CAM_5MP_SHDN_N,
-	.pdata  = &msm_camera_device_data_csi1[1],
-	.flash_data     = &flash_ov8825,
-	.sensor_platform_info = &sensor_board_info_ov8825,
-	.csi_if = 1,
-	.camera_type = BACK_CAMERA_2D,
-	.sensor_type = BAYER_SENSOR,
-	.actuator_info = &msm_act_main_cam_3_info,
-};
-
-#ifdef CONFIG_MT9E013
-static struct msm_camera_sensor_flash_data flash_mt9e013 = {
-	.flash_type             = MSM_CAMERA_FLASH_LED,
-	.flash_src              = &msm_flash_src
-};
-
-static struct msm_camera_sensor_platform_info sensor_board_info_mt9e013 = {
-	.mount_angle	= 90,
-	.cam_vreg = msm_cam_vreg,
-	.num_vreg = ARRAY_SIZE(msm_cam_vreg),
-	.gpio_conf = &gpio_conf_mt9e013,
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9e013_data = {
-	.sensor_name    = "mt9e013",
-	.sensor_reset_enable = 1,
-	.pdata                  = &msm_camera_device_data_csi1[1],
-	.flash_data             = &flash_mt9e013,
-	.sensor_platform_info   = &sensor_board_info_mt9e013,
-	.csi_if                 = 1,
-	.camera_type = BACK_CAMERA_2D,
-	.sensor_type = BAYER_SENSOR,
-};
-#endif
-
-#ifdef CONFIG_WEBCAM_OV9726
-static struct msm_camera_sensor_flash_data flash_ov9726 = {
-	.flash_type             = MSM_CAMERA_FLASH_LED,
-	.flash_src              = &msm_flash_src
-};
-
-static struct msm_camera_sensor_platform_info sensor_board_info_ov9726 = {
-	.mount_angle	= 90,
-	.cam_vreg = msm_cam_vreg,
-	.num_vreg = ARRAY_SIZE(msm_cam_vreg),
-	.gpio_conf = &gpio_conf_ov9726,
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_ov9726_data = {
-	.sensor_name    = "ov9726",
-	.sensor_reset_enable = 0,
-	.pdata                  = &msm_camera_device_data_csi0[0],
-	.flash_data             = &flash_ov9726,
-	.sensor_platform_info   = &sensor_board_info_ov9726,
-	.csi_if                 = 1,
-	.camera_type = FRONT_CAMERA_2D,
-	.sensor_type = BAYER_SENSOR,
-};
-#endif
-#endif // CONFIG_MACH_LGE
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
-
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
 #ifdef CONFIG_T8EV4
 #ifdef CONFIG_T8EV4_ACT
 static struct msm_actuator_info msm_act_main_cam_5_info = {
 	.board_info     = &msm_act_main_cam_i2c_info,
 	.cam_name   = MSM_ACTUATOR_MAIN_CAM_5,
 	.bus_id         = MSM_GSBI0_QUP_I2C_BUS_ID,
-	.vcm_pwd        = 31, // GPIO_31
+	.vcm_pwd        = 31,
 	.vcm_enable     = 1,
 };
 #endif
 #endif
 
-/* LGE_CHANGE_S : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
 #ifdef CONFIG_IMX111
 #ifdef CONFIG_IMX111_ACT
 static struct msm_actuator_info msm_act_main_cam_4_info = {
 	.board_info     = &msm_act_main_cam_i2c_info,
 	.cam_name   = MSM_ACTUATOR_MAIN_CAM_4,
 	.bus_id         = MSM_GSBI0_QUP_I2C_BUS_ID,
-	.vcm_pwd        = 31, // GPIO_31
+	.vcm_pwd        = 31,
 	.vcm_enable     = 1,
 };
 #endif
 #endif
-/* LGE_CHANGE_E : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
 
-/* LGE_CHANGE_S : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
 #ifdef CONFIG_IMX219
 #ifdef CONFIG_IMX219_ACT
 static struct msm_actuator_info msm_act_main_cam_5_info = {
 	.board_info     = &msm_act_main_cam_i2c_info,
 	.cam_name   = MSM_ACTUATOR_MAIN_CAM_5,
 	.bus_id         = MSM_GSBI0_QUP_I2C_BUS_ID,
-	.vcm_pwd        = 31, // GPIO_31
+	.vcm_pwd        = 31,
 	.vcm_enable     = 1,
 };
 #endif
 #endif
-/* LGE_CHANGE_E : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
 
 #ifdef CONFIG_T8EV4
 #ifdef CONFIG_LEDS_AS364X
@@ -644,21 +400,18 @@ static struct msm_camera_sensor_flash_data flash_t8ev4 = {
 #else
 static struct msm_camera_sensor_flash_data flash_t8ev4 = {
 	.flash_type             = MSM_CAMERA_FLASH_LED,
-	//.flash_src              = &msm_flash_src
 };
 #endif
 
 static struct msm_camera_sensor_platform_info sensor_board_info_t8ev4 = {
 	.mount_angle	= 90,
-	//.cam_vreg = msm_cam_vreg,
-	//.num_vreg = ARRAY_SIZE(msm_cam_vreg),
 	.gpio_conf = &gpio_conf_t8ev4,
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_t8ev4_data = {
 	.sensor_name    = "t8ev4",
 	.sensor_reset_enable = 1,
-	.sensor_reset           = 34, // GPIO_34
+	.sensor_reset           = 34,
 	.pdata                  = &msm_camera_device_data_csi1[0],
 	.flash_data             = &flash_t8ev4,
 	.sensor_platform_info   = &sensor_board_info_t8ev4,
@@ -687,7 +440,6 @@ static struct msm_camera_sensor_flash_data flash_imx111 = {
 #else
 static struct msm_camera_sensor_flash_data flash_imx111 = {
 	.flash_type             = MSM_CAMERA_FLASH_LED,
-	//.flash_src              = &msm_flash_src
 };
 #endif
 
@@ -701,42 +453,21 @@ static struct msm_camera_sensor_flash_data flash_imx219 = {
 #else
 static struct msm_camera_sensor_flash_data flash_imx219 = {
 	.flash_type             = MSM_CAMERA_FLASH_LED,
-	//.flash_src              = &msm_flash_src
 };
 #endif
 #endif
 
-/* LGE_CHANGE_S : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
 #ifdef CONFIG_IMX111
-#if 0
-#ifdef CONFIG_LEDS_AS364X
-static struct msm_camera_sensor_flash_src led_flash_src = {
-	.flash_sr_type = MSM_CAMERA_FLASH_SRC_CURRENT_DRIVER,
-};
-
-static struct msm_camera_sensor_flash_data flash_imx111 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &led_flash_src,
-};
-#else
-static struct msm_camera_sensor_flash_data flash_imx111 = {
-	.flash_type             = MSM_CAMERA_FLASH_LED,
-	//.flash_src              = &msm_flash_src
-};
-#endif
-#endif
 
 static struct msm_camera_sensor_platform_info sensor_board_info_imx111 = {
 	.mount_angle	= 90,
-	//.cam_vreg = msm_cam_vreg,
-	//.num_vreg = ARRAY_SIZE(msm_cam_vreg),
 	.gpio_conf = &gpio_conf_imx111,
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_imx111_data = {
 	.sensor_name    = "imx111",
 	.sensor_reset_enable = 1,
-	.sensor_reset           = 34, // GPIO_34
+	.sensor_reset           = 34,
 	.pdata                  = &msm_camera_device_data_csi1[0],
 	.flash_data             = &flash_imx111,
 	.sensor_platform_info   = &sensor_board_info_imx111,
@@ -748,22 +479,17 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx111_data = {
 #endif
 };
 #endif
-/* LGE_CHANGE_E : 2012-11-03 sungmin.cho@lge.com Sony 8M bringup */
 
-
-/* LGE_CHANGE_S : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
 #ifdef CONFIG_IMX219
 static struct msm_camera_sensor_platform_info sensor_board_info_imx219 = {
 	.mount_angle	= 90,
-	//.cam_vreg = msm_cam_vreg,
-	//.num_vreg = ARRAY_SIZE(msm_cam_vreg),
 	.gpio_conf = &gpio_conf_imx219,
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_imx219_data = {
 	.sensor_name    = "imx219",
 	.sensor_reset_enable = 1,
-	.sensor_reset           = 34, // GPIO_34
+	.sensor_reset           = 34,
 	.pdata                  = &msm_camera_device_data_csi1[0],
 	.flash_data             = &flash_imx219,
 	.sensor_platform_info   = &sensor_board_info_imx219,
@@ -775,7 +501,6 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx219_data = {
 #endif
 };
 #endif
-/* LGE_CHANGE_E : 2014-01-15 sungmin.cho@lge.com Sony 8M IMX219 bringup */
 
 #ifdef CONFIG_HI707
 static struct msm_camera_sensor_flash_data flash_hi707 = {
@@ -784,16 +509,14 @@ static struct msm_camera_sensor_flash_data flash_hi707 = {
 
 static struct msm_camera_sensor_platform_info sensor_board_info_hi707 = {
 	.mount_angle	= 270,
-	//.cam_vreg = msm_cam_vreg,
-	//.num_vreg = ARRAY_SIZE(msm_cam_vreg),
 	.gpio_conf = &gpio_conf_hi707,
 };
 
 static struct msm_camera_sensor_info msm_camera_sensor_hi707_data = {
 	.sensor_name    = "hi707",
 	.sensor_reset_enable = 1,
-	.sensor_reset           = 7, // GPIO_7
-	.sensor_pwd = 8, // GPIO_8	
+	.sensor_reset           = 7,
+	.sensor_pwd             = 8,	
 	.pdata                  = &msm_camera_device_data_csi0[0],
 	.flash_data             = &flash_hi707,
 	.sensor_platform_info   = &sensor_board_info_hi707,
@@ -801,7 +524,6 @@ static struct msm_camera_sensor_info msm_camera_sensor_hi707_data = {
 	.camera_type = FRONT_CAMERA_2D,
 	.sensor_type = YUV_SENSOR,};
 #endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 
 static struct platform_device msm_camera_server = {
 	.name = "msm_cam_server",
@@ -813,7 +535,6 @@ static void __init msm7x27a_init_cam(void)
 	if (!(machine_is_msm7x27a_ffa() || machine_is_msm7625a_ffa()
 				|| machine_is_msm7627a_qrd1()
 				|| machine_is_msm8625_ffa())) {
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
 #ifdef CONFIG_MACH_LGE
 #ifdef CONFIG_T8EV4
 		sensor_board_info_t8ev4.cam_vreg = NULL;
@@ -846,36 +567,12 @@ static void __init msm7x27a_init_cam(void)
 		sensor_board_info_ov8825.cam_vreg = NULL;
 		sensor_board_info_ov8825.num_vreg = 0;
 #endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 	}
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-	if (machine_is_msm8625_evb()
-			|| machine_is_msm8625_evt()) {
-		sensor_board_info_ov7692.cam_vreg =
-			ov7692_gpio_vreg;
-		sensor_board_info_ov7692.num_vreg =
-			ARRAY_SIZE(ov7692_gpio_vreg);
-		sensor_board_info_ov5647.cam_vreg =
-			ov5647_gpio_vreg;
-		sensor_board_info_ov5647.num_vreg =
-			ARRAY_SIZE(ov5647_gpio_vreg);
-		sensor_board_info_ov8825.cam_vreg =
-			ov8825_gpio_vreg;
-		sensor_board_info_ov8825.num_vreg =
-			ARRAY_SIZE(ov8825_gpio_vreg);
-	}
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 	platform_device_register(&msm_camera_server);
 	if (machine_is_msm8625_surf() || machine_is_msm8625_evb()
 			|| machine_is_msm8625_evt()
 			|| machine_is_msm8625_qrd7()
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifdef CONFIG_MACH_LGE
 			|| machine_is_msm8x25_v7()
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 			) {
 		platform_device_register(&msm8625_device_csic0);
 		platform_device_register(&msm8625_device_csic1);
@@ -892,7 +589,6 @@ static void __init msm7x27a_init_cam(void)
 }
 
 static struct i2c_board_info i2c_camera_devices[] = {
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
 #ifdef CONFIG_T8EV4
 	{
 		I2C_BOARD_INFO("t8ev4", 0x6E),
@@ -918,41 +614,8 @@ static struct i2c_board_info i2c_camera_devices[] = {
 		.platform_data = &msm_camera_sensor_hi707_data,
 	},
 #endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-	{
-		I2C_BOARD_INFO("s5k4e1", 0x36),
-		.platform_data = &msm_camera_sensor_s5k4e1_data,
-	},
-	{
-		I2C_BOARD_INFO("ov9726", 0x10),
-		.platform_data = &msm_camera_sensor_ov9726_data,
-	},
-	{
-		I2C_BOARD_INFO("mt9e013", 0x6C >> 2),
-		.platform_data = &msm_camera_sensor_mt9e013_data,
-	},
-	{
-		I2C_BOARD_INFO("ov7692", 0x78),
-		.platform_data = &msm_camera_sensor_ov7692_data,
-	},
-	{
-		I2C_BOARD_INFO("ov5647", 0x36 << 1),
-		.platform_data = &msm_camera_sensor_ov5647_data,
-	},
-	{
-		I2C_BOARD_INFO("ov8825", 0x6C >> 3),
-		.platform_data = &msm_camera_sensor_ov8825_data,
-	},
-	{
-		I2C_BOARD_INFO("sc628a", 0x6E),
-	},
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 };
 
-/* LGE_CHANGE_S : 2012-09-15 sungmin.cho@lge.com flash led porting */
 #ifdef CONFIG_LEDS_AS364X
 static struct gpio_i2c_pin flash_i2c_pin[] = {
 	{
@@ -980,19 +643,19 @@ static struct as364x_platform_data as364x_pdata = {
 	.txmasked_current_mA = 200,
 	.vin_low_v_run_mV = 3300,
 	.vin_low_v_mV = 3000,
-	.strobe_type = 0, /* 0=edge */
+	.strobe_type = 0,
 #ifdef CONFIG_AS3648
 	.max_peak_current_mA = 1000,
-	.max_peak_duration_ms = 500,/* values for LUW FQ6N @1000mA */
+	.max_peak_duration_ms = 500,
 #endif
 #ifdef CONFIG_AS3647
-	.max_peak_current_mA = 1600, /* LUW FQ6N can take up to 2000 */
-	.max_peak_duration_ms = 100,/* value for LUW FQ6N @1600mA */
+	.max_peak_current_mA = 1600,
+	.max_peak_duration_ms = 100,
 #endif
 	.max_sustained_current_mA = 200,
 	.min_current_mA = 50,
 	.freq_switch_on = 0,
-	.led_off_when_vin_low = 1, /* if 0 txmask current is used */
+	.led_off_when_vin_low = 1,
 };
 
 static struct i2c_board_info i2c_camera_flash_devices[] = {
@@ -1003,8 +666,7 @@ static struct i2c_board_info i2c_camera_flash_devices[] = {
 		.platform_data = &as364x_pdata,
 	},
 };
-#endif // CONFIG_LEDS_AS364X
-/* LGE_CHANGE_E : 2012-09-15 sungmin.cho@lge.com flash led porting */
+#endif
 #else
 static uint32_t camera_off_gpio_table[] = {
 	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
@@ -1088,73 +750,6 @@ static void qrd1_camera_gpio_cfg(void)
 
 static void evb_camera_gpio_cfg(void)
 {
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-	int rc = 0;
-
-	rc = gpio_request(msm_camera_sensor_ov5647_data.sensor_pwd, "ov5647");
-	if (rc < 0)
-		pr_err("%s: gpio_request OV5647 sensor_pwd: %d failed!",
-			 __func__, msm_camera_sensor_ov5647_data.sensor_pwd);
-
-	rc = gpio_tlmm_config(GPIO_CFG(msm_camera_sensor_ov5647_data.sensor_pwd,
-				0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
-				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	if (rc < 0) {
-		pr_err("%s:unable to enable Powr Dwn gpio for main camera!\n",
-			 __func__);
-		gpio_free(msm_camera_sensor_ov5647_data.sensor_pwd);
-	}
-
-	rc = gpio_direction_output(msm_camera_sensor_ov5647_data.sensor_pwd, 1);
-	if (rc < 0)
-		pr_err("%s: unable to set gpio: %d direction for ov5647 camera\n",
-			__func__, msm_camera_sensor_ov5647_data.sensor_pwd);
-
-	rc = gpio_request(msm_camera_sensor_ov5647_data.sensor_reset, "ov5647");
-	if (rc < 0)
-		pr_err("%s: gpio_request OV5647 sensor_reset: %d failed!",
-			 __func__, msm_camera_sensor_ov5647_data.sensor_reset);
-
-	rc = gpio_tlmm_config(GPIO_CFG(
-				msm_camera_sensor_ov5647_data.sensor_reset,
-				0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
-				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	if (rc < 0) {
-		pr_err("%s: unable to enable reset gpio for main camera!\n",
-			 __func__);
-		gpio_free(msm_camera_sensor_ov5647_data.sensor_reset);
-	}
-
-	rc = gpio_direction_output(
-			msm_camera_sensor_ov5647_data.sensor_reset, 1);
-	if (rc < 0)
-		pr_err("%s: unable to set gpio: %d direction for ov5647 camera\n",
-			__func__, msm_camera_sensor_ov5647_data.sensor_reset);
-
-
-	/*OV7692 GPIO Config*/
-	rc = gpio_request(msm_camera_sensor_ov7692_data.sensor_pwd, "ov7692");
-	if (rc < 0)
-		pr_err("%s: gpio_request OV7692 sensor_pwd: %d failed!",
-			 __func__, msm_camera_sensor_ov7692_data.sensor_pwd);
-
-	rc = gpio_tlmm_config(GPIO_CFG(msm_camera_sensor_ov7692_data.sensor_pwd,
-				0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN,
-				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	if (rc < 0) {
-		pr_err("%s:unable to enable Powr Dwn gpio for main camera!\n",
-			 __func__);
-		gpio_free(msm_camera_sensor_ov7692_data.sensor_pwd);
-	}
-
-	rc = gpio_direction_output(msm_camera_sensor_ov7692_data.sensor_pwd, 0);
-	if (rc < 0)
-		pr_err("%s: unable to set gpio: %d direction for ov7692 camera\n",
-			__func__, msm_camera_sensor_ov7692_data.sensor_pwd);
-
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
 }
 
 #ifndef CONFIG_MSM_CAMERA_V4L2
@@ -1605,39 +1200,6 @@ static struct platform_device *camera_devices_evb[] __initdata = {
 };
 #endif
 
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-enum {
-	SX150X_CAM,
-};
-
-static struct sx150x_platform_data sx150x_data[] __initdata = {
-	[SX150X_CAM]    = {
-		.gpio_base	      = GPIO_CAM_EXPANDER_BASE,
-		.oscio_is_gpo	   = false,
-		.io_pullup_ena	  = 0,
-		.io_pulldn_ena	  = 0,
-		.io_open_drain_ena      = 0x23,
-		.irq_summary	    = -1,
-	},
-};
-
-static struct i2c_board_info cam_exp_i2c_info[] __initdata = {
-	{
-		I2C_BOARD_INFO("sx1508q", 0x22),
-		.platform_data  = &sx150x_data[SX150X_CAM],
-	},
-};
-
-static void __init register_i2c_devices(void)
-{
-	i2c_register_board_info(MSM_GSBI0_QUP_I2C_BUS_ID,
-				cam_exp_i2c_info,
-				ARRAY_SIZE(cam_exp_i2c_info));
-}
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
-
 #ifndef CONFIG_MSM_CAMERA_V4L2
 #define LCD_CAMERA_LDO_2V8 35 /* SKU1&SKU3 2.8V LDO */
 #define SKU3_LCD_CAMERA_LDO_1V8 40 /* SKU3 1.8V LDO */
@@ -1739,7 +1301,6 @@ int lcd_camera_power_onoff(int on)
 EXPORT_SYMBOL(lcd_camera_power_onoff);
 #endif
 
-/* LGE_CHANGE_S : 2012-09-15 sungmin.cho@lge.com flash led porting */
 #ifdef CONFIG_LEDS_AS364X
 static void __init lge_init_i2c_camera(int bus_num)
 {
@@ -1752,7 +1313,6 @@ static void __init lge_init_i2c_camera(int bus_num)
 	platform_device_register(&flash_i2c_device);
 }
 #endif
-/* LGE_CHANGE_E : 2012-09-15 sungmin.cho@lge.com flash led porting */
 
 void __init msm7627a_camera_init(void)
 {
@@ -1763,22 +1323,6 @@ void __init msm7627a_camera_init(void)
 
 	pr_debug("msm7627a_camera_init Entered\n");
 
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-	if (machine_is_msm7627a_qrd3() || machine_is_msm8625_qrd7()) {
-		ov7692_cam_req_gpio[0].gpio =
-			GPIO_SKU7_CAM_VGA_SHDN;
-		ov7692_cam_gpio_set_tbl[0].gpio = GPIO_SKU7_CAM_VGA_SHDN;
-		ov7692_cam_gpio_set_tbl[1].gpio = GPIO_SKU7_CAM_VGA_SHDN;
-
-		msm_camera_sensor_ov5647_data.sensor_pwd =
-			GPIO_SKU7_CAM_5MP_SHDN_N;
-		msm_camera_sensor_ov5647_data.sensor_reset =
-			GPIO_SKU7_CAM_5MP_CAMIF_RESET;
-	}
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
-	/* LCD and camera power (VREG & LDO) init */
 	if (machine_is_msm7627a_evb() || machine_is_msm8625_evb()
 			|| machine_is_msm8625_evt()
 			|| machine_is_msm7627a_qrd3()
@@ -1807,16 +1351,7 @@ void __init msm7627a_camera_init(void)
 		platform_add_devices(camera_devices_msm,
 				ARRAY_SIZE(camera_devices_msm));
 #endif
-/* LGE_CHANGE_S : 2012-09-14 sungmin.cho@lge.com camera bring up */
-#ifndef CONFIG_MACH_LGE
-	if (!machine_is_msm7627a_qrd1() || !machine_is_msm7627a_evb()
-					|| !machine_is_msm8625_evb()
-					|| !machine_is_msm8625_evt()
-					|| !machine_is_msm7627a_qrd3()
-					|| !machine_is_msm8625_qrd7())
-		register_i2c_devices();
-#endif
-/* LGE_CHANGE_E : 2012-09-14 sungmin.cho@lge.com camera bring up */
+
 #ifndef CONFIG_MSM_CAMERA_V4L2
 	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs_camera), regs_camera);
 
@@ -1857,9 +1392,7 @@ void __init msm7627a_camera_init(void)
 				i2c_camera_devices,
 				ARRAY_SIZE(i2c_camera_devices));
 
-/* LGE_CHANGE_S : 2012-09-15 sungmin.cho@lge.com flash led porting */
 #ifdef CONFIG_LEDS_AS364X
 	lge_add_gpio_i2c_device(lge_init_i2c_camera);
 #endif
-/* LGE_CHANGE_E : 2012-09-15 sungmin.cho@lge.com flash led porting */
 }

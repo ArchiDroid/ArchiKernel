@@ -31,10 +31,7 @@
 #endif /*CONFIG_MACH_LGE*/
 /*LGE_CHANGE_E : seven.kim@lge.com kernel3.4 for v3/v5*/
 
-#if (defined(CONFIG_MMC_MSM_SDC1_SUPPORT)\
-	|| defined(CONFIG_MMC_MSM_SDC2_SUPPORT)\
-	|| defined(CONFIG_MMC_MSM_SDC3_SUPPORT)\
-	|| defined(CONFIG_MMC_MSM_SDC4_SUPPORT))
+#if (defined(CONFIG_MMC_MSM_SDC1_SUPPORT) || defined(CONFIG_MMC_MSM_SDC2_SUPPORT) || defined(CONFIG_MMC_MSM_SDC3_SUPPORT) || defined(CONFIG_MMC_MSM_SDC4_SUPPORT))
 
 #define MAX_SDCC_CONTROLLER 4
 static unsigned long vreg_sts, gpio_sts;

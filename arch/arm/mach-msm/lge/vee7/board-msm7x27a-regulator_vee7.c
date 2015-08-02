@@ -13,14 +13,8 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-/*LGE_CHANGE_S : seven.kim@lge.com kernel3.4 for v3/v5*/
-#if defined (CONFIG_MACH_LGE)
 #include "../../board-msm7x27a-regulator.h"
-#else /*qct original*/
-#include "board-msm7x27a-regulator.h"
-#endif /*CONFIG_MACH_LGE*/
 #include CONFIG_LGE_BOARD_HEADER_FILE
-/*LGE_CHANGE_E : seven.kim@lge.com kernel3.4 for v3/v5*/
 
 #define VOLTAGE_RANGE(min_uV, max_uV, step_uV)	((max_uV - min_uV) / step_uV)
 
@@ -221,9 +215,7 @@ static struct proccomm_regulator_info msm7x27a_pcom_vreg_info[] = {
 	 * V = automatic voltage set (meaningful for single-voltage regs only)
 	 * S = supply voltage (uV)
 	 * T = type of regulator (smps, pldo, nldo)
-	 *            name   id  supp  min uV    max uV  R   P  A  B  V  S  T*/
-/* LGE_CHANGE_S [murali.ramamaiah@lge.com] 2011-12-21: according to lge board specifications */	 
-#if 1
+	 *            name   id  supp   min uV    max uV   R   P  A  B  V  S  T*/
 	PCOM_VREG_SMP(smps1,  3, NULL,  1100000,  1100000, 0, -1, 0, 0, 0, 0, s), // +1V1_MSM_CORE1
 	PCOM_VREG_SMP(smps2,  4, NULL,  1100000,  1100000, 0, -1, 0, 0, 0, 0, s), // +1V1_MSM_CORE1
 	PCOM_VREG_SMP(smps3,  2, NULL,  1800000,  1800000, 0, -1, 0, 0, 0, 0, s), // +1V8_MSM_PAD
@@ -233,7 +225,7 @@ static struct proccomm_regulator_info msm7x27a_pcom_vreg_info[] = {
 #else
 	PCOM_VREG_LDO(ldo01, 12, NULL,  1800000,  2100000, 0, -1, 0, 0, 0, 0, p), // VREG_QFUSE_1.8V
 #endif
-	PCOM_VREG_LDO(ldo02, 13, NULL,  2050000,  2850000, 0, -1, 0, 0, 0, 0, p), // VREG_PADAC_2.05	/* min (2850000 -> 2050000) */
+	PCOM_VREG_LDO(ldo02, 13, NULL,  2050000,  2850000, 0, -1, 0, 0, 0, 0, p), // VREG_PADAC_2.05
 	PCOM_VREG_LDO(ldo03, 49, NULL,  1200000,  1200000, 0, -1, 0, 0, 0, 0, n), // VREG_MSMA2_1.2V
 	PCOM_VREG_LDO(ldo04, 50, NULL,  1100000,  1100000, 0, -1, 0, 0, 0, 0, n), // VREG_PLL_1.1V
 	PCOM_VREG_LDO(ldo05, 45, NULL,  1300000,  1350000, 0, -1, 0, 0, 0, 0, n), // +1V3_MSM_A3_WCN
@@ -241,48 +233,17 @@ static struct proccomm_regulator_info msm7x27a_pcom_vreg_info[] = {
 	PCOM_VREG_LDO(ldo07,  0, NULL,  2600000,  2600000, 0, -1, 0, 0, 0, 0, p), // VREG_MSMA1_2.6V
 	PCOM_VREG_LDO(ldo08,  9, NULL,  2850000,  2850000, 0, -1, 0, 0, 0, 0, p), // VREG_TCXO_2.85V
 	PCOM_VREG_LDO(ldo09, 44, NULL,  1800000,  1800000, 0, -1, 0, 0, 0, 0, p), // VREG_USB_1.8V
-	PCOM_VREG_LDO(ldo10, 52, NULL,  2800000,  3000000, 0, -1, 0, 0, 0, 0, p), // VREG_LCD_2.8V/* min (1800000 -> 2800000) */
+	PCOM_VREG_LDO(ldo10, 52, NULL,  2800000,  3000000, 0, -1, 0, 0, 0, 0, p), // VREG_LCD_2.8V
 	PCOM_VREG_LDO(ldo11, 53, NULL,  1800000,  1800000, 0, -1, 0, 0, 0, 0, p), // +1V8_WLAN_TCXO
 	PCOM_VREG_LDO(ldo12, 21, NULL,  2800000,  2850000, 0, -1, 0, 0, 0, 0, p), // VREG_P3_2.85V
 	PCOM_VREG_LDO(ldo13, 18, NULL,  2850000,  2850000, 0, -1, 0, 0, 0, 0, p), // VREG_SDCARD_2.8
 	PCOM_VREG_LDO(ldo14, 16, NULL,  3300000,  3300000, 0, -1, 0, 0, 0, 0, p), // VREG_USB_3.3V
 	PCOM_VREG_LDO(ldo15, 54, NULL,  1800000,  2850000, 0, -1, 0, 0, 0, 0, p), // VREG_USIM2_2.85V
 	PCOM_VREG_LDO(ldo16, 19, NULL,  1800000,  2850000, 0, -1, 0, 0, 0, 0, p), // VREG_USIM1_2.85
-	PCOM_VREG_LDO(ldo17, 56, NULL,  3000000,  3300000, 0, -1, 0, 0, 0, 0, p), // +3V_WLAN_WCN»
+	PCOM_VREG_LDO(ldo17, 56, NULL,  3000000,  3300000, 0, -1, 0, 0, 0, 0, p), // +3V_WLAN_WCN
 	PCOM_VREG_LDO(ldo18, 11, NULL,  2700000,  2700000, 0, -1, 0, 0, 0, 0, p), // VREG_RF_2.7V
 	PCOM_VREG_LDO(ldo19, 57, NULL,  1200000,  1800000, 0, -1, 0, 0, 0, 0, p), // +1V2_MSM_A2_WCN
-
-/* LGE_CHANGE, narasimha.chikka@lge.com,ldo15 and ldo16 will be controlled by SIM driver */
-	/* not used verg_ncp */
 	PCOM_VREG_NCP(ncp,   31, NULL, -1800000, -1800000, 0,     0, 0, 0, 0),
-#else /* QCT's */
-	PCOM_VREG_SMP(smps1,  3, NULL, 1100000, 1100000, 0, -1, 0, 0, 0, 0, s),
-	PCOM_VREG_SMP(smps2,  4, NULL, 1100000, 1100000, 0, -1, 0, 0, 0, 0, s),
-	PCOM_VREG_SMP(smps3,  2, NULL, 1800000, 1800000, 0, -1, 0, 0, 0, 0, s),
-	PCOM_VREG_SMP(smps4, 24, NULL, 2100000, 2100000, 0, -1, 0, 0, 0, 0, s),
-	PCOM_VREG_LDO(ldo01, 12, NULL, 2100000, 2100000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo02, 13, NULL, 2850000, 2850000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo03, 49, NULL, 1200000, 1200000, 0, -1, 0, 0, 0, 0, n),
-	PCOM_VREG_LDO(ldo04, 50, NULL, 1100000, 1100000, 0, -1, 0, 0, 0, 0, n),
-	PCOM_VREG_LDO(ldo05, 45, NULL, 1300000, 1350000, 0, -1, 0, 0, 0, 0, n),
-	PCOM_VREG_LDO(ldo06, 51, NULL, 1200000, 1200000, 0, -1, 0, 0, 0, 0, n),
-	PCOM_VREG_LDO(ldo07,  0, NULL, 2600000, 2600000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo08,  9, NULL, 2850000, 2850000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo09, 44, NULL, 1800000, 1800000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo10, 52, NULL, 1800000, 3000000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo11, 53, NULL, 1800000, 1800000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo12, 21, NULL, 2850000, 2850000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo13, 18, NULL, 2850000, 2850000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo14, 16, NULL, 3300000, 3300000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo15, 54, NULL, 1800000, 2850000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo16, 19, NULL, 1800000, 2850000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo17, 56, NULL, 2900000, 3300000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo18, 11, NULL, 2700000, 2700000, 0, -1, 0, 0, 0, 0, p),
-	PCOM_VREG_LDO(ldo19, 57, NULL, 1200000, 1800000, 0, -1, 0, 0, 0, 0, p),
-
-	PCOM_VREG_NCP(ncp,   31, NULL, -1800000, -1800000, 0,     0, 0, 0, 0),
-#endif /* CONFIG_MACH_LGE */
-/* LGE_CHANGE_E [murali.ramamaiah@lge.com] 2011-12-21 */
 };
 
 struct proccomm_regulator_platform_data msm7x27a_proccomm_regulator_data = {
@@ -292,18 +253,17 @@ struct proccomm_regulator_platform_data msm7x27a_proccomm_regulator_data = {
 
 static struct platform_device msm_proccomm_regulator_dev = {
 	.name   = PROCCOMM_REGULATOR_DEV_NAME,
-	.id        = -1,	
+	.id        = -1,
 	.dev     = {
 		  .platform_data = &msm7x27a_proccomm_regulator_data
 	}
 };
 
-void __init msm7x27a_init_regulators(void)	
+void __init msm7x27a_init_regulators(void)
 {
 	int rc = platform_device_register(&msm_proccomm_regulator_dev);
 
 	if (rc)
 		pr_err("%s: could not register regulator device: %d\n",
 				 __func__, rc);
-	
 }
