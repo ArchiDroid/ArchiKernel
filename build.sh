@@ -10,31 +10,27 @@
 # Prepare output customization commands - Start
 
 customoutput() {
+if [ "$coloroutput" == "" ]; then
+	coloroutput="ON"
+fi
 if [ "$coloroutput" == "ON" ]; then
-# Stocks Colors
-txtrst=$(tput sgr0) # Stock Color
-red=$(tput setaf 1) # red
-grn=$(tput setaf 2) # green
-yel=$(tput setaf 3) # yellow
-blu=$(tput setaf 4) # blue
-mag=$(tput setaf 5) # magenta
-cya=$(tput setaf 6) # cyan
-whi=$(tput setaf 7) # white
-# Bold Colors
-txtbld=$(tput bold) # Bold
-bldred=${txtbld}${red} # red
-bldgrn=${txtbld}${grn} # green
-bldyel=${txtbld}${yel} # yellow
-bldblu=${txtbld}${blu} # blue
-bldmag=${txtbld}${mag} # magenta
-bldcya=${txtbld}${cya} # cyan
-bldwhi=${txtbld}${whi} # white
-coloroutputcheck="${bldcya}ON${txtrst}"
-coloroutputzip="--color=auto"
+	# Stock Color
+	txtrst=$(tput sgr0)
+	# Bold Colors
+	txtbld=$(tput bold) # Bold
+	bldred=${txtbld}$(tput setaf 1) # red
+	bldgrn=${txtbld}$(tput setaf 2) # green
+	bldyel=${txtbld}$(tput setaf 3) # yellow
+	bldblu=${txtbld}$(tput setaf 4) # blue
+	bldmag=${txtbld}$(tput setaf 5) # magenta
+	bldcya=${txtbld}$(tput setaf 6) # cyan
+	bldwhi=${txtbld}$(tput setaf 7) # white
+	coloroutputcheck="${bldcya}ON${txtrst}"
+	coloroutputzip="--color=auto"
 else
-unset red grn yel blu mag cya whi txtbld bldred bldgrn bldyel bldblu bldmag bldcya bldwhi
-coloroutputcheck="OFF"
-coloroutputzip="--color=never"
+	unset txtbld bldred bldgrn bldyel bldblu bldmag bldcya bldwhi
+	coloroutputcheck="OFF"
+	coloroutputzip="--color=never"
 fi
 }
 
@@ -67,13 +63,18 @@ unset buildprocesscheck target serie variant maindevicecheck BUILDTIME
 # Main Process - Start
 
 maindevice() {
+echo "${bldred}First Gen${txtrst}"
 echo "1) L5 NFC"
 echo "2) L5 NoNFC"
 echo "3) L7 NFC - 8m"
 echo "4) L7 NFC"
 echo "5) L7 NoNFC"
+echo "${bldblu}Second Gen${txtrst}"
 echo "6) L1 II Single/Dual"
 echo "7) L3 II Single/Dual"
+echo "8) L7 II NFC"
+echo "9) L7 II NoNFC"
+echo "10) L7 II Dual"
 read -p "Choice: " -n 1 -s choice
 case "$choice" in
 	1 ) target="L5-"; variant="NFC"; echo "$choice - $target$variant"; make cyanogenmod_m4_defconfig &> /dev/null; maindevicecheck="On";;
@@ -83,6 +84,9 @@ case "$choice" in
 	5 ) target="L7-"; variant="NoNFC"; echo "$choice - $target$variant"; make cyanogenmod_u0_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
 	6 ) target="L1II-"; variant="SD"; echo "$choice - $target$variant"; make cyanogenmod_v1_defconfig &> /dev/null; maindevicecheck="On";;
 	7 ) target="L3II-"; variant="SD"; echo "$choice - $target$variant"; make cyanogenmod_vee3_defconfig &> /dev/null; maindevicecheck="On";;
+	8 ) target="L7II-"; variant="NFC"; echo "$choice - $target$variant"; make cyanogenmod_vee7_defconfig &> /dev/null; maindevicecheck="On";;
+	9 ) target="L7II-"; variant="NoNFC"; echo "$choice - $target$variant"; make cyanogenmod_vee7_nonfc_defconfig &> /dev/null; maindevicecheck="On";;
+	10 ) target="L7II-"; variant="Dual"; echo "$choice - $target$variant"; make cyanogenmod_vee7ds_defconfig &> /dev/null; maindevicecheck="On";;
 	* ) echo "$choice - This option is not valid"; sleep 2;;
 esac
 }
@@ -141,18 +145,18 @@ fi
 zippackage() {
 if [ "$target" == "L1II-" ]; then
 	tol1ii
-fi
-
-if [ "$target" == "L3II-" ]; then
+elif [ "$target" == "L3II-" ]; then
 	tol3ii
-fi
-
-if [ "$target" == "L7-" ]; then
+elif [ "$target" == "L7II-" ]; then
+	tol7ii
+elif [ "$target" == "L7-" ]; then
 	tol7
 fi
 
 if [ "$variant" == "NoNFC" ]; then
 	tononfc
+elif [ "$variant" == "Dual" ]; then
+	todual
 fi
 
 cp arch/arm/boot/zImage zip-creator
@@ -162,19 +166,19 @@ cd zip-creator
 zip -r $zipfile * -x */.gitignore *.zip &> /dev/null
 cd ..
 
-if [ "$variant" == "NoNFC" ]; then
+if [ "$variant" == "Dual" ]; then
+	ofdual
+elif [ "$variant" == "NoNFC" ]; then
 	ofnonfc
 fi
 
 if [ "$target" == "L7-" ]; then
 	ofl7
-fi
-
-if [ "$target" == "L3II-" ]; then
+elif [ "$target" == "L7II-" ]; then
+	ofl7ii
+elif [ "$target" == "L3II-" ]; then
 	ofl3ii
-fi
-
-if [ "$target" == "L1II-" ]; then
+elif [ "$target" == "L1II-" ]; then
 	ofl1ii
 fi
 
@@ -199,14 +203,28 @@ mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-
 tol3ii() {
 sed 's/m4/vee3/; s/14/15/' zip-creator/tools/kernel_flash.sh > zip-creator/tools/kernel_flash-temp.sh
 mv zip-creator/tools/kernel_flash-temp.sh zip-creator/tools/kernel_flash.sh
-sed 's/L5 NFC/L3 II Single|Dual/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
+sed 's/L5 NFC/L3 II Single and Dual/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
 mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
 }
 
 ofl3ii() {
 sed 's/vee3/m4/; s/15/14/' zip-creator/tools/kernel_flash.sh > zip-creator/tools/kernel_flash-temp.sh
 mv zip-creator/tools/kernel_flash-temp.sh zip-creator/tools/kernel_flash.sh
-sed 's/L3 II Single|Dual/L5 NFC/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
+sed 's/L3 II Single and Dual/L5 NFC/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
+mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
+}
+
+tol7ii() {
+sed 's/m4/vee7/; s/14/15/' zip-creator/tools/kernel_flash.sh > zip-creator/tools/kernel_flash-temp.sh
+mv zip-creator/tools/kernel_flash-temp.sh zip-creator/tools/kernel_flash.sh
+sed 's/L5/L7 II/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
+mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
+}
+
+ofl7ii() {
+sed 's/vee7/m4/; s/15/14/' zip-creator/tools/kernel_flash.sh > zip-creator/tools/kernel_flash-temp.sh
+mv zip-creator/tools/kernel_flash-temp.sh zip-creator/tools/kernel_flash.sh
+sed 's/L7 II/L5/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
 mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
 }
 
@@ -231,6 +249,16 @@ mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-
 
 ofnonfc() {
 sed 's/NoNFC/NFC/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
+mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
+}
+
+todual() {
+sed 's/NFC/Dual/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
+mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
+}
+
+ofdual() {
+sed 's/Dual/NFC/' zip-creator/META-INF/com/google/android/updater-script > zip-creator/META-INF/com/google/android/updater-script-temp
 mv zip-creator/META-INF/com/google/android/updater-script-temp zip-creator/META-INF/com/google/android/updater-script
 }
 
@@ -300,6 +328,17 @@ echo "${bldmag}Status:${txtrst}"
 if ! [ "$BUILDTIME" == "" ]; then
 	echo "${bldgrn}Build Time: $(($BUILDTIME / 60)) minutes and $(($BUILDTIME % 60)) seconds.${txtrst}"
 fi
+if [ "$maindevicecheck" == "" ]; then
+	if [ -f arch/arm/boot/zImage ]; then
+		echo "${bldblu}You have old Kernel build!${txtrst}"
+		buildprocesscheck="Old build"
+	fi
+elif [ "$CROSS_COMPILE" == "" ]; then
+	if [ -f arch/arm/boot/zImage ]; then
+		echo "${bldblu}You have old Kernel build!${txtrst}"
+		buildprocesscheck="Old build"
+	fi
+fi
 if [ -f zip-creator/$zipfile ]; then
 	echo "${bldyel}Zip Saved to zip-creator/$zipfile ${txtrst}"
 elif [ "$lszip" -ge 2 ]; then
@@ -367,14 +406,6 @@ else
 	else
 		cleankernelcheck="Done"
 	fi
-
-	if [ -f arch/arm/boot/zImage ]; then
-		buildprocesscheck="Done"
-	else
-		unset buildprocesscheck
-	fi
-
-	coloroutput="ON"
 
 	buildsh
 fi
