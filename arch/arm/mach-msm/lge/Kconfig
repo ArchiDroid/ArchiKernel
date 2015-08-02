@@ -13,6 +13,16 @@ config LGE_BOARD_HEADER_FILE
 	 Specifies the board header file for particular model
 	 (Eg: board_v7.h).This config must be set
 
+config LGE_PCB_REVISION
+	int "PCB Revision(0~11)"
+	range 0 11
+	default "1" 
+	depends on MACH_MSM8X25_V7
+	help
+	 Choose PCB Revision(see board_XX.h)
+	 0: EVB, 1: RevA, 2: RevB, 3: RevC, 4: RevD, 5: RevE,
+	 6: RevF, 7: RevG, 8: Rev1P0 9: Rev1P1 10: Rev1P2 11: Reserved
+
 comment "LGE Special Configs"
 
 config LGE_SILENCE_RESET

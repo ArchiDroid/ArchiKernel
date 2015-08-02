@@ -1,7 +1,7 @@
 #platform.team@lge.com	2011.01
 
 config LGE_FACTORY
-		depends on !MACH_MSM7X27A_U0
+	depends on !MACH_MSM7X27A_U0
         default y
         bool "LGE factory Configuration"
         help
@@ -27,20 +27,6 @@ config LGE_DIAG_KEYPRESS
         help
                 LGE UTS KEYPRESS Supports
 
-config LGE_DIAG_UDM
-        depends on LGE_FACTORY
-        default y
-        bool "LGE UDM Support"
-        help
-                LGE UDM Supports
-
-config LGE_DIAG_SCREENSHOT
-        depends on LGE_FACTORY
-        default n
-        bool "LGE UTS SCREENSHOT Support"
-        help
-                LGE UTS SCREENSHOT Supports
-
 config LGE_DLOAD_SRD
         depends on LGE_FACTORY
         default y
@@ -49,29 +35,8 @@ config LGE_DLOAD_SRD
                 LGE Dload SelfRecoveryDownload Support
 
 config LGE_EMMC_DIRECT_ACCESS
-
 	default y
 	bool "LGE eMMC direct access driver"
 	help
                 LGE eMMC direct access driver
 
-config LGE_FW_HELPER
-
-	default n
-	bool "LGE FW helper"
-	help
-                LGE FW helper
-	 
-config CONFIG_LGE_DIAG_ERI
-        depends on LGE_FACTORY
-        default y
-        bool "LGE CONFIG_LGE_DIAG_ERI Support"
-        help
-                LGE Dload CONFIG_LGE_DIAG_ERI Support
-
-config LGE_DIAG_DISABLE_INPUT_DEVICES_ON_SLEEP_MODE
-        depends on LGE_FACTORY
-        default n
-        bool "CONFIG_LGE_DIAG_DISABLE_INPUT_DEVICES_ON_SLEEP_MODE"
-        help
-                Disable Input Devices on Sleep Mode(250-42-0) for inspector to control key or touch

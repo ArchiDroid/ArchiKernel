@@ -798,15 +798,15 @@ typedef struct
 //[[ NFCDiag wongab.jeon@lge.com
 typedef struct
 {
-	boolean  swio_result;			//zÁÂÇ¥°ª	
+	boolean  swio_result;
 	boolean  pmuvcc_result;
 }PACKED test_mode_nfc_swp_rsp_type;
 
 typedef struct
 {
-	int      loop1;			//xÁÂÇ¥°ª
-	int      loop2;			//yÁÂÇ¥°ª
-	int      loop3;		//zÁÂÇ¥°ª	
+	int      loop1;
+	int      loop2;
+	int      loop3;
 }PACKED test_mode_nfc_ant_rsp_type;
 //]] NFCDiag
 

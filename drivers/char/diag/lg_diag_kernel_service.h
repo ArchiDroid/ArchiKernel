@@ -108,7 +108,7 @@ typedef struct
 	/* LGE_CHANGES_S [kyuhyung.lee@lge.com] 2010-02-08, LG_FW_DIAG_SCREEN_CAPTURE */
 	// BEGIN: 0010599 alan.park@lge.com 2010.11.07 
 	// MOD  0010599: [ETA/MTC] MTC capture, touch
-#if defined (CONFIG_MACH_LGE) || defined (CONFIG_LGE_DIAG_SCREENSHOT) || defined (LG_FW_MTC)
+#if defined (CONFIG_MACH_LGE) || defined (LG_FW_MTC)
 	// END: 0010599 alan.park@lge.com 2010.11.07   
 	byte pkt[4096];               /*LG_FW size up*/
 #else

@@ -47,17 +47,8 @@ PACK (void *)LGF_LcdQTest (PACK (void *)req_pkt_ptr, uint16 pkt_len );
 PACK (void *)LGF_KeyPress (PACK (void *)req_pkt_ptr, uint16 pkt_len );
 #endif
 
-#ifdef CONFIG_LGE_DIAG_SCREENSHOT
-PACK (void *)LGF_ScreenShot (PACK (void *)req_pkt_ptr, uint16 pkt_len ); 
-PACK (void *)LGE_ScreenSectionShot (PACK (void *)req_pkt_ptr, uint16 pkt_len );
-#endif
-
 #ifdef CONFIG_LGE_DIAG_WMC
 PACK (void *)LGF_WMC (PACK (void *)req_pkt_ptr, uint16 pkt_len );
-#endif
-
-#ifdef CONFIG_LGE_DIAG_UDM
-PACK (void *)LGF_Udm (PACK (void *)req_pkt_ptr, uint16 pkt_len ); 
 #endif
 
 #ifdef CONFIG_LGE_DIAG_MTC
@@ -74,9 +65,7 @@ PACK (void *)LGE_Dload_SRD (PACK (void *)req_pkt_ptr, uint16 pkg_len);
 PACK (void *)LGF_MsgTest (PACK (void *)req_pkt_ptr, uint16 pkg_len);
 //#endif
 
-//#ifdef CONFIG_LGE_DIAG_ERI 
 PACK (void *)LGE_ERI (PACK (void *)req_pkt_ptr,uint16	pkt_len );
-//#endif 
 
 
 // LG_FW : 2011.07.07 moon.yongho : saving webdload status variable to eMMC. ----------[[
@@ -106,10 +95,6 @@ static const diagpkt_user_table_entry_type registration_table[] =
 #ifdef CONFIG_LGE_DIAG_KEYPRESS
 	{DIAG_HS_KEY_F,DIAG_HS_KEY_F,LGF_KeyPress},
 #endif
-#ifdef CONFIG_LGE_DIAG_SCREENSHOT
-	{DIAG_LGF_SCREEN_SHOT_F , DIAG_LGF_SCREEN_SHOT_F , LGF_ScreenShot},
-	//{DIAG_LGE_SCREEN_SECTION_SHOT_F, DIAG_LGE_SCREEN_SECTION_SHOT_F, LGE_ScreenSectionShot},
-#endif
 #ifdef CONFIG_LGE_DIAG_MTC
 	{DIAG_MTC_F, DIAG_MTC_F, LGF_MTCProcess},
 #endif
@@ -119,9 +104,7 @@ static const diagpkt_user_table_entry_type registration_table[] =
 #ifdef CONFIG_LGE_DIAG_WMC
 	{DIAG_WMCSYNC_MAPPING_F, DIAG_WMCSYNC_MAPPING_F, LGF_WMC},
 #endif
-#ifdef CONFIG_LGE_DIAG_UDM
-	{DIAG_UDM_SMS_MODE , DIAG_UDM_SMS_MODE , LGF_Udm},
-#endif
+
 //#ifdef LG_SMS_PC_TEST
 	{DIAG_SMS_TEST_F , DIAG_SMS_TEST_F , LGF_MsgTest},
 //#endif
@@ -132,9 +115,8 @@ static const diagpkt_user_table_entry_type registration_table[] =
 	{DIAG_USET_DATA_BACKUP, DIAG_USET_DATA_BACKUP, LGE_Dload_SRD},
 #endif
 
-//#ifdef CONFIG_LGE_DIAG_ERI 
 	{DIAG_ERI_CMD_F, DIAG_ERI_CMD_F, LGE_ERI},
-//#endif 
+
 // LG_FW : 2011.07.07 moon.yongho : saving webdload status variable to eMMC. ----------[[
 #ifdef LG_FW_WEB_DOWNLOAD	
 	{DIAG_WEBDLOAD_COMMON_F  , DIAG_WEBDLOAD_COMMON_F  , LGE_WebDload_SRD},
@@ -161,11 +143,6 @@ void* lg_diag_req_pkt_ptr;
 /* LGE_CHANGES_S, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
 wlan_status lg_diag_req_wlan_status={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 /* LGE_CHANGES_E, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
-#ifdef CONFIG_LGE_DIAG_UDM
-/* LGE_MERGE_S [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-udm_sms_status_new lg_diag_req_udm_sms_status_new = {{0}};
-/* LGE_MERGE_E [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-#endif 
 
 uint16 lg_diag_req_pkt_length;
 uint16 lg_diag_rsp_pkt_length;
@@ -309,53 +286,6 @@ static ssize_t write_cmd_pkt_length(struct device *dev,
 	return write_len;
 }
 
-/* LGE_CHANGES_S, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
-#if 0
-static ssize_t read_wlan_status(struct device *dev, struct device_attribute *attr,
-				char *buf)
-{
-	int wlan_status_length = sizeof(wlan_status);
-	memcpy(buf, &lg_diag_req_wlan_status, wlan_status_length);
-
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(wlan_status)= %d\n",lg_diag_req_wlan_status.wlan_status);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(g_wlan_status) = %d\n",lg_diag_req_wlan_status.g_wlan_status);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(rx_channel) = %d\n",lg_diag_req_wlan_status.rx_channel);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(rx_per) = %d\n",lg_diag_req_wlan_status.rx_per);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(tx_channel) = %d\n",lg_diag_req_wlan_status.tx_channel);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(goodFrames) = %ld\n",lg_diag_req_wlan_status.goodFrames);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(badFrames) = %d\n",lg_diag_req_wlan_status.badFrames);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(rxFrames) = %d\n",lg_diag_req_wlan_status.rxFrames);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(wlan_data_rate) = %d\n",lg_diag_req_wlan_status.wlan_data_rate);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(wlan_payload) = %d\n",lg_diag_req_wlan_status.wlan_payload);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: read_wlan_status(wlan_data_rate_recent) = %d\n",lg_diag_req_wlan_status.wlan_data_rate_recent);
-  
-	return wlan_status_length;
-}
-static ssize_t write_wlan_status(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t size)
-{
-
-	int wlan_status_length = sizeof(wlan_status);
-	memcpy(&lg_diag_req_wlan_status, buf, wlan_status_length);
-
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(wlan_status)= %d\n",lg_diag_req_wlan_status.wlan_status);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(g_wlan_status) = %d\n",lg_diag_req_wlan_status.g_wlan_status);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(rx_channel) = %d\n",lg_diag_req_wlan_status.rx_channel);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(rx_per) = %d\n",lg_diag_req_wlan_status.rx_per);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(tx_channel) = %d\n",lg_diag_req_wlan_status.tx_channel);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(goodFrames) = %ld\n",lg_diag_req_wlan_status.goodFrames);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(badFrames) = %d\n",lg_diag_req_wlan_status.badFrames);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(rxFrames) = %d\n",lg_diag_req_wlan_status.rxFrames);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(wlan_data_rate) = %d\n",lg_diag_req_wlan_status.wlan_data_rate);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(wlan_payload) = %d\n",lg_diag_req_wlan_status.wlan_payload);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: write_wlan_status(wlan_data_rate_recent) = %d\n",lg_diag_req_wlan_status.wlan_data_rate_recent);
-	printk( KERN_DEBUG "LG_FW [KERNEL]: SIZEOF = %d\n", sizeof(wlan_status));
-  
-	return size;
-}
-#endif 
-
 #ifdef CONFIG_LGE_DIAG_WMC
 static ssize_t read_wmc_cmd_pkt(struct device *dev, struct device_attribute *attr,
 				char *buf)
@@ -443,54 +373,13 @@ static ssize_t write_wmc_cmd_pkt_length(struct device *dev,
 }
 #endif /*CONFIG_LGE_DIAG_WMC*/
 
-#ifdef CONFIG_LGE_DIAG_UDM
-/* LGE_MERGE_S [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-static ssize_t read_sms_status_new(struct device *dev, struct device_attribute *attr,
-				   char *buf)
-{
-	int udm_sms_statu_len = sizeof(udm_sms_status_new);
-  
-	memcpy(buf, &lg_diag_req_udm_sms_status_new, udm_sms_statu_len);
-	return udm_sms_statu_len;
-}
-
-static ssize_t write_sms_status_new(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t size)
-{
-	int udm_sms_statu_len = sizeof(udm_sms_status_new);
-
-	memcpy((void*)&lg_diag_req_udm_sms_status_new, buf, udm_sms_statu_len);
-	//  printk( KERN_DEBUG "LG_FW : write_cmd_pkt_length = %d\n",lg_diag_rsp_pkt_length);  
-	return udm_sms_statu_len;
-}
-#endif 
-/* LGE_MERGE_E [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-
-/* LGE_CHANGES_E, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
 static DEVICE_ATTR(cmd_pkt, S_IRUGO | S_IWUSR,read_cmd_pkt, write_cmd_pkt);
 static DEVICE_ATTR(length, S_IRUGO | S_IWUSR,read_cmd_pkt_length, write_cmd_pkt_length);
-/* LGE_CHANGES_S, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
-#if 0
-static DEVICE_ATTR(wlan_status, S_IRUGO | S_IWUSR,read_wlan_status, write_wlan_status);
-#endif 
-/* LGE_CHANGES_E, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
 
 #ifdef CONFIG_LGE_DIAG_WMC
 static DEVICE_ATTR(wmc_cmd_pkt, S_IRUGO | S_IWUSR,read_wmc_cmd_pkt, write_wmc_cmd_pkt);
 static DEVICE_ATTR(wmc_length, S_IRUGO | S_IWUSR,read_wmc_cmd_pkt_length, write_wmc_cmd_pkt_length);
 #endif /*CONFIG_LGE_DIAG_WMC*/
-
-/* LGE_MERGE_S [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-#ifdef CONFIG_LGE_DIAG_UDM
-static DEVICE_ATTR(get_sms, S_IRUGO | S_IWUSR,read_sms_status_new, write_sms_status_new);
-static DEVICE_ATTR(set_sms, S_IRUGO | S_IWUSR,read_sms_status_new, write_sms_status_new);
-static DEVICE_ATTR(sms_status, S_IRUGO | S_IWUSR,read_sms_status_new, write_sms_status_new);
-static DEVICE_ATTR(rsp_get_sms, S_IRUGO | S_IWUSR,read_sms_status_new, write_sms_status_new);
-static DEVICE_ATTR(rsp_set_sms, S_IRUGO | S_IWUSR,read_sms_status_new, write_sms_status_new);
-static DEVICE_ATTR(rsp_sms_status, S_IRUGO | S_IWUSR,read_sms_status_new, write_sms_status_new);
-#endif 
-/* LGE_MERGE_E [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
 
 int lg_diag_create_file(struct platform_device *pdev)
 {
@@ -509,16 +398,6 @@ int lg_diag_create_file(struct platform_device *pdev)
 		device_remove_file(&pdev->dev, &dev_attr_length);
 		return ret;
 	}
-	/* LGE_CHANGES_S, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
-#if 0    //LGE_CHANG, [dongp.kim@lge.com], 2010-10-09, deleting #ifdef LG_FW_WLAN_TEST for enabling Wi-Fi Testmode menus
-	ret = device_create_file(&pdev->dev, &dev_attr_wlan_status);
-	if (ret) {
-		printk( KERN_DEBUG "LG_FW : diag device file3 create fail\n");
-		device_remove_file(&pdev->dev, &dev_attr_wlan_status);
-		return ret;
-	}
-#endif
-	/* LGE_CHANGES_E, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */	
 #ifdef CONFIG_LGE_DIAG_WMC
 	ret = device_create_file(&pdev->dev, &dev_attr_wmc_cmd_pkt);
 	if (ret) {
@@ -535,52 +414,6 @@ int lg_diag_create_file(struct platform_device *pdev)
 	}
 #endif /*CONFIG_LGE_DIAG_WMC*/
 
-	/* LGE_MERGE_S [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-#ifdef CONFIG_LGE_DIAG_UDM
-        ret = device_create_file(&pdev->dev, &dev_attr_sms_status);
-	if (ret) {
-		printk( KERN_DEBUG "LG_FW : diag device file3 create fail\n");
-		device_remove_file(&pdev->dev, &dev_attr_sms_status);
-		return ret;
-	}
-  
-	ret = device_create_file(&pdev->dev, &dev_attr_get_sms);
-	if (ret) {
-		printk( KERN_DEBUG "LG_FW : diag device file3 create fail\n");
-		device_remove_file(&pdev->dev, &dev_attr_get_sms);
-		return ret;
-	}
-  
-	ret = device_create_file(&pdev->dev, &dev_attr_set_sms);
-	if (ret) {
-		printk( KERN_DEBUG "LG_FW : diag device file3 create fail\n");
-		device_remove_file(&pdev->dev, &dev_attr_set_sms);
-		return ret;
-	}
-  
-	ret = device_create_file(&pdev->dev, &dev_attr_rsp_sms_status);
-	if (ret) {
-		printk( KERN_DEBUG "LG_FW : diag device file3 create fail\n");
-		device_remove_file(&pdev->dev, &dev_attr_rsp_sms_status);
-		return ret;
-	}
-  
-	ret = device_create_file(&pdev->dev, &dev_attr_rsp_get_sms);
-	if (ret) {
-		printk( KERN_DEBUG "LG_FW : diag device file3 create fail\n");
-		device_remove_file(&pdev->dev, &dev_attr_rsp_get_sms);
-		return ret;
-	}
-  
-	ret = device_create_file(&pdev->dev, &dev_attr_rsp_set_sms);
-	if (ret) {
-		printk( KERN_DEBUG "LG_FW : diag device file3 create fail\n");
-		device_remove_file(&pdev->dev, &dev_attr_rsp_set_sms);
-		return ret;
-	}
-#endif
-	/* LGE_MERGE_E [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-
 	return ret;
 }
 EXPORT_SYMBOL(lg_diag_create_file);
@@ -588,22 +421,6 @@ EXPORT_SYMBOL(lg_diag_create_file);
 int lg_diag_remove_file(struct platform_device *pdev)
 {
 	device_remove_file(&pdev->dev, &dev_attr_cmd_pkt);
-
-#if 0    //LGE_CHANG, [dongp.kim@lge.com], 2010-10-09, deleting #ifdef LG_FW_WLAN_TEST for enabling Wi-Fi Testmode menus
-	/* LGE_CHANGES_S [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
-	device_remove_file(&pdev->dev, &dev_attr_wlan_status);
-	/* LGE_CHANGES_E, [dongp.kim@lge.com], 2010-01-10, <LGE_FACTORY_TEST_MODE for WLAN RF Test > */
-#endif /* LG_FW_WLAN_TEST */
-#ifdef CONFIG_LGE_DIAG_UDM
-	/* LGE_MERGE_S [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-	device_remove_file(&pdev->dev, &dev_attr_sms_status);
-	device_remove_file(&pdev->dev, &dev_attr_get_sms);
-	device_remove_file(&pdev->dev, &dev_attr_set_sms);
-	device_remove_file(&pdev->dev, &dev_attr_rsp_sms_status);
-	device_remove_file(&pdev->dev, &dev_attr_rsp_get_sms);
-	device_remove_file(&pdev->dev, &dev_attr_rsp_set_sms);
-	/* LGE_MERGE_E [sunmyoung.lee@lge.com] 2010-07-15. SMS UTS Test */
-#endif
 	device_remove_file(&pdev->dev, &dev_attr_length);
 
 #ifdef CONFIG_LGE_DIAG_WMC

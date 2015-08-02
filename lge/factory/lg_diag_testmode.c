@@ -223,12 +223,9 @@ PACK (void *)LGF_TestMode (
             rsp_len = sizeof(DIAG_TEST_MODE_F_rsp_type) - sizeof(test_mode_rsp_type) + sizeof(test_mode_req_wifi_addr_type);
             break;
 
-/* 2011.07.22 woochang.chun@lge.com, to ignore key, touch event on sleep mode (250-42-0) */
-#if 1 //def CONFIG_LGE_DIAG_DISABLE_INPUT_DEVICES_ON_SLEEP_MODE
         case TEST_MODE_SLEEP_MODE_TEST:
             rsp_len = sizeof(DIAG_TEST_MODE_F_rsp_type) - sizeof(test_mode_rsp_type) + sizeof(test_mode_sleep_mode_type);
             break;
-#endif
 
 /* LGE_CHANGE_S [jiyeon.park@lge.com] 2012-01-19 support test mode 8.9*/
 #if 0
@@ -749,8 +746,6 @@ file_fail:
 #endif
 }
 
-/* 2011.07.22 woochang.chun@lge.com, to ignore key, touch event on sleep mode (250-42-0) */
-#ifdef CONFIG_LGE_DIAG_DISABLE_INPUT_DEVICES_ON_SLEEP_MODE 
 static int test_mode_disable_input_devices = 0;
 void LGF_TestModeSetDisableInputDevices(int value)
 {
@@ -761,7 +756,6 @@ int LGF_TestModeGetDisableInputDevices(void)
     return test_mode_disable_input_devices;
 }
 EXPORT_SYMBOL(LGF_TestModeGetDisableInputDevices);
-#endif
 
 extern void LGF_SendKey(word keycode);
 extern void set_operation_mode(boolean info);

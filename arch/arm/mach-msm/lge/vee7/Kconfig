@@ -6,16 +6,6 @@ config MACH_MSM8X25_V7
 	help
 	  Support for the LG Electronics vee7 board LGE.
 
-config LGE_PCB_REVISION
-	int "PCB Revision(0~11)"
-	range 0 11
-	default "1" 
-	depends on MACH_MSM8X25_V7
-	help
-	 Choose PCB Revision(see board_XX.h)
-	 0: EVB, 1: RevA, 2: RevB, 3: RevC, 4: RevD, 5: RevE,
-	 6: RevF, 7: RevG, 8: Rev1P0 9: Rev1P1 10: Rev1P2 11: Reserved
-
 config MACH_MSM8X25_U0
 	depends on ARCH_MSM8625
 	select MACH_LGE
