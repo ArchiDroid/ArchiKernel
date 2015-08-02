@@ -3372,12 +3372,7 @@ CONFIG_NLATTR=y
 # CONFIG_CORDIC is not set
 
 #
-# LGE platform selection
-#
-
-#
 # LGE Factory Feature
 #
 CONFIG_LGE_SUPPORT_RAPI=y
 CONFIG_LGE_EMMC_DIRECT_ACCESS=y
-CONFIG_LGE_FW_HELPER=y
