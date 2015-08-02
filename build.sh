@@ -8,6 +8,9 @@
 # Clone in the same folder as the kernel to choose a toolchain and not specify a location
 
 # Prepare output customization commands - Start
+
+customoutput() {
+if [ "$coloroutput" == "ON" ]; then
 # Stocks Colors
 txtrst=$(tput sgr0) # Stock Color
 red=$(tput setaf 1) # red
@@ -26,6 +29,23 @@ bldblu=${txtbld}${blu} # blue
 bldmag=${txtbld}${mag} # magenta
 bldcya=${txtbld}${cya} # cyan
 bldwhi=${txtbld}${whi} # white
+coloroutputcheck="${bldcya}ON${txtrst}"
+coloroutputzip="--color=auto"
+else
+unset red grn yel blu mag cya whi txtbld bldred bldgrn bldyel bldblu bldmag bldcya bldwhi
+coloroutputcheck="OFF"
+coloroutputzip="--color=never"
+fi
+}
+
+setcustomoutput() {
+if [ "$coloroutput" == "ON" ]; then
+	coloroutput="OFF"
+else
+	coloroutput="ON"
+fi
+}
+
 # Prepare output customization commands - End
 
 # Clean - Start
@@ -244,6 +264,7 @@ kernelsublevel=`cat Makefile | grep SUBLEVEL | cut -c 12- | head -1`
 kernelname=`cat Makefile | grep NAME | cut -c 8- | head -1`
 zipfile="$customkernel-$target$variant.zip"
 lszip=`ls zip-creator/*.zip 2>/dev/null | wc -l`
+customoutput
 clear
 echo "Caio99BR says: Simple Kernel Build Script."
 echo "This is an open source script, feel free to use, edit and share it."
@@ -283,12 +304,13 @@ if [ -f zip-creator/$zipfile ]; then
 	echo "${bldyel}Zip Saved to zip-creator/$zipfile ${txtrst}"
 elif [ "$lszip" -ge 2 ]; then
 	echo "${bldblu}You have old Zips Saved on zip-creator folder!${txtrst}"
-	ls zip-creator/*.zip --color=auto
+	ls zip-creator/*.zip ${coloroutputzip}
 elif [ "$lszip" -ge 1 ]; then
 	echo "${bldblu}You have old Zip Saved on zip-creator folder!${txtrst}"
-	ls zip-creator/*.zip --color=auto
+	ls zip-creator/*.zip ${coloroutputzip}
 fi
 echo "${bldcya}Menu:${txtrst}"
+echo "c) Color ($coloroutputcheck)"
 echo "q) Quit"
 read -n 1 -p "${txtbld}Choice: ${txtrst}" -s x
 case $x in
@@ -316,6 +338,7 @@ case $x in
 	else
 		echo "$x - This option is not valid"; sleep 2; buildsh
 	fi;;
+	c) setcustomoutput; buildsh;;
 	q) echo "Ok, Bye!"; unset zippackagecheck;;
 	*) echo "$x - This option is not valid"; sleep 2; buildsh;;
 esac
@@ -350,6 +373,8 @@ else
 	else
 		unset buildprocesscheck
 	fi
+
+	coloroutput="ON"
 
 	buildsh
 fi
