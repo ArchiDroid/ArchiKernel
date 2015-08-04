@@ -25,7 +25,15 @@ set -e
 
 # Device-specific
 KERNEL="/dev/block/mmcblk0p17" # THIS IS FOR XPERIA M ONLY
-PARSERAMDISK=1 # If we don't need to worry about compressed ramdisk (i.e. putting modules inside), we can skip it
+
+# Global
+AK="/tmp/archikernel"
+AKDROP="$AK/drop"
+
+SUPPORTS_GZIP=0
+SUPPORTS_LZOP=0
+SUPPORTS_XZ=0
+SUPPORTS_LZMA=0
 
 EXTRACT_RAMDISK() {
 	# $1 - Raw ramdisk source (file)
@@ -41,19 +49,19 @@ EXTRACT_RAMDISK() {
 	fi
 
 	echo "INFO: Detecting $1 ramdisk format..."
-	if gunzip --help 2>&1 | grep -q "\-t" && gunzip -t "$1"; then
+	if [[ "$SUPPORTS_GZIP" -eq 1 ]] && gunzip -t "$1"; then
 		echo "INFO: GZIP format detected"
 		CBIN="gzip -9"
 		DBIN="gunzip -c"
-	elif lzop --help 2>&1 | grep -q "\-t" && lzop -t "$1"; then
+	elif [[ "$SUPPORTS_LZOP" -eq 1 ]] && lzop -t "$1"; then
 		echo "INFO: LZO format detected"
 		CBIN="lzop -9"
 		DBIN="lzop -dc"
-	elif xz --help 2>&1 | grep -q "\-t" && xz -t "$1"; then
+	elif [[ "$SUPPORTS_XZ" -eq 1 ]] && xz -t "$1"; then
 		echo "INFO: XZ format detected"
 		CBIN="xz -9"
 		DBIN="xz -dc"
-	elif lzma --help 2>&1 | grep -q "\-t" && lzma -t "$1"; then
+	elif [[ "$SUPPORTS_LZMA" -eq 1 ]] && lzma -t "$1"; then
 		echo "INFO: LZMA format detected"
 		CBIN="lzma -9"
 		DBIN="lzma -dc"
@@ -69,6 +77,8 @@ EXTRACT_RAMDISK() {
 	else
 		cpio -i < "$1" || return 1
 	fi
+
+	rm -f "$1" # We don't need you anymore
 
 	echo "INFO: Success!"
 }
@@ -115,13 +125,13 @@ PARSE_RAMDISK() {
 		echo "INFO: Detected Samsung variant"
 
 		# Remove all current modules from ramdisk
-		find "lib/modules" -type f -name "*.ko" | while read line; do
-			rm -f "$line"
+		find "lib/modules" -type f -name "*.ko" | while read -r KO; do
+			rm -f "$KO"
 		done
 
 		# Copy all new ArchiKernel modules from system to ramdisk
-		find "/system/lib/modules" -type f -name "*.ko" | while read line; do
-			cp "$line" "lib/modules/"
+		find "/system/lib/modules" -type f -name "*.ko" | while read -r KO; do
+			cp "$KO" "lib/modules/"
 		done
 
 		# We're on Sammy so we have no use of system modules, delete them to avoid confusion
@@ -133,8 +143,8 @@ PARSE_RAMDISK() {
 	# If we have any ramdisk content, write it
 	if [[ -d "$AK/ramdisk" ]]; then
 		echo "INFO: Overwriting ramdisk with custom content"
-		find "$AK/ramdisk" -mindepth 1 -maxdepth 1 | while read line; do
-			cp -pR "$line" .
+		find "$AK/ramdisk" -mindepth 1 -maxdepth 1 | while read -r TOCOPY; do
+			cp -pR "$TOCOPY" .
 		done
 	fi
 
@@ -150,7 +160,7 @@ PARSE_RAMDISK() {
 	if grep -q "ArchiKernel-Init" "init.rc"; then
 		echo "INFO: User is updating the kernel!"
 	else
-		echo "INFO: User is flashing the kernel for the first time!"
+		echo "INFO: User is flashing the kernel for the first time"
 		{
 			echo
 			echo "service ArchiKernel-Init /sbin/ArchiKernel-Init"
@@ -159,12 +169,9 @@ PARSE_RAMDISK() {
 			echo "    group root"
 			echo "    oneshot"
 		} >> "init.rc"
+		echo "INFO: Added ArchiKernel-Init service to init.rc"
 	fi
 }
-
-# Global
-AK="/tmp/archikernel"
-AKDROP="$AK/drop"
 
 exec 1>"$AK/ArchiKernel.log"
 exec 2>&1
@@ -173,8 +180,43 @@ date
 echo "INFO: ArchiKernel flasher ready!"
 echo "INFO: Safety check: ON, flasher will immediately terminate in case of ANY error"
 
+# Check if recovery has cpio command
+if ! which cpio >/dev/null; then
+	echo "ERROR: Recovery doesn't know how to parse ramdisk file!"
+	exit 1
+fi
+
+# Detect supported formats
+if which gunzip >/dev/null && gunzip --help 2>&1 | grep -q "\-t"; then
+	SUPPORTS_GZIP=1
+	echo "INFO: Recovery understands GZIP? [YES]"
+else
+	echo "INFO: Recovery understands GZIP? [NO]"
+fi
+
+if which lzop >/dev/null && lzop --help 2>&1 | grep -q "\-t"; then
+	SUPPORTS_LZOP=1
+	echo "INFO: Recovery understands LZO? [YES]"
+else
+	echo "INFO: Recovery understands LZO? [NO]"
+fi
+
+if which xz >/dev/null && xz --help 2>&1 | grep -q "\-t"; then
+	SUPPORTS_XZ=1
+	echo "INFO: Recovery understands XZ? [YES]"
+else
+	echo "INFO: Recovery understands XZ? [NO]"
+fi
+
+if which lzma >/dev/null && lzma --help 2>&1 | grep -q "\-t"; then
+	SUPPORTS_LZMA=1
+	echo "INFO: Recovery understands LZMA? [YES]"
+else
+	echo "INFO: Recovery understands LZMA? [NO]"
+fi
+
 if [[ ! -f "$AK/mkbootimg-static" || ! -f "$AK/unpackbootimg-static" ]]; then
-	echo "ERROR: No bootimg tools?!"
+	echo "ERROR: No bootimg tools detected!"
 	exit 1
 fi
 
@@ -212,8 +254,8 @@ if [[ -f "$AKDROP/boot.img-ramdisk.gz" ]]; then
 	fi
 	REPACK_RAMDISK "$RAMDISK1" "$AKDROP/boot.img-ramdisk.gz" "$RAMDISK1_CBIN"
 else
-	echo "ERROR: No ramdisk?!"
-	exit 2
+	echo "ERROR: No ramdisk detected!"
+	exit 1
 fi
 
 echo "INFO: Combining ArchiKernel zImage and current kernel ramdisk"

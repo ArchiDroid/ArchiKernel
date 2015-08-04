@@ -4,7 +4,7 @@
 #  / ___ \| | | (__| | | | | . \  __/ |  | | | |  __/ |
 # /_/   \_\_|  \___|_| |_|_|_|\_\___|_|  |_| |_|\___|_|
 #
-# Copyright 2015 Łukasz "JustArchi" Domeradzki
+# Copyright 2014-2015 Łukasz "JustArchi" Domeradzki
 # Contact: JustArchi@JustArchi.net
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,14 +20,18 @@
 # limitations under the License.
 
 ui_print(">>> ArchiKernel flasher is now loading...");
-#sleep (1);
+
 assert(getprop("ro.product.device") == "C1904" || getprop("ro.build.product") == "C1904" || getprop("ro.product.device") == "C1905" || getprop("ro.build.product") == "C1905" || getprop("ro.product.device") == "C2004" || getprop("ro.build.product") == "C2004" || getprop("ro.product.device") == "C2005" || getprop("ro.build.product") == "C2005" || getprop("ro.product.device") == "nicki" || getprop("ro.build.product") == "nicki" || abort("This package is for device: C1904,C1905,C2004,C2005,nicki; this device is " + getprop("ro.product.device") + "."););
+
 ui_print("root@ArchiKernel:~# Ready!");
 set_progress(0.1);
+
 run_program("/sbin/mount", "-t", "auto", "/system");
 run_program("/sbin/mount", "-t", "auto", "/data");
+
 set_progress(0.2);
 ui_print("root@ArchiKernel:~# Flashing ArchiKernel");
+
 delete_recursive("/tmp/archikernel");
 package_extract_dir("core", "/tmp/archikernel");
 set_metadata("/tmp/archikernel/init.sh", "uid", 0, "gid", 0, "mode", 0755);
@@ -36,6 +40,7 @@ package_extract_file("prebuilt/zImage", "/tmp/archikernel/zImage");
 delete_recursive("/system/lib/modules");
 package_extract_dir("prebuilt/system", "/system");
 package_extract_dir("overlay", "/");
+
 set_progress(0.3);
 
 if run_program("/tmp/archikernel/fixPreLollipop.sh") == "1" then
@@ -59,6 +64,8 @@ else
 endif;
 
 set_progress(0.9);
+
 unmount("/system");
 unmount("/data");
+
 set_progress(1.0);
