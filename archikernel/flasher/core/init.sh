@@ -21,7 +21,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -eu
 
 # Device-specific
 KERNEL="/dev/block/mmcblk0p17" # THIS IS FOR XPERIA M ONLY
@@ -31,9 +31,11 @@ AK="/tmp/archikernel"
 AKDROP="$AK/drop"
 
 SUPPORTS_GZIP=0
-SUPPORTS_LZOP=0
-SUPPORTS_XZ=0
+SUPPORTS_BZIP2=0
 SUPPORTS_LZMA=0
+SUPPORTS_XZ=0
+SUPPORTS_LZOP=0
+SUPPORTS_LZ4=0
 
 EXTRACT_RAMDISK() {
 	# $1 - Raw ramdisk source (file)
@@ -49,27 +51,35 @@ EXTRACT_RAMDISK() {
 	fi
 
 	echo "INFO: Detecting $1 ramdisk format..."
-	if [[ "$SUPPORTS_GZIP" -eq 1 ]] && gunzip -t "$1"; then
+	if [[ "$SUPPORTS_GZIP" -eq 1 ]] && gzip -t "$1" >/dev/null 2>&1; then
 		echo "INFO: GZIP format detected"
 		CBIN="gzip -9"
-		DBIN="gunzip -c"
-	elif [[ "$SUPPORTS_LZOP" -eq 1 ]] && lzop -t "$1"; then
-		echo "INFO: LZO format detected"
-		CBIN="lzop -9"
-		DBIN="lzop -dc"
-	elif [[ "$SUPPORTS_XZ" -eq 1 ]] && xz -t "$1"; then
-		echo "INFO: XZ format detected"
-		CBIN="xz -9"
-		DBIN="xz -dc"
-	elif [[ "$SUPPORTS_LZMA" -eq 1 ]] && lzma -t "$1"; then
+		DBIN="gzip -dc"
+	elif [[ "$SUPPORTS_BZIP2" -eq 1 ]] && bzip2 -t "$1" >/dev/null 2>&1; then
+		echo "INFO: BZIP2 format detected"
+		CBIN="bzip2 -9"
+		DBIN="bzip2 -dc"
+	elif [[ "$SUPPORTS_LZMA" -eq 1 ]] && lzma -t "$1" >/dev/null 2>&1; then
 		echo "INFO: LZMA format detected"
 		CBIN="lzma -9"
 		DBIN="lzma -dc"
+	elif [[ "$SUPPORTS_XZ" -eq 1 ]] && xz -t "$1" >/dev/null 2>&1; then
+		echo "INFO: XZ format detected"
+		CBIN="xz -9"
+		DBIN="xz -dc"
+	elif [[ "$SUPPORTS_LZOP" -eq 1 ]] && lzop -t "$1" >/dev/null 2>&1; then
+		echo "INFO: LZO format detected"
+		CBIN="lzop -9"
+		DBIN="lzop -dc"
+#	elif [[ "$SUPPORTS_LZ4" -eq 1 ]] && lz4 -t "$1" >/dev/null 2>&1; then # Disabled because of unreliable lz4 -t
+#		echo "INFO: LZ4 format detected"
+#		CBIN="lz4 -9"
+#		DBIN="lz4 -dc"
 	else
 		CBIN="raw"
 		DBIN="raw"
 		echo "INFO: Could not detect any known ramdisk compression format!"
-		echo "INFO: Will try uncompressed mode!"
+		echo "INFO: Will try uncompressed (raw) mode!"
 	fi
 
 	if [[ "$DBIN" != "raw" ]]; then
@@ -86,21 +96,13 @@ EXTRACT_RAMDISK() {
 REPACK_RAMDISK() {
 	# $1 - Extracted ramdisk source (folder)
 	# $2 - Repacked ramdisk target (file)
-	# $3 - Compression type (optional)
+	# $3 - Compression type
 	cd "$1" || return 1
-
-	# Find which compression we should use
-	local LOCAL_CBIN="raw" # Default to raw
-	if [[ -n "$3" ]]; then
-		LOCAL_CBIN="$3" # If there is argument passed, use it
-	elif [[ -n "$CBIN" ]]; then
-		LOCAL_CBIN="$CBIN" # Otherwise check if we have global $CBIN declared
-	fi
 
 	echo "INFO: Repacking $1 folder into $2 ramdisk using $3 compression type"
 
 	if [[ "$LOCAL_CBIN" != "raw" ]]; then
-		find . | cpio -o -H newc | $LOCAL_CBIN > "$2"
+		find . | cpio -o -H newc | $3 > "$2"
 	else
 		find . | cpio -o -H newc > "$2"
 	fi
@@ -187,33 +189,48 @@ if ! which cpio >/dev/null; then
 fi
 
 # Detect supported formats
-if which gunzip >/dev/null && gunzip --help 2>&1 | grep -q "\-t"; then
+if which gzip >/dev/null; then
 	SUPPORTS_GZIP=1
 	echo "INFO: Recovery understands GZIP? [YES]"
 else
 	echo "INFO: Recovery understands GZIP? [NO]"
 fi
 
-if which lzop >/dev/null && lzop --help 2>&1 | grep -q "\-t"; then
-	SUPPORTS_LZOP=1
-	echo "INFO: Recovery understands LZO? [YES]"
+if which bzip2 >/dev/null; then
+	SUPPORTS_BZIP2=1
+	echo "INFO: Recovery understands BZIP2? [YES]"
 else
-	echo "INFO: Recovery understands LZO? [NO]"
+	echo "INFO: Recovery understands BZIP2? [NO]"
 fi
 
-if which xz >/dev/null && xz --help 2>&1 | grep -q "\-t"; then
+if which lzma >/dev/null; then
+	SUPPORTS_LZMA=1
+	echo "INFO: Recovery understands LZMA? [YES]"
+else
+	echo "INFO: Recovery understands LZMA? [NO]"
+fi
+
+if which xz >/dev/null; then
 	SUPPORTS_XZ=1
 	echo "INFO: Recovery understands XZ? [YES]"
 else
 	echo "INFO: Recovery understands XZ? [NO]"
 fi
 
-if which lzma >/dev/null && lzma --help 2>&1 | grep -q "\-t"; then
-	SUPPORTS_LZMA=1
-	echo "INFO: Recovery understands LZMA? [YES]"
+if which lzop >/dev/null; then
+	SUPPORTS_LZOP=1
+	echo "INFO: Recovery understands LZO? [YES]"
 else
-	echo "INFO: Recovery understands LZMA? [NO]"
+	echo "INFO: Recovery understands LZO? [NO]"
 fi
+
+if which lz4 >/dev/null; then
+	SUPPORTS_LZ4=1
+	echo "INFO: Recovery understands LZ4? [YES]"
+else
+	echo "INFO: Recovery understands LZ4? [NO]"
+fi
+
 
 if [[ ! -f "$AK/mkbootimg-static" || ! -f "$AK/unpackbootimg-static" ]]; then
 	echo "ERROR: No bootimg tools detected!"
@@ -234,7 +251,7 @@ mkdir -p "$AKDROP"
 "$AK/unpackbootimg-static" -i "$AK/boot.img" -o "$AKDROP"
 
 RAMDISK1="$AKDROP/ramdisk1"
-RAMDISK2="$AKDROP/ramdisk2"
+RAMDISK2="$AKDROP/ramdisk2" # Used in kernel + recovery combo
 
 if [[ -f "$AKDROP/boot.img-ramdisk.gz" ]]; then
 	echo "INFO: Ramdisk found!"
@@ -281,7 +298,7 @@ else
 fi
 
 echo "SUCCESS: Everything finished successfully!"
-touch "$AK/_OK"
 date
+touch "$AK/_OK"
 
 exit 0
