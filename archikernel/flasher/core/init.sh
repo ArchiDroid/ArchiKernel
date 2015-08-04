@@ -101,7 +101,7 @@ REPACK_RAMDISK() {
 
 	echo "INFO: Repacking $1 folder into $2 ramdisk using $3 compression type"
 
-	if [[ "$LOCAL_CBIN" != "raw" ]]; then
+	if [[ "$3" != "raw" ]]; then
 		find . | cpio -o -H newc | $3 > "$2"
 	else
 		find . | cpio -o -H newc > "$2"
