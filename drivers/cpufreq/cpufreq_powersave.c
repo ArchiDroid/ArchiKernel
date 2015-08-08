@@ -34,7 +34,11 @@ static void cpu_down_work()
 	int cpu;
 
 	for_each_online_cpu(cpu) {
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_HAS_BLUETOOTH_DEADLOCKS
+		if (cpu == 0 || cpu == 1)
+#else
 		if (cpu == 0)
+#endif
 			continue;
 		cpu_down(cpu);
 	}

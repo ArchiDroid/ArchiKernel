@@ -145,8 +145,13 @@ static char custom_profile[20] = "custom";			// ZZ: name to show in sysfs if any
 #define DEF_HOTPLUG_IDLE_FREQ				(0)	// ZZ: default hotplug idle freq
 #define DEF_HOTPLUG_ENGAGE_FREQ				(0)	// ZZ: default hotplug engage freq. the frequency below which we run on only one core (0 = disabled) (ffolkes)
 #define DEF_HOTPLUG_MAX_LIMIT				(0)	// ff: default for hotplug_max_limit. the number of cores we allow to be online (0 = disabled)
+#ifdef CONFIG_ARCHIKERNEL_TARGET_SYSTEM_HAS_BLUETOOTH_DEADLOCKS
+#define DEF_HOTPLUG_MIN_LIMIT				(2)	// ff: default for hotplug_min_limit. the number of cores we require to be online (0 = disabled)
+#define DEF_HOTPLUG_LOCK				(2)	// ff: default for hotplug_lock. the number of cores we require to be online (0 = disabled)
+#else
 #define DEF_HOTPLUG_MIN_LIMIT				(0)	// ff: default for hotplug_min_limit. the number of cores we require to be online (0 = disabled)
 #define DEF_HOTPLUG_LOCK				(0)	// ff: default for hotplug_lock. the number of cores we require to be online (0 = disabled)
+#endif
 #endif /* ENABLE_HOTPLUGGING */
 #define DEF_SCALING_BLOCK_THRESHOLD			(0)	// ZZ: default scaling block threshold
 #define DEF_SCALING_BLOCK_CYCLES			(0)	// ZZ: default scaling block cycles

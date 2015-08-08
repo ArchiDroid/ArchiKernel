@@ -287,6 +287,17 @@ menu "ArchiKernel settings"
 			This option disables slice encoding, which is active by default on 
 			Samsung ROMs.
 
+	config ARCHIKERNEL_TARGET_SYSTEM_HAS_BLUETOOTH_DEADLOCKS
+		bool "System has bluetooth deadlocks"
+		depends on BT_BCM4334
+		default y if !ARCHIKERNEL_TARGET_SYSTEM_SAMSUNG
+		help
+			It seems that Android Lollipop introduced a bug which causes an
+			event listener to deadlock when A2DP is used and governor forces
+			only one core to stay awake. This hack prevents such situation by
+			always leaving at least two cores online. I wish we could get rid
+			of this at some point.
+
 	config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_S5C73M3_FIRMWARE
 		bool "System has broken S5C73M3 firmware"
 		depends on VIDEO_S5C73M3
