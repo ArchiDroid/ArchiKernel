@@ -2356,7 +2356,7 @@ static struct gpio_keys_button the_buttons[] = {
 		.gpio = GPIO_CAMERA_FOCUS,
 		.code = KEY_CAMERA_FOCUS,
 		.desc = "Camera Focus",
-		.wakeup = 0,
+		.wakeup = 1,
 		.active_low = 1,
 		.debounce_interval = 100
 	},
