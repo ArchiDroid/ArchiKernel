@@ -27,8 +27,8 @@ set -eu
 KERNEL="/dev/block/mmcblk0p5" # THIS IS FOR GALAXY S3 ONLY
 
 # Device-specific quirks, enable as needed
-FORCE_POOR_COMPRESSION_CBIN="" # Put custom CBIN, e.g. "gzip -9" if LZO/LZ4 ramdisks should be repacked with other compression algorithm instead
-LZOP_LIES=1 # Enable if lzop -t lies
+FORCE_POOR_COMPRESSION_CBIN="gzip -9" # Put custom CBIN, e.g. "gzip -9" if LZO/LZ4 ramdisks should be repacked with other compression algorithm instead
+LZOP_LIES=0 # Enable if lzop -t lies
 LZ4_LIES=1 # Enable if lz4 -t lies
 
 # Global
