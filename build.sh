@@ -70,25 +70,25 @@ unset buildprocesscheck target serie variant maindevicecheck BUILDTIME
 
 maindevice() {
 echo "-${bldred}First Gen${txtrst}-"
-echo "0) L5 NFC"
-echo "1) L5 NoNFC"
-echo "2) L7 NFC - 8m"
-echo "3) L7 NFC"
-echo "4) L7 NoNFC"
+echo "0) L5 NFC            (E610)"
+echo "1) L5 NoNFC          (E612/E617)"
+echo "2) L7 NFC            (P700)"
+echo "3) L7 NoNFC          (P705)"
+echo "4) L7 NFC - 8m       (P708)"
 echo "-${bldblu}Second Gen${txtrst}-"
-echo "5) L1 II Single/Dual"
-echo "6) L3 II Single/Dual"
-echo "7) L7 II NFC"
-echo "8) L7 II NoNFC"
-echo "9) L7 II Dual"
+echo "5) L1 II Single/Dual (E410/E411/E415/E420)"
+echo "6) L3 II Single/Dual (E425/E430/E431/E435)"
+echo "7) L7 II NFC         (P710/P712)"
+echo "8) L7 II NoNFC       (P713/P714)"
+echo "9) L7 II Dual        (P715/P716)"
 unset errorchoice
 read -p "Choice: " -n 1 -s choice
 case "$choice" in
 	0 ) target="L5-"; variant="NFC"; defconfig="cyanogenmod_m4_defconfig";;
 	1 ) target="L5-"; variant="NoNFC"; defconfig="cyanogenmod_m4_nonfc_defconfig";;
-	2 ) target="L7-"; variant="NFC-8m"; defconfig="cyanogenmod_u0_8m_defconfig";;
-	3 ) target="L7-"; variant="NFC"; defconfig="cyanogenmod_u0_defconfig";;
-	4 ) target="L7-"; variant="NoNFC"; defconfig="cyanogenmod_u0_nonfc_defconfig";;
+	2 ) target="L7-"; variant="NFC"; defconfig="cyanogenmod_u0_defconfig";;
+	3 ) target="L7-"; variant="NoNFC"; defconfig="cyanogenmod_u0_nonfc_defconfig";;
+	4 ) target="L7-"; variant="NFC-8m"; defconfig="cyanogenmod_u0_8m_defconfig";;
 	5 ) target="L1II-"; variant="SD"; defconfig="cyanogenmod_v1_defconfig";;
 	6 ) target="L3II-"; variant="SD"; defconfig="cyanogenmod_vee3_defconfig";;
 	7 ) target="L7II-"; variant="NFC"; defconfig="cyanogenmod_vee7_defconfig";;
