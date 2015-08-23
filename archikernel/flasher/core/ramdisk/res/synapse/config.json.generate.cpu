@@ -74,8 +74,13 @@ cat << _EOF
 					SCheckBox:{
 						label:"MPDecision daemon",
 						description:"Qualcomm SoC uses proprietary binary called MPDecision to manage hotplugging of extra CPU cores. This greatly improves battery life but also prevents any other hotplugging solutions or manual hotplug found below from working. Also, while mpdecision is active you can't change any CPU1+ properties (such as max/min frequency). This switch allows you to disable mpdecision, you should do so only if you know what you're doing, as this will potentially decrease battery life and cause all CPU cores to be up and running whole the time, unless you decide to use other hotplugging solution or hotplug cores manually",
-						default:$(AK_service mpdecision),
+						default:1,
 						action:"AK_service mpdecision"
+					}
+				},
+				{
+					SDescription:{
+						description:""
 					}
 				},
 _EOF
