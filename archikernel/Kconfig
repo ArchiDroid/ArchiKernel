@@ -249,6 +249,7 @@ menu "ArchiKernel settings"
 	config ARCHIKERNEL_CPU_OC
 		bool "Enable overclocking of the CPU"
 		depends on CPU_FREQ
+		select MSM7X27A_OVERCLOCK
 		help
 			This option enables additional CPU clock frequencies.
 
