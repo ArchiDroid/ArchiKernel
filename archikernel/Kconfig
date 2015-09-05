@@ -90,6 +90,11 @@ menu "ArchiKernel settings"
 		help
 			Cortex A7 CPU.
 
+	config ARCHIKERNEL_TARGET_CPU_CORTEXA5
+		bool "Cortex A5"
+		help
+			Cortex A5 CPU.
+
 	config ARCHIKERNEL_TARGET_CPU_UNKNOWN
 		bool "Unknown"
 		help
