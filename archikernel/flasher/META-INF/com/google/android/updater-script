@@ -21,6 +21,10 @@
 
 ui_print(">>> ArchiKernel flasher is now loading...");
 
+assert(getprop("ro.product.device") == "e610" ||
+       getprop("ro.build.product") == "e610" ||
+       abort("This package is for device: e610; this device is " + getprop("ro.product.device") + "."););
+
 ui_print("root@ArchiKernel:~# Ready!");
 set_progress(0.1);
 
