@@ -584,6 +584,10 @@ ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA7
 KBUILD_CFLAGS	+= -mcpu=cortex-a7 -mtune=cortex-a7
 endif
 
+ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_CORTEXA5
+KBUILD_CFLAGS	+= -mcpu=cortex-a5 -mtune=cortex-a5
+endif
+
 # Target ABI
 ifdef CONFIG_ARCHIKERNEL_TARGET_CPU_ABI_SOFT
 KBUILD_CFLAGS	+= -mfloat-abi=soft
