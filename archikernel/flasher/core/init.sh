@@ -308,8 +308,8 @@ else
 	dd if="$AK/newboot.img" of="$KERNEL"
 fi
 
-echo "INFO: Cleaning old Synapse config"
-rm -rf /data/data/com.af.synapse
+echo "INFO: Cleaning old config files"
+rm -rf /data/.ArchiKernel /data/data/com.af.synapse
 
 echo "SUCCESS: Everything finished successfully!"
 date
