@@ -284,6 +284,13 @@ menu "ArchiKernel settings"
 			In older kernel sources, 2 was used for OFF, and 1 was used for ON.
 			This option makes kernel "accept" older 2 value for OFF command.
 
+	config ARCHIKERNEL_TARGET_SYSTEM_HAS_BROKEN_FENCES
+		bool "System has broken fences"
+		depends on FB_S5P
+		help
+			Some older (broken) HWCs have broken fences support and requires
+			special treatment. Select this option if screen is flickering.
+
 	config ARCHIKERNEL_TARGET_SYSTEM_HAS_NO_SLICE_ENCODING
 		bool "System does not support slice encoding"
 		depends on VIDEO_MFC5X
