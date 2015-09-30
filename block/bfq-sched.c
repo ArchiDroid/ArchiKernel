@@ -626,16 +626,17 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 		old_st->wsum -= entity->weight;
 
 		if (entity->new_weight != entity->orig_weight) {
+			if (entity->new_weight < BFQ_MIN_WEIGHT ||
+			    entity->new_weight > BFQ_MAX_WEIGHT) {
+				printk(KERN_CRIT "update_weight_prio: "
+						 "new_weight %d\n",
+					entity->new_weight);
+				BUG();
+			}
 			entity->orig_weight = entity->new_weight;
 			entity->ioprio =
 				bfq_weight_to_ioprio(entity->orig_weight);
-		} else if (entity->new_ioprio != entity->ioprio) {
-			entity->ioprio = entity->new_ioprio;
-			entity->orig_weight =
-					bfq_ioprio_to_weight(entity->ioprio);
-		} else
-			entity->new_weight = entity->orig_weight =
-				bfq_ioprio_to_weight(entity->ioprio);
+		}
 
 		entity->ioprio_class = entity->new_ioprio_class;
 		entity->ioprio_changed = 0;
