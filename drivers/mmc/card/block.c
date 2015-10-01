@@ -406,18 +406,6 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 		goto cmd_done;
 	}
 
-	if( idata->ic.ext_flags )
-	{
-		switch( idata->ic.ext_flags )
-		{
-			case MMC_IOC_EXT_SET_CLOCK:
-				mmc_set_clock(card->host, idata->ic.arg);
-				break;
-			defualt: printk(KERN_ERR"Unkown ext flags on mmc_ioc_cmd\n");
-		}
-		goto cmd_done;
-	}
-
 	cmd.opcode = idata->ic.opcode;
 	cmd.arg = idata->ic.arg;
 	cmd.flags = idata->ic.flags;
