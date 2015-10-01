@@ -44,7 +44,7 @@
  */
 
 // NOTE: profile values in this version are mainly for Exynos devices!
-static char profiles_file_version[20] = "0.3 beta8";
+static char profiles_file_version[20] = "develop";
 #define PROFILE_TABLE_END ~1
 #define END_OF_PROFILES "end"
 
